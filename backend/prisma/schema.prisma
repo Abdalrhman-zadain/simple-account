@@ -27,6 +27,7 @@ model Account {
   name            String
   type            AccountType
   isActive        Boolean            @default(true)
+  currentBalance  Decimal            @default(0) @db.Decimal(18, 2)
   parentAccountId String?
   parentAccount   Account?           @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
   childAccounts   Account[]          @relation("AccountHierarchy")
@@ -46,6 +47,9 @@ model JournalEntry {
   entryDate      DateTime
   status         JournalEntryStatus @default(DRAFT)
   postedAt       DateTime?
+  reversalOfId   String?            @unique
+  reversalOf     JournalEntry?      @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
+  reversedBy     JournalEntry?      @relation("JournalEntryReversal")
   lines          JournalEntryLine[]
   ledgerLines    LedgerTransaction[]
   postingBatchId String?            @unique

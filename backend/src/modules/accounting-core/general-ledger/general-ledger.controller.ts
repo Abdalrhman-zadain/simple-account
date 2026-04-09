@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 
 import { QueryLedgerDto } from './dto/query-ledger.dto';
 import { GeneralLedgerService } from './general-ledger.service';
@@ -10,5 +10,10 @@ export class GeneralLedgerController {
   @Get()
   list(@Query() query: QueryLedgerDto) {
     return this.generalLedgerService.list(query);
+  }
+
+  @Get(':id')
+  getTransactionDetail(@Param('id') id: string) {
+    return this.generalLedgerService.getTransactionDetail(id);
   }
 }

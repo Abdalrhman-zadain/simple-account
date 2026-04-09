@@ -49,6 +49,28 @@ export class AccountsService {
     });
   }
 
+  async hierarchy(query?: { type?: string; isActive?: string; search?: string }) {
+    const accounts = await this.list(query);
+    const byParent = new Map<string | null, typeof accounts>();
+
+    for (const account of accounts) {
+      const parentId = account.parentAccountId ?? null;
+      const siblings = byParent.get(parentId) ?? [];
+      siblings.push(account);
+      byParent.set(parentId, siblings);
+    }
+
+    type AccountTreeNode = (typeof accounts)[number] & { children: AccountTreeNode[] };
+
+    const buildTree = (parentId: string | null): AccountTreeNode[] =>
+      (byParent.get(parentId) ?? []).map((account) => ({
+        ...account,
+        children: buildTree(account.id),
+      }));
+
+    return buildTree(null);
+  }
+
   async getById(id: string) {
     const account = await this.prisma.account.findUnique({ where: { id } });
 
@@ -63,6 +85,10 @@ export class AccountsService {
     await this.ensureAccountExists(id);
 
     if (dto.parentAccountId) {
+      if (dto.parentAccountId === id) {
+        throw new ConflictException('An account cannot be its own parent.');
+      }
+
       await this.ensureAccountExists(dto.parentAccountId);
     }
 

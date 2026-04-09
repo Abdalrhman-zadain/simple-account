@@ -16,6 +16,7 @@ describe('PostingService', () => {
     },
     account: {
       findMany: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -24,9 +25,13 @@ describe('PostingService', () => {
   };
 
   const journalEntriesService = {
-    getEntryOrThrow: jest.fn(),
     ensureDraft: jest.fn(),
     validateLines: jest.fn(),
+    getById: jest.fn().mockResolvedValue({
+      id: 'entry-1',
+      status: 'POSTED',
+      postingBatchId: 'batch-1',
+    }),
   };
 
   let service: PostingService;
@@ -66,6 +71,7 @@ describe('PostingService', () => {
       { id: 'cash', isActive: true },
       { id: 'revenue', isActive: true },
     ]);
+    tx.account.update.mockResolvedValue({});
     tx.postingBatch.create.mockResolvedValue({ id: 'batch-1' });
     tx.ledgerTransaction.createMany.mockResolvedValue({ count: 2 });
     tx.journalEntry.update.mockResolvedValue({
@@ -109,6 +115,7 @@ describe('PostingService', () => {
         ]),
       }),
     );
+    expect(tx.account.update).toHaveBeenCalledTimes(2);
     expect(result.status).toBe('POSTED');
     expect(result.postingBatchId).toBe('batch-1');
   });

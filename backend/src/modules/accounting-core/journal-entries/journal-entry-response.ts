@@ -15,5 +15,6 @@ export type JournalEntryResponse = {
   description: string | null;
   postedAt: string | null;
   postingBatchId: string | null;
+  reversalOfId: string | null;
   lines: JournalEntryLineResponse[];
 };

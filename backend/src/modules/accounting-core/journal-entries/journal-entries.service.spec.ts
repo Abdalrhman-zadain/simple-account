@@ -36,6 +36,9 @@ describe('JournalEntriesService', () => {
     ]);
     prisma.journalEntry.create.mockResolvedValue({
       id: 'entry-1',
+    });
+    prisma.journalEntry.findUnique.mockResolvedValue({
+      id: 'entry-1',
       reference: 'JE-20260409-TESTREF',
       status: JournalEntryStatus.DRAFT,
       entryDate: new Date('2026-04-09T00:00:00.000Z'),

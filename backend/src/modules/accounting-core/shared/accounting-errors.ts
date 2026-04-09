@@ -18,6 +18,18 @@ export class JournalEntryAlreadyPostedException extends ConflictException {
   }
 }
 
+export class JournalEntryNotPostedException extends ConflictException {
+  constructor(entryId: string) {
+    super(`Journal entry ${entryId} has not been posted yet.`);
+  }
+}
+
+export class JournalEntryAlreadyReversedException extends ConflictException {
+  constructor(entryId: string) {
+    super(`Journal entry ${entryId} has already been reversed.`);
+  }
+}
+
 export class InvalidJournalEntryException extends BadRequestException {
   constructor(message: string) {
     super(message);

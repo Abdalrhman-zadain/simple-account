@@ -22,6 +22,15 @@ export class AccountsController {
     return this.accountsService.list({ type, isActive, search });
   }
 
+  @Get('hierarchy/tree')
+  hierarchy(
+    @Query('type') type?: string,
+    @Query('isActive') isActive?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.accountsService.hierarchy({ type, isActive, search });
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.accountsService.getById(id);

@@ -7,6 +7,7 @@ import { GeneralLedgerService } from './general-ledger/general-ledger.service';
 import { JournalEntriesController } from './journal-entries/journal-entries.controller';
 import { JournalEntriesService } from './journal-entries/journal-entries.service';
 import { PostingService } from './posting/posting.service';
+import { ReversalService } from './reversal/reversal.service';
 import { ReferenceService } from './shared/reference.service';
 
 @Module({
@@ -20,6 +21,7 @@ import { ReferenceService } from './shared/reference.service';
     JournalEntriesService,
     GeneralLedgerService,
     PostingService,
+    ReversalService,
     ReferenceService,
   ],
 })

@@ -3,9 +3,11 @@ import { JournalEntry, JournalEntryLine, JournalEntryStatus, Prisma } from '../.
 
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
+  JournalEntryAlreadyReversedException,
   InvalidJournalEntryException,
   JournalEntryAlreadyPostedException,
   JournalEntryNotFoundException,
+  JournalEntryNotPostedException,
 } from '../shared/accounting-errors';
 import { toAmountString } from '../shared/decimal.util';
 import { ReferenceService } from '../shared/reference.service';
@@ -34,10 +36,9 @@ export class JournalEntriesService {
           create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
         },
       },
-      include: { lines: { orderBy: { lineNumber: 'asc' } } },
     });
 
-    return this.toResponse(created);
+    return this.getById(created.id);
   }
 
   async list(filters?: {
@@ -107,11 +108,10 @@ export class JournalEntriesService {
               }
             : undefined,
         },
-        include: { lines: { orderBy: { lineNumber: 'asc' } } },
       });
     });
 
-    return this.toResponse(updated);
+    return this.getById(updated.id);
   }
 
   async getEntryOrThrow(id: string) {
@@ -130,6 +130,21 @@ export class JournalEntriesService {
   ensureDraft(entry: EntryWithLines) {
     if (entry.status === JournalEntryStatus.POSTED) {
       throw new JournalEntryAlreadyPostedException(entry.id);
+    }
+  }
+
+  async ensurePosted(entry: EntryWithLines) {
+    if (entry.status !== JournalEntryStatus.POSTED) {
+      throw new JournalEntryNotPostedException(entry.id);
+    }
+
+    const existingReversal = await this.prisma.journalEntry.findFirst({
+      where: { reversalOfId: entry.id },
+      select: { id: true },
+    });
+
+    if (existingReversal) {
+      throw new JournalEntryAlreadyReversedException(entry.id);
     }
   }
 
@@ -194,7 +209,7 @@ export class JournalEntriesService {
     };
   }
 
-  private toResponse(entry: EntryWithLines): JournalEntryResponse {
+  toResponse(entry: EntryWithLines & { reversalOfId?: string | null }): JournalEntryResponse {
     return {
       id: entry.id,
       reference: entry.reference,
@@ -203,6 +218,7 @@ export class JournalEntriesService {
       description: entry.description,
       postedAt: entry.postedAt?.toISOString() ?? null,
       postingBatchId: entry.postingBatchId ?? null,
+      reversalOfId: entry.reversalOfId ?? null,
       lines: entry.lines.map((line) => ({
         id: line.id,
         accountId: line.accountId,

@@ -3,6 +3,8 @@ import { JournalEntryStatus } from '../../../generated/prisma/index';
 
 import { PostingService } from '../posting/posting.service';
 import { CreateJournalEntryDto, UpdateJournalEntryDto } from './dto/journal-entry-line.dto';
+import { ReverseJournalEntryDto } from './dto/reverse-journal-entry.dto';
+import { ReversalService } from '../reversal/reversal.service';
 import { JournalEntriesService } from './journal-entries.service';
 
 @Controller('journal-entries')
@@ -10,6 +12,7 @@ export class JournalEntriesController {
   constructor(
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
+    private readonly reversalService: ReversalService,
   ) {}
 
   @Post()
@@ -40,5 +43,10 @@ export class JournalEntriesController {
   @Post(':id/post')
   post(@Param('id') id: string) {
     return this.postingService.post(id);
+  }
+
+  @Post(':id/reverse')
+  reverse(@Param('id') id: string, @Body() dto: ReverseJournalEntryDto) {
+    return this.reversalService.reverse(id, dto);
   }
 }
