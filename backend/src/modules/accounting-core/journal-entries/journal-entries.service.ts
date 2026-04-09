@@ -1,0 +1,216 @@
+import { Injectable } from '@nestjs/common';
+import { JournalEntry, JournalEntryLine, JournalEntryStatus, Prisma } from '../../../generated/prisma/index';
+
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import {
+  InvalidJournalEntryException,
+  JournalEntryAlreadyPostedException,
+  JournalEntryNotFoundException,
+} from '../shared/accounting-errors';
+import { toAmountString } from '../shared/decimal.util';
+import { ReferenceService } from '../shared/reference.service';
+import { CreateJournalEntryDto, JournalEntryLineDto, UpdateJournalEntryDto } from './dto/journal-entry-line.dto';
+import { JournalEntryResponse } from './journal-entry-response';
+
+type EntryWithLines = JournalEntry & { lines: JournalEntryLine[] };
+
+@Injectable()
+export class JournalEntriesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly referenceService: ReferenceService,
+  ) {}
+
+  async create(dto: CreateJournalEntryDto): Promise<JournalEntryResponse> {
+    this.validateLines(dto.lines);
+    await this.ensureAccountsAreActive(dto.lines);
+
+    const created = await this.prisma.journalEntry.create({
+      data: {
+        reference: this.referenceService.generateJournalEntryReference(new Date(dto.entryDate)),
+        entryDate: new Date(dto.entryDate),
+        description: dto.description,
+        lines: {
+          create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
+        },
+      },
+      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+    });
+
+    return this.toResponse(created);
+  }
+
+  async list(filters?: {
+    status?: JournalEntryStatus;
+    dateFrom?: string;
+    dateTo?: string;
+    reference?: string;
+  }): Promise<JournalEntryResponse[]> {
+    const entries = await this.prisma.journalEntry.findMany({
+      where: {
+        status: filters?.status,
+        reference: filters?.reference
+          ? { contains: filters.reference, mode: 'insensitive' }
+          : undefined,
+        entryDate:
+          filters?.dateFrom || filters?.dateTo
+            ? {
+                gte: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
+                lte: filters.dateTo ? new Date(filters.dateTo) : undefined,
+              }
+            : undefined,
+      },
+      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return entries.map((entry) => this.toResponse(entry));
+  }
+
+  async getById(id: string): Promise<JournalEntryResponse> {
+    const entry = await this.prisma.journalEntry.findUnique({
+      where: { id },
+      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+    });
+
+    if (!entry) {
+      throw new JournalEntryNotFoundException(id);
+    }
+
+    return this.toResponse(entry);
+  }
+
+  async update(id: string, dto: UpdateJournalEntryDto): Promise<JournalEntryResponse> {
+    const existing = await this.getEntryOrThrow(id);
+    this.ensureDraft(existing);
+
+    if (dto.lines) {
+      this.validateLines(dto.lines);
+      await this.ensureAccountsAreActive(dto.lines);
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.lines) {
+        await tx.journalEntryLine.deleteMany({
+          where: { journalEntryId: id },
+        });
+      }
+
+      return tx.journalEntry.update({
+        where: { id },
+        data: {
+          entryDate: dto.entryDate ? new Date(dto.entryDate) : undefined,
+          description: dto.description,
+          lines: dto.lines
+            ? {
+                create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
+              }
+            : undefined,
+        },
+        include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      });
+    });
+
+    return this.toResponse(updated);
+  }
+
+  async getEntryOrThrow(id: string) {
+    const entry = await this.prisma.journalEntry.findUnique({
+      where: { id },
+      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+    });
+
+    if (!entry) {
+      throw new JournalEntryNotFoundException(id);
+    }
+
+    return entry;
+  }
+
+  ensureDraft(entry: EntryWithLines) {
+    if (entry.status === JournalEntryStatus.POSTED) {
+      throw new JournalEntryAlreadyPostedException(entry.id);
+    }
+  }
+
+  validateLines(lines: JournalEntryLineDto[]) {
+    if (lines.length < 2) {
+      throw new InvalidJournalEntryException('A journal entry requires at least two lines.');
+    }
+
+    let debitTotal = 0;
+    let creditTotal = 0;
+
+    for (const [index, line] of lines.entries()) {
+      const linePosition = index + 1;
+
+      if (line.debitAmount > 0 && line.creditAmount > 0) {
+        throw new InvalidJournalEntryException(
+          `Line ${linePosition} cannot contain both a debit and a credit amount.`,
+        );
+      }
+
+      if (line.debitAmount === 0 && line.creditAmount === 0) {
+        throw new InvalidJournalEntryException(
+          `Line ${linePosition} must contain either a debit or a credit amount.`,
+        );
+      }
+
+      debitTotal += line.debitAmount;
+      creditTotal += line.creditAmount;
+    }
+
+    if (Number((debitTotal - creditTotal).toFixed(2)) !== 0) {
+      throw new InvalidJournalEntryException('Journal entry is not balanced.');
+    }
+  }
+
+  async ensureAccountsAreActive(lines: JournalEntryLineDto[]) {
+    const accountIds = [...new Set(lines.map((line) => line.accountId))];
+    const accounts = await this.prisma.account.findMany({
+      where: { id: { in: accountIds } },
+    });
+
+    if (accounts.length !== accountIds.length) {
+      const foundIds = new Set(accounts.map((account) => account.id));
+      const missingId = accountIds.find((accountId) => !foundIds.has(accountId));
+      throw new InvalidJournalEntryException(`Account ${missingId} does not exist.`);
+    }
+
+    const inactiveAccount = accounts.find((account) => !account.isActive);
+
+    if (inactiveAccount) {
+      throw new InvalidJournalEntryException(`Account ${inactiveAccount.id} is inactive.`);
+    }
+  }
+
+  private mapLineCreateInput(line: JournalEntryLineDto, index: number): Prisma.JournalEntryLineUncheckedCreateWithoutJournalEntryInput {
+    return {
+      accountId: line.accountId,
+      lineNumber: index + 1,
+      description: line.description,
+      debitAmount: toAmountString(line.debitAmount),
+      creditAmount: toAmountString(line.creditAmount),
+    };
+  }
+
+  private toResponse(entry: EntryWithLines): JournalEntryResponse {
+    return {
+      id: entry.id,
+      reference: entry.reference,
+      status: entry.status,
+      entryDate: entry.entryDate.toISOString(),
+      description: entry.description,
+      postedAt: entry.postedAt?.toISOString() ?? null,
+      postingBatchId: entry.postingBatchId ?? null,
+      lines: entry.lines.map((line) => ({
+        id: line.id,
+        accountId: line.accountId,
+        description: line.description,
+        lineNumber: line.lineNumber,
+        debitAmount: line.debitAmount.toString(),
+        creditAmount: line.creditAmount.toString(),
+      })),
+    };
+  }
+}
