@@ -9,8 +9,16 @@ import { JournalEntriesService } from './journal-entries/journal-entries.service
 import { PostingService } from './posting/posting.service';
 import { ReversalService } from './reversal/reversal.service';
 import { ReferenceService } from './shared/reference.service';
+import { SegmentsModule } from './segments/segments.module';
+import { FiscalModule } from './fiscal/fiscal.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
+  imports: [
+    SegmentsModule,
+    FiscalModule,
+    AuditModule,
+  ],
   controllers: [
     AccountsController,
     JournalEntriesController,
@@ -24,5 +32,12 @@ import { ReferenceService } from './shared/reference.service';
     ReversalService,
     ReferenceService,
   ],
+  exports: [
+    SegmentsModule,
+    FiscalModule,
+    AuditModule,
+    AccountsService,
+    JournalEntriesService,
+  ]
 })
-export class AccountingCoreModule {}
+export class AccountingCoreModule { }

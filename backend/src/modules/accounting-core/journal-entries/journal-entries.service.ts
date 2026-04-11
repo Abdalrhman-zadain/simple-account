@@ -21,17 +21,21 @@ export class JournalEntriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly referenceService: ReferenceService,
-  ) {}
+  ) { }
 
   async create(dto: CreateJournalEntryDto): Promise<JournalEntryResponse> {
     this.validateLines(dto.lines);
-    await this.ensureAccountsAreActive(dto.lines);
+    await this.ensureAccountsArePostable(dto.lines);
+
+    const entryDate = new Date(dto.entryDate);
+    const period = await this.resolveFiscalPeriod(entryDate);
 
     const created = await this.prisma.journalEntry.create({
       data: {
-        reference: this.referenceService.generateJournalEntryReference(new Date(dto.entryDate)),
-        entryDate: new Date(dto.entryDate),
+        reference: this.referenceService.generateJournalEntryReference(entryDate),
+        entryDate,
         description: dto.description,
+        fiscalPeriodId: period?.id,
         lines: {
           create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
         },
@@ -56,9 +60,9 @@ export class JournalEntriesService {
         entryDate:
           filters?.dateFrom || filters?.dateTo
             ? {
-                gte: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
-                lte: filters.dateTo ? new Date(filters.dateTo) : undefined,
-              }
+              gte: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
+              lte: filters.dateTo ? new Date(filters.dateTo) : undefined,
+            }
             : undefined,
       },
       include: { lines: { orderBy: { lineNumber: 'asc' } } },
@@ -104,8 +108,8 @@ export class JournalEntriesService {
           description: dto.description,
           lines: dto.lines
             ? {
-                create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
-              }
+              create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
+            }
             : undefined,
         },
       });
@@ -180,7 +184,7 @@ export class JournalEntriesService {
     }
   }
 
-  async ensureAccountsAreActive(lines: JournalEntryLineDto[]) {
+  async ensureAccountsArePostable(lines: JournalEntryLineDto[]) {
     const accountIds = [...new Set(lines.map((line) => line.accountId))];
     const accounts = await this.prisma.account.findMany({
       where: { id: { in: accountIds } },
@@ -192,11 +196,39 @@ export class JournalEntriesService {
       throw new InvalidJournalEntryException(`Account ${missingId} does not exist.`);
     }
 
-    const inactiveAccount = accounts.find((account) => !account.isActive);
-
-    if (inactiveAccount) {
-      throw new InvalidJournalEntryException(`Account ${inactiveAccount.id} is inactive.`);
+    for (const account of accounts) {
+      if (!account.isActive) {
+        throw new InvalidJournalEntryException(`Account "${account.name}" is inactive and cannot be used for posting.`);
+      }
+      if (!account.isPosting) {
+        throw new InvalidJournalEntryException(`Account "${account.name}" is a Header account and cannot receive journal entries.`);
+      }
+      if (!account.allowManualPosting) {
+        throw new InvalidJournalEntryException(`Account "${account.name}" does not allow manual posting.`);
+      }
     }
+  }
+
+  // Keep the old method name as an alias for backward compatibility
+  async ensureAccountsAreActive(lines: JournalEntryLineDto[]) {
+    return this.ensureAccountsArePostable(lines);
+  }
+
+  private async resolveFiscalPeriod(date: Date) {
+    const period = await this.prisma.fiscalPeriod.findFirst({
+      where: {
+        startDate: { lte: date },
+        endDate: { gte: date },
+      },
+    });
+
+    if (period && (period.status === 'CLOSED' || period.status === 'LOCKED')) {
+      throw new InvalidJournalEntryException(
+        `The fiscal period "${period.name}" is ${period.status.toLowerCase()}. Posting is not allowed.`
+      );
+    }
+
+    return period;
   }
 
   private mapLineCreateInput(line: JournalEntryLineDto, index: number): Prisma.JournalEntryLineUncheckedCreateWithoutJournalEntryInput {

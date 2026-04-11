@@ -6,29 +6,36 @@ import { AccountsService } from './accounts.service';
 
 @Controller('accounts')
 export class AccountsController {
-  constructor(private readonly accountsService: AccountsService) {}
+  constructor(private readonly accountsService: AccountsService) { }
 
   @Post()
   create(@Body() dto: CreateAccountDto) {
     return this.accountsService.create(dto);
   }
 
+  @Get('next-code')
+  getNextCode(@Query('parentId') parentId?: string) {
+    return this.accountsService.generateNextCode(parentId || null);
+  }
+
   @Get()
   list(
     @Query('type') type?: string,
     @Query('isActive') isActive?: string,
+    @Query('isPosting') isPosting?: string,
     @Query('search') search?: string,
   ) {
-    return this.accountsService.list({ type, isActive, search });
+    return this.accountsService.list({ type, isActive, isPosting, search });
   }
 
   @Get('hierarchy/tree')
   hierarchy(
     @Query('type') type?: string,
     @Query('isActive') isActive?: string,
+    @Query('isPosting') isPosting?: string,
     @Query('search') search?: string,
   ) {
-    return this.accountsService.hierarchy({ type, isActive, search });
+    return this.accountsService.hierarchy({ type, isActive, isPosting, search });
   }
 
   @Get(':id')
@@ -44,5 +51,10 @@ export class AccountsController {
   @Post(':id/deactivate')
   deactivate(@Param('id') id: string) {
     return this.accountsService.deactivate(id);
+  }
+
+  @Post(':id/activate')
+  activate(@Param('id') id: string) {
+    return this.accountsService.activate(id);
   }
 }

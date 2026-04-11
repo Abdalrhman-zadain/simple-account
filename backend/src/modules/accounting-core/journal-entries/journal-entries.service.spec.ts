@@ -15,6 +15,9 @@ describe('JournalEntriesService', () => {
     journalEntryLine: {
       deleteMany: jest.fn(),
     },
+    fiscalPeriod: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
 
@@ -31,9 +34,10 @@ describe('JournalEntriesService', () => {
 
   it('creates a balanced draft journal entry', async () => {
     prisma.account.findMany.mockResolvedValue([
-      { id: 'cash', isActive: true },
-      { id: 'revenue', isActive: true },
+      { id: 'cash', name: 'Cash', isActive: true, isPosting: true, allowManualPosting: true },
+      { id: 'revenue', name: 'Revenue', isActive: true, isPosting: true, allowManualPosting: true },
     ]);
+    prisma.fiscalPeriod.findFirst.mockResolvedValue({ id: 'period-1', isActive: true });
     prisma.journalEntry.create.mockResolvedValue({
       id: 'entry-1',
     });
@@ -94,8 +98,8 @@ describe('JournalEntriesService', () => {
 
   it('rejects inactive accounts', async () => {
     prisma.account.findMany.mockResolvedValue([
-      { id: 'cash', isActive: false },
-      { id: 'revenue', isActive: true },
+      { id: 'cash', name: 'Cash', isActive: false, isPosting: true, allowManualPosting: true },
+      { id: 'revenue', name: 'Revenue', isActive: true, isPosting: true, allowManualPosting: true },
     ]);
 
     await expect(
@@ -106,6 +110,6 @@ describe('JournalEntriesService', () => {
           { accountId: 'revenue', debitAmount: 0, creditAmount: 100 },
         ],
       }),
-    ).rejects.toThrow('Account cash is inactive.');
+    ).rejects.toThrow('Account "Cash" is inactive and cannot be used for posting.');
   });
 });

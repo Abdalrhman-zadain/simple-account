@@ -1,6 +1,19 @@
 # Backend
 
-Phase 1 accounting foundation for the ERP system.
+NestJS backend for the accounting foundation.
+
+## Source Layout
+
+```text
+src/
+├── common/         # Shared infrastructure
+├── generated/      # Prisma generated client
+├── modules/
+│   ├── accounting-core/
+│   └── auth/
+├── app.module.ts
+└── main.ts
+```
 
 ## Commands
 
@@ -19,6 +32,9 @@ Create `backend/.env` with:
 
 ```bash
 DATABASE_URL="postgresql://simple_account_user:simple_account_pass@localhost:55432/simple_account?schema=public"
+PORT=3001
+JWT_SECRET="your_highly_secret_key_change_in_production"
+JWT_EXPIRATION="24h"
 ```
 
 Use `SKIP_DB_CONNECT=true` when running tests or bootstrapping without a live database connection.
@@ -29,17 +45,4 @@ From the repo root:
 
 ```bash
 docker compose up -d postgres
-```
-
-Apply the initial schema:
-
-```bash
-cd backend
-pnpm exec prisma migrate dev --name init_accounting_core
-```
-
-Inspect the database:
-
-```bash
-docker exec -it simple-account-postgres psql -U simple_account_user -d simple_account
 ```

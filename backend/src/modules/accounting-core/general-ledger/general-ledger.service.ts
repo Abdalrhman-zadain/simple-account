@@ -6,18 +6,36 @@ import { QueryLedgerDto } from './dto/query-ledger.dto';
 
 @Injectable()
 export class GeneralLedgerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async list(query: QueryLedgerDto) {
+    let openingBalance = 0;
+
+    // Calculate opening balance if a dateFrom filter is provided
+    if (query.dateFrom) {
+      const result = await this.prisma.ledgerTransaction.aggregate({
+        where: {
+          accountId: query.accountId,
+          entryDate: { lt: new Date(query.dateFrom) },
+        },
+        _sum: {
+          debitAmount: true,
+          creditAmount: true,
+        },
+      });
+
+      openingBalance = Number(result._sum.debitAmount || 0) - Number(result._sum.creditAmount || 0);
+    }
+
     const lines = await this.prisma.ledgerTransaction.findMany({
       where: {
         accountId: query.accountId,
         entryDate:
           query.dateFrom || query.dateTo
             ? {
-                gte: query.dateFrom ? new Date(query.dateFrom) : undefined,
-                lte: query.dateTo ? new Date(query.dateTo) : undefined,
-              }
+              gte: query.dateFrom ? new Date(query.dateFrom) : undefined,
+              lte: query.dateTo ? new Date(query.dateTo) : undefined,
+            }
             : undefined,
       },
       include: {
@@ -26,12 +44,10 @@ export class GeneralLedgerService {
       orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }],
     });
 
-    const runningBalances = new Map<string, number>();
+    let currentRunningBalance = openingBalance;
 
-    return lines.map((line) => {
-      const previousBalance = runningBalances.get(line.accountId) ?? 0;
-      const nextBalance = previousBalance + Number(line.debitAmount) - Number(line.creditAmount);
-      runningBalances.set(line.accountId, nextBalance);
+    const data = lines.map((line) => {
+      currentRunningBalance = currentRunningBalance + Number(line.debitAmount) - Number(line.creditAmount);
 
       return {
         id: line.id,
@@ -47,9 +63,14 @@ export class GeneralLedgerService {
         description: line.description,
         debitAmount: line.debitAmount.toString(),
         creditAmount: line.creditAmount.toString(),
-        runningBalance: nextBalance.toFixed(2),
+        runningBalance: currentRunningBalance.toFixed(2),
       };
     });
+
+    return {
+      openingBalance: openingBalance.toFixed(2),
+      transactions: data,
+    };
   }
 
   async getTransactionDetail(id: string) {
