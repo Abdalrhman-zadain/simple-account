@@ -16,3 +16,4 @@ backend/prisma/dev.db
 backend/src/generated/prisma
 frontend/node_modules
 frontend/.next
+*.tsbuildinfo
