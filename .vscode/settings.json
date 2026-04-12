@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^git status --short --branch && printf '\\\\n---\\\\n' && cat \\.git/COMMIT_EDITMSG 2>/dev/null \\|\\| true$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

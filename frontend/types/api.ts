@@ -156,10 +156,10 @@ export type AccountsQuery = {
   isActive?: "true" | "false" | "";
   isPosting?: "true" | "false" | "";
   search?: string;
+  parentAccountId?: string | null;
 };
 
 export type CreateAccountPayload = {
-  code?: string;
   name: string;
   nameAr?: string;
   description?: string;
