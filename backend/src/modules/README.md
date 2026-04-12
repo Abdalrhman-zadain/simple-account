@@ -27,7 +27,7 @@ This folder contains the business/domain modules for the backend. In NestJS, a f
 - Run with commands like `pnpm test`.
 
 ## Example (Accounts module)
-For example, in `accounting-core/accounts/` you may see:
+For example, in `phase-1-accounting-foundation/accounting-core/chart-of-accounts/` you may see:
 - `accounts.controller.ts` → API endpoints for accounts
 - `accounts.service.ts` → business logic for accounts
 - `dto/` → request/response DTOs like `create-account.dto.ts`

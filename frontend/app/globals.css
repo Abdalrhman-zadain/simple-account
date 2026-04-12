@@ -14,7 +14,7 @@
 html {
   min-height: 100%;
   background-color: var(--background);
-  background-image: 
+  background-image:
     radial-gradient(circle at 10% 20%, rgba(20, 184, 166, 0.08) 0%, transparent 40%),
     radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 40%);
   background-attachment: fixed;
@@ -44,4 +44,30 @@ textarea {
 pre {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Arabic font rendering */
+.font-arabic {
+  font-family: "Noto Naskh Arabic", "Scheherazade New", "Arial", sans-serif;
+  direction: rtl;
+  unicode-bidi: embed;
 }

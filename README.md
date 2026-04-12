@@ -6,9 +6,9 @@ Backend-first ERP foundation focused on accounting workflows.
 
 ```text
 .
-├── backend/        # NestJS API, Prisma schema, tests, and feature modules
+├── backend/        # NestJS API, Prisma schema, tests, and Phase 1/domain modules
+├── frontend/       # Next.js app router, feature slices, and shared UI
 ├── docs/           # Architecture and product notes
-├── graphify-out/   # Knowledge-graph output
 ├── docker-compose.yml
 ├── AGENTS.md
 └── README.md
@@ -22,11 +22,23 @@ backend/
 ├── src/
 │   ├── common/     # Shared infrastructure such as Prisma
 │   ├── generated/  # Prisma generated client
-│   ├── modules/    # Business modules
+│   ├── modules/    # Platform + Phase 1 accounting modules
 │   ├── app.module.ts
 │   └── main.ts
 ├── test/           # Test helpers and integration tests
 └── README.md
+```
+
+## Frontend Structure
+
+```text
+frontend/
+├── app/            # Route groups and route entrypoints
+├── features/       # Feature-owned screens and flows
+├── components/ui/  # Reusable UI primitives
+├── lib/            # API, config, and shared utilities
+├── providers/      # Global providers
+└── types/          # Shared API types
 ```
 
 ## Docs
