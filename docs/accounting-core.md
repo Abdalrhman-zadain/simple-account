@@ -101,7 +101,7 @@ The chart-of-accounts page uses a **drill-down navigation** style. Instead of ex
 
 Behavior:
 - **Navigation**:
-    - Clicking a Header account (folder icon/name) drills into its level.
+    - Clicking a Header account navigates into its children (e.g., clicking "Assets" shows its immediate sub-accounts).
     - Breadcrumbs at the top allow navigating back up to the "Root" or any intermediate parent.
     - The URL contains a `parentId` parameter, allowing for direct linking and browser back/forward support.
 - **Visual Distinction**:

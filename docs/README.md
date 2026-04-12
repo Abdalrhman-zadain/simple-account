@@ -14,10 +14,11 @@ Use these docs before making changes so you can answer:
 
 1. [System Design](./system-design.md)
 2. [Project Structure](./project-structure.md)
-3. [Accounting Core](./accounting-core.md)
-4. [Data Model](./data-model.md)
-5. [Change Guide](./change-guide.md)
-6. [Known Issues](./known-issues.md)
+3. [System Structure Report](./system-structure-report.md) (one-page layout and route map)
+4. [Accounting Core](./accounting-core.md)
+5. [Data Model](./data-model.md)
+6. [Change Guide](./change-guide.md)
+7. [Known Issues](./known-issues.md)
 
 ## Scope
 
@@ -30,6 +31,7 @@ These docs describe the **current Phase 1 Accounting Foundation** implementation
 ## How To Use These Docs
 
 - Start with [System Design](./system-design.md) if you need the big picture.
+- Use [System Structure Report](./system-structure-report.md) for a concise repository layout, stack table, and route-to-feature map.
 - Use [Project Structure](./project-structure.md) to decide where new code belongs.
 - Use [Accounting Core](./accounting-core.md) before changing accounting behavior or APIs.
 - Use [Data Model](./data-model.md) before changing schema assumptions or posting logic.

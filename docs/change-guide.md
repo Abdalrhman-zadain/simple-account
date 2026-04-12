@@ -156,6 +156,7 @@ What else to check:
 - auth guard usage
 - ownership of the endpoint
 - whether it belongs to an existing controller or should stay internal
+- properly scoping database queries to the user's `companyId` for multi-tenancy isolation
 
 Must remain compatible:
 

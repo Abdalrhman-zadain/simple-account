@@ -18,6 +18,8 @@ Key fields:
 
 - `code`
 - `name`
+- `nameAr`
+- `currencyCode`
 - `type`
 - `isPosting`
 - `allowManualPosting`
@@ -108,10 +110,19 @@ Main models:
 - `AuditLog`
 - `User`
 
+Key fields & behavior:
+
+- `User.role` (ADMIN, MANAGER, USER) determines the user's privilege layer.
+- `User.companyId` isolates data to a specific tenant.
+- `User.parentUserId` supports hierarchical management of users within a company.
+- `AuditLog.companyId` enables fast filtering of audit history per tenant.
+
 Accounting meaning:
 
-- tracks who performed actions and on which entities
-- supports company-level scoping and reviewability
+- implements the multi-tenant architecture by isolating users and their data within companies
+- super-admins (ADMIN) manage the global platform
+- company root users (MANAGER) manage their own company's specific data and users
+- tracks who performed actions and on which entities with company-level scoping
 
 ## Relationship Map
 

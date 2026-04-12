@@ -255,6 +255,9 @@ export type LedgerEntry = {
   runningBalance: string;
 };
 
+
+
+
 export type LedgerResponse = {
   openingBalance: string;
   transactions: LedgerEntry[];

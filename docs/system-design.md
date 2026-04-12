@@ -6,7 +6,7 @@ The project is a **modular monolith** with a Next.js frontend, a NestJS backend,
 
 The current business scope is:
 
-- platform authentication
+- multi-tenant platform authentication (companies, users, roles)
 - Phase 1 Accounting Foundation
 
 The system is organized to keep accounting domain logic inside Phase 1 modules and keep the frontend split into route composition and feature-owned UI.
@@ -73,14 +73,15 @@ Thin route files compose:
 
 ## Auth Boundary
 
-Authentication is centralized in `platform/auth` on the backend and the auth provider on the frontend.
+Authentication is centralized in `platform/auth` on the backend and the auth provider on the frontend. The system implements a Multi-Tenant architecture where users belong to companies (mapped to `SegmentValue` with index=1).
 
 Backend auth responsibilities:
 
-- register users
+- register users into specific companies
 - login users
-- issue JWT access tokens
+- issue JWT access tokens containing the multi-tenant company context and roles (ADMIN, MANAGER, USER)
 - guard protected controllers with `JwtAuthGuard`
+- provide company-based isolation for database access and business logic
 
 Frontend auth responsibilities:
 
@@ -116,12 +117,12 @@ Browser
   -> app/(erp)/accounts/page.tsx
   -> AccountsPage in frontend/features/accounting/chart-of-accounts
   -> frontend/lib/api
-  -> GET /accounts/hierarchy/tree
+  -> GET /accounts?parentId=[id]
   -> AccountsController
   -> AccountsService
   -> Prisma Account queries
-  -> JSON tree response
-  -> hierarchical table navigation in the UI
+  -> JSON array response
+  -> drill-down navigation in the UI
 ```
 
 ### Posting Flow Example

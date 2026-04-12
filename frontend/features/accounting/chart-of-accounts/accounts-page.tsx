@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
@@ -19,9 +19,11 @@ import {
   Layers,
   DollarSign,
   Home,
+  Power,
+  PowerOff
 } from "lucide-react";
 
-import { getAccounts, getAccountById } from "@/lib/api";
+import { getAccounts, getAccountById, activateAccount, deactivateAccount } from "@/lib/api";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { Account } from "@/types/api";
@@ -99,6 +101,8 @@ export function AccountsPage() {
     return params;
   }, [searchQuery]);
 
+  const isSearching = !!(filters.search || filters.type || filters.isActive || filters.isPosting);
+
   // Fetch current parent if it exists (for breadcrumbs/context)
   const { data: parentAccount } = useQuery({
     queryKey: ["account", parentId, token],
@@ -111,7 +115,7 @@ export function AccountsPage() {
     queryKey: ["accounts", token, parentId, filters],
     queryFn: () => getAccounts({
       // Search is global, navigation is hierarchical
-      parentAccountId: filters.search ? undefined : parentId,
+      parentAccountId: isSearching ? undefined : parentId,
       search: filters.search,
       type: filters.type as any,
       isActive: filters.isActive as any,
@@ -346,6 +350,7 @@ export function AccountsPage() {
                     key={account.id}
                     account={account}
                     onEnter={() => !account.isPosting && navigateTo(account.id)}
+                    isSearching={isSearching}
                   />
                 ))
               )}
@@ -357,9 +362,22 @@ export function AccountsPage() {
   );
 }
 
-function AccountRow({ account, onEnter }: { account: Account; onEnter: () => void }) {
+function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnter: () => void; isSearching?: boolean }) {
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
   const balanceNum = parseFloat(account.currentBalance);
   const style = TYPE_STYLES[account.type];
+
+  // Action mutations
+  const activateMutation = useMutation({
+    mutationFn: () => activateAccount(account.id, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => deactivateAccount(account.id, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
 
   return (
     <tr
@@ -374,20 +392,43 @@ function AccountRow({ account, onEnter }: { account: Account; onEnter: () => voi
           <div className={cn("h-1.5 w-1.5 rounded-full ring-4 shadow-[0_0_8px]", style.dot.replace("bg-", "ring-").replace("bg-", "text-"), style.dot)} />
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white group-hover:text-teal-400 transition-colors">
+              <span className={cn("text-sm font-bold transition-colors", account.isActive ? "text-white group-hover:text-teal-400" : "text-zinc-500 line-through")}>
                 {account.name}
               </span>
               {!account.isPosting && <ChevronRight className="h-3 w-3 text-zinc-600 group-hover:text-teal-500 transition-transform group-hover:translate-x-0.5" />}
             </div>
-            <div className="text-[11px] font-mono font-medium text-zinc-500">{account.code}</div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className="text-[11px] font-mono font-medium text-zinc-500">{account.code}</div>
+              {isSearching && account.parentAccount && (
+                <>
+                  <div className="h-1 w-1 rounded-full bg-zinc-700" />
+                  <div className="text-[10px] font-medium text-teal-500/70 truncate max-w-[200px] uppercase tracking-wider">
+                    in {account.parentAccount.name}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </td>
       <td className="px-3 py-4">
-        <StatusPill
-          label={account.isPosting ? "Posting" : "Header"}
-          tone={account.isPosting ? "positive" : "neutral"}
-        />
+        <div className="flex items-center gap-2">
+          <StatusPill
+            label={account.isPosting ? "Posting" : "Header"}
+            tone={account.isPosting ? "positive" : "neutral"}
+          />
+          {!account.isActive && (
+            <StatusPill
+              label="Inactive"
+              tone="warning"
+            />
+          )}
+          {!account.isPosting && (
+            <span className="text-[9px] font-bold uppercase tracking-tighter text-teal-500/50 group-hover:text-teal-400 group-hover:translate-x-1 transition-all">
+              Go to level
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-3 py-4 text-right tabular-nums">
         <span className={cn(
@@ -402,19 +443,40 @@ function AccountRow({ account, onEnter }: { account: Account; onEnter: () => voi
           {!account.isPosting && (
             <Link
               href={`/accounts/new?parentAccountId=${account.id}`}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-teal-500/10 hover:text-teal-400"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-teal-500/10 hover:text-teal-400 transition-colors"
               onClick={(e) => e.stopPropagation()}
+              title="Add Child Account"
             >
               <PlusCircle className="h-4 w-4" />
             </Link>
           )}
           <Link
             href={`/accounts/edit/${account.id}`}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
             onClick={(e) => e.stopPropagation()}
+            title="Edit Account"
           >
             <Edit className="h-4 w-4" />
           </Link>
+          {account.isActive ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); deactivateMutation.mutate(); }}
+              disabled={deactivateMutation.isPending}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-rose-500/10 hover:text-rose-400 transition-colors disabled:opacity-50"
+              title="Deactivate Account"
+            >
+              <PowerOff className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); activateMutation.mutate(); }}
+              disabled={activateMutation.isPending}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-teal-500/10 hover:text-teal-400 transition-colors disabled:opacity-50"
+              title="Activate Account"
+            >
+              <Power className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </td>
     </tr>
