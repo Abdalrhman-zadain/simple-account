@@ -16,7 +16,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-white/10 bg-panel/40 p-6 shadow-panel backdrop-blur-xl transition hover:border-white/20",
+        "app-surface p-6 transition",
         className,
       )}
     >
@@ -37,8 +37,8 @@ export function SectionHeading({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-4xl font-bold tracking-tight text-transparent drop-shadow-sm">{title}</h1>
-        {description ? <p className="mt-2 max-w-2xl text-sm text-zinc-400 opacity-80">{description}</p> : null}
+        <h1 className="app-title text-4xl">{title}</h1>
+        {description ? <p className="app-subtitle mt-2 max-w-2xl">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -54,7 +54,7 @@ export function StatusPill({
 }) {
   const tones = {
     positive: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-    neutral: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+    neutral: "bg-zinc-500/10 text-gray-400 border-zinc-500/20",
     warning: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   };
 
@@ -77,10 +77,10 @@ export function Button({
   size?: "sm" | "md" | "lg";
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const variants = {
-    primary: "bg-teal-500 text-teal-950 hover:bg-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.2)] hover:shadow-[0_0_20px_rgba(20,184,166,0.3)]",
-    secondary: "bg-white/5 text-white hover:bg-white/10 border border-white/10",
-    danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20",
-    ghost: "text-zinc-400 hover:text-white hover:bg-white/5",
+    primary: "bg-primary text-white hover:brightness-110 shadow-md",
+    secondary: "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-sm",
+    danger: "bg-red-50 text-red-700 hover:bg-red-100 shadow-sm",
+    ghost: "bg-transparent text-gray-600 hover:bg-gray-100",
   };
 
   const sizes = {
@@ -126,8 +126,8 @@ export function Modal({
       <div className="relative w-full max-w-lg animate-in zoom-in-95 fade-in duration-300">
         <Card className="p-8 shadow-2xl ring-1 ring-white/10">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-            <button onClick={onClose} className="text-zinc-400 hover:text-white">
+            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-900">
               <span className="sr-only">Close</span>
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -159,13 +159,13 @@ export function SidePanel({
     )}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className={cn(
-        "absolute inset-y-0 right-0 w-full max-w-2xl bg-zinc-900 shadow-2xl transition-transform duration-300 transform",
+        "absolute inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl transition-transform duration-300 transform",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
-        <div className="h-full flex flex-col border-l border-white/5">
-          <div className="flex items-center justify-between p-6 border-b border-white/5 bg-zinc-900/50">
-            <h2 className="text-lg font-bold text-white">{title}</h2>
-            <button onClick={onClose} className="text-zinc-400 hover:text-white">
+        <div className="h-full flex flex-col border-l border-gray-200">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-900">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>

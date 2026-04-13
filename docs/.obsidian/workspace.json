@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "data-model.md",
+                "file": "system-structure-report.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "data-model"
+              "title": "system-structure-report"
             }
           }
         ]
@@ -186,12 +186,13 @@
   },
   "active": "662094c949db306a",
   "lastOpenFiles": [
-    "system-structure-report.md",
-    "accounting_system_requirements_readable-5.pdf",
-    "accounting-core.md",
+    "full stack.md",
     "README.md",
-    "data-model.md",
+    "system-design.md",
     "project-structure.md",
-    "system-design.md"
+    "system-structure-report.md",
+    "data-model.md",
+    "accounting_system_requirements_readable-5.pdf",
+    "accounting-core.md"
   ]
 }

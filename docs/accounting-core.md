@@ -97,11 +97,11 @@ Posting account:
 
 The chart-of-accounts table includes a **Role** column on each row: **Posting** (end account used for journal lines) vs **Header** (structural parent only).
 
-The chart-of-accounts page uses a **drill-down navigation** style. Instead of expanding nodes inline, clicking on a **Header** account navigates the view to show only the direct children of that account.
+The chart-of-accounts page uses a **level nivgation style** style. Instead of expanding nodes inline, clicking on a **Header** account navigates the view to show only the direct children of that account.
 
 Behavior:
 - **Navigation**:
-    - Clicking a Header account navigates into its children (e.g., clicking "Assets" shows its immediate sub-accounts).
+    - when you click on the account it go to his childern like in the assit -> go to laprt server level 
     - Breadcrumbs at the top allow navigating back up to the "Root" or any intermediate parent.
     - The URL contains a `parentId` parameter, allowing for direct linking and browser back/forward support.
 - **Visual Distinction**:

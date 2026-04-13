@@ -29,7 +29,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return (
       <Card>
         <p className="text-sm text-slate-700">This section is gated in the frontend for signed-in users.</p>
-        <Link href="/login" className="mt-4 inline-flex rounded-full bg-ink px-4 py-2 text-sm text-white">
+        <Link href="/login" className="mt-4 inline-flex rounded-full bg-ink px-4 py-2 text-sm text-gray-900">
           Go to login
         </Link>
       </Card>

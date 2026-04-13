@@ -6,7 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { KeyRound, ShieldCheck, Mail, User2 } from "lucide-react";
+import {
+  LuKeyRound as KeyRound,
+  LuShieldCheck as ShieldCheck,
+  LuMail as Mail,
+  LuUser as User2,
+} from "react-icons/lu";
 
 import { login, register } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
@@ -65,7 +70,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="mx-auto max-w-lg mt-12 animate-in fade-in zoom-in-95 duration-500">
       <div className="flex flex-col items-center justify-center mb-8 gap-4 text-center">
-        <div className="h-16 w-16 bg-panel/30 border border-white/10 rounded-2xl flex items-center justify-center shadow-lg backdrop-blur-xl">
+        <div className="h-16 w-16 bg-white border border-gray-200 rounded-2xl flex items-center justify-center shadow-lg ">
           {isLogin ? <KeyRound className="h-8 w-8 text-teal-400" /> : <ShieldCheck className="h-8 w-8 text-violet-400" />}
         </div>
         <SectionHeading
@@ -78,7 +83,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         />
       </div>
 
-      <Card className="p-8 shadow-2xl relative overflow-hidden border-white/10 bg-panel/60">
+      <Card className="p-8 shadow-2xl relative overflow-hidden border-gray-200 bg-panel/60">
         <div className={`absolute top-0 right-0 w-64 h-64 -mr-32 -mt-32 rounded-full blur-3xl opacity-20 pointer-events-none ${isLogin ? 'bg-teal-500' : 'bg-violet-500'}`} />
 
         <form
@@ -128,8 +133,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
               type="submit"
               disabled={mutation.isPending}
               className={`w-full sm:w-auto rounded-full px-8 py-3 text-sm font-bold shadow-lg transition-all disabled:opacity-60 disabled:shadow-none hover:scale-105 active:scale-95 ${isLogin
-                  ? "bg-teal-500 text-teal-950 hover:bg-teal-400 shadow-teal-500/25"
-                  : "bg-violet-500 text-white hover:bg-violet-400 shadow-violet-500/25"
+                ? "bg-teal-500 text-teal-950 hover:bg-teal-400 shadow-teal-500/25"
+                : "bg-violet-500 text-gray-900 hover:bg-violet-400 shadow-violet-500/25"
                 }`}
             >
               {mutation.isPending
@@ -139,7 +144,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   : "Complete Registration"}
             </button>
 
-            <p className="text-sm text-zinc-400 text-center sm:text-left">
+            <p className="text-sm text-gray-400 text-center sm:text-left">
               {isLogin ? "Need access?" : "Have an account?"}{" "}
               <Link
                 href={isLogin ? "/register" : "/login"}

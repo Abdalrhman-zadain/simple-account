@@ -2,43 +2,60 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { SiQuickbooks } from "react-icons/si";
 import {
-  BookOpen,
-  FileText,
-  BarChart2,
-  Settings2,
-  Calendar,
-  ShieldCheck,
-  LogOut,
-  User,
-  PlusCircle,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+  LuBookOpen as BookOpen,
+  LuFileText as FileText,
+  LuChartColumn as BarChart2,
+  LuSettings2 as Settings2,
+  LuCalendar as Calendar,
+  LuShieldCheck as ShieldCheck,
+  LuLogOut as LogOut,
+  LuUser as User,
+  LuCirclePlus as PlusCircle,
+  LuChevronRight as ChevronRight,
+  LuPanelLeftClose as PanelLeftClose,
+  LuPanelLeftOpen as PanelLeftOpen,
+} from "react-icons/lu";
 import { useAuth } from "@/providers/auth-provider";
 import { cn } from "@/lib/utils";
+import { useTranslation, TranslationKey } from "@/lib/i18n";
 
-const navGroups = [
+type NavGroup = {
+  labelKey: TranslationKey;
+  items: Array<{
+    href: string;
+    labelKey: TranslationKey;
+    icon: any;
+  }>;
+};
+
+const navGroups: NavGroup[] = [
   {
-    label: "Ledger",
+    labelKey: "nav.group.ledger",
     items: [
-      { href: "/accounts", label: "Chart of Accounts", icon: BookOpen },
-      { href: "/journal-entries", label: "Journal Entries", icon: FileText },
-      { href: "/general-ledger", label: "General Ledger", icon: BarChart2 },
+      { href: "/accounts", labelKey: "nav.item.chartOfAccounts", icon: BookOpen },
+      { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
+      { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
   },
   {
-    label: "Setup",
+    labelKey: "nav.group.setup",
     items: [
-      { href: "/master-data", label: "Master Data", icon: Settings2 },
-      { href: "/fiscal", label: "Fiscal Periods", icon: Calendar },
+      { href: "/master-data", labelKey: "nav.item.masterData", icon: Settings2 },
+      { href: "/fiscal", labelKey: "nav.item.fiscalPeriods", icon: Calendar },
     ],
   },
   {
-    label: "Control",
+    labelKey: "nav.group.control",
     items: [
-      { href: "/audit", label: "Audit Trail", icon: ShieldCheck },
+      { href: "/audit", labelKey: "nav.item.auditTrail", icon: ShieldCheck },
+    ],
+  },
+  {
+    labelKey: "nav.group.system",
+    items: [
+      { href: "/settings", labelKey: "nav.item.settings", icon: Settings2 },
     ],
   },
 ];
@@ -53,16 +70,17 @@ export function SiteHeader({
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, isHydrated, logout, user } = useAuth();
+  const { t } = useTranslation();
 
   const isLoginPage = pathname === "/login" || pathname === "/register";
 
   if (isLoginPage) {
     return (
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-background/60 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-foreground">
-            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-teal-400 to-violet-500 shadow-lg shadow-teal-500/20" />
-            Genius ERP
+          <Link href="/" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-gray-900">
+            <SiQuickbooks className="h-6 w-6 text-primary" />
+            {t("app.title")}
           </Link>
         </div>
       </header>
@@ -72,18 +90,16 @@ export function SiteHeader({
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 flex h-full flex-col border-r border-white/5 bg-background/80 backdrop-blur-xl transition-[width] duration-300 ease-out",
-        isCollapsed ? "w-20" : "w-60",
+        "fixed ltr:left-0 rtl:right-0 top-0 z-40 flex h-full flex-col ltr:border-r rtl:border-l border-gray-200 bg-white transition-[width] duration-300 ease-out",
+        isCollapsed ? "w-20" : "w-60"
       )}
     >
       {/* Logo */}
-      <div className={cn("flex items-center border-b border-white/5 px-5 py-5", isCollapsed ? "justify-center" : "gap-3")}>
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-violet-500 shadow-lg shadow-teal-500/20">
-          <span className="text-xs font-black text-white">G</span>
-        </div>
+      <div className={cn("flex items-center border-b border-gray-200 px-5 py-6", isCollapsed ? "justify-center" : "gap-3")}>
+        <SiQuickbooks className="h-8 w-8 text-primary" />
         <div className={cn(isCollapsed && "sr-only")}>
-          <div className="text-sm font-bold tracking-tight text-white">Genius ERP</div>
-          <div className="text-[10px] font-medium uppercase tracking-widest text-zinc-500">General Ledger</div>
+          <div className="text-sm font-bold tracking-tight text-gray-900">{t("app.title")}</div>
+          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-500">{t("app.subtitle")}</div>
         </div>
       </div>
 
@@ -92,12 +108,10 @@ export function SiteHeader({
           type="button"
           onClick={onToggleCollapsed}
           className={cn(
-            "flex w-full items-center rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 transition-all hover:border-teal-500/30 hover:bg-white/5 hover:text-white",
+            "flex w-full items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700",
             isCollapsed ? "justify-center" : "justify-between",
           )}
           aria-label={isCollapsed ? "Open sidebar" : "Close sidebar"}
-          aria-expanded={!isCollapsed}
-          title={isCollapsed ? "Open sidebar" : "Close sidebar"}
         >
           {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           <span className={cn(isCollapsed && "sr-only")}>{isCollapsed ? "Open" : "Close"}</span>
@@ -109,7 +123,7 @@ export function SiteHeader({
         <Link
           href="/accounts/new"
           className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-xl bg-teal-500/10 border border-teal-500/20 py-2.5 text-xs font-bold text-teal-400 transition-all hover:bg-teal-500/20 hover:text-teal-300",
+            "flex w-full items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/20 hover:text-primary",
             isCollapsed && "px-0",
           )}
           title="New Account"
@@ -122,9 +136,9 @@ export function SiteHeader({
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {navGroups.map((group) => (
-          <div key={group.label}>
-            <span className={cn("mb-2 block px-3 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600", isCollapsed && "sr-only")}>
-              {group.label}
+          <div key={group.labelKey}>
+            <span className={cn("mb-2 block px-3 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400", isCollapsed && "sr-only")}>
+              {t(group.labelKey)}
             </span>
             <div className="space-y-0.5">
               {group.items.map((item) => {
@@ -134,18 +148,18 @@ export function SiteHeader({
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={item.label}
+                    title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
                     className={cn(
                       "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                       isCollapsed && "justify-center",
                       isActive
-                        ? "bg-teal-500/10 text-teal-400 border border-teal-500/20"
-                        : "text-zinc-400 hover:bg-white/5 hover:text-white"
+                        ? "bg-gray-100 text-gray-900 border border-gray-200"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                     )}
                   >
-                    <Icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-teal-400" : "text-zinc-500 group-hover:text-zinc-300")} />
-                    <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{item.label}</span>
-                    {isActive && !isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-teal-500/50" />}
+                    <Icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
+                    <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{t(item.labelKey)}</span>
+                    {isActive && !isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-gray-400 ltr:rotate-0 rtl:rotate-180" />}
                   </Link>
                 );
               })}
@@ -156,18 +170,18 @@ export function SiteHeader({
 
       {/* User footer */}
       {isHydrated && isAuthenticated && (
-        <div className="border-t border-white/5 p-3">
-          <div className={cn("flex items-center gap-3 rounded-xl p-3 hover:bg-white/5 transition-all group", isCollapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 border border-white/10">
-              <User className="h-4 w-4 text-zinc-400" />
+        <div className="border-t border-gray-200 p-3">
+          <div className={cn("flex items-center gap-3 rounded-xl p-3 hover:bg-gray-50 transition-all group", isCollapsed && "justify-center")}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200">
+              <User className="h-4 w-4 text-gray-500" />
             </div>
             <div className={cn("flex-1 min-w-0", isCollapsed && "sr-only")}>
-              <div className="truncate text-xs font-bold text-zinc-300">{user?.name || "User"}</div>
-              <div className="truncate text-[10px] text-zinc-600">{user?.email}</div>
+              <div className="truncate text-xs font-bold text-gray-900">{user?.name || "User"}</div>
+              <div className="truncate text-[10px] text-gray-500">{user?.email}</div>
             </div>
             <button
               onClick={() => { logout(); router.push("/login"); }}
-              className={cn("shrink-0 p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-400/10 transition-all", isCollapsed && "sr-only")}
+              className={cn("shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all ltr:rotate-0 rtl:rotate-180", isCollapsed && "sr-only")}
               title="Logout"
             >
               <LogOut className="h-3.5 w-3.5" />

@@ -1,19 +1,18 @@
 # System Structure Report
 
-This document is a **single-page snapshot** of how the repository is organized today: runtime stack, layers, route-to-feature mapping, and backend module boundaries. It complements [System Design](./system-design.md) and [Project Structure](./project-structure.md); those files remain the detailed references for behavior and edit placement.
-
-**Scope:** Phase 1 Accounting Foundation and `platform/auth` only. Later ERP phases are not implemented and are not described here.
-
+**Scope:** Phase 1 Accounting Foundation and `platform/auth` only. 
 ## Runtime stack
 
-| Layer | Technology | Role |
-| --- | --- | --- |
-| UI | Next.js (App Router) | Route composition, auth gating, feature screens |
-| API | NestJS | Modular monolith: auth + accounting-core |
-| Data access | Prisma | ORM to PostgreSQL |
-| Database | PostgreSQL | System of record for tenants, accounts, journals, ledger, fiscal, audit |
+| Layer       | Technology           | Role                                                                    |
+| ----------- | -------------------- | ----------------------------------------------------------------------- |
+| UI          | Next.js (App Router) | Route composition, auth gating, feature screens                         |
+| API         | NestJS               | Modular monolith: auth + accounting-core                                |
+| Data access | Prisma               | ORM to PostgreSQL                                                       |
+| Database    | PostgreSQL           | System of record for tenants, accounts, journals, ledger, fiscal, audit |
 
 ## Logical architecture
+
+This accounting  is organized as a **modular monolith** with a clear frontend / backend / database separation.
 
 ```text
 Browser (Next.js)
@@ -29,7 +28,7 @@ NestJS AppModule
 PostgreSQL
 ```
 
-**Dependency rules (high level):** accounting controllers use `JwtAuthGuard`; the frontend calls the backend only through `frontend/lib/api` (see [System Design](./system-design.md)).
+**Dependency rules (high level):** accounting controllers use `JwtAuthGuard`; the frontend calls the backend only through `frontend/lib/api`
 
 ## Repository layout (verified)
 
@@ -60,7 +59,7 @@ simple-account/
 
 ## Frontend: routes to feature owners
 
-ERP routes stay thin: they compose layout/auth shell and import from `frontend/features/...`.
+ routes stay thin: they compose layout/auth shell and import from `frontend/features/...`.
 
 | Public route | Route file | Primary feature component |
 | --- | --- | --- |

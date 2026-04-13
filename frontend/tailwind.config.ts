@@ -10,20 +10,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#09090b",
-        foreground: "#fafafa",
-        panel: "#18181b",
-        primary: "#14b8a6",
-        secondary: "#8b5cf6",
-        muted: "#3f3f46",
-        ink: "#fafafa",
-        sand: "#18181b",
-        ember: "#f97316",
-        tide: "#14b8a6",
-        moss: "#6b7a3d",
+        background: "#eceef1",
+        foreground: "#393a3d",
+        primary: "#2ca01c",
+        secondary: "#0077c5",
       },
       boxShadow: {
-        panel: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+        panel: "0 8px 32px 0 rgba(0, 0, 0, 0.1)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

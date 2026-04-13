@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, RefreshCw, Send, RotateCcw, Eye, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
+import { LuPlus as Plus, LuRefreshCw as RefreshCw, LuSend as Send, LuRotateCcw as RotateCcw, LuEye as Eye, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, LuCircleAlert as AlertCircle } from "react-icons/lu";
 import { getJournalEntries, createJournalEntry, postJournalEntry, reverseJournalEntry, getAccounts } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { JournalEntry, JournalEntryLine, Account } from "@/types/api";
@@ -96,18 +96,18 @@ export function JournalEntriesPage() {
 
             {/* Create Form */}
             {showCreate && (
-                <Card className="border border-teal-500/20 bg-teal-500/5 backdrop-blur-xl p-6">
-                    <h3 className="text-base font-bold text-white mb-6">New Journal Entry</h3>
+                <Card className="border border-teal-500/20 bg-teal-500/5  p-6">
+                    <h3 className="text-base font-bold text-gray-900 mb-6">New Journal Entry</h3>
                     <div className="grid grid-cols-2 gap-4 mb-6">
                         <div>
-                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Date</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Date</label>
                             <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
+                                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Description</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Description</label>
                             <input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Electricity bill payment"
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
+                                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                         </div>
                     </div>
 
@@ -115,11 +115,11 @@ export function JournalEntriesPage() {
                     <div className="mb-4 overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-white/5">
-                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-600 pr-3">Account</th>
-                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-600 pr-3">Description</th>
-                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-600 w-36 pr-3">Debit</th>
-                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-600 w-36">Credit</th>
+                                <tr className="border-b border-gray-200">
+                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-600 pr-3">Account</th>
+                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-600 pr-3">Description</th>
+                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 w-36 pr-3">Debit</th>
+                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 w-36">Credit</th>
                                 </tr>
                             </thead>
                             <tbody className="space-y-2">
@@ -129,7 +129,7 @@ export function JournalEntriesPage() {
                                             <select
                                                 value={line.accountId}
                                                 onChange={e => updateLine(i, "accountId", e.target.value)}
-                                                className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                                             >
                                                 <option value="">— Select account —</option>
                                                 {postingAccounts.map((a: Account) => (
@@ -140,22 +140,22 @@ export function JournalEntriesPage() {
                                         <td className="py-1.5 pr-3">
                                             <input value={line.description} onChange={e => updateLine(i, "description", e.target.value)}
                                                 placeholder="Optional"
-                                                className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-xs text-white placeholder:text-zinc-700 focus:outline-none" />
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-gray-900 placeholder:text-gray-300 focus:outline-none" />
                                         </td>
                                         <td className="py-1.5 pr-3">
                                             <input type="number" value={line.debitAmount} onChange={e => updateLine(i, "debitAmount", e.target.value)}
                                                 placeholder="0.000"
-                                                className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-xs text-right text-white tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                                         </td>
                                         <td className="py-1.5">
                                             <input type="number" value={line.creditAmount} onChange={e => updateLine(i, "creditAmount", e.target.value)}
                                                 placeholder="0.000"
-                                                className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-xs text-right text-white tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="border-t border-white/10">
+                            <tfoot className="border-t border-gray-200">
                                 <tr>
                                     <td colSpan={2} className="pt-3">
                                         <button onClick={() => setLines(p => [...p, { ...EMPTY_LINE }])} className="text-xs text-teal-500 hover:text-teal-300 font-bold">
@@ -194,36 +194,36 @@ export function JournalEntriesPage() {
             )}
 
             {/* List */}
-            <Card className="p-0 border border-white/5 bg-panel/40 backdrop-blur-xl overflow-hidden">
-                <div className="flex items-center justify-between border-b border-white/5 px-6 py-5">
-                    <h2 className="text-base font-bold text-white">Journal Entries</h2>
-                    <button onClick={() => entriesQuery.refetch()} className="text-zinc-500 hover:text-teal-400 transition-all">
+            <Card className="p-0 border border-gray-200 bg-panel/40  overflow-hidden">
+                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
+                    <h2 className="text-base font-bold text-gray-900">Journal Entries</h2>
+                    <button onClick={() => entriesQuery.refetch()} className="text-gray-500 hover:text-teal-400 transition-all">
                         <RefreshCw className={cn("h-4 w-4", entriesQuery.isFetching && "animate-spin")} />
                     </button>
                 </div>
 
                 <div className="divide-y divide-white/5">
                     {entriesQuery.isLoading ? (
-                        <div className="py-16 text-center text-sm text-zinc-600">Loading entries...</div>
+                        <div className="py-16 text-center text-sm text-gray-600">Loading entries...</div>
                     ) : !entriesQuery.data?.length ? (
-                        <div className="py-16 text-center text-sm text-zinc-600">No journal entries yet.</div>
+                        <div className="py-16 text-center text-sm text-gray-600">No journal entries yet.</div>
                     ) : entriesQuery.data.map((entry: JournalEntry) => (
                         <div key={entry.id}>
                             <div
-                                className="flex items-center justify-between px-6 py-4 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
                                 onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                             >
                                 <div className="flex items-center gap-4">
-                                    <button className="text-zinc-600 hover:text-white">
+                                    <button className="text-gray-600 hover:text-gray-900">
                                         {expandedId === entry.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                     </button>
                                     <div>
                                         <span className="font-mono text-sm font-bold text-teal-400">{entry.reference}</span>
-                                        <p className="text-xs text-zinc-500 mt-0.5">{entry.description || "No description"}</p>
+                                        <p className="text-xs text-gray-500 mt-0.5">{entry.description || "No description"}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <span className="text-xs text-zinc-500">{formatDate(entry.entryDate)}</span>
+                                    <span className="text-xs text-gray-500">{formatDate(entry.entryDate)}</span>
                                     <JournalStatusPill status={entry.status} />
                                     <div className="flex items-center gap-2">
                                         {entry.status === "DRAFT" && (
@@ -237,7 +237,7 @@ export function JournalEntriesPage() {
                                         {entry.status === "POSTED" && !entry.reversalOfId && (
                                             <button
                                                 onClick={e => { e.stopPropagation(); if (confirm("Reverse this entry?")) reverseMutation.mutate(entry.id); }}
-                                                className="flex items-center gap-1.5 rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 text-xs font-bold text-zinc-400 hover:text-orange-400 hover:border-orange-400/20 hover:bg-orange-400/10 transition-all"
+                                                className="flex items-center gap-1.5 rounded-lg bg-gray-100 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-orange-400 hover:border-orange-400/20 hover:bg-orange-400/10 transition-all"
                                             >
                                                 <RotateCcw className="h-3 w-3" /> Reverse
                                             </button>
@@ -250,7 +250,7 @@ export function JournalEntriesPage() {
                                 <div className="bg-black/20 px-16 py-4">
                                     <table className="w-full text-xs">
                                         <thead>
-                                            <tr className="border-b border-white/5 text-zinc-600 uppercase tracking-wider">
+                                            <tr className="border-b border-gray-200 text-gray-600 uppercase tracking-wider">
                                                 <th className="pb-2 text-left font-bold">Account</th>
                                                 <th className="pb-2 text-left font-bold">Description</th>
                                                 <th className="pb-2 text-right font-bold w-32">Debit</th>
@@ -259,9 +259,9 @@ export function JournalEntriesPage() {
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
                                             {entry.lines.map((line: JournalEntryLine) => (
-                                                <tr key={line.id} className="hover:bg-white/5">
-                                                    <td className="py-2 font-mono text-zinc-300">{line.accountId.slice(0, 8)}…</td>
-                                                    <td className="py-2 text-zinc-500">{line.description || "—"}</td>
+                                                <tr key={line.id} className="hover:bg-gray-100">
+                                                    <td className="py-2 font-mono text-gray-900">{line.accountId.slice(0, 8)}…</td>
+                                                    <td className="py-2 text-gray-500">{line.description || "—"}</td>
                                                     <td className="py-2 text-right tabular-nums text-teal-400 font-bold">
                                                         {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}
                                                     </td>

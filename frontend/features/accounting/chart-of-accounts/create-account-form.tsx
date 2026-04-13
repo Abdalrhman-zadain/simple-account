@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { ArrowLeft, Loader2, Save, X, BookOpen, Info, Link2 } from "lucide-react";
+import { LuArrowLeft as ArrowLeft, LuLoader as Loader2, LuSave as Save, LuX as X, LuBookOpen as BookOpen, LuInfo as Info, LuLink2 as Link2 } from "react-icons/lu";
 
 import {
   createAccount,
@@ -151,7 +151,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
 
   if (isEdit && accountQuery.isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-zinc-500">
+      <div className="flex flex-col items-center justify-center py-24 text-gray-500">
         <Loader2 className="mb-4 h-8 w-8 animate-spin text-teal-500" />
         <p>Loading account details…</p>
       </div>
@@ -176,7 +176,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           />
         </div>
         <Link href="/accounts">
-          <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white">
+          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-900">
             <X className="mr-2 h-4 w-4" /> Cancel
           </Button>
         </Link>
@@ -189,19 +189,19 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-teal-300 uppercase tracking-wide mb-0.5">Adding child under</p>
             {parentQuery.isLoading ? (
-              <span className="text-sm text-zinc-500 animate-pulse">Loading parent…</span>
+              <span className="text-sm text-gray-500 animate-pulse">Loading parent…</span>
             ) : parentQuery.data ? (
-              <span className="text-sm font-bold text-white">
-                <span className="font-mono text-zinc-400 mr-2">{parentQuery.data.code}</span>
+              <span className="text-sm font-bold text-gray-900">
+                <span className="font-mono text-gray-400 mr-2">{parentQuery.data.code}</span>
                 {parentQuery.data.name}
               </span>
             ) : (
-              <span className="text-sm font-mono text-zinc-400">{watchedParentId}</span>
+              <span className="text-sm font-mono text-gray-400">{watchedParentId}</span>
             )}
           </div>
           <button
             onClick={() => form.setValue("parentAccountId", "")}
-            className="shrink-0 p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+            className="shrink-0 p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             title="Remove parent"
           >
             <X className="h-4 w-4" />
@@ -209,7 +209,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         </div>
       )}
 
-      <Card className="max-w-3xl bg-panel/40 border-white/5 backdrop-blur-xl p-0 shadow-2xl overflow-hidden">
+      <Card className="max-w-3xl bg-panel/40 border-gray-200  p-0 shadow-2xl overflow-hidden">
         <form
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
         >
@@ -245,18 +245,18 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
             {/* Live type badge preview */}
             {watchedType && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">Preview:</span>
+                <span className="text-xs text-gray-500">Preview:</span>
                 <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wide", TYPE_COLORS[watchedType])}>
                   {formatAccountType(watchedType)}
                 </span>
-                <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-medium", watchedKind === "posting" ? "bg-teal-500/10 text-teal-400 border-teal-500/20" : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20")}>
+                <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-medium", watchedKind === "posting" ? "bg-teal-500/10 text-teal-400 border-teal-500/20" : "bg-zinc-500/10 text-gray-400 border-zinc-500/20")}>
                   {watchedKind === "posting" ? "Posting" : "Header"}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="border-t border-white/5" />
+          <div className="border-t border-gray-200" />
 
           {/* ── Section 2: Names ──────────────────────────────────── */}
           <div className="p-8 space-y-5">
@@ -278,12 +278,12 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
             </Field>
           </div>
 
-          <div className="border-t border-white/5" />
+          <div className="border-t border-gray-200" />
 
           {/* ── Section 3: Settings ───────────────────────────────── */}
           <div className="p-8 space-y-5">
             <SectionLabel icon="⚙️">Posting Settings</SectionLabel>
-            <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-4 hover:bg-white/[0.04] transition-colors">
+            <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-50 transition-colors">
               <input
                 type="checkbox"
                 className="mt-0.5 h-4 w-4 shrink-0 rounded accent-teal-500 cursor-pointer"
@@ -292,7 +292,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
               />
               <div>
                 <span className="text-sm font-semibold text-zinc-200">Allow manual journal entries</span>
-                <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
+                <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
                   When enabled, users can debit/credit this account directly in Journal Entries.
                   Disable for system-controlled accounts (e.g. retained earnings, tax payable).
                 </p>
@@ -325,7 +325,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
             </Button>
             <Link
               href="/accounts"
-              className="inline-flex items-center justify-center gap-2 text-sm font-medium text-zinc-400 hover:text-white px-6 h-11 transition rounded-full hover:bg-white/5"
+              className="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-400 hover:text-gray-900 px-6 h-11 transition rounded-full hover:bg-gray-100"
             >
               <ArrowLeft className="h-4 w-4" />
               Cancel
@@ -339,7 +339,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
 
 function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: string }) {
   return (
-    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 border-b border-white/5 pb-3">
+    <h3 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400 border-b border-gray-200 pb-3">
       {icon && <span className="text-sm">{icon}</span>}
       {children}
     </h3>
