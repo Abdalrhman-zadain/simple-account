@@ -140,7 +140,9 @@ export function AccountsPage() {
   };
 
   const navigateTo = (id: string | null) => {
+    // Copies the current URL query key/value pairs, not account rows. Time/space: O(n) in query length.
     const params = new URLSearchParams(searchParams.toString());
+    // parentId is the selected header account; removing it returns to the root account level.
     if (id) params.set("parentId", id);
     else params.delete("parentId");
     router.push(`/accounts?${params.toString()}`);
@@ -332,6 +334,7 @@ export function AccountsPage() {
                   <AccountRow
                     key={account.id}
                     account={account}
+                    // Only header accounts can be opened; posting accounts are leaf accounts.
                     onEnter={() => !account.isPosting && navigateTo(account.id)}
                     isSearching={isSearching}
                   />
@@ -368,6 +371,7 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
         "group transition-all hover:bg-gray-50",
         !account.isPosting && "cursor-pointer"
       )}
+      // Guard row clicks too, so posting accounts never navigate into a child level.
       onClick={() => !account.isPosting && onEnter()}
     >
       <td className="px-6 py-4">
