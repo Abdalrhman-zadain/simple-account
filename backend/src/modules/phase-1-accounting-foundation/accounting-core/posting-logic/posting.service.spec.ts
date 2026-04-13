@@ -18,6 +18,7 @@ describe('PostingService', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    $executeRaw: jest.fn(),
   };
 
   const prisma = {
@@ -73,7 +74,7 @@ describe('PostingService', () => {
       { id: 'cash', isActive: true, isPosting: true, allowManualPosting: true },
       { id: 'revenue', isActive: true, isPosting: true, allowManualPosting: true },
     ]);
-    tx.account.update.mockResolvedValue({});
+    tx.$executeRaw.mockResolvedValue(2);
     tx.postingBatch.create.mockResolvedValue({ id: 'batch-1' });
     tx.ledgerTransaction.createMany.mockResolvedValue({ count: 2 });
     tx.journalEntry.update.mockResolvedValue({
@@ -117,7 +118,7 @@ describe('PostingService', () => {
         ]),
       }),
     );
-    expect(tx.account.update).toHaveBeenCalledTimes(2);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('POSTED');
     expect(result.postingBatchId).toBe('batch-1');
   });

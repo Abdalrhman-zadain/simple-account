@@ -21,6 +21,7 @@ describe('ReversalService', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    $executeRaw: jest.fn(),
   };
 
   const prisma = {
@@ -107,7 +108,7 @@ describe('ReversalService', () => {
       },
     ]);
     tx.ledgerTransaction.createMany.mockResolvedValue({ count: 2 });
-    tx.account.update.mockResolvedValue({});
+    tx.$executeRaw.mockResolvedValue(2);
 
     const result = await service.reverse('entry-1', {
       reversalDate: '2026-04-10',
@@ -116,7 +117,7 @@ describe('ReversalService', () => {
 
     expect(tx.journalEntry.create).toHaveBeenCalled();
     expect(tx.ledgerTransaction.createMany).toHaveBeenCalled();
-    expect(tx.account.update).toHaveBeenCalledTimes(2);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(result.reversalOfId).toBe('entry-1');
   });
 });

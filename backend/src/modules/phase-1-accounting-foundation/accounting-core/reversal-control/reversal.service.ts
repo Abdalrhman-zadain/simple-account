@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '../../../../generated/prisma/index';
+import { Prisma, PrismaClient } from '../../../../generated/prisma/index';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { ReverseJournalEntryDto } from '../journal-entries/dto/reverse-journal-entry.dto';
@@ -126,18 +126,23 @@ export class ReversalService {
       netByAccount.set(line.accountId, next);
     }
 
-    for (const [accountId, amount] of netByAccount.entries()) {
-      if (amount >= 0) {
-        await tx.account.update({
-          where: { id: accountId },
-          data: { currentBalance: { increment: amount.toFixed(2) } },
-        });
-      } else {
-        await tx.account.update({
-          where: { id: accountId },
-          data: { currentBalance: { decrement: Math.abs(amount).toFixed(2) } },
-        });
-      }
+    // Skip zero deltas so the bulk SQL update only touches accounts whose balance actually changes.
+    const balanceDeltas = [...netByAccount.entries()].filter(([, amount]) => amount !== 0);
+    if (!balanceDeltas.length) {
+      return;
     }
+
+    // Build a parameterized VALUES list so all reversal deltas can be sent in one database round trip.
+    const values = Prisma.join(
+      balanceDeltas.map(([accountId, amount]) => Prisma.sql`(${accountId}, ${amount.toFixed(2)}::numeric)`),
+    );
+
+    // Bulk update balances instead of calling account.update once per account; this keeps reversal transactional while reducing database round trips.
+    await tx.$executeRaw`
+      UPDATE "Account" AS account
+      SET "currentBalance" = account."currentBalance" + delta.amount
+      FROM (VALUES ${values}) AS delta(id, amount)
+      WHERE account.id = delta.id
+    `;
   }
 }
