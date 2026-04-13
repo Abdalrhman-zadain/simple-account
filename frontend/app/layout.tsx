@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-import { SiteHeader } from "@/components/site-header";
+import { AppShell } from "@/components/app-shell";
 import { AppProviders } from "@/providers/app-providers";
 
 export const metadata: Metadata = {
@@ -19,10 +19,7 @@ export default function RootLayout({
     <html lang="en" className="antialiased dark">
       <body className="font-sans selection:bg-primary/30">
         <AppProviders>
-          <SiteHeader />
-          <main className="min-h-screen pl-60">
-            <div className="mx-auto max-w-7xl px-6 py-8">{children}</div>
-          </main>
+          <AppShell>{children}</AppShell>
         </AppProviders>
       </body>
     </html>
