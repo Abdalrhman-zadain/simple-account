@@ -1,36 +1,131 @@
 # System Structure Report
 
-**Scope:** Phase 1 Accounting Foundation and `platform/auth` only. 
+**Scope:** Phase 1 Accounting Foundation and `platform/auth` only.
+
+A concise description of the current system shape for architecture review, handoff, or engineering status updates.
+
 ## Runtime stack
 
-| Layer       | Technology           | Role                                                                    |
-| ----------- | -------------------- | ----------------------------------------------------------------------- |
-| UI          | Next.js (App Router) | Route composition, auth gating, feature screens                         |
-| API         | NestJS               | Modular monolith: auth + accounting-core                                |
-| Data access | Prisma               | ORM to PostgreSQL                                                       |
-| Database    | PostgreSQL           | System of record for tenants, accounts, journals, ledger, fiscal, audit |
+### Frontend
 
+| Technology          | Purpose                                                    |
+| ------------------- | ---------------------------------------------------------- |
+| **Next.js**         | React framework with built-in routing, SSR, and API routes |
+| **TypeScript**      | Type-safe development for fewer runtime errors             |
+| **Tailwind CSS**    | Utility-first styling for rapid UI development             |
+| **shadcn/ui**       | High-quality, accessible component library                 |
+| **TanStack Query**  | Server state management and data fetching                  |
+| **React Hook Form** | Performant form handling with minimal re-renders           |
+| **Zod**             | Runtime schema validation for type safety                  |
+### Backend
+
+| Technology     | Purpose                                       |
+| -------------- | --------------------------------------------- |
+| **Node.js**    | JavaScript runtime environment                |
+| **NestJS**     | Opinionated, scalable backend framework       |
+| **TypeScript** | Consistent typing across frontend and backend |
+| **Prisma ORM** | Type-safe database access and migrations      |
+
+
+### Database
+
+| Technology     | Purpose                    |
+| -------------- | -------------------------- |
+| **PostgreSQL** | Relational database engine |
+
+### Authentication & Security
+
+| Feature          | Implementation                   |
+| ---------------- | -------------------------------- |
+| Access Tokens    | JWT (short-lived)                |
+| Refresh Tokens   | Secure refresh mechanism         |
+| Password Hashing | bcrypt with salt rounds          |
+| Authorization    | Role-based access control (RBAC) |
 ## Logical architecture
 
-This accounting  is organized as a **modular monolith** with a clear frontend / backend / database separation.
+This system is organized as a **modular monolith** with a clear frontend / backend / database separation.
 
-```text
-Browser (Next.js)
-    │  HTTP JSON (Bearer JWT on protected routes)
-    ▼
-NestJS AppModule
-    ├── PrismaModule          (backend/src/common/prisma)
-    ├── AccountingCoreModule  (backend/src/modules/phase-1-accounting-foundation/accounting-core)
-    └── AuthModule            (backend/src/modules/platform/auth)
-            └── … submodules (see below)
-    │
-    ▼
-PostgreSQL
+```mermaid
+flowchart TB
+  subgraph Frontend["Frontend: Next.js app router"]
+    A1["app/(auth) routes"]
+    A2["app/(erp) routes"]
+    A3["frontend/features business UI"]
+    A4["frontend/components/ui shared primitives"]
+    A5["frontend/lib/api + utils"]
+  end
+
+  subgraph Backend["NestJS backend modular monolith"]
+    B1["platform/auth module"]
+    B2["phase-1-accounting-foundation/accounting-core module"]
+    B3["backend/src/common/prisma"]
+  end
+
+  subgraph Database["PostgreSQL database"]
+    C1["accounts, journal entries, ledger, fiscal, audit"]
+  end
+
+  A3 -->|HTTP JSON| B1
+  A3 -->|HTTP JSON| B2
+  A5 -->|API client| B1
+  A5 -->|API client| B2
+  B1 -->|uses| B3
+  B2 -->|uses| B3
+  B3 -->|Prisma ORM| C1
 ```
 
-**Dependency rules (high level):** accounting controllers use `JwtAuthGuard`; the frontend calls the backend only through `frontend/lib/api`
+**Dependency rules**
+- Accounting controllers use `JwtAuthGuard`.
+- Frontend calls backend APIs only through `frontend/lib/api`.
+- Backend modules use shared Prisma access in `backend/src/common/prisma`.
 
-## Repository layout (verified)
+## Ownership boundaries
+
+- `frontend/app` — route entrypoints, layouts, page composition
+- `frontend/features` — business feature UI and accounting pages
+- `frontend/components/ui` — reusable visual primitives and shared widgets
+- `frontend/lib` — API client, config, utilities, storage helpers
+- `backend/src/common/prisma` — shared Prisma client and DB wiring
+- `backend/src/modules/platform/auth` — authentication, JWT, tenant context
+- `backend/src/modules/phase-1-accounting-foundation/accounting-core` — accounting domain logic and controllers
+
+## Request flow example
+
+1. Browser opens `/journal-entries`
+2. Frontend page uses `frontend/lib/api` to call backend
+3. Backend controller handles request in `JournalEntriesController`
+4. Service logic validates and posts via `PostingService`
+5. Prisma commits accounting data to PostgreSQL
+
+### Request flow diagram
+
+```mermaid
+flowchart LR
+  Browser["Browser: /journal-entries"] -->|Load page| Frontend["Frontend page (ERP route)"]
+  Frontend -->|Call API| ApiClient["frontend/lib/api HTTP/JSON client"]
+  ApiClient -->|Request| Controller["JournalEntriesController"]
+  Controller -->|Delegate| Service["PostingService / business logic"]
+  Service -->|DB write| Prisma["Prisma shared DB access"]
+  Prisma -->|Persist| Database["PostgreSQL accounting data"]
+```
+
+## Data model relationships
+
+### Generated Prisma ERD
+
+This ERD is generated directly from `backend/prisma/schema.prisma` using `prisma-erd-generator`.
+
+![Prisma ERD](../backend/prisma/ERD.svg)
+
+### Key connection notes
+- `Account.parentAccountId` creates account hierarchy.
+- `JournalEntryLine` links each journal line to its `JournalEntry` and `Account`.
+- `LedgerTransaction` is the posted history row for a journal line and posting batch.
+- `PostingBatch` groups posted ledger rows for a journal entry.
+- `FiscalPeriod` and `FiscalYear` scope journal entries and ledger transactions.
+- `SegmentValue` connects accounts and users to company/segment context.
+
+## Repository layout
 
 ```text
 simple-account/
@@ -54,55 +149,59 @@ simple-account/
         └── modules/
             ├── platform/auth/
             └── phase-1-accounting-foundation/
-                └── accounting-core/   # Nest submodules (see next section)
+                └── accounting-core/   # Nest submodules 
 ```
 
-## Frontend: routes to feature owners
 
- routes stay thin: they compose layout/auth shell and import from `frontend/features/...`.
+### Repository ownership
 
-| Public route | Route file | Primary feature component |
-| --- | --- | --- |
-| `/login` | `app/(auth)/login/page.tsx` | `features/auth` |
-| `/register` | `app/(auth)/register/page.tsx` | `features/auth` |
-| `/accounts` | `app/(erp)/accounts/page.tsx` | `features/accounting/chart-of-accounts` |
-| `/accounts/new` | `app/(erp)/accounts/new/page.tsx` | `features/accounting/chart-of-accounts` |
-| `/accounts/edit/[id]` | `app/(erp)/accounts/edit/[id]/page.tsx` | `features/accounting/chart-of-accounts` |
-| `/journal-entries` | `app/(erp)/journal-entries/page.tsx` | `features/accounting/journal-entries` |
-| `/general-ledger` | `app/(erp)/general-ledger/page.tsx` | `features/accounting/general-ledger` |
-| `/fiscal` | `app/(erp)/fiscal/page.tsx` | `features/accounting/fiscal` |
-| `/audit` | `app/(erp)/audit/page.tsx` | `features/accounting/audit` |
-| `/master-data` | `app/(erp)/master-data/page.tsx` | `features/accounting/master-data` |
+```mermaid
+flowchart TB
+  subgraph Repo["Repository Structure"]
+    direction TB
+    A["frontend/"]
+    B["backend/"]
+    C["docs/"]
+  end
 
-Shared UI primitives live under `frontend/components/ui`. Cross-cutting client pieces include `RequireAuth` and API access via `frontend/lib/api` (re-exported from `frontend/lib/api/index.ts`).
+  subgraph FrontendOwnership["Frontend Ownership"]
+    direction TB
+    A1["app/: route entrypoints and layouts"]
+    A2["features/: business feature UI"]
+    A3["components/ui/: reusable UI primitives"]
+    A4["lib/: API client, config, utils"]
+    A5["providers/: auth and query providers"]
+  end
 
-## Backend: `AccountingCoreModule` composition
+  subgraph BackendOwnership["Backend Ownership"]
+    direction TB
+    B1["src/common/prisma: shared Prisma DB client"]
+    B2["src/modules/platform/auth: auth, JWT, tenant context"]
+    B3["src/modules/phase-1-accounting-foundation/accounting-core: accounting domain"]
+  end
 
-`backend/src/modules/phase-1-accounting-foundation/accounting-core/accounting-core.module.ts` imports and exports the Phase 1 submodules in this order:
+  subgraph DocsOwnership["Documentation"]
+    direction TB
+    C1["docs/system-design.md"]
+    C2["docs/project-structure.md"]
+    C3["docs/system-structure-report.md"]
+  end
 
-1. `validation-rules`
-2. `chart-of-accounts`
-3. `journal-entries`
-4. `posting-logic`
-5. `reversal-control`
-6. `general-ledger`
-7. `master-data` (segments)
-8. `fiscal`
-9. `audit`
+  A --> A1
+  A --> A2
+  A --> A3
+  A --> A4
+  A --> A5
+
+  B --> B1
+  B --> B2
+  B --> B3
+
+  C --> C1
+  C --> C2
+  C --> C3
+```
+
 
 `JournalEntriesController` is registered on `AccountingCoreModule` (in addition to feature modules’ own controllers).
 
-## Where to go next
-
-| Need | Document |
-| --- | --- |
-| Posting flow, auth boundary, module rules | [system-design.md](./system-design.md) |
-| Where to place a new file | [project-structure.md](./project-structure.md) |
-| Accounting rules and APIs | [accounting-core.md](./accounting-core.md) |
-| Schema and persistence assumptions | [data-model.md](./data-model.md) |
-| Common change recipes | [change-guide.md](./change-guide.md) |
-| Behavior that may be wrong or incomplete | [known-issues.md](./known-issues.md) |
-
----
-
-*This report reflects the tree and module wiring as of the last manual verification against the repository. If routes or module lists change, update this file in the same change as the code.*

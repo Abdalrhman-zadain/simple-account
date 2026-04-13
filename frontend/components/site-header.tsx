@@ -118,20 +118,6 @@ export function SiteHeader({
         </button>
       </div>
 
-      {/* Quick action */}
-      <div className="px-3 pt-4">
-        <Link
-          href="/accounts/new"
-          className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/20 hover:text-primary",
-            isCollapsed && "px-0",
-          )}
-          title="New Account"
-        >
-          <PlusCircle className="h-4 w-4" />
-          <span className={cn(isCollapsed && "sr-only")}>New Account</span>
-        </Link>
-      </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">

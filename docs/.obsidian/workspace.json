@@ -13,15 +13,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "system-structure-report.md",
+                "file": "full stack.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "system-structure-report"
+              "title": "full stack"
+            }
+          },
+          {
+            "id": "4b8f884f7f00d7cb",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "README.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "README"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -78,8 +93,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300,
-    "collapsed": true
+    "width": 300
   },
   "right": {
     "id": "e9a726c882e69807",
@@ -184,15 +198,24 @@
       "bases:إنشاء قاعدة جديدة": false
     }
   },
-  "active": "662094c949db306a",
+  "active": "4b8f884f7f00d7cb",
   "lastOpenFiles": [
-    "full stack.md",
-    "README.md",
     "system-design.md",
-    "project-structure.md",
     "system-structure-report.md",
+    "system-structure-report.png",
+    "system-structure-report_tmp.html",
+    "system-structure-report.pdf",
+    "full stack.md",
+    "ERD.svg",
+    "ERD 1.svg",
+    "mermaid-diagram-2026-04-13-125123.png",
+    "README.md",
     "data-model.md",
+    "change-guide.md",
+    "accounting-core.md",
     "accounting_system_requirements_readable-5.pdf",
-    "accounting-core.md"
+    "بدون عنوان.canvas",
+    "بدون عنوان.base",
+    "project-structure.md"
   ]
 }
