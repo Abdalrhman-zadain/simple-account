@@ -91,13 +91,13 @@ export function GeneralLedgerPage() {
                                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-teal-500/60 mb-2">
                                     <TrendingUp className="h-3.5 w-3.5" /> {t("ledger.summary.totalDebit")}
                                 </div>
-                                <div className="text-2xl font-black tabular-nums text-teal-400">{totalDebit.toFixed(3)}</div>
+                                <div className="text-2xl font-black tabular-nums text-teal-400">{formatCurrency(totalDebit)}</div>
                             </div>
                             <div className="rounded-2xl border border-orange-500/10 bg-orange-500/5 p-5">
                                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-orange-500/60 mb-2">
                                     <TrendingDown className="h-3.5 w-3.5" /> {t("ledger.summary.totalCredit")}
                                 </div>
-                                <div className="text-2xl font-black tabular-nums text-orange-400">{totalCredit.toFixed(3)}</div>
+                                <div className="text-2xl font-black tabular-nums text-orange-400">{formatCurrency(totalCredit)}</div>
                             </div>
                         </div>
                     )}
@@ -146,10 +146,10 @@ export function GeneralLedgerPage() {
                                                     </td>
                                                     <td className="px-6 py-3 text-xs text-gray-500 max-w-[200px] truncate">{entry.description || "—"}</td>
                                                     <td className="px-6 py-3 text-right font-mono text-xs tabular-nums text-teal-400 font-bold">
-                                                        {dr > 0 ? dr.toFixed(3) : "—"}
+                                                        {dr > 0 ? formatCurrency(dr) : "—"}
                                                     </td>
                                                     <td className="px-6 py-3 text-right font-mono text-xs tabular-nums text-orange-400 font-bold">
-                                                        {cr > 0 ? cr.toFixed(3) : "—"}
+                                                        {cr > 0 ? formatCurrency(cr) : "—"}
                                                     </td>
                                                     <td className="px-6 py-3 text-right font-mono text-xs tabular-nums text-zinc-200 font-black">
                                                         {formatCurrency(runBal)}
@@ -163,8 +163,8 @@ export function GeneralLedgerPage() {
                             <tfoot className="border-t border-gray-200 bg-black/20">
                                 <tr>
                                     <td colSpan={3} className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-600">{t("ledger.closingBalance")}</td>
-                                    <td className="px-6 py-4 text-right font-mono text-sm font-black tabular-nums text-teal-400">{totalDebit.toFixed(3)}</td>
-                                    <td className="px-6 py-4 text-right font-mono text-sm font-black tabular-nums text-orange-400">{totalCredit.toFixed(3)}</td>
+                                    <td className="px-6 py-4 text-right font-mono text-sm font-black tabular-nums text-teal-400">{formatCurrency(totalDebit)}</td>
+                                    <td className="px-6 py-4 text-right font-mono text-sm font-black tabular-nums text-orange-400">{formatCurrency(totalCredit)}</td>
                                     <td className="px-6 py-4 text-right font-mono text-sm font-black tabular-nums text-gray-900">{formatCurrency(selectedAccount?.currentBalance ?? "0")}</td>
                                 </tr>
                             </tfoot>

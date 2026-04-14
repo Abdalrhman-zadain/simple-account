@@ -17,7 +17,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { JournalEntry, JournalEntryLine, AccountOption, JournalEntryType } from "@/types/api";
-import { SectionHeading, StatusPill, Card, Button, SidePanel } from "@/components/ui";
+import { SectionHeading, StatusPill, Card, Button, SidePanel, TableSkeleton } from "@/components/ui";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 
@@ -290,8 +290,8 @@ export function JournalEntriesPage() {
                 .map(l => ({
                     accountId: l.accountId,
                     description: l.description || undefined,
-                    debitAmount: parseFloat(l.debitAmount) || 0,
-                    creditAmount: parseFloat(l.creditAmount) || 0,
+                    debitAmount: Number((parseFloat(l.debitAmount) || 0).toFixed(2)),
+                    creditAmount: Number((parseFloat(l.creditAmount) || 0).toFixed(2)),
                 })),
         }, token),
         onSuccess: () => {
@@ -313,9 +313,9 @@ export function JournalEntriesPage() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journal-entries"] }),
     });
 
-    const debitTotal = lines.reduce((s, l) => s + (parseFloat(l.debitAmount) || 0), 0);
-    const creditTotal = lines.reduce((s, l) => s + (parseFloat(l.creditAmount) || 0), 0);
-    const isBalanced = Math.abs(debitTotal - creditTotal) < 0.01 && debitTotal > 0;
+    const debitTotal = lines.reduce((s, l) => s + Number((parseFloat(l.debitAmount) || 0).toFixed(2)), 0);
+    const creditTotal = lines.reduce((s, l) => s + Number((parseFloat(l.creditAmount) || 0).toFixed(2)), 0);
+    const isBalanced = Math.abs(debitTotal - creditTotal) < 0.001 && debitTotal > 0;
 
     const updateLine = (i: number, field: keyof LineForm, value: string) => {
         setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
@@ -433,12 +433,12 @@ export function JournalEntriesPage() {
                                         </td>
                                         <td className="py-1.5 pr-3">
                                             <input type="number" value={line.debitAmount} onChange={e => updateLine(i, "debitAmount", e.target.value)}
-                                                placeholder="0.000"
+                                                placeholder="0.00"
                                                 className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                                         </td>
                                         <td className="py-1.5">
                                             <input type="number" value={line.creditAmount} onChange={e => updateLine(i, "creditAmount", e.target.value)}
-                                                placeholder="0.000"
+                                                placeholder="0.00"
                                                 className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
                                         </td>
                                     </tr>
@@ -451,8 +451,8 @@ export function JournalEntriesPage() {
                                             {t("journal.lines.addLine")}
                                         </button>
                                     </td>
-                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400 pr-3">{debitTotal.toFixed(3)}</td>
-                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400">{creditTotal.toFixed(3)}</td>
+                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400 pr-3">{debitTotal.toFixed(2)}</td>
+                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400">{creditTotal.toFixed(2)}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -461,7 +461,7 @@ export function JournalEntriesPage() {
                     {!isBalanced && debitTotal > 0 && (
                         <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                             <AlertCircle className="h-4 w-4 shrink-0" />
-                            {t("journal.balance.notBalanced", { debit: debitTotal.toFixed(3), credit: creditTotal.toFixed(3) })}
+                            {t("journal.balance.notBalanced", { debit: debitTotal.toFixed(2), credit: creditTotal.toFixed(2) })}
                         </div>
                     )}
                     {isBalanced && (
@@ -527,7 +527,7 @@ export function JournalEntriesPage() {
 
                 <div className="divide-y divide-white/5">
                     {entriesQuery.isLoading ? (
-                        <div className="py-16 text-center text-sm text-gray-600">{t("journal.list.loading")}</div>
+                        <TableSkeleton rows={8} />
                     ) : !entriesQuery.data?.length ? (
                         <div className="py-16 text-center text-sm text-gray-600">{t("journal.list.empty")}</div>
                     ) : entriesQuery.data.map((entry: JournalEntry) => (
@@ -557,7 +557,7 @@ export function JournalEntriesPage() {
                                         {entry.status === "DRAFT" && (
                                             <button
                                                 onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.post"))) postMutation.mutate(entry.id); }}
-                                                className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 px-3 py-1.5 text-xs font-bold text-teal-400 hover:bg-teal-500/20 transition-all"
+                                                className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 px-3 py-1.5 text-xs font-bold text-teal-400 hover:bg-teal-500/20 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md transition-all"
                                             >
                                                 <Send className="h-3 w-3" /> {t("journal.action.post")}
                                             </button>
@@ -565,7 +565,7 @@ export function JournalEntriesPage() {
                                         {entry.status === "POSTED" && !entry.reversalOfId && (
                                             <button
                                                 onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.reverse"))) reverseMutation.mutate(entry.id); }}
-                                                className="flex items-center gap-1.5 rounded-lg bg-gray-100 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-orange-400 hover:border-orange-400/20 hover:bg-orange-400/10 transition-all"
+                                                className="flex items-center gap-1.5 rounded-lg bg-gray-100 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-orange-400 hover:border-orange-400/20 hover:bg-orange-400/10 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md transition-all"
                                             >
                                                 <RotateCcw className="h-3 w-3" /> {t("journal.action.reverse")}
                                             </button>
@@ -594,7 +594,14 @@ export function JournalEntriesPage() {
                                                 </tr>
                                             ) : (expandedEntryQuery.data?.lines ?? []).map((line: JournalEntryLine) => (
                                                 <tr key={line.id} className="hover:bg-gray-100">
-                                                    <td className="py-2 font-mono text-gray-900">{line.accountId.slice(0, 8)}…</td>
+                                                    <td className="py-2 text-gray-900">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold">{line.accountName}</span>
+                                                            <span className="font-mono text-[10px] text-gray-400">
+                                                                {line.accountCode}
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                     <td className="py-2 text-gray-500">{line.description || "—"}</td>
                                                     <td className="py-2 text-right tabular-nums text-teal-400 font-bold">
                                                         {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}

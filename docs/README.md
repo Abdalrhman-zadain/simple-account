@@ -22,11 +22,12 @@ Use these docs before making changes so you can answer:
 
 ## Scope
 
-These docs describe the **current Phase 1 Accounting Foundation** implementation.
+These docs describe the currently implemented accounting modules.
 
 - `platform/auth` is implemented.
 - `phase-1-accounting-foundation/accounting-core` is implemented.
-- later ERP phases are **not implemented yet** and should not be described as existing behavior
+- `phase-2-bank-cash-management/bank-cash-accounts` is implemented.
+- other later ERP phases are **not implemented yet** and should not be described as existing behavior
 
 ## How To Use These Docs
 

@@ -58,6 +58,7 @@ flowchart TB
   subgraph Backend["NestJS backend modular monolith"]
     B1["platform/auth module"]
     B2["phase-1-accounting-foundation/accounting-core module"]
+    B4["phase-2-bank-cash-management/bank-cash-accounts module"]
     B3["backend/src/common/prisma"]
   end
 
@@ -67,10 +68,13 @@ flowchart TB
 
   A3 -->|HTTP JSON| B1
   A3 -->|HTTP JSON| B2
+  A3 -->|HTTP JSON| B4
   A5 -->|API client| B1
   A5 -->|API client| B2
+  A5 -->|API client| B4
   B1 -->|uses| B3
   B2 -->|uses| B3
+  B4 -->|uses| B3
   B3 -->|Prisma ORM| C1
 ```
 
@@ -88,6 +92,7 @@ flowchart TB
 - `backend/src/common/prisma` — shared Prisma client and DB wiring
 - `backend/src/modules/platform/auth` — authentication, JWT, tenant context
 - `backend/src/modules/phase-1-accounting-foundation/accounting-core` — accounting domain logic and controllers
+- `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts` — bank/cash operational registry
 
 ## Request flow example
 
@@ -119,6 +124,7 @@ This ERD is generated directly from `backend/prisma/schema.prisma` using `prisma
 
 ### Key connection notes
 - `Account.parentAccountId` creates account hierarchy.
+- `BankCashAccount` links an operational bank/cash record to one posting `Account`.
 - `JournalEntryLine` links each journal line to its `JournalEntry` and `Account`.
 - `LedgerTransaction` is the posted history row for a journal line and posting batch.
 - `PostingBatch` groups posted ledger rows for a journal entry.
@@ -138,7 +144,9 @@ simple-account/
 │   ├── components/                # require-auth, site-header, ui/, forms
 │   ├── features/
 │   │   ├── auth/
-│   │   └── accounting/            # chart-of-accounts, journal-entries, general-ledger, fiscal, audit, master-data
+│   │   ├── accounting/            # chart-of-accounts, journal-entries, general-ledger, fiscal, audit, master-data
+│   │   └── phase-2-bank-cash-management/
+│   │       └── bank-cash-accounts/
 │   ├── lib/                       # api (client), config, utils, storage
 │   └── providers/                 # app-providers, auth-provider, query-provider
 └── backend/
@@ -149,7 +157,9 @@ simple-account/
         └── modules/
             ├── platform/auth/
             └── phase-1-accounting-foundation/
-                └── accounting-core/   # Nest submodules 
+                └── accounting-core/   # Phase 1 Nest submodules
+            └── phase-2-bank-cash-management/
+                └── bank-cash-accounts/
 ```
 
 
@@ -204,4 +214,3 @@ flowchart TB
 
 
 `JournalEntriesController` is registered on `AccountingCoreModule` (in addition to feature modules’ own controllers).
-

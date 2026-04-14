@@ -8,8 +8,9 @@ The current business scope is:
 
 - multi-tenant platform authentication (companies, users, roles)
 - Phase 1 Accounting Foundation
+- bank and cash account registry linked to posting accounts for operational balances and history
 
-The system is organized to keep accounting domain logic inside Phase 1 modules and keep the frontend split into route composition and feature-owned UI.
+The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
 ## Architecture Overview
 
@@ -42,6 +43,7 @@ The backend root module wires three major concerns:
 - `common/prisma`
 - `modules/platform/auth`
 - `modules/phase-1-accounting-foundation/accounting-core`
+- `modules/phase-2-bank-cash-management/bank-cash-accounts`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -62,6 +64,7 @@ The frontend separates routing from business UI:
 - `frontend/app/(auth)` contains login and register routes
 - `frontend/app/(erp)` contains ERP page entrypoints
 - `frontend/features/...` owns accounting and auth screens
+- larger frontend features may use feature-local `components/`, `types`, and `utils` files to keep orchestration separate from leaf UI
 - `frontend/components/ui` owns reusable UI primitives
 - `frontend/lib` owns API clients, config, and shared utilities
 
@@ -70,6 +73,14 @@ Thin route files compose:
 - `RequireAuth`
 - `PageShell`
 - feature-owned page components
+
+## Current Phase 2 Shape
+
+The backend also includes a dedicated Phase 2 module:
+
+- `modules/phase-2-bank-cash-management/bank-cash-accounts`
+
+This module owns the operational bank/cash account registry and the history views derived from linked posting accounts.
 
 ## Auth Boundary
 
@@ -98,6 +109,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/accounts/new`
 - `/accounts/edit/[id]`
 - `/journal-entries`
+- `/bank-cash-accounts`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`
@@ -150,6 +162,29 @@ Resulting accounting effect:
 - ledger history is created
 - account balances are updated
 - the audit trail remains reconstructable through posting artifacts
+
+### Bank & Cash Account Flow
+
+The bank/cash account flow is:
+
+```text
+Browser
+  -> /bank-cash-accounts
+  -> app/(erp)/bank-cash-accounts/page.tsx
+  -> BankCashAccountsPage in frontend/features/phase-2-bank-cash-management/bank-cash-accounts
+  -> frontend/lib/api
+  -> GET/POST/PATCH /bank-cash-accounts
+  -> BankCashAccountsController
+  -> BankCashAccountsService
+  -> Prisma BankCashAccount + Account + LedgerTransaction queries
+  -> JSON registry rows and posted transaction history for the linked account
+```
+
+Resulting accounting meaning:
+
+- each bank or cash record links to exactly one posting account in the chart of accounts
+- current balance is read from the linked posting account balance
+- transaction history is derived from posted ledger rows for the linked posting account
 
 ## Module Interaction Rules
 

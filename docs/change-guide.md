@@ -17,6 +17,7 @@ What else to check:
 - route protection with `RequireAuth`
 - API calls through `frontend/lib/api`
 - whether the new screen belongs to an existing feature or a new Phase 1 subfeature
+- if the screen grows beyond a simple page component, split feature-local `components/`, `types`, and `utils` inside the owning feature folder
 
 Must remain compatible:
 
@@ -27,6 +28,36 @@ Checks to run:
 
 - frontend typecheck
 - frontend route render check in dev
+
+## Add Or Change Bank/Cash Accounts
+
+Where to edit:
+
+- `frontend/features/phase-2-bank-cash-management/bank-cash-accounts`
+- `frontend/app/(erp)/bank-cash-accounts/page.tsx`
+- backend `phase-2-bank-cash-management/bank-cash-accounts`
+- `backend/prisma/schema.prisma` and Prisma migration files if the registry shape changes
+
+What else to check:
+
+- linked account must be an active posting asset account
+- linked account must remain unique per bank/cash record
+- currency must match the linked chart-of-accounts account
+- deactivated records must stay visible for history but blocked from edit and new selection
+- history reads must come from posted ledger transactions, not drafts
+
+Must remain compatible:
+
+- `/bank-cash-accounts` route behavior unless intentionally changed
+- current balance meaning from the linked posting account
+- historical visibility after deactivation
+
+Checks to run:
+
+- backend tests
+- backend build
+- frontend typecheck
+- Prisma generate and migration review
 
 ## Change Account Creation Behavior
 

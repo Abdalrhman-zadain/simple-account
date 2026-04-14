@@ -404,6 +404,7 @@ export class AccountsService {
         code: true,
         name: true,
         currentBalance: true,
+        currencyCode: true,
       },
       orderBy: [{ code: 'asc' }],
     });

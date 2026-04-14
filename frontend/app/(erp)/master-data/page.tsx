@@ -1,10 +1,21 @@
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { RequireAuth } from "@/components/require-auth";
-import { MasterDataPage } from "@/features/accounting/master-data";
+import { PageSkeleton } from "@/components/ui";
+
+const MasterDataPage = dynamic(
+    () => import("@/features/accounting/master-data").then((mod) => mod.MasterDataPage),
+    {
+        loading: () => <PageSkeleton />,
+    }
+);
 
 export default function Page() {
     return (
         <RequireAuth>
-            <MasterDataPage />
+            <Suspense>
+                <MasterDataPage />
+            </Suspense>
         </RequireAuth>
     );
 }

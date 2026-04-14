@@ -145,4 +145,34 @@ describe('JournalEntriesService', () => {
       }),
     ]);
   });
+
+  it('rounds high-precision amounts to 2 decimal places before validation', async () => {
+    prisma.account.findMany.mockResolvedValue([
+      { id: 'cash', name: 'Cash', isActive: true, isPosting: true, allowManualPosting: true },
+      { id: 'revenue', name: 'Revenue', isActive: true, isPosting: true, allowManualPosting: true },
+    ]);
+    prisma.fiscalPeriod.findFirst.mockResolvedValue({ id: 'period-1', isActive: true });
+    prisma.journalEntry.create.mockResolvedValue({ id: 'entry-1' });
+    prisma.journalEntry.findUnique.mockResolvedValue({
+      id: 'entry-1',
+      reference: 'JE-20260409-TEST',
+      status: JournalEntryStatus.DRAFT,
+      entryDate: new Date('2026-04-09T00:00:00.000Z'),
+      description: 'Test entry',
+      lines: [],
+    });
+
+    // Debit 100.004, Credit 100.006. 
+    // Before fix: diff = -0.002, toFixed(2) is "0.00", PASS.
+    // After fix: 100.00 - 100.01 = -0.01, toFixed(2) is "-0.01", FAIL.
+    await expect(
+      service.create({
+        entryDate: '2026-04-09',
+        lines: [
+          { accountId: 'cash', debitAmount: 100.004, creditAmount: 0 },
+          { accountId: 'revenue', debitAmount: 0, creditAmount: 100.006 },
+        ],
+      }),
+    ).rejects.toThrow('Journal entry is not balanced.');
+  });
 });

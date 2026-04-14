@@ -15,7 +15,8 @@ project-root/
 │   │   └── (erp)/
 │   ├── features/
 │   │   ├── auth/
-│   │   └── accounting/
+│   │   ├── accounting/
+│   │   └── phase-2-bank-cash-management/
 │   ├── components/
 │   │   └── ui/
 │   ├── lib/
@@ -32,6 +33,8 @@ project-root/
             │   └── auth/
             └── phase-1-accounting-foundation/
                 └── accounting-core/
+            └── phase-2-bank-cash-management/
+                └── bank-cash-accounts/
 ```
 
 ## Frontend Ownership
@@ -75,12 +78,20 @@ Current feature areas:
 - `features/accounting/fiscal`
 - `features/accounting/audit`
 - `features/accounting/master-data`
+- `features/phase-2-bank-cash-management/bank-cash-accounts`
 
 Put code here when:
 
 - the UI belongs to one business feature
 - the component is not reusable across unrelated features
 - the logic depends on accounting or auth behavior
+
+For larger features, prefer an internal module layout so ownership is easy to scan:
+
+- `<feature>/<feature>-page.tsx` for orchestration
+- `<feature>/components/` for feature-owned UI sections
+- `<feature>/<feature>.types.ts` for feature-local types
+- `<feature>/<feature>.utils.ts` for feature-local helpers
 
 ### `frontend/components/ui`
 
@@ -174,6 +185,26 @@ Inside `accounting-core`, each folder owns one accounting concern:
 - `audit`
 - `master-data`
 
+### `backend/src/modules/phase-2-bank-cash-management`
+
+Purpose:
+
+- implemented Phase 2 operational bank/cash account management
+
+Current root:
+
+- `bank-cash-accounts`
+
+### `frontend/features/phase-2-bank-cash-management`
+
+Purpose:
+
+- feature-owned UI for implemented Phase 2 bank/cash account management
+
+Current feature area:
+
+- `bank-cash-accounts`
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -182,6 +213,8 @@ Use these rules before editing:
   - put it in `frontend/components/ui`
 - accounting page, workflow, table, or form:
   - put it in `frontend/features/accounting/...`
+- bank/cash account registry UI, balance cards, or history tables:
+  - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-accounts`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -190,6 +223,8 @@ Use these rules before editing:
   - put it in `backend/src/modules/platform/auth`
 - accounting rule, service, or controller:
   - put it in the matching Phase 1 accounting submodule
+- bank/cash account linking or history endpoints:
+  - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 
@@ -216,7 +251,8 @@ These contracts should remain true unless intentionally changed:
 
 - route files stay thin
 - feature folders own business UI
+- large feature folders should split orchestration, feature-local components, and feature-local helpers instead of keeping one oversized page file
 - `components/ui` owns reusable primitives only
 - auth belongs to `platform/auth`
-- accounting logic belongs inside Phase 1 modules
-- later ERP phases are not documented as implemented
+- accounting logic belongs inside the owning implemented backend phase module
+- only implemented ERP phases should be documented as implemented

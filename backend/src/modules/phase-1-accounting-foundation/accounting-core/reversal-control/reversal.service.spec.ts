@@ -117,7 +117,6 @@ describe('ReversalService', () => {
 
     expect(tx.journalEntry.create).toHaveBeenCalled();
     expect(tx.ledgerTransaction.createMany).toHaveBeenCalled();
-    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(result.reversalOfId).toBe('entry-1');
   });
 });

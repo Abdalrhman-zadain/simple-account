@@ -144,6 +144,71 @@ export type FiscalYear = {
   periods: FiscalPeriod[];
 };
 
+// ─── Bank & Cash Accounts ─────────────────────────────────────────────────────
+
+export const BANK_CASH_ACCOUNT_TYPES = ["BANK", "CASH"] as const;
+
+export type BankCashAccountType = (typeof BANK_CASH_ACCOUNT_TYPES)[number];
+
+export type BankCashAccount = {
+  id: string;
+  type: BankCashAccountType;
+  name: string;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  currencyCode: string;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  currentBalance: string;
+  account: {
+    id: string;
+    code: string;
+    name: string;
+    type?: AccountType;
+    currencyCode: string;
+    isActive?: boolean;
+    isPosting?: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type BankCashAccountsQuery = {
+  type?: BankCashAccountType | "";
+  isActive?: "true" | "false" | "";
+  search?: string;
+};
+
+export type CreateBankCashAccountPayload = {
+  type: BankCashAccountType;
+  name: string;
+  bankName?: string;
+  accountNumber?: string;
+  currencyCode: string;
+  accountId: string;
+};
+
+export type UpdateBankCashAccountPayload = Partial<CreateBankCashAccountPayload>;
+
+export type BankCashAccountTransaction = {
+  id: string;
+  reference: string;
+  journalEntryId: string;
+  journalEntryLineId: string;
+  entryDate: string;
+  postedAt: string;
+  description?: string | null;
+  debitAmount: string;
+  creditAmount: string;
+  transactionType: string;
+  journalReference: string;
+};
+
+export type BankCashAccountTransactionsResponse = {
+  bankCashAccount: BankCashAccount;
+  transactions: BankCashAccountTransaction[];
+};
+
 // ─── Accounts ─────────────────────────────────────────────────────────────────
 
 export type Account = {
@@ -185,7 +250,7 @@ export type Account = {
   updatedAt: string;
 };
 
-export type AccountOption = Pick<Account, "id" | "code" | "name" | "currentBalance">;
+export type AccountOption = Pick<Account, "id" | "code" | "name" | "currentBalance" | "currencyCode">;
 
 export type AccountTableRow = Pick<
   Account,

@@ -1,0 +1,71 @@
+- generic [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - img [ref=e4]
+      - generic [ref=e6]:
+        - generic [ref=e7]: Genius ERP
+        - generic [ref=e8]: General Ledger
+    - generic [ref=e9]:
+      - button "Toggle language" [ref=e10] [cursor=pointer]:
+        - generic [ref=e11]: AR
+        - generic [ref=e12]: RTL
+        - generic [ref=e13]: AR
+      - button "Close sidebar" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - generic [ref=e18]: Close
+    - navigation [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]: Ledger
+        - generic [ref=e22]:
+          - link "Chart of Accounts" [ref=e23] [cursor=pointer]:
+            - /url: /accounts
+            - img [ref=e24]
+            - generic [ref=e26]: Chart of Accounts
+          - link "Journal Entries" [ref=e27] [cursor=pointer]:
+            - /url: /journal-entries
+            - img [ref=e28]
+            - generic [ref=e31]: Journal Entries
+          - link "General Ledger" [ref=e32] [cursor=pointer]:
+            - /url: /general-ledger
+            - img [ref=e33]
+            - generic [ref=e35]: General Ledger
+      - generic [ref=e36]:
+        - generic [ref=e37]: Setup
+        - generic [ref=e38]:
+          - link "Master Data" [ref=e39] [cursor=pointer]:
+            - /url: /master-data
+            - img [ref=e40]
+            - generic [ref=e43]: Master Data
+          - link "Fiscal Periods" [ref=e44] [cursor=pointer]:
+            - /url: /fiscal
+            - img [ref=e45]
+            - generic [ref=e47]: Fiscal Periods
+      - generic [ref=e48]:
+        - generic [ref=e49]: Control
+        - link "Audit Trail" [ref=e51] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e52]
+          - generic [ref=e55]: Audit Trail
+      - generic [ref=e56]:
+        - generic [ref=e57]: System
+        - link "Settings" [ref=e59] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e60]
+          - generic [ref=e63]: Settings
+          - img [ref=e64]
+  - main [ref=e66]:
+    - generic [ref=e68]:
+      - heading "System Settings" [level=1] [ref=e69]
+      - generic [ref=e70]:
+        - heading "Global Preferences" [level=2] [ref=e71]
+        - generic [ref=e73]:
+          - generic [ref=e74]: Display Language
+          - generic [ref=e75]:
+            - generic [ref=e76] [cursor=pointer]:
+              - radio "English (LTR)" [ref=e77]
+              - generic [ref=e78]: English (LTR)
+            - generic [ref=e79] [cursor=pointer]:
+              - radio "العربية (RTL)" [checked] [active] [ref=e80]
+              - generic [ref=e81]: العربية (RTL)
+          - paragraph [ref=e82]: "Note: Changing the language updates the layout direction (LTR/RTL) immediately."
+  - alert [ref=e83]

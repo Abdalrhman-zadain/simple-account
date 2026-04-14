@@ -118,7 +118,6 @@ describe('PostingService', () => {
         ]),
       }),
     );
-    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('POSTED');
     expect(result.postingBatchId).toBe('batch-1');
   });

@@ -16,6 +16,7 @@ import {
   LuChevronRight as ChevronRight,
   LuPanelLeftClose as PanelLeftClose,
   LuPanelLeftOpen as PanelLeftOpen,
+  LuWalletMinimal as WalletMinimal,
 } from "react-icons/lu";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
@@ -26,6 +27,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   getAccounts,
   getAccountOptions,
+  getBankCashAccounts,
   getFiscalYears,
   getJournalEntryTypes,
   getSegmentDefinitions,
@@ -46,6 +48,7 @@ const navGroups: NavGroup[] = [
     labelKey: "nav.group.ledger",
     items: [
       { href: "/accounts", labelKey: "nav.item.chartOfAccounts", icon: BookOpen },
+      { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -132,6 +135,16 @@ export function SiteHeader({
       return;
     }
 
+    if (href.startsWith("/bank-cash-accounts")) {
+      void prefetchPostingAccounts();
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankCashAccounts(token),
+        queryFn: () => getBankCashAccounts({}, token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
     if (href.startsWith("/general-ledger")) {
       void prefetchPostingAccounts();
       return;
@@ -178,13 +191,11 @@ export function SiteHeader({
       )}
     >
       {/* Logo */}
-      <div className={cn("flex items-center border-b border-gray-200 px-5 py-6", isCollapsed ? "justify-center" : "gap-3")}>
-        <div className="text-primary">
-          <SiQuickbooks size={32} />
-        </div>
+      <div className={cn("flex items-center border-b border-gray-200 px-6 py-8", isCollapsed ? "justify-center" : "gap-4")}>
+        <SiQuickbooks className="h-10 w-10 text-primary" />
         <div className={cn(isCollapsed && "sr-only")}>
-          <div className="text-sm font-bold tracking-tight text-gray-900">{t("app.title")}</div>
-          <div className="text-[10px] font-medium uppercase tracking-widest text-gray-500">{t("app.subtitle")}</div>
+          <div className="text-base font-black tracking-tight text-gray-900">{t("app.title")}</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mt-1">{t("app.subtitle")}</div>
         </div>
       </div>
 
@@ -240,13 +251,13 @@ export function SiteHeader({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-10">
         {navGroups.map((group) => (
           <div key={group.labelKey}>
-            <span className={cn("mb-2 block px-3 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400", isCollapsed && "sr-only")}>
+            <span className={cn("mb-4 block px-3 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400", isCollapsed && "sr-only")}>
               {t(group.labelKey)}
             </span>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -257,16 +268,16 @@ export function SiteHeader({
                     onMouseEnter={() => prefetchForHref(item.href)}
                     title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
                     className={cn(
-                      "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                      "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0",
                       isCollapsed && "justify-center",
                       isActive
-                        ? "bg-gray-100 text-gray-900 border border-gray-200"
+                        ? "bg-gray-100 text-gray-900 border border-gray-200 shadow-sm"
                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                     )}
                   >
-                    <Icon size={16} className={cn("shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
+                    <Icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
                     <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{t(item.labelKey)}</span>
-                    {isActive && !isCollapsed && <div className="text-gray-400 ltr:rotate-0 rtl:rotate-180"><ChevronRight size={14} /></div>}
+                    {isActive && !isCollapsed && <ChevronRight className="h-4 w-4 text-gray-400 ltr:rotate-0 rtl:rotate-180" />}
                   </Link>
                 );
               })}

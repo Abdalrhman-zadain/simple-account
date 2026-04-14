@@ -15,7 +15,7 @@ export class PostingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly journalEntriesService: JournalEntriesService,
-  ) {}
+  ) { }
 
   async post(entryId: string) {
     const postedEntryId = await this.prisma.$transaction(async (tx) => {
@@ -129,17 +129,17 @@ export class PostingService {
       return;
     }
 
-    // Build a parameterized VALUES list so all account deltas can be sent in one database round trip.
-    const values = Prisma.join(
-      balanceDeltas.map(([accountId, amount]) => Prisma.sql`(${accountId}, ${amount.toFixed(2)}::numeric)`),
-    );
-
-    // Bulk update balances instead of calling account.update once per account; this keeps posting transactional while reducing database round trips.
-    await tx.$executeRaw`
-      UPDATE "Account" AS account
-      SET "currentBalance" = account."currentBalance" + delta.amount
-      FROM (VALUES ${values}) AS delta(id, amount)
-      WHERE account.id = delta.id
-    `;
+    // Update each account balance within the transaction. Using Prisma's increment
+    // ensures we don't need to manually handle concurrency at the application level.
+    for (const [accountId, amount] of balanceDeltas) {
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          currentBalance: {
+            increment: Number(amount.toFixed(2)),
+          },
+        },
+      });
+    }
   }
 }

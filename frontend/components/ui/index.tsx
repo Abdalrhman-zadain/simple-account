@@ -1,10 +1,12 @@
 import React, { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+export { Skeleton } from "./skeleton";
+import { Skeleton } from "./skeleton";
 
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-200 motion-reduce:animate-none">
+    <div className="mx-auto w-full max-w-[1800px] px-4 py-8 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-8 duration-300 motion-reduce:animate-none">
       {children}
     </div>
   );
@@ -20,7 +22,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "app-surface p-6 transition",
+        "app-surface p-8 md:p-10 transition-all duration-300",
         className,
       )}
     >
@@ -39,12 +41,14 @@ export function SectionHeading({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="app-title text-4xl">{title}</h1>
-        {description ? <p className="app-subtitle mt-2 max-w-2xl">{description}</p> : null}
+    <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div className="space-y-3">
+        <h1 className="app-title text-5xl font-black tracking-tight">{title}</h1>
+        {description ? <p className="app-subtitle text-lg leading-relaxed">{description}</p> : null}
       </div>
-      {action}
+      <div className="flex-shrink-0">
+        {action}
+      </div>
     </div>
   );
 }
@@ -96,7 +100,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center rounded-full font-bold transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-105",
         variants[variant],
         sizes[size],
         className,
@@ -179,6 +183,68 @@ export function SidePanel({
             {children}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number, columns?: number }) {
+  return (
+    <div className="w-full space-y-4">
+      <div className="flex items-center justify-between py-4 border-b border-gray-100">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div className="border-b border-gray-100 bg-gray-50/50 p-6">
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <div className="p-0">
+          {[...Array(rows)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-10 py-8 border-b border-gray-50 last:border-0">
+              <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-1/3" />
+                <Skeleton className="h-4 w-1/4 opacity-50" />
+              </div>
+              <Skeleton className="h-6 w-24 shrink-0" />
+              <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function StatsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
+      {[...Array(6)].map((_, i) => (
+        <Card key={i} className="flex flex-col gap-4 p-8 border-2 border-gray-50">
+          <Skeleton className="h-3 w-1/2 opacity-50" />
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-3 w-1/3 opacity-30" />
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function PageSkeleton() {
+  return (
+    <div className="space-y-12 animate-pulse">
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-4">
+          <Skeleton className="h-14 w-80" />
+          <Skeleton className="h-6 w-[500px] opacity-50" />
+        </div>
+        <Skeleton className="h-12 w-40 rounded-full" />
+      </div>
+      <StatsSkeleton />
+      <div className="space-y-8 mt-16">
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <TableSkeleton rows={3} />
       </div>
     </div>
   );

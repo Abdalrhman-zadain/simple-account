@@ -1,5 +1,6 @@
 "use client";
 
+import { Card, SectionHeading } from "@/components/ui";
 import { useSettings } from "@/providers/settings-provider";
 import { useTranslation } from "@/lib/i18n";
 
@@ -8,45 +9,46 @@ export function SettingsPage() {
     const { t } = useTranslation();
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
+        <div className="space-y-12 animate-in fade-in duration-300">
+            <SectionHeading
+                title={t("settings.title")}
+                description={t("settings.globalPreferences")}
+            />
 
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm max-w-2xl">
-                <h2 className="text-lg font-medium mb-4">{t("settings.globalPreferences")}</h2>
-
-                <div className="space-y-6">
+            <Card className="max-w-3xl">
+                <div className="space-y-8">
                     <div>
-                        <div className="mb-2 font-medium text-sm text-gray-700">{t("settings.displayLanguage")}</div>
-                        <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer border border-gray-200 p-3 rounded-lg hover:bg-gray-50 flex-1">
+                        <div className="mb-4 font-bold text-lg text-gray-900">{t("settings.displayLanguage")}</div>
+                        <div className="flex flex-col sm:flex-row gap-6">
+                            <label className="flex items-center gap-4 cursor-pointer border-2 border-gray-100 p-6 rounded-2xl hover:border-teal-400 hover:bg-teal-50/10 transition-all flex-1">
                                 <input
                                     type="radio"
                                     name="language"
                                     value="en"
                                     checked={language === 'en'}
                                     onChange={() => setLanguage('en')}
-                                    className="text-primary focus:ring-primary h-4 w-4"
+                                    className="text-teal-500 focus:ring-teal-500 h-5 w-5"
                                 />
-                                <span className="text-sm font-medium">{t("settings.english")}</span>
+                                <span className="text-base font-bold text-gray-900">{t("settings.english")}</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer border border-gray-200 p-3 rounded-lg hover:bg-gray-50 flex-1">
+                            <label className="flex items-center gap-4 cursor-pointer border-2 border-gray-100 p-6 rounded-2xl hover:border-teal-400 hover:bg-teal-50/10 transition-all flex-1">
                                 <input
                                     type="radio"
                                     name="language"
                                     value="ar"
                                     checked={language === 'ar'}
                                     onChange={() => setLanguage('ar')}
-                                    className="text-primary focus:ring-primary h-4 w-4"
+                                    className="text-teal-500 focus:ring-teal-500 h-5 w-5"
                                 />
-                                <span className="text-sm font-medium">{t("settings.arabic")}</span>
+                                <span className="text-base font-bold text-gray-900">{t("settings.arabic")}</span>
                             </label>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-sm text-gray-500 mt-6 leading-relaxed">
                             {t("settings.note")}
                         </p>
                     </div>
                 </div>
-            </div>
+            </Card>
         </div>
     );
 }

@@ -12,8 +12,8 @@ const DevRoutePerf =
   process.env.NODE_ENV === "development"
     ? dynamic(() => import("@/components/route-perf").then((mod) => mod.RoutePerf), { ssr: false })
     : function NoopRoutePerf() {
-        return null;
-      };
+      return null;
+    };
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               : "ltr:pl-60 rtl:pr-60",
         )}
       >
-        <div className="mx-auto max-w-7xl px-6 py-8">{children}</div>
+        <div className="mx-auto max-w-[1800px] px-3 py-6 md:px-4 md:py-8">{children}</div>
       </main>
     </>
   );

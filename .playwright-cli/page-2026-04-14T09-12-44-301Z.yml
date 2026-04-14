@@ -1,0 +1,71 @@
+- generic [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - img [ref=e4]
+      - generic [ref=e6]:
+        - generic [ref=e7]: نظام العبقري ERP
+        - generic [ref=e8]: دفتر الأستاذ العام
+    - generic [ref=e9]:
+      - button "تبديل اللغة" [ref=e84] [cursor=pointer]:
+        - generic [ref=e11]: AR
+        - generic [ref=e12]: RTL
+        - generic [ref=e13]: AR
+      - button "Close sidebar" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - generic [ref=e18]: Close
+    - navigation [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]: الدفاتر المحاسبية
+        - generic [ref=e22]:
+          - link "دليل الحسابات" [ref=e85] [cursor=pointer]:
+            - /url: /accounts
+            - img [ref=e24]
+            - generic [ref=e26]: دليل الحسابات
+          - link "قيود اليومية" [ref=e86] [cursor=pointer]:
+            - /url: /journal-entries
+            - img [ref=e28]
+            - generic [ref=e31]: قيود اليومية
+          - link "دفتر الأستاذ العام" [ref=e87] [cursor=pointer]:
+            - /url: /general-ledger
+            - img [ref=e33]
+            - generic [ref=e35]: دفتر الأستاذ العام
+      - generic [ref=e36]:
+        - generic [ref=e37]: الإعدادات الأساسية
+        - generic [ref=e38]:
+          - link "البيانات الأساسية" [ref=e88] [cursor=pointer]:
+            - /url: /master-data
+            - img [ref=e40]
+            - generic [ref=e43]: البيانات الأساسية
+          - link "الفترات المالية" [ref=e89] [cursor=pointer]:
+            - /url: /fiscal
+            - img [ref=e45]
+            - generic [ref=e47]: الفترات المالية
+      - generic [ref=e48]:
+        - generic [ref=e49]: الرقابة والمراجعة
+        - link "مسار التدقيق" [ref=e90] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e52]
+          - generic [ref=e55]: مسار التدقيق
+      - generic [ref=e56]:
+        - generic [ref=e57]: النظام
+        - link "الإعدادات" [ref=e91] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e60]
+          - generic [ref=e63]: الإعدادات
+          - img [ref=e64]
+  - main [ref=e66]:
+    - generic [ref=e68]:
+      - heading "إعدادات النظام" [level=1] [ref=e92]
+      - generic [ref=e70]:
+        - heading "التفضيلات العامة" [level=2] [ref=e93]
+        - generic [ref=e73]:
+          - generic [ref=e74]: لغة العرض
+          - generic [ref=e75]:
+            - generic [ref=e76] [cursor=pointer]:
+              - radio "English (LTR)" [ref=e77]
+              - generic [ref=e78]: English (LTR)
+            - generic [ref=e79] [cursor=pointer]:
+              - radio "العربية (RTL)" [checked] [active] [ref=e80]
+              - generic [ref=e81]: العربية (RTL)
+          - paragraph [ref=e82]: "ملاحظة: تغيير اللغة يغيّر اتجاه الواجهة فوراً (يمين-يسار/يسار-يمين)."
+  - alert [ref=e83]

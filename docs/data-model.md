@@ -13,6 +13,7 @@ This document describes the current schema and its accounting meaning. It does n
 Main model:
 
 - `Account`
+- `BankCashAccount`
 
 Key fields:
 
@@ -34,6 +35,7 @@ Accounting meaning:
 - hierarchy is represented by `parentAccountId`
 - real posting targets are controlled by `isPosting`
 - current account balance is stored directly and updated by posting logic
+- operational bank/cash records wrap specific posting accounts for balance and history views
 
 ### Journals
 
@@ -80,6 +82,7 @@ Accounting meaning:
 - posted history is stored in ledger transactions
 - the posting batch groups a posting operation
 - ledger rows are the authoritative posted history behind the general ledger
+- bank/cash transaction history is derived from ledger rows for the linked posting account
 
 ### Fiscal Control
 
@@ -134,8 +137,12 @@ Accounting meaning:
 Account
   ├─ parentAccount -> Account
   ├─ childAccounts -> Account[]
+  ├─ bankCashAccount -> BankCashAccount?
   ├─ journalLines -> JournalEntryLine[]
   └─ ledgerLines -> LedgerTransaction[]
+
+BankCashAccount
+  └─ account -> Account
 
 JournalEntry
   ├─ lines -> JournalEntryLine[]
@@ -163,6 +170,10 @@ Ownership by module:
 
 - Chart of Accounts:
   - `Account`
+- Bank & Cash Accounts:
+  - `BankCashAccount`
+  - reads linked `Account`
+  - reads linked `LedgerTransaction`
 - Journal Entries:
   - `JournalEntry`
   - `JournalEntryLine`
@@ -244,3 +255,4 @@ Do not assume:
 - the ledger is a generic reporting table unrelated to posting
 - header and posting accounts are interchangeable
 - balance updates can be skipped because ledger rows exist
+- a bank/cash registry row replaces the linked chart-of-accounts account; it is an operational wrapper around that posting account

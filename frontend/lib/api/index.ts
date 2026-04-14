@@ -8,8 +8,12 @@ import {
   ApiCheckResult,
   ApiErrorShape,
   AuditLogEntry,
+  BankCashAccount,
+  BankCashAccountsQuery,
+  BankCashAccountTransactionsResponse,
   CreateAccountSubtypePayload,
   CreateAccountPayload,
+  CreateBankCashAccountPayload,
   CreateJournalEntryTypePayload,
   CreateJournalEntryPayload,
   CreateSegmentValuePayload,
@@ -28,6 +32,7 @@ import {
   SegmentValue,
   UpdateAccountSubtypePayload,
   UpdateAccountPayload,
+  UpdateBankCashAccountPayload,
   UpdateJournalEntryTypePayload,
   UpdateSegmentValuePayload,
   JournalEntryType,
@@ -197,6 +202,52 @@ export async function getAccountTransactions(params: LedgerQuery, token?: string
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
   return apiRequest<LedgerResponse>(`/general-ledger${suffix}`, { token });
+}
+
+// ─── Bank & Cash Accounts ─────────────────────────────────────────────────────
+
+export async function getBankCashAccounts(params: BankCashAccountsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.type) searchParams.set("type", params.type);
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<BankCashAccount[]>(`/bank-cash-accounts${suffix}`, { token });
+}
+
+export async function createBankCashAccount(payload: CreateBankCashAccountPayload, token?: string | null) {
+  return apiRequest<BankCashAccount>("/bank-cash-accounts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateBankCashAccount(id: string, payload: UpdateBankCashAccountPayload, token?: string | null) {
+  return apiRequest<BankCashAccount>(`/bank-cash-accounts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateBankCashAccount(id: string, token?: string | null) {
+  return apiRequest<BankCashAccount>(`/bank-cash-accounts/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getBankCashAccountTransactions(
+  id: string,
+  params: { dateFrom?: string; dateTo?: string } = {},
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<BankCashAccountTransactionsResponse>(`/bank-cash-accounts/${id}/transactions${suffix}`, { token });
 }
 
 // ─── Segments ─────────────────────────────────────────────────────────────────

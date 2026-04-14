@@ -218,7 +218,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200 motion-reduce:animate-none">
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-300 motion-reduce:animate-none">
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -274,12 +274,12 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         >
 
           {/* ── Section 1: Account Class ─────────────────────────── */}
-          <div className="p-8 space-y-5">
+          <div className="p-12 space-y-8">
             <SectionLabel icon="🏷️">{t("accounts.typeAndClass")}</SectionLabel>
             <div className="grid gap-5 sm:grid-cols-2">
               {hasParent ? (
                 <Field label={t("accounts.type")}>
-                  <Input value={formatAccountType(watchedType)} disabled />
+                  <Input value={formatAccountType(watchedType)} disabled className="bg-gray-50/50" />
                 </Field>
               ) : (
                 <Field label={t("accounts.type")} error={form.formState.errors.type?.message}>
@@ -398,7 +398,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           <div className="border-t border-gray-200" />
 
           {/* ── Section 2: Names ──────────────────────────────────── */}
-          <div className="p-8 space-y-5">
+          <div className="p-12 space-y-8">
             <SectionLabel icon="📝">{t("accounts.form.section.names")}</SectionLabel>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label={t("accounts.form.nameEnLabel")} error={form.formState.errors.name?.message}>
@@ -422,7 +422,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           <div className="border-t border-gray-200" />
 
           {/* ── Section 3: Settings ───────────────────────────────── */}
-          <div className="p-8 space-y-5">
+          <div className="p-12 space-y-8">
             <SectionLabel icon="⚙️">{t("accounts.form.postingSettings")}</SectionLabel>
             <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-50 transition-colors">
               <input
@@ -456,7 +456,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           )}
 
           {/* ── Actions ────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-3 sm:flex-row-reverse sm:items-center px-8 pb-8 pt-0">
+          <div className="flex flex-col gap-4 sm:flex-row-reverse sm:items-center px-12 pb-12 pt-0">
             <Button type="submit" disabled={mutation.isPending} className="px-10 h-11 shadow-lg shadow-teal-500/20">
               {mutation.isPending
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />

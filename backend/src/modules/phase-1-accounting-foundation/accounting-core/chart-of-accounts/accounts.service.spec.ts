@@ -120,6 +120,7 @@ describe('AccountsService', () => {
           code: true,
           name: true,
           currentBalance: true,
+          currencyCode: true,
         },
       }),
     );

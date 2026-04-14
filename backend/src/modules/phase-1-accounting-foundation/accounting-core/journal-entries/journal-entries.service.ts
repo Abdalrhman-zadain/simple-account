@@ -82,7 +82,7 @@ export class JournalEntriesService {
             : undefined,
       },
       include: {
-        lines: includeLines ? { orderBy: { lineNumber: 'asc' } } : false,
+        lines: includeLines ? { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } } : false,
         journalEntryType: { select: { id: true, name: true } },
       },
       orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
@@ -95,7 +95,7 @@ export class JournalEntriesService {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
       include: {
-        lines: { orderBy: { lineNumber: 'asc' } },
+        lines: { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } },
         journalEntryType: { select: { id: true, name: true } },
       },
     });
@@ -150,7 +150,7 @@ export class JournalEntriesService {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
       include: {
-        lines: { orderBy: { lineNumber: 'asc' } },
+        lines: { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } },
         journalEntryType: { select: { id: true, name: true } },
       },
     });
@@ -193,21 +193,23 @@ export class JournalEntriesService {
 
     for (const [index, line] of lines.entries()) {
       const linePosition = index + 1;
+      const debitAmount = Number(Number(line.debitAmount).toFixed(2));
+      const creditAmount = Number(Number(line.creditAmount).toFixed(2));
 
-      if (line.debitAmount > 0 && line.creditAmount > 0) {
+      if (debitAmount > 0 && creditAmount > 0) {
         throw new InvalidJournalEntryException(
           `Line ${linePosition} cannot contain both a debit and a credit amount.`,
         );
       }
 
-      if (line.debitAmount === 0 && line.creditAmount === 0) {
+      if (debitAmount === 0 && creditAmount === 0) {
         throw new InvalidJournalEntryException(
           `Line ${linePosition} must contain either a debit or a credit amount.`,
         );
       }
 
-      debitTotal += line.debitAmount;
-      creditTotal += line.creditAmount;
+      debitTotal += debitAmount;
+      creditTotal += creditAmount;
     }
 
     if (Number((debitTotal - creditTotal).toFixed(2)) !== 0) {
@@ -293,6 +295,8 @@ export class JournalEntriesService {
         ? entry.lines.map((line) => ({
           id: line.id,
           accountId: line.accountId,
+          accountCode: (line as any).account?.code,
+          accountName: (line as any).account?.name,
           description: line.description,
           lineNumber: line.lineNumber,
           debitAmount: line.debitAmount.toString(),
