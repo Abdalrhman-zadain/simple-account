@@ -27,6 +27,10 @@ export class CreateJournalEntryDto {
 
   @IsOptional()
   @IsString()
+  journalEntryTypeId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 255)
   description?: string;
 
@@ -40,6 +44,10 @@ export class UpdateJournalEntryDto {
   @IsOptional()
   @IsDateString()
   entryDate?: string;
+
+  @IsOptional()
+  @IsString()
+  journalEntryTypeId?: string | null;
 
   @IsOptional()
   @IsString()

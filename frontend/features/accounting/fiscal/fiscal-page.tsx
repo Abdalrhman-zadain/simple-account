@@ -12,6 +12,7 @@ import {
     LuLockOpen as Unlock,
     LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, LuPlus as Plus
 } from "react-icons/lu";
+import { useTranslation } from "@/lib/i18n";
 
 const statusTone: Record<PeriodStatus, "positive" | "warning" | "neutral"> = {
     OPEN: "positive",
@@ -22,6 +23,7 @@ const statusTone: Record<PeriodStatus, "positive" | "warning" | "neutral"> = {
 export function FiscalPage() {
     const { token } = useAuth();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [expandedYear, setExpandedYear] = useState<string | null>(null);
     const [newYear, setNewYear] = useState("");
     const [showAdd, setShowAdd] = useState(false);
@@ -52,13 +54,13 @@ export function FiscalPage() {
     const years: FiscalYear[] = yearsQuery.data ?? [];
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
+        <div className="space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none">
             <SectionHeading
-                title="Fiscal Periods"
-                description="Manage fiscal years and monthly periods. Closing a period locks it — no journal entries can be posted to closed periods."
+                title={t("fiscal.title")}
+                description={t("fiscal.description")}
                 action={
                     <Button onClick={() => setShowAdd(!showAdd)}>
-                        <Plus className="h-4 w-4 mr-2" /> New Fiscal Year
+                        <Plus className="h-4 w-4 mr-2" /> {t("fiscal.button.newYear")}
                     </Button>
                 }
             />
@@ -67,12 +69,12 @@ export function FiscalPage() {
                 <Card className="border border-teal-500/20 bg-teal-500/5 p-5">
                     <div className="flex items-center gap-4">
                         <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Year</label>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">{t("fiscal.add.year")}</label>
                             <input
                                 type="number"
                                 value={newYear}
                                 onChange={e => setNewYear(e.target.value)}
-                                placeholder="e.g. 2026"
+                                placeholder={t("fiscal.add.placeholderYear")}
                                 className="w-32 rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                             />
                         </div>
@@ -81,11 +83,11 @@ export function FiscalPage() {
                                 onClick={() => createYearMutation.mutate()}
                                 disabled={!newYear || createYearMutation.isPending}
                             >
-                                Create + Generate 12 Periods
+                                {t("fiscal.add.create")}
                             </Button>
                         </div>
                         <div className="pt-6">
-                            <Button variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Button>
+                            <Button variant="secondary" onClick={() => setShowAdd(false)}>{t("fiscal.add.cancel")}</Button>
                         </div>
                     </div>
                     {createYearMutation.isError && (
@@ -96,9 +98,9 @@ export function FiscalPage() {
 
             <div className="space-y-4">
                 {yearsQuery.isLoading ? (
-                    <div className="py-20 text-center text-sm text-gray-600">Loading fiscal years...</div>
+                    <div className="py-20 text-center text-sm text-gray-600">{t("fiscal.loadingYears")}</div>
                 ) : years.length === 0 ? (
-                    <div className="py-20 text-center text-sm text-gray-600">No fiscal years yet. Create one above.</div>
+                    <div className="py-20 text-center text-sm text-gray-600">{t("fiscal.emptyYears")}</div>
                 ) : years.map((year: FiscalYear) => {
                     const isExpanded = expandedYear === year.id;
                     const openPeriods = year.periods.filter(p => p.status === "OPEN").length;
@@ -113,12 +115,12 @@ export function FiscalPage() {
                                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                                     </button>
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-900">Fiscal Year {year.year}</h3>
+                                        <h3 className="text-lg font-bold text-gray-900">{t("fiscal.year.title", { year: year.year })}</h3>
                                         <p className="text-xs text-gray-500">{formatDate(year.startDate)} → {formatDate(year.endDate)}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xs text-gray-600">{openPeriods} open / {year.periods.length} periods</span>
+                                    <span className="text-xs text-gray-600">{t("fiscal.year.openPeriods", { open: openPeriods, total: year.periods.length })}</span>
                                     <StatusPill label={year.status} tone={statusTone[year.status] ?? "neutral"} />
                                 </div>
                             </div>
@@ -128,11 +130,11 @@ export function FiscalPage() {
                                     <table className="w-full text-sm">
                                         <thead className="bg-gray-50 border-b border-gray-200">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">#</th>
-                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">Period</th>
-                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">Date Range</th>
-                                                <th className="px-6 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-gray-600">Status</th>
-                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">Action</th>
+                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("fiscal.table.number")}</th>
+                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("fiscal.table.period")}</th>
+                                                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("fiscal.table.dateRange")}</th>
+                                                <th className="px-6 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("fiscal.table.status")}</th>
+                                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("fiscal.table.action")}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
@@ -149,18 +151,18 @@ export function FiscalPage() {
                                                     <td className="px-6 py-3 text-right">
                                                         {period.status === "OPEN" && (
                                                             <button
-                                                                onClick={() => { if (confirm(`Close "${period.name}"? This will prevent new postings.`)) closeMutation.mutate(period.id); }}
+                                                                onClick={() => { if (confirm(t("fiscal.confirm.close", { name: period.name }))) closeMutation.mutate(period.id); }}
                                                                 className="flex items-center gap-1.5 ml-auto rounded-lg border border-gray-200 bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-red-400 hover:border-red-400/20 hover:bg-red-400/10 transition-all"
                                                             >
-                                                                <Lock className="h-3 w-3" /> Close
+                                                                <Lock className="h-3 w-3" /> {t("fiscal.action.close")}
                                                             </button>
                                                         )}
                                                         {period.status === "CLOSED" && (
                                                             <button
-                                                                onClick={() => { if (confirm(`Re-open "${period.name}"?`)) openMutation.mutate(period.id); }}
+                                                                onClick={() => { if (confirm(t("fiscal.confirm.reopen", { name: period.name }))) openMutation.mutate(period.id); }}
                                                                 className="flex items-center gap-1.5 ml-auto rounded-lg border border-teal-500/20 bg-teal-500/10 px-3 py-1.5 text-xs font-bold text-teal-400 hover:bg-teal-500/20 transition-all"
                                                             >
-                                                                <Unlock className="h-3 w-3" /> Re-open
+                                                                <Unlock className="h-3 w-3" /> {t("fiscal.action.reopen")}
                                                             </button>
                                                         )}
                                                     </td>

@@ -41,6 +41,7 @@ Main models:
 
 - `JournalEntry`
 - `JournalEntryLine`
+- `JournalEntryType`
 
 Key fields:
 
@@ -56,6 +57,7 @@ Accounting meaning:
 - journals capture accounting intent before and after posting
 - lines are the balanced accounting detail
 - reversal links preserve correction history
+- journal entries may optionally be categorized by a user-defined journal entry type (e.g. Payment, Invoice)
 
 ### Posting And Ledger
 
@@ -97,11 +99,13 @@ Main models:
 
 - `SegmentDefinition`
 - `SegmentValue`
+- `AccountSubtype`
 
 Accounting meaning:
 
 - allows enterprise-style segmented coding and reference data
 - links segment values to accounts
+- provides a controlled list of user-defined account classes (stored on `Account.subtype` as a string)
 
 ### Audit And Users
 
@@ -228,6 +232,9 @@ Future edits must document whether a change touches:
 - relational segment behavior
 - legacy string display behavior
 - account code generation (`code` is unique, assigned only by the server at create time, with transactional allocation under each parent)
+  - The system may allocate codes using either:
+    - **Legacy/string allocation** for non-numeric charts (including segmented enterprise codes)
+    - **7-digit numeric hierarchical allocation** when the parent code is exactly 7 digits (e.g. `1000000` → `1100000` → `1100001`)
 
 ## What Not To Assume
 

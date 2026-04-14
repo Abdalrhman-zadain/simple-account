@@ -82,6 +82,27 @@ model Account {
   @@index([parentAccountId])
 }
 
+model AccountSubtype {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model JournalEntryType {
+  id        String         @id @default(cuid())
+  name      String         @unique
+  isActive  Boolean        @default(true)
+  entries   JournalEntry[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([isActive])
+}
+
 model JournalEntry {
   id             String             @id @default(cuid())
   reference      String             @unique
@@ -89,6 +110,9 @@ model JournalEntry {
   entryDate      DateTime
   status         JournalEntryStatus @default(DRAFT)
   postedAt       DateTime?
+
+  journalEntryTypeId String?
+  journalEntryType   JournalEntryType? @relation(fields: [journalEntryTypeId], references: [id])
   
   fiscalPeriodId String?
   fiscalPeriod   FiscalPeriod?      @relation(fields: [fiscalPeriodId], references: [id])
@@ -109,6 +133,7 @@ model JournalEntry {
 
   @@index([status, entryDate])
   @@index([fiscalPeriodId])
+  @@index([journalEntryTypeId])
 }
 
 model JournalEntryLine {

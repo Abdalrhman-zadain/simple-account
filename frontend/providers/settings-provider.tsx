@@ -34,12 +34,10 @@ export function SettingsProvider({
         document.documentElement.lang = nextLanguage;
         document.documentElement.dir = nextLanguage === "ar" ? "rtl" : "ltr";
 
-        if (nextLanguage !== language) {
-            setLanguage(nextLanguage);
-        }
+        setLanguage(nextLanguage);
 
         setIsHydrated(true);
-    }, [initialLanguage, language]);
+    }, [initialLanguage]);
 
     useEffect(() => {
         if (!isHydrated) return;

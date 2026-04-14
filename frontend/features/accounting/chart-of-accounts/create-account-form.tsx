@@ -4,36 +4,42 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { LuArrowLeft as ArrowLeft, LuLoader as Loader2, LuSave as Save, LuX as X, LuBookOpen as BookOpen, LuInfo as Info, LuLink2 as Link2 } from "react-icons/lu";
+import { LuArrowLeft as ArrowLeft, LuLoader as Loader2, LuSave as Save, LuX as X, LuBookOpen as BookOpen, LuInfo as Info, LuLink2 as Link2, LuPlus as Plus } from "react-icons/lu";
 
 import {
   createAccount,
+  createAccountSubtype,
   getAccountById,
+  getAccountSubtypes,
   updateAccount,
 } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
-import { ACCOUNT_TYPES, AccountType } from "@/types/api";
+import { ACCOUNT_TYPES, AccountSubtype, AccountType } from "@/types/api";
 import { Card, SectionHeading, Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/forms";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
 
 // ─── Schema ────────────────────────────────────────────────────────────────────
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name is required.").max(120),
-  nameAr: z.string().max(120).optional(),
-  description: z.string().max(500).optional(),
-  type: z.enum(ACCOUNT_TYPES, { message: "Type is required." }),
-  accountKind: z.enum(["posting", "header"]).default("posting"),
-  isPosting: z.boolean().default(true),
-  allowManualPosting: z.boolean().default(true),
-  parentAccountId: z.string().optional().or(z.literal("")),
-});
+function buildFormSchema(t: (key: string, vars?: Record<string, string | number>) => string) {
+  return z.object({
+    name: z.string().min(1, t("accounts.form.validation.nameRequired")).max(120),
+    nameAr: z.string().max(120).optional(),
+    description: z.string().max(500).optional(),
+    type: z.enum(ACCOUNT_TYPES, { message: t("accounts.form.validation.typeRequired") }),
+    subtype: z.string().max(64).optional(),
+    accountKind: z.enum(["posting", "header"]).default("posting"),
+    isPosting: z.boolean().default(true),
+    allowManualPosting: z.boolean().default(true),
+    parentAccountId: z.string().optional().or(z.literal("")),
+  });
+}
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<ReturnType<typeof buildFormSchema>>;
 
 // ─── Account type colour map ────────────────────────────────────────────────
 
@@ -53,6 +59,8 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const isEdit = Boolean(accountId);
+  const { t } = useTranslation();
+  const formSchema = buildFormSchema(t);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -61,8 +69,9 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
       nameAr: "",
       description: "",
       type: "ASSET",
-      accountKind: "posting",
-      isPosting: true,
+      subtype: "",
+      accountKind: "header",
+      isPosting: false,
       allowManualPosting: true,
       parentAccountId: "",
     },
@@ -81,15 +90,16 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
 
     if (parentId && !isEdit) {
       form.setValue("parentAccountId", parentId);
-      form.setValue("accountKind", "posting");
-      form.setValue("isPosting", true);
+      // Default child behavior is decided after loading the parent account.
     }
   }, [searchParams, isEdit, form]);
 
   const watchedKind = form.watch("accountKind");
   const watchedType = form.watch("type") as AccountType;
+  const watchedSubtype = form.watch("subtype");
   const watchedParentId = form.watch("parentAccountId");
   const watchedAllowManual = form.watch("allowManualPosting");
+  const hasParent = Boolean(watchedParentId);
 
   useEffect(() => {
     if (isEdit) return;
@@ -102,6 +112,34 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
     queryFn: () => getAccountById(watchedParentId!, token),
     enabled: Boolean(watchedParentId) && !isEdit,
   });
+
+  const didInitChildDefaults = useRef(false);
+
+  // Default child role for numeric hierarchies:
+  // - under a 7-digit numeric header with >1 trailing zeros, default to Header (e.g. 5000000 -> 5100000)
+  // - otherwise default to Posting
+  useEffect(() => {
+    if (!hasParent || isEdit) return;
+    if (didInitChildDefaults.current) return;
+    if (!parentQuery.data?.code) return;
+
+    const code = parentQuery.data.code;
+    const isNumeric7 = /^\d{7}$/.test(code);
+    const trailingZeros = isNumeric7 ? (code.match(/0+$/)?.[0]?.length ?? 0) : 0;
+    const defaultKind = isNumeric7 && trailingZeros > 1 ? "header" : "posting";
+
+    form.setValue("accountKind", defaultKind);
+    form.setValue("isPosting", defaultKind === "posting");
+    didInitChildDefaults.current = true;
+  }, [hasParent, isEdit, parentQuery.data?.code, form]);
+
+  // Enforce parent type in the form: children inherit parent's type and cannot choose another.
+  useEffect(() => {
+    if (!hasParent) return;
+    if (parentQuery.data?.type) {
+      form.setValue("type", parentQuery.data.type);
+    }
+  }, [hasParent, parentQuery.data?.type, form]);
 
   const accountQuery = useQuery({
     queryKey: ["account", accountId, token],
@@ -117,6 +155,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         nameAr: d.nameAr || "",
         description: d.description || "",
         type: d.type,
+        subtype: d.subtype || "",
         accountKind: d.isPosting ? "posting" : "header",
         isPosting: d.isPosting,
         allowManualPosting: d.allowManualPosting ?? true,
@@ -124,6 +163,24 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
       });
     }
   }, [accountQuery.data, form]);
+
+  const accountSubtypesQuery = useQuery({
+    queryKey: ["account-subtypes", token],
+    queryFn: () => getAccountSubtypes(token),
+  });
+
+  const [showAddSubtype, setShowAddSubtype] = useState(false);
+  const [newSubtypeName, setNewSubtypeName] = useState("");
+
+  const createSubtypeMutation = useMutation({
+    mutationFn: async (name: string) => createAccountSubtype({ name }, token),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["account-subtypes"] });
+      form.setValue("subtype", created.name);
+      setNewSubtypeName("");
+      setShowAddSubtype(false);
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -133,6 +190,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         isPosting: accountKind === "posting",
         nameAr: rest.nameAr || undefined,
         description: rest.description || undefined,
+        subtype: rest.subtype?.trim() ? rest.subtype.trim() : undefined,
         parentAccountId: rest.parentAccountId || undefined,
       };
 
@@ -145,7 +203,8 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["accounts-tree"] });
-      router.push("/accounts");
+      const returnParentId = form.getValues("parentAccountId") || "";
+      router.push(returnParentId ? `/accounts?parentId=${returnParentId}` : "/accounts");
     },
   });
 
@@ -153,13 +212,13 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-gray-500">
         <Loader2 className="mb-4 h-8 w-8 animate-spin text-teal-500" />
-        <p>Loading account details…</p>
+        <p>{t("accounts.form.loadingDetails")}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200 motion-reduce:animate-none">
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -167,17 +226,17 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
             <BookOpen className="h-6 w-6" />
           </div>
           <SectionHeading
-            title={isEdit ? `Edit Account` : "New Account"}
+            title={isEdit ? t("accounts.form.title.edit") : t("accounts.form.title.new")}
             description={
               isEdit
                 ? `Editing "${accountQuery.data?.code} — ${accountQuery.data?.name}"`
-                : "Add a new entry to your Chart of Accounts."
+                : t("accounts.form.description.new")
             }
           />
         </div>
         <Link href="/accounts">
           <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-900">
-            <X className="mr-2 h-4 w-4" /> Cancel
+            <X className="mr-2 h-4 w-4" /> {t("common.action.cancel")}
           </Button>
         </Link>
       </div>
@@ -187,9 +246,9 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         <div className="flex items-center gap-3 rounded-2xl border border-teal-500/20 bg-teal-500/5 px-4 py-3">
           <Link2 className="h-4 w-4 shrink-0 text-teal-400" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-teal-300 uppercase tracking-wide mb-0.5">Adding child under</p>
+            <p className="text-xs font-semibold text-teal-300 uppercase tracking-wide mb-0.5">{t("accounts.form.parentContext.label")}</p>
             {parentQuery.isLoading ? (
-              <span className="text-sm text-gray-500 animate-pulse">Loading parent…</span>
+              <span className="text-sm text-gray-500 animate-pulse">{t("accounts.form.parentContext.loading")}</span>
             ) : parentQuery.data ? (
               <span className="text-sm font-bold text-gray-900">
                 <span className="font-mono text-gray-400 mr-2">{parentQuery.data.code}</span>
@@ -202,7 +261,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           <button
             onClick={() => form.setValue("parentAccountId", "")}
             className="shrink-0 p-1 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-            title="Remove parent"
+            title={t("common.action.remove")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -214,20 +273,26 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
         >
 
-          {/* ── Section 1: Account Category ──────────────────────── */}
+          {/* ── Section 1: Account Class ─────────────────────────── */}
           <div className="p-8 space-y-5">
-            <SectionLabel icon="🏷️">Account Category</SectionLabel>
+            <SectionLabel icon="🏷️">{t("accounts.typeAndClass")}</SectionLabel>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Account Type" error={form.formState.errors.type?.message}>
-                <Select {...form.register("type")}>
-                  {ACCOUNT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {formatAccountType(type)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Account Role">
+              {hasParent ? (
+                <Field label={t("accounts.type")}>
+                  <Input value={formatAccountType(watchedType)} disabled />
+                </Field>
+              ) : (
+                <Field label={t("accounts.type")} error={form.formState.errors.type?.message}>
+                  <Select {...form.register("type")}>
+                    {ACCOUNT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {formatAccountType(type)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+              <Field label={t("accounts.role.label")}>
                 <Select
                   value={form.watch("accountKind")}
                   onChange={(event) => {
@@ -236,22 +301,96 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
                     form.setValue("isPosting", nextKind === "posting");
                   }}
                 >
-                  <option value="posting">Posting — end node (accepts transactions)</option>
-                  <option value="header">Header — parent / grouping account</option>
+                  <option value="posting">{t("accounts.role.posting")}</option>
+                  <option value="header">{t("accounts.role.header")}</option>
                 </Select>
               </Field>
             </div>
 
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field
+                label={t("accounts.subtype.label")}
+                hint={t("accounts.subtype.hint")}
+                error={form.formState.errors.subtype?.message}
+              >
+                <Select
+                  value={watchedSubtype || ""}
+                  onChange={(e) => form.setValue("subtype", e.target.value)}
+                  disabled={accountSubtypesQuery.isLoading}
+                >
+                  <option value="">— {t("common.none")} —</option>
+                  {(accountSubtypesQuery.data ?? [])
+                    .filter((s: AccountSubtype) => s.isActive || s.name === watchedSubtype)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((s: AccountSubtype) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}{s.isActive ? "" : ` (${t("common.status.inactive")})`}
+                      </option>
+                    ))}
+                </Select>
+              </Field>
+
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setShowAddSubtype((v) => !v)}
+                >
+                  {t("accounts.form.subtype.addToggle")}
+                </Button>
+              </div>
+            </div>
+
+            {showAddSubtype && (
+              <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <Input
+                    placeholder={t("accounts.subtype.placeholder")}
+                    value={newSubtypeName}
+                    onChange={(e) => setNewSubtypeName(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      disabled={!newSubtypeName.trim() || createSubtypeMutation.isPending}
+                      onClick={() => createSubtypeMutation.mutate(newSubtypeName)}
+                    >
+                      {createSubtypeMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" />
+                      )}
+                      {t("accounts.form.subtype.save")}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => setShowAddSubtype(false)}>
+                      {t("common.action.cancel")}
+                    </Button>
+                  </div>
+                </div>
+                {createSubtypeMutation.isError && (
+                  <div className="mt-2 text-xs text-red-400">
+                    {(createSubtypeMutation.error as Error).message || t("accounts.subtype.createError")}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Live type badge preview */}
             {watchedType && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Preview:</span>
+                <span className="text-xs text-gray-500">{t("accounts.form.preview")}</span>
                 <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wide", TYPE_COLORS[watchedType])}>
                   {formatAccountType(watchedType)}
                 </span>
                 <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-medium", watchedKind === "posting" ? "bg-teal-500/10 text-teal-400 border-teal-500/20" : "bg-zinc-500/10 text-gray-400 border-zinc-500/20")}>
-                  {watchedKind === "posting" ? "Posting" : "Header"}
+                  {watchedKind === "posting" ? t("accounts.role.posting") : t("accounts.role.header")}
                 </span>
+                {watchedSubtype?.trim() && (
+                  <span className="inline-flex rounded-full border px-3 py-0.5 text-xs font-medium bg-gray-100 text-gray-900 border-gray-200">
+                    {watchedSubtype.trim()}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -260,29 +399,31 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
 
           {/* ── Section 2: Names ──────────────────────────────────── */}
           <div className="p-8 space-y-5">
-            <SectionLabel icon="📝">Names & Description</SectionLabel>
+            <SectionLabel icon="📝">{t("accounts.form.section.names")}</SectionLabel>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Account Name (English)" error={form.formState.errors.name?.message}>
-                <Input placeholder="e.g. Main Bank Account" {...form.register("name")} />
+              <Field label={t("accounts.form.nameEnLabel")} error={form.formState.errors.name?.message}>
+                <Input placeholder={t("accounts.form.nameEnPlaceholder")} {...form.register("name")} />
               </Field>
-              <Field label="Arabic Name" hint="Optional — displayed RTL" error={form.formState.errors.nameAr?.message}>
-                <Input placeholder="الحساب البنكي الرئيسي" dir="rtl" {...form.register("nameAr")} />
+              <Field label={t("accounts.form.nameArLabel")} hint={t("accounts.form.nameArHint")} error={form.formState.errors.nameAr?.message}>
+                <Input placeholder={t("accounts.form.nameArPlaceholder")} dir="rtl" {...form.register("nameAr")} />
               </Field>
             </div>
-            <Field label="Description / Notes" error={form.formState.errors.description?.message}>
-              <Textarea
-                placeholder="Audit notes, operational scope, or internal commentary…"
-                rows={3}
-                {...form.register("description")}
-              />
-            </Field>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label={t("accounts.form.descriptionLabel")} error={form.formState.errors.description?.message}>
+                <Textarea
+                  placeholder={t("accounts.form.descriptionPlaceholder")}
+                  rows={3}
+                  {...form.register("description")}
+                />
+              </Field>
+            </div>
           </div>
 
           <div className="border-t border-gray-200" />
 
           {/* ── Section 3: Settings ───────────────────────────────── */}
           <div className="p-8 space-y-5">
-            <SectionLabel icon="⚙️">Posting Settings</SectionLabel>
+            <SectionLabel icon="⚙️">{t("accounts.form.postingSettings")}</SectionLabel>
             <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-50 transition-colors">
               <input
                 type="checkbox"
@@ -291,10 +432,9 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
                 onChange={(e) => form.setValue("allowManualPosting", e.target.checked)}
               />
               <div>
-                <span className="text-sm font-semibold text-zinc-200">Allow manual journal entries</span>
+                <span className="text-sm font-semibold text-zinc-200">{t("accounts.form.allowManual.label")}</span>
                 <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
-                  When enabled, users can debit/credit this account directly in Journal Entries.
-                  Disable for system-controlled accounts (e.g. retained earnings, tax payable).
+                  {t("accounts.form.allowManual.help")}
                 </p>
               </div>
             </label>
@@ -302,7 +442,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3">
                 <Info className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
                 <p className="text-xs text-amber-300">
-                  Manual posting is disabled. This account can only be updated via automated system rules.
+                  {t("accounts.form.allowManual.disabledNote")}
                 </p>
               </div>
             )}
@@ -311,7 +451,7 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
           {/* ── Error ──────────────────────────────────────────────── */}
           {mutation.isError && (
             <div className="mx-8 mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-              {(mutation.error as Error).message || "Failed to save account."}
+              {(mutation.error as Error).message || t("accounts.form.error.saveFailed")}
             </div>
           )}
 
@@ -321,14 +461,14 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
               {mutation.isPending
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 : <Save className="mr-2 h-4 w-4" />}
-              {isEdit ? "Save Changes" : "Create Account"}
+              {isEdit ? t("accounts.form.action.saveChanges") : t("accounts.form.action.create")}
             </Button>
             <Link
               href="/accounts"
               className="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-400 hover:text-gray-900 px-6 h-11 transition rounded-full hover:bg-gray-100"
             >
               <ArrowLeft className="h-4 w-4" />
-              Cancel
+              {t("common.action.cancel")}
             </Link>
           </div>
         </form>

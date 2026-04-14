@@ -3,7 +3,11 @@ import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function PageShell({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-700">{children}</div>;
+  return (
+    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-200 motion-reduce:animate-none">
+      {children}
+    </div>
+  );
 }
 
 export function Card({
