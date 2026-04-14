@@ -7,7 +7,7 @@ import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 
 /** Client or interactive transaction client used for atomic code allocation */
-type DbClient = Pick<PrismaClient, 'account' | '$queryRaw' | '$executeRaw'>;
+type DbClient = Pick<PrismaClient, 'account' | 'accountSubtype' | '$queryRaw' | '$executeRaw'>;
 
 const ACCOUNT_CREATE_MAX_ATTEMPTS = 5;
 
@@ -15,28 +15,68 @@ const ACCOUNT_CREATE_MAX_ATTEMPTS = 5;
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) { }
 
-  async generateNextCode(parentId: string | null): Promise<string> {
+  async generateNextCode(parentId: string | null, opts?: { isPosting?: boolean; type?: string }): Promise<string> {
     return await this.prisma.$transaction(async (tx) => {
-      return this.computeNextCode(tx, parentId);
+      return this.computeNextCode(tx, parentId, {
+        isPosting: opts?.isPosting ?? true,
+        type: opts?.type,
+      });
     });
+  }
+
+  private normalizeSubtype(input: string | undefined) {
+    const value = input?.trim();
+    return value ? value : null;
+  }
+
+  private async ensureAccountSubtypeIsActive(subtype: string, db: Pick<PrismaClient, 'accountSubtype'> = this.prisma) {
+    const row = await db.accountSubtype.findFirst({
+      where: { name: subtype, isActive: true },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new BadRequestException(`Unknown or inactive account subtype: "${subtype}".`);
+    }
   }
 
   async create(dto: CreateAccountDto) {
     for (let attempt = 0; attempt < ACCOUNT_CREATE_MAX_ATTEMPTS; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
+          const normalizedSubtype = this.normalizeSubtype(dto.subtype ?? undefined);
+          if (normalizedSubtype) {
+            await this.ensureAccountSubtypeIsActive(normalizedSubtype, tx);
+          }
+
           const parentAccount = dto.parentAccountId
             ? await this.ensureAccountCanOwnChildren(dto.parentAccountId, tx)
             : null;
 
-          const finalCode = await this.allocateNextAccountCode(tx, dto.parentAccountId ?? null);
+          const requestedIsPosting = dto.isPosting ?? true;
+
+          const finalCode = await this.allocateNextAccountCode(tx, dto.parentAccountId ?? null, {
+            isPosting: requestedIsPosting,
+            type: dto.type,
+          });
 
           let finalType = dto.type;
           if (!finalType && parentAccount) {
             finalType = parentAccount.type;
           }
 
+          if (parentAccount && dto.type && dto.type !== parentAccount.type) {
+            throw new BadRequestException('Child account type must match the parent account type.');
+          }
+
+          if (parentAccount) {
+            finalType = parentAccount.type;
+          }
+
           finalType = finalType || 'ASSET';
+
+          // 7-digit numeric root codes (e.g. 5000000) are structural headers by definition.
+          const isNumeric7Root = dto.parentAccountId == null && /^\d000000$/.test(finalCode);
+          const finalIsPosting = isNumeric7Root ? false : requestedIsPosting;
 
           try {
             return await tx.account.create({
@@ -46,8 +86,8 @@ export class AccountsService {
                 nameAr: dto.nameAr,
                 description: dto.description,
                 type: finalType as never,
-                subtype: dto.subtype,
-                isPosting: dto.isPosting ?? true,
+                subtype: normalizedSubtype,
+                isPosting: finalIsPosting,
                 segment1: dto.segment1,
                 segment2: dto.segment2,
                 segment3: dto.segment3,
@@ -87,7 +127,11 @@ export class AccountsService {
    * Serialize sibling creation under the same parent (or among root accounts) so two
    * concurrent creates cannot read the same "last code" before either inserts.
    */
-  private async allocateNextAccountCode(tx: DbClient, parentId: string | null): Promise<string> {
+  private async allocateNextAccountCode(
+    tx: DbClient,
+    parentId: string | null,
+    opts: { isPosting: boolean; type?: string },
+  ): Promise<string> {
     if (parentId) {
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM "Account" WHERE id = ${parentId} FOR UPDATE
@@ -99,7 +143,7 @@ export class AccountsService {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(384629104)`;
     }
 
-    const candidate = await this.computeNextCode(tx, parentId);
+    const candidate = await this.computeNextCode(tx, parentId, opts);
     return this.ensureGloballyUnusedAccountCode(tx, candidate);
   }
 
@@ -155,17 +199,35 @@ export class AccountsService {
     return rows[0]?.code ?? null;
   }
 
-  private async computeNextCode(tx: DbClient, parentId: string | null): Promise<string> {
-    let prefix = '';
-    if (parentId) {
-      const parent = await tx.account.findUnique({
-        where: { id: parentId },
-        select: { code: true },
-      });
-      if (!parent) throw new AccountNotFoundException(parentId);
-      prefix = parent.code;
+  private async computeNextCode(
+    tx: DbClient,
+    parentId: string | null,
+    opts: { isPosting: boolean; type?: string },
+  ): Promise<string> {
+    if (!parentId) {
+      const numericRoot = await this.computeNextNumeric7RootCode(tx, opts.type, opts.isPosting);
+      if (numericRoot) return numericRoot;
+      return await this.computeNextCodeLegacy(tx, null);
     }
 
+    const parent = await tx.account.findUnique({
+      where: { id: parentId },
+      select: { code: true },
+    });
+    if (!parent) throw new AccountNotFoundException(parentId);
+
+    const numericChild = await this.computeNextNumeric7ChildCode(tx, parentId, parent.code, opts.isPosting);
+    if (numericChild) return numericChild;
+
+    return await this.computeNextCodeLegacy(tx, parentId, parent.code);
+  }
+
+  /**
+   * Legacy code allocation: string prefix + numeric suffix, based on last sibling code.
+   * This remains for non-numeric charts (e.g. segmented enterprise codes).
+   */
+  private async computeNextCodeLegacy(tx: DbClient, parentId: string | null, parentCode?: string): Promise<string> {
+    const prefix = parentId ? (parentCode ?? '') : '';
     const lastCode = await this.findLastSiblingCode(tx, parentId);
 
     if (!lastCode) {
@@ -183,21 +245,139 @@ export class AccountsService {
     return prefix + nextSuffix;
   }
 
-  async list(query?: { type?: string; isActive?: string; isPosting?: string; search?: string; parentAccountId?: string | null }) {
+  private isNumeric7(code: string) {
+    return /^\d{7}$/.test(code);
+  }
+
+  private countTrailingZeros(code: string) {
+    let count = 0;
+    for (let i = code.length - 1; i >= 0 && code[i] === '0'; i--) count++;
+    return count;
+  }
+
+  private typeToRootDigit(type?: string) {
+    switch (type) {
+      case 'ASSET':
+        return '1';
+      case 'LIABILITY':
+        return '2';
+      case 'EQUITY':
+        return '3';
+      case 'REVENUE':
+        return '4';
+      case 'EXPENSE':
+        return '5';
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Optional numeric-root strategy:
+   * - When there are no root siblings yet for that type-digit, allocate `<digit>000000` (7 digits).
+   * - If that code is already taken, return null and fall back to legacy allocation.
+   *
+   * This keeps existing segmented/enterprise charts working while enabling the requested 7-digit hierarchy.
+   */
+  private async computeNextNumeric7RootCode(tx: DbClient, type: string | undefined, isPosting: boolean): Promise<string | null> {
+    if (isPosting) return null;
+    const rootDigit = this.typeToRootDigit(type ?? 'ASSET');
+    if (!rootDigit) return null;
+
+    const candidate = `${rootDigit}000000`;
+
+    const taken = await tx.account.findUnique({
+      where: { code: candidate },
+      select: { id: true },
+    });
+
+    return taken ? null : candidate;
+  }
+
+  /**
+   * 7-digit hierarchical numeric strategy (opt-in by parent code shape).
+   *
+   * Model:
+   * - Header accounts have trailing zeros (e.g. `1100000`)
+   * - Header children consume one more digit from the left (reduce trailing zeros by 1): `1100000` -> `1110000`
+   * - Posting children allocate within the parent's remaining zeros, incrementing from the right:
+   *   `1100000` -> `1100001`, `1100002`, ...
+   *
+   * To avoid collisions with future header branches, posting allocation keeps the "next header digit" at 0
+   * whenever the parent still has room for deeper headers.
+   */
+  private async computeNextNumeric7ChildCode(
+    tx: DbClient,
+    parentId: string,
+    parentCode: string,
+    isPosting: boolean,
+  ): Promise<string | null> {
+    if (!this.isNumeric7(parentCode)) return null;
+
+    const z = this.countTrailingZeros(parentCode);
+    if (z <= 0) return null;
+
+    const parentPrefixLen = 7 - z;
+    const parentPrefix = parentCode.slice(0, parentPrefixLen);
+
+    const children = await tx.account.findMany({
+      where: { parentAccountId: parentId },
+      select: { code: true, isPosting: true },
+    });
+
+    const childCodes = children.map((c) => c.code).filter((code) => this.isNumeric7(code));
+
+    if (!isPosting) {
+      if (z <= 1) {
+        throw new BadRequestException('No more hierarchy levels are available under this account.');
+      }
+
+      const newTrailingZeros = z - 1;
+      const nextDigitIndex = parentPrefixLen; // 0-based
+      const maxDigit = childCodes
+        .filter((code) => this.countTrailingZeros(code) === newTrailingZeros)
+        .filter((code) => code.startsWith(parentPrefix))
+        .map((code) => Number(code[nextDigitIndex] ?? '0'))
+        .reduce((a, b) => Math.max(a, b), 0);
+
+      if (maxDigit >= 9) {
+        throw new ConflictException('Unable to allocate a new header account code under this parent.');
+      }
+
+      const nextDigit = String(maxDigit + 1);
+      return parentPrefix + nextDigit + '0'.repeat(newTrailingZeros);
+    }
+
+    // Posting allocation.
+    const suffixLen = z;
+    const reservedLeadingDigits = suffixLen > 1 ? 1 : 0;
+    const allowedMax = reservedLeadingDigits ? 10 ** (suffixLen - 1) - 1 : 9;
+
+    const maxSerial = childCodes
+      .filter((code) => code.startsWith(parentPrefix))
+      .filter((code) => (reservedLeadingDigits ? code[parentPrefixLen] === '0' : true))
+      .map((code) => Number(code.slice(7 - suffixLen)))
+      .filter((n) => Number.isFinite(n) && n >= 0 && n <= allowedMax)
+      .reduce((a, b) => Math.max(a, b), 0);
+
+    const nextSerial = maxSerial === 0 ? 1 : maxSerial + 1;
+    if (nextSerial > allowedMax) {
+      throw new ConflictException('Unable to allocate a posting account code under this parent.');
+    }
+
+    const serialStr = String(nextSerial).padStart(suffixLen, '0');
+    return parentPrefix + serialStr;
+  }
+
+  async list(query?: {
+    type?: string;
+    isActive?: string;
+    isPosting?: string;
+    search?: string;
+    parentAccountId?: string | null;
+  }) {
     return this.prisma.account.findMany({
-      where: {
-        parentAccountId: query?.parentAccountId === 'null' ? null : query?.parentAccountId,
-        type: query?.type as never,
-        isActive: query?.isActive ? query.isActive === 'true' : undefined,
-        isPosting: query?.isPosting ? query.isPosting === 'true' : undefined,
-        OR: query?.search
-          ? [
-            { code: { contains: query.search, mode: 'insensitive' } },
-            { name: { contains: query.search, mode: 'insensitive' } },
-            { nameAr: { contains: query.search, mode: 'insensitive' } },
-          ]
-          : undefined,
-      },
+      where: this.buildAccountListWhere(query),
       include: {
         segment1Value: true,
         segment2Value: true,
@@ -208,6 +388,76 @@ export class AccountsService {
       },
       orderBy: [{ code: 'asc' }],
     });
+  }
+
+  async listSelectorOptions(query?: {
+    type?: string;
+    isActive?: string;
+    isPosting?: string;
+    search?: string;
+    parentAccountId?: string | null;
+  }) {
+    return this.prisma.account.findMany({
+      where: this.buildAccountListWhere(query),
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        currentBalance: true,
+      },
+      orderBy: [{ code: 'asc' }],
+    });
+  }
+
+  async listTableRows(query?: {
+    type?: string;
+    isActive?: string;
+    isPosting?: string;
+    search?: string;
+    parentAccountId?: string | null;
+  }) {
+    return this.prisma.account.findMany({
+      where: this.buildAccountListWhere(query),
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        type: true,
+        isPosting: true,
+        isActive: true,
+        currentBalance: true,
+        parentAccountId: true,
+        parentAccount: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [{ code: 'asc' }],
+    });
+  }
+
+  private buildAccountListWhere(query?: {
+    type?: string;
+    isActive?: string;
+    isPosting?: string;
+    search?: string;
+    parentAccountId?: string | null;
+  }) {
+    return {
+      parentAccountId: query?.parentAccountId === 'null' ? null : query?.parentAccountId,
+      type: query?.type as never,
+      isActive: query?.isActive ? query.isActive === 'true' : undefined,
+      isPosting: query?.isPosting ? query.isPosting === 'true' : undefined,
+      OR: query?.search
+        ? [
+          { code: { contains: query.search, mode: 'insensitive' } },
+          { name: { contains: query.search, mode: 'insensitive' } },
+          { nameAr: { contains: query.search, mode: 'insensitive' } },
+        ]
+        : undefined,
+    } satisfies Prisma.AccountWhereInput;
   }
 
   async hierarchy(query?: { type?: string; isActive?: string; isPosting?: string; search?: string }) {
@@ -263,6 +513,36 @@ export class AccountsService {
       await this.ensureAccountCanOwnChildren(dto.parentAccountId);
     }
 
+    const normalizedSubtype = dto.subtype === undefined ? undefined : this.normalizeSubtype(dto.subtype);
+    if (normalizedSubtype) {
+      await this.ensureAccountSubtypeIsActive(normalizedSubtype);
+    }
+
+    const nextParentId =
+      dto.parentAccountId === undefined
+        ? existing.parentAccountId
+        : dto.parentAccountId;
+
+    let enforcedType: (typeof existing)['type'] | null = null;
+    if (nextParentId) {
+      const parent = await this.ensureAccountExists(nextParentId);
+      enforcedType = parent.type;
+
+      if (dto.type && dto.type !== parent.type) {
+        throw new BadRequestException('Child account type must match the parent account type.');
+      }
+    }
+
+    if (dto.type && dto.type !== existing.type) {
+      const child = await this.prisma.account.findFirst({
+        where: { parentAccountId: id },
+        select: { id: true },
+      });
+      if (child) {
+        throw new BadRequestException('Cannot change account type while the account has children.');
+      }
+    }
+
     const nextIsPosting = dto.isPosting ?? existing.isPosting;
 
     if (nextIsPosting) {
@@ -276,8 +556,8 @@ export class AccountsService {
           name: dto.name,
           nameAr: dto.nameAr,
           description: dto.description,
-          type: dto.type,
-          subtype: dto.subtype,
+          type: enforcedType ?? dto.type,
+          subtype: normalizedSubtype === undefined ? undefined : normalizedSubtype,
           isPosting: dto.isPosting,
           segment1: dto.segment1,
           segment2: dto.segment2,

@@ -39,10 +39,11 @@ Where to edit:
 What else to check:
 
 - required account type selection
+- account subtype (class) selection is optional but must match an active `AccountSubtype` (managed under Master Data)
 - header vs posting selection
 - parent context passed from navigation or route params
 - parent context must only come from header accounts, never from posting-account drilldown state
-- next-code generation
+- next-code generation (it depends on `parentId` and whether the new account is Header vs Posting)
 - account code must be generated on the backend during creation; `POST /accounts` does not accept a `code` field (extra fields are rejected by validation)
 - account code remains hidden from manual editing in the create form
 - posting accounts stay leaf nodes with no children
@@ -61,6 +62,10 @@ Checks to run:
 - backend build
 - account service tests
 - apply the Prisma migration so the PostgreSQL leaf-node trigger is installed
+  
+If your environment already contains older numeric charts that used **6-digit** numeric codes, run the one-time migration:
+
+- `backend`: `npm run prisma:migrate:account-codes:6-to-7`
 
 ## Update Posting Rules
 
@@ -162,12 +167,26 @@ Must remain compatible:
 
 - existing module boundaries
 - route naming conventions already used in the project
+- prefer lightweight list/query modes for selector or overview UIs when a screen does not need full nested relations or line-level details
 
 Checks to run:
 
 - backend build
 - backend tests
 - frontend typecheck if consumed by UI
+
+## Add Or Change Journal Entry Types
+
+Where to edit:
+
+- backend master-data module under `accounting-core/master-data`
+- `frontend/features/accounting/master-data/master-data-page.tsx` (admin UI)
+- `frontend/features/accounting/journal-entries/journal-entries-page.tsx` (selecting a type during entry creation)
+
+What else to check:
+
+- journal entry creation/update must reject unknown or inactive types
+- types are reference/master data and should be deactivated (not deleted) when no longer in use
 
 ## Before Finishing Any Phase 1 Change
 

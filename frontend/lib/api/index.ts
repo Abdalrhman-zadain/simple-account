@@ -1,11 +1,16 @@
 import {
   Account,
+  AccountOption,
+  AccountTableRow,
+  AccountSubtype,
   AccountTreeNode,
   AccountsQuery,
   ApiCheckResult,
   ApiErrorShape,
   AuditLogEntry,
+  CreateAccountSubtypePayload,
   CreateAccountPayload,
+  CreateJournalEntryTypePayload,
   CreateJournalEntryPayload,
   CreateSegmentValuePayload,
   FiscalPeriod,
@@ -21,11 +26,15 @@ import {
   RegisterResponse,
   SegmentDefinition,
   SegmentValue,
+  UpdateAccountSubtypePayload,
   UpdateAccountPayload,
+  UpdateJournalEntryTypePayload,
   UpdateSegmentValuePayload,
+  JournalEntryType,
 } from "@/types/api";
 import { getApiBaseUrl } from "@/lib/config/api";
 import { buildAccountQuery } from "@/lib/utils";
+import { clearSession } from "@/lib/storage";
 
 export class ApiError extends Error {
   status: number;
@@ -50,6 +59,15 @@ async function parseResponse<T>(response: Response): Promise<T> {
     : await response.text();
 
   if (!response.ok) {
+    // If the backend says our session is unauthorized, clear local session so
+    // the UI can recover cleanly (e.g. after token expiry or JWT secret changes).
+    if (response.status === 401 && typeof window !== "undefined") {
+      clearSession();
+      const path = window.location.pathname;
+      if (path !== "/login" && path !== "/register") {
+        window.location.assign("/login");
+      }
+    }
     throw normalizeApiError(response.status, body);
   }
 
@@ -113,6 +131,18 @@ export async function getAccounts(params: AccountsQuery = {}, token?: string | n
   return apiRequest<Account[]>(`/accounts${suffix}`, { token });
 }
 
+export async function getAccountOptions(params: AccountsQuery = {}, token?: string | null) {
+  const query = buildAccountQuery({ ...params, view: "selector" });
+  const suffix = query ? `?${query}` : "";
+  return apiRequest<AccountOption[]>(`/accounts${suffix}`, { token });
+}
+
+export async function getAccountTableRows(params: AccountsQuery = {}, token?: string | null) {
+  const query = buildAccountQuery({ ...params, view: "table" });
+  const suffix = query ? `?${query}` : "";
+  return apiRequest<AccountTableRow[]>(`/accounts${suffix}`, { token });
+}
+
 export async function getAccountsTree(params: AccountsQuery = {}, token?: string | null) {
   const query = buildAccountQuery(params);
   const suffix = query ? `?${query}` : "";
@@ -147,8 +177,16 @@ export async function activateAccount(id: string, token?: string | null) {
   return apiRequest<Account>(`/accounts/${id}/activate`, { method: "POST", token });
 }
 
-export async function getNextAccountCode(parentId?: string | null, token?: string | null) {
-  const query = parentId ? `?parentId=${parentId}` : "";
+export async function getNextAccountCode(
+  parentId?: string | null,
+  opts?: { isPosting?: boolean; type?: string },
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (parentId) searchParams.set("parentId", parentId);
+  if (typeof opts?.isPosting === "boolean") searchParams.set("isPosting", String(opts.isPosting));
+  if (opts?.type) searchParams.set("type", opts.type);
+  const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
   return apiRequest<string>(`/accounts/next-code${query}`, { token });
 }
 
@@ -169,6 +207,58 @@ export async function getSegmentDefinitions(token?: string | null) {
 
 export async function getMasterData(token?: string | null) {
   return apiRequest<SegmentDefinition[]>("/segments/master-data", { token });
+}
+
+// ─── Account Subtypes (Categories) ─────────────────────────────────────────────
+
+export async function getAccountSubtypes(token?: string | null) {
+  return apiRequest<AccountSubtype[]>("/account-subtypes", { token });
+}
+
+export async function createAccountSubtype(payload: CreateAccountSubtypePayload, token?: string | null) {
+  return apiRequest<AccountSubtype>("/account-subtypes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateAccountSubtype(id: string, payload: UpdateAccountSubtypePayload, token?: string | null) {
+  return apiRequest<AccountSubtype>(`/account-subtypes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateAccountSubtype(id: string, token?: string | null) {
+  return apiRequest<AccountSubtype>(`/account-subtypes/${id}`, { method: "DELETE", token });
+}
+
+// ─── Journal Entry Types ───────────────────────────────────────────────────────
+
+export async function getJournalEntryTypes(token?: string | null) {
+  return apiRequest<JournalEntryType[]>("/journal-entry-types", { token });
+}
+
+export async function createJournalEntryType(payload: CreateJournalEntryTypePayload, token?: string | null) {
+  return apiRequest<JournalEntryType>("/journal-entry-types", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateJournalEntryType(id: string, payload: UpdateJournalEntryTypePayload, token?: string | null) {
+  return apiRequest<JournalEntryType>(`/journal-entry-types/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateJournalEntryType(id: string, token?: string | null) {
+  return apiRequest<JournalEntryType>(`/journal-entry-types/${id}`, { method: "DELETE", token });
 }
 
 export async function getSegmentValues(definitionId: string, token?: string | null) {
@@ -233,6 +323,9 @@ export async function getJournalEntries(params: JournalEntriesQuery = {}, token?
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.reference) searchParams.set("reference", params.reference);
+  if (params.search) searchParams.set("search", params.search);
+  if (params.journalEntryTypeId) searchParams.set("journalEntryTypeId", params.journalEntryTypeId);
+  if (typeof params.includeLines === "boolean") searchParams.set("includeLines", String(params.includeLines));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
   return apiRequest<JournalEntry[]>(`/journal-entries${suffix}`, { token });
 }

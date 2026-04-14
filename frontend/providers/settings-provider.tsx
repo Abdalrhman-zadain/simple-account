@@ -12,28 +12,41 @@ interface SettingsState {
 
 const SettingsContext = createContext<SettingsState | undefined>(undefined);
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguage] = useState<Language>("en");
+export function SettingsProvider({
+    children,
+    initialLanguage,
+}: {
+    children: React.ReactNode;
+    initialLanguage: Language;
+}) {
+    const [language, setLanguage] = useState<Language>(initialLanguage);
     const [isHydrated, setIsHydrated] = useState(false);
 
     useEffect(() => {
+        let nextLanguage = initialLanguage;
         const stored = localStorage.getItem("app_language") as Language;
         if (stored === "ar" || stored === "en") {
-            setLanguage(stored);
+            nextLanguage = stored;
         } else {
-            // Basic guess based on browser
-            if (window.navigator.language.startsWith("ar")) {
-                setLanguage("ar");
-            }
+            nextLanguage = window.navigator.language.startsWith("ar") ? "ar" : initialLanguage;
         }
+
+        document.documentElement.lang = nextLanguage;
+        document.documentElement.dir = nextLanguage === "ar" ? "rtl" : "ltr";
+
+        if (nextLanguage !== language) {
+            setLanguage(nextLanguage);
+        }
+
         setIsHydrated(true);
-    }, []);
+    }, [initialLanguage, language]);
 
     useEffect(() => {
         if (!isHydrated) return;
         localStorage.setItem("app_language", language);
         document.documentElement.lang = language;
         document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+        document.cookie = `app_language=${language}; path=/; max-age=31536000; samesite=lax`;
     }, [language, isHydrated]);
 
     return (

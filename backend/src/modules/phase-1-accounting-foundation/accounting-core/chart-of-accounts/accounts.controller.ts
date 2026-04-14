@@ -14,8 +14,15 @@ export class AccountsController {
   }
 
   @Get('next-code')
-  getNextCode(@Query('parentId') parentId?: string) {
-    return this.accountsService.generateNextCode(parentId || null);
+  getNextCode(
+    @Query('parentId') parentId?: string,
+    @Query('isPosting') isPosting?: string,
+    @Query('type') type?: string,
+  ) {
+    return this.accountsService.generateNextCode(parentId || null, {
+      isPosting: isPosting ? isPosting === 'true' : true,
+      type,
+    });
   }
 
   @Get()
@@ -25,7 +32,15 @@ export class AccountsController {
     @Query('isPosting') isPosting?: string,
     @Query('search') search?: string,
     @Query('parentAccountId') parentAccountId?: string,
+    @Query('view') view?: string,
   ) {
+    if (view === 'selector') {
+      return this.accountsService.listSelectorOptions({ type, isActive, isPosting, search, parentAccountId });
+    }
+    if (view === 'table') {
+      return this.accountsService.listTableRows({ type, isActive, isPosting, search, parentAccountId });
+    }
+
     return this.accountsService.list({ type, isActive, isPosting, search, parentAccountId });
   }
 

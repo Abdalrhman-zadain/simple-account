@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { JournalEntry, JournalEntryLine, JournalEntryStatus, Prisma } from '../../../../generated/prisma/index';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
@@ -26,6 +26,10 @@ export class JournalEntriesService {
   async create(dto: CreateJournalEntryDto): Promise<JournalEntryResponse> {
     this.validateLines(dto.lines);
     await this.ensureAccountsArePostable(dto.lines);
+    const nextTypeId = dto.journalEntryTypeId ?? null;
+    if (nextTypeId) {
+      await this.ensureJournalEntryTypeIsActive(nextTypeId);
+    }
 
     const entryDate = new Date(dto.entryDate);
     const period = await this.resolveFiscalPeriod(entryDate);
@@ -35,6 +39,7 @@ export class JournalEntriesService {
         reference: this.referenceService.generateJournalEntryReference(entryDate),
         entryDate,
         description: dto.description,
+        journalEntryTypeId: nextTypeId,
         fiscalPeriodId: period?.id,
         lines: {
           create: dto.lines.map((line, index) => this.mapLineCreateInput(line, index)),
@@ -50,12 +55,23 @@ export class JournalEntriesService {
     dateFrom?: string;
     dateTo?: string;
     reference?: string;
-  }): Promise<JournalEntryResponse[]> {
+    search?: string;
+    journalEntryTypeId?: string;
+  }, options?: { includeLines?: boolean }): Promise<JournalEntryResponse[]> {
+    const search = filters?.search?.trim();
+    const includeLines = options?.includeLines ?? true;
     const entries = await this.prisma.journalEntry.findMany({
       where: {
         status: filters?.status,
+        journalEntryTypeId: filters?.journalEntryTypeId,
         reference: filters?.reference
           ? { contains: filters.reference, mode: 'insensitive' }
+          : undefined,
+        OR: search
+          ? [
+            { reference: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ]
           : undefined,
         entryDate:
           filters?.dateFrom || filters?.dateTo
@@ -65,17 +81,23 @@ export class JournalEntriesService {
             }
             : undefined,
       },
-      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      include: {
+        lines: includeLines ? { orderBy: { lineNumber: 'asc' } } : false,
+        journalEntryType: { select: { id: true, name: true } },
+      },
       orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
     });
 
-    return entries.map((entry) => this.toResponse(entry));
+    return entries.map((entry) => this.toResponse(entry as EntryWithLines & { reversalOfId?: string | null }, { includeLines }));
   }
 
   async getById(id: string): Promise<JournalEntryResponse> {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
-      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      include: {
+        lines: { orderBy: { lineNumber: 'asc' } },
+        journalEntryType: { select: { id: true, name: true } },
+      },
     });
 
     if (!entry) {
@@ -88,6 +110,11 @@ export class JournalEntriesService {
   async update(id: string, dto: UpdateJournalEntryDto): Promise<JournalEntryResponse> {
     const existing = await this.getEntryOrThrow(id);
     this.ensureDraft(existing);
+
+    const nextTypeId = dto.journalEntryTypeId === undefined ? existing.journalEntryTypeId ?? null : dto.journalEntryTypeId;
+    if (nextTypeId) {
+      await this.ensureJournalEntryTypeIsActive(nextTypeId);
+    }
 
     if (dto.lines) {
       this.validateLines(dto.lines);
@@ -105,6 +132,7 @@ export class JournalEntriesService {
         where: { id },
         data: {
           entryDate: dto.entryDate ? new Date(dto.entryDate) : undefined,
+          journalEntryTypeId: dto.journalEntryTypeId === undefined ? undefined : dto.journalEntryTypeId,
           description: dto.description,
           lines: dto.lines
             ? {
@@ -121,7 +149,10 @@ export class JournalEntriesService {
   async getEntryOrThrow(id: string) {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
-      include: { lines: { orderBy: { lineNumber: 'asc' } } },
+      include: {
+        lines: { orderBy: { lineNumber: 'asc' } },
+        journalEntryType: { select: { id: true, name: true } },
+      },
     });
 
     if (!entry) {
@@ -241,24 +272,43 @@ export class JournalEntriesService {
     };
   }
 
-  toResponse(entry: EntryWithLines & { reversalOfId?: string | null }): JournalEntryResponse {
+  toResponse(
+    entry: EntryWithLines & { reversalOfId?: string | null },
+    options?: { includeLines?: boolean },
+  ): JournalEntryResponse {
+    const includeLines = options?.includeLines ?? true;
+
     return {
       id: entry.id,
       reference: entry.reference,
       status: entry.status,
       entryDate: entry.entryDate.toISOString(),
+      journalEntryTypeId: entry.journalEntryTypeId ?? null,
+      journalEntryType: (entry as any).journalEntryType ?? null,
       description: entry.description,
       postedAt: entry.postedAt?.toISOString() ?? null,
       postingBatchId: entry.postingBatchId ?? null,
       reversalOfId: entry.reversalOfId ?? null,
-      lines: entry.lines.map((line) => ({
-        id: line.id,
-        accountId: line.accountId,
-        description: line.description,
-        lineNumber: line.lineNumber,
-        debitAmount: line.debitAmount.toString(),
-        creditAmount: line.creditAmount.toString(),
-      })),
+      lines: includeLines
+        ? entry.lines.map((line) => ({
+          id: line.id,
+          accountId: line.accountId,
+          description: line.description,
+          lineNumber: line.lineNumber,
+          debitAmount: line.debitAmount.toString(),
+          creditAmount: line.creditAmount.toString(),
+        }))
+        : [],
     };
+  }
+
+  private async ensureJournalEntryTypeIsActive(id: string) {
+    const row = await this.prisma.journalEntryType.findFirst({
+      where: { id, isActive: true },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new BadRequestException('Unknown or inactive journal entry type.');
+    }
   }
 }

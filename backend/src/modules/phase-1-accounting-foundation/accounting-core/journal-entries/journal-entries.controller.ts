@@ -26,8 +26,14 @@ export class JournalEntriesController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('reference') reference?: string,
+    @Query('search') search?: string,
+    @Query('journalEntryTypeId') journalEntryTypeId?: string,
+    @Query('includeLines') includeLines?: string,
   ) {
-    return this.journalEntriesService.list({ status, dateFrom, dateTo, reference });
+    return this.journalEntriesService.list(
+      { status, dateFrom, dateTo, reference, search, journalEntryTypeId },
+      { includeLines: includeLines ? includeLines === 'true' : true },
+    );
   }
 
   @Get(':id')

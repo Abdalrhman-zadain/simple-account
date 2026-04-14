@@ -82,6 +82,44 @@ export type UpdateSegmentValuePayload = {
   isActive?: boolean;
 };
 
+// ─── Account Subtypes (Categories) ─────────────────────────────────────────────
+
+export type AccountSubtype = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateAccountSubtypePayload = {
+  name: string;
+};
+
+export type UpdateAccountSubtypePayload = {
+  name?: string;
+  isActive?: boolean;
+};
+
+// ─── Journal Entry Types ───────────────────────────────────────────────────────
+
+export type JournalEntryType = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateJournalEntryTypePayload = {
+  name: string;
+};
+
+export type UpdateJournalEntryTypePayload = {
+  name?: string;
+  isActive?: boolean;
+};
+
 // ─── Fiscal ───────────────────────────────────────────────────────────────────
 
 export type PeriodStatus = "OPEN" | "CLOSED" | "LOCKED";
@@ -147,6 +185,15 @@ export type Account = {
   updatedAt: string;
 };
 
+export type AccountOption = Pick<Account, "id" | "code" | "name" | "currentBalance">;
+
+export type AccountTableRow = Pick<
+  Account,
+  "id" | "code" | "name" | "type" | "isPosting" | "isActive" | "currentBalance" | "parentAccountId"
+> & {
+  parentAccount?: { id: string; name: string } | null;
+};
+
 export type AccountTreeNode = Account & {
   children: AccountTreeNode[];
 };
@@ -157,6 +204,7 @@ export type AccountsQuery = {
   isPosting?: "true" | "false" | "";
   search?: string;
   parentAccountId?: string | null;
+  view?: "selector" | "table";
 };
 
 export type CreateAccountPayload = {
@@ -208,6 +256,8 @@ export type JournalEntry = {
   reference: string;
   status: JournalEntryStatus;
   entryDate: string;
+  journalEntryTypeId?: string | null;
+  journalEntryType?: { id: string; name: string } | null;
   description?: string | null;
   postedAt?: string | null;
   postingBatchId?: string | null;
@@ -225,6 +275,7 @@ export type JournalEntryLinePayload = {
 
 export type CreateJournalEntryPayload = {
   entryDate: string;
+  journalEntryTypeId?: string;
   description?: string;
   lines: JournalEntryLinePayload[];
 };
@@ -234,6 +285,9 @@ export type JournalEntriesQuery = {
   dateFrom?: string;
   dateTo?: string;
   reference?: string;
+  search?: string;
+  journalEntryTypeId?: string;
+  includeLines?: boolean;
 };
 
 // ─── General Ledger ───────────────────────────────────────────────────────────

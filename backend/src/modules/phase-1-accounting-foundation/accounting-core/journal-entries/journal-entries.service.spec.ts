@@ -112,4 +112,37 @@ describe('JournalEntriesService', () => {
       }),
     ).rejects.toThrow('Account "Cash" is inactive and cannot be used for posting.');
   });
+
+  it('can list journal entries without loading lines', async () => {
+    prisma.journalEntry.findMany.mockResolvedValue([
+      {
+        id: 'entry-1',
+        reference: 'JE-20260409-TESTREF',
+        status: JournalEntryStatus.DRAFT,
+        entryDate: new Date('2026-04-09T00:00:00.000Z'),
+        description: 'Initial entry',
+        postedAt: null,
+        postingBatchId: null,
+        reversalOfId: null,
+        journalEntryTypeId: null,
+        journalEntryType: null,
+      },
+    ]);
+
+    const result = await service.list({}, { includeLines: false });
+
+    expect(prisma.journalEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          lines: false,
+        }),
+      }),
+    );
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: 'entry-1',
+        lines: [],
+      }),
+    ]);
+  });
 });

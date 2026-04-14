@@ -47,6 +47,8 @@ Controller responsibility:
 - return account hierarchy
 - return the next account code
 - activate and deactivate accounts
+- support a lightweight selector list mode for account pickers (`GET /accounts?view=selector`) so dropdowns do not load segment relations they do not use
+- support a lightweight table list mode for the chart page (`GET /accounts?view=table`) so the main account table does not load full segment relations for every visible row
 
 Service responsibility:
 
@@ -57,6 +59,7 @@ Service responsibility:
 Important business rules:
 
 - every account has a required account type
+- child accounts must have the same type as their parent account (type is inherited)
 - an account can be a header or a posting account
 - header accounts organize children
 - posting accounts are the real transaction buckets
@@ -109,7 +112,12 @@ Behavior:
     - Posting accounts are identified as leaf nodes and do not allow further drilling.
 - **Stats Summary**: The summary bar at the top displays statistics (total accounts, net balance) for the accounts currently visible at the current level.
 - **Search & Filtering**: The search bar allows filtering by name, code, type (e.g., `type:ASSET`), and role (`is:posting`).
-- **Account Codes**: Codes are automatically generated and assigned based on the parent account placement.
+- **Account Codes**: Codes are automatically generated and assigned on the backend based on parent placement and role (Header vs Posting).
+  - The system supports **two code strategies**:
+    - **Legacy/string codes** (including segmented enterprise-style codes) keep using the existing sibling-based allocation rules.
+    - **7-digit numeric hierarchy codes** are enabled when the parent account code is exactly 7 digits (e.g. `1000000`).
+      - Header child example: `1000000` → `1100000`
+      - Posting child example: `1100000` → `1100001` (increments from the right within the parent range)
 - **Actions**: "Edit" and "Add Child" actions are available on each row via an actions menu or inline icons.
 
 ## Journal Entries
@@ -137,6 +145,7 @@ Controller responsibility:
 - update draft entries
 - post entries
 - reverse entries
+- support lightweight list reads for overview screens (`GET /journal-entries?includeLines=false`) while keeping full line details available from `GET /journal-entries/:id`
 
 Service responsibility:
 
@@ -370,12 +379,16 @@ Dependencies inside Phase 1:
 Purpose:
 
 - manage account segment definitions and values
+- manage user-defined account classes (subtypes)
+- manage user-defined journal entry types
 - support enterprise-style segmented account coding
 
 Main data involved:
 
 - `SegmentDefinition`
 - `SegmentValue`
+- `AccountSubtype`
+- `JournalEntryType`
 - account segment assignments
 
 Controller responsibility:
@@ -383,6 +396,7 @@ Controller responsibility:
 - get master data summary
 - manage segment definitions
 - manage segment values
+- manage account subtypes (account classes)
 
 Service responsibility:
 
@@ -405,7 +419,7 @@ Current backend controller routes:
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /accounts`
-- `GET /accounts/next-code`
+- `GET /accounts/next-code` (supports `parentId`, `isPosting`, and `type` query parameters)
 - `GET /accounts`
 - `GET /accounts/hierarchy/tree`
 - `GET /accounts/:id`
@@ -435,3 +449,11 @@ Current backend controller routes:
 - `POST /segments/definitions/:id/values`
 - `PATCH /segments/values/:id`
 - `DELETE /segments/values/:id`
+- `GET /account-subtypes`
+- `POST /account-subtypes`
+- `PATCH /account-subtypes/:id`
+- `DELETE /account-subtypes/:id`
+- `GET /journal-entry-types`
+- `POST /journal-entry-types`
+- `PATCH /journal-entry-types/:id`
+- `DELETE /journal-entry-types/:id`

@@ -6,10 +6,16 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { SettingsProvider } from "@/providers/settings-provider";
 
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({
+  children,
+  initialLanguage,
+}: {
+  children: ReactNode;
+  initialLanguage: "en" | "ar";
+}) {
   return (
     <QueryProvider>
-      <SettingsProvider>
+      <SettingsProvider initialLanguage={initialLanguage}>
         <AuthProvider>{children}</AuthProvider>
       </SettingsProvider>
     </QueryProvider>

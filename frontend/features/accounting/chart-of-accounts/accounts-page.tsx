@@ -1,17 +1,25 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { LuRefreshCw as RefreshCw, LuPlus as Plus, LuDatabase as Database, LuPen as Edit, LuCirclePlus as PlusCircle, LuChevronRight as ChevronRight, LuChevronLeft as ChevronLeft, LuSearch as Search, LuX as X, LuTrendingUp as TrendingUp, LuTrendingDown as TrendingDown, LuLayers as Layers, LuDollarSign as DollarSign, LuHouse as Home, LuPower as Power, LuPowerOff as PowerOff } from "react-icons/lu";
+import { LuRefreshCw as RefreshCw, LuPlus as Plus, LuDatabase as Database, LuPen as Edit, LuCirclePlus as PlusCircle, LuChevronRight as ChevronRight, LuSearch as Search, LuX as X, LuHouse as Home, LuPower as Power, LuPowerOff as PowerOff } from "react-icons/lu";
 
-import { getAccounts, getAccountById, activateAccount, deactivateAccount } from "@/lib/api";
+import { getAccountById, getAccountTableRows, activateAccount, deactivateAccount } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import { Account } from "@/types/api";
+import { AccountTableRow } from "@/types/api";
 import { Input } from "@/components/forms";
 import { Card, SectionHeading, StatusPill, Button } from "@/components/ui";
+import { useTranslation } from "@/lib/i18n";
+
+const AccountsSearchSuggestions = dynamic(
+  () => import("./accounts-search-suggestions").then((mod) => mod.AccountsSearchSuggestions),
+  { ssr: false },
+);
 
 // ─── Constants & Types ────────────────────────────────────────────────────────
 
@@ -30,16 +38,16 @@ const COMMANDS = [
 type AccountType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
 
 const TYPE_STYLES: Record<AccountType, { badge: string; dot: string; label: string }> = {
-  ASSET: { badge: "bg-sky-500/10 text-sky-700 border-sky-500/20", dot: "bg-sky-500", label: "Asset" },
-  LIABILITY: { badge: "bg-amber-500/10 text-amber-700 border-amber-500/20", dot: "bg-amber-500", label: "Liability" },
-  EQUITY: { badge: "bg-violet-500/10 text-violet-700 border-violet-500/20", dot: "bg-violet-500", label: "Equity" },
-  REVENUE: { badge: "bg-teal-500/10 text-teal-700 border-teal-500/20", dot: "bg-teal-500", label: "Revenue" },
-  EXPENSE: { badge: "bg-rose-500/10 text-rose-700 border-rose-500/20", dot: "bg-rose-500", label: "Expense" },
+  ASSET: { badge: "bg-sky-500/10 text-sky-700 border-sky-500/20", dot: "bg-sky-500", label: "accountType.ASSET" },
+  LIABILITY: { badge: "bg-amber-500/10 text-amber-700 border-amber-500/20", dot: "bg-amber-500", label: "accountType.LIABILITY" },
+  EQUITY: { badge: "bg-violet-500/10 text-violet-700 border-violet-500/20", dot: "bg-violet-500", label: "accountType.EQUITY" },
+  REVENUE: { badge: "bg-teal-500/10 text-teal-700 border-teal-500/20", dot: "bg-teal-500", label: "accountType.REVENUE" },
+  EXPENSE: { badge: "bg-rose-500/10 text-rose-700 border-rose-500/20", dot: "bg-rose-500", label: "accountType.EXPENSE" },
 };
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
-function collectStats(nodes: Account[]): Record<AccountType, number> {
+function collectStats(nodes: AccountTableRow[]): Record<AccountType, number> {
   const counts: Record<AccountType, number> = { ASSET: 0, LIABILITY: 0, EQUITY: 0, REVENUE: 0, EXPENSE: 0 };
   for (const n of nodes) {
     if (n.type in counts) counts[n.type as AccountType]++;
@@ -47,7 +55,7 @@ function collectStats(nodes: Account[]): Record<AccountType, number> {
   return counts;
 }
 
-function collectTotalBalance(nodes: Account[]): number {
+function collectTotalBalance(nodes: AccountTableRow[]): number {
   let total = 0;
   for (const n of nodes) {
     total += parseFloat(n.currentBalance);
@@ -62,6 +70,8 @@ export function AccountsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const parentId = searchParams.get("parentId") || null;
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -91,19 +101,29 @@ export function AccountsPage() {
     queryKey: ["account", parentId, token],
     queryFn: () => (parentId ? getAccountById(parentId, token) : null),
     enabled: !!parentId,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch current level accounts
   const accountsQuery = useQuery({
-    queryKey: ["accounts", token, parentId, filters],
-    queryFn: () => getAccounts({
+    queryKey: queryKeys.accounts(token, {
+      parentAccountId: isSearching ? undefined : parentId,
+      search: filters.search,
+      type: filters.type as any,
+      isActive: filters.isActive as any,
+      isPosting: filters.isPosting as any,
+      view: "table",
+    }),
+    queryFn: () => getAccountTableRows({
       // Search is global, navigation is hierarchical
       parentAccountId: isSearching ? undefined : parentId,
       search: filters.search,
       type: filters.type as any,
       isActive: filters.isActive as any,
       isPosting: filters.isPosting as any,
+      view: "table",
     }, token),
+    staleTime: 30_000,
   });
 
   // Close suggestions when clicking outside
@@ -152,17 +172,27 @@ export function AccountsPage() {
   const totalBalance = useMemo(() => collectTotalBalance(accountsQuery.data ?? []), [accountsQuery.data]);
   const currentAccounts = accountsQuery.data ?? [];
 
+  const activateMutation = useMutation({
+    mutationFn: (id: string) => activateAccount(id, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => deactivateAccount(id, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-6 animate-in fade-in duration-200 motion-reduce:animate-none">
       <SectionHeading
-        title={parentAccount ? parentAccount.name : "Chart of Accounts"}
-        description={parentAccount ? `Children of ${parentAccount.code}` : "Manage your root account hierarchy."}
+        title={parentAccount ? parentAccount.name : t("accounts.title.root")}
+        description={parentAccount ? t("accounts.title.childrenOf", { code: parentAccount.code }) : t("accounts.description.root")}
         action={
           <div className="flex items-center gap-3">
             <Link href={parentId ? `/accounts/new?parentAccountId=${parentId}` : "/accounts/new"}>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                New {parentId ? "Child" : "Account"}
+                {parentId ? t("accounts.button.newChild") : t("accounts.button.newAccount")}
               </Button>
             </Link>
           </div>
@@ -176,7 +206,7 @@ export function AccountsPage() {
           className="flex items-center gap-1.5 hover:text-teal-400 transition-colors"
         >
           <Home className="h-4 w-4" />
-          <span className="font-semibold">Root</span>
+          <span className="font-semibold">{t("accounts.breadcrumb.root")}</span>
         </button>
         {parentAccount && (
           <>
@@ -208,17 +238,17 @@ export function AccountsPage() {
               style.badge,
             )}
           >
-            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">{style.label}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">{t(style.label)}</span>
             <span className="text-2xl font-black tabular-nums">{stats[type]}</span>
-            <span className="text-[10px] opacity-50">accounts</span>
+            <span className="text-[10px] opacity-50">{t("accounts.stats.accounts")}</span>
           </button>
         ))}
         <div className="flex flex-col gap-1 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Net Balance</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{t("accounts.stats.netBalance")}</span>
           <span className={cn("text-lg font-black tabular-nums font-mono", totalBalance >= 0 ? "text-teal-400" : "text-rose-400")}>
             {formatCurrency(String(totalBalance))}
           </span>
-          <span className="text-[10px] text-gray-600">all accounts</span>
+          <span className="text-[10px] text-gray-600">{t("accounts.stats.allAccounts")}</span>
         </div>
       </div>
 
@@ -231,7 +261,7 @@ export function AccountsPage() {
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Search or filter: type:Asset, status:Active, is:Posting…"
+              placeholder={t("accounts.search.placeholder")}
               className="app-field h-12 focus:ring-teal-500/20 pl-11"
             />
             {searchQuery && (
@@ -263,23 +293,14 @@ export function AccountsPage() {
 
           {/* Suggestions Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
-              <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-b border-gray-200">
-                Suggestions
-              </div>
-              <div className="max-h-60 overflow-auto py-1">
-                {suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.value}
-                    onClick={() => { setSearchQuery(suggestion.value + " "); setShowSuggestions(false); }}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-100 flex items-center justify-between group transition-colors"
-                  >
-                    <span className="text-sm font-medium text-gray-900 group-hover:text-gray-900">{suggestion.label}</span>
-                    <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{suggestion.category}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <AccountsSearchSuggestions
+              suggestions={suggestions}
+              title={t("accounts.suggestions.title")}
+              onSelect={(value) => {
+                setSearchQuery(`${value} `);
+                setShowSuggestions(false);
+              }}
+            />
           )}
         </div>
       </Card>
@@ -292,14 +313,14 @@ export function AccountsPage() {
               <Database className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">Accounts View</h2>
+              <h2 className="text-sm font-bold text-gray-900">{t("accounts.view.title")}</h2>
               <p className="text-[10px] font-medium uppercase tracking-widest text-gray-500 mt-0.5">
-                {parentId ? "Child Accounts" : "Root Accounts"}
+                {parentId ? t("accounts.view.childAccounts") : t("accounts.view.rootAccounts")}
               </p>
             </div>
           </div>
           <StatusPill
-            label={accountsQuery.isError ? "Error" : accountsQuery.isPending ? "Syncing…" : "Live"}
+            label={accountsQuery.isError ? t("accounts.status.error") : accountsQuery.isPending ? t("accounts.status.syncing") : t("accounts.status.live")}
             tone={accountsQuery.isError ? "warning" : accountsQuery.isPending ? "neutral" : "positive"}
           />
         </div>
@@ -308,10 +329,10 @@ export function AccountsPage() {
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Account Details</th>
-                <th className="px-3 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Role</th>
-                <th className="px-3 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-right">Balance</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">{t("accounts.table.accountDetails")}</th>
+                <th className="px-3 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">{t("accounts.table.role")}</th>
+                <th className="px-3 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-right">{t("accounts.table.balance")}</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-right">{t("accounts.table.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -319,14 +340,14 @@ export function AccountsPage() {
                 <tr>
                   <td colSpan={4} className="px-6 py-20 text-center">
                     <RefreshCw className="mx-auto mb-4 h-8 w-8 animate-spin text-teal-500/50" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Loading accounts...</span>
+                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{t("accounts.loading")}</span>
                   </td>
                 </tr>
               ) : currentAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-20 text-center">
                     <Database className="mx-auto mb-4 h-10 w-10 text-gray-300 opacity-30" />
-                    <p className="text-sm font-medium text-gray-500">No accounts found at this level.</p>
+                    <p className="text-sm font-medium text-gray-500">{t("accounts.empty")}</p>
                   </td>
                 </tr>
               ) : (
@@ -334,6 +355,12 @@ export function AccountsPage() {
                   <AccountRow
                     key={account.id}
                     account={account}
+                    onActivate={() => activateMutation.mutate(account.id)}
+                    onDeactivate={() => deactivateMutation.mutate(account.id)}
+                    isMutating={
+                      activateMutation.isPending && activateMutation.variables === account.id ||
+                      deactivateMutation.isPending && deactivateMutation.variables === account.id
+                    }
                     // Only header accounts can be opened; posting accounts are leaf accounts.
                     onEnter={() => !account.isPosting && navigateTo(account.id)}
                     isSearching={isSearching}
@@ -348,22 +375,24 @@ export function AccountsPage() {
   );
 }
 
-function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnter: () => void; isSearching?: boolean }) {
-  const { token } = useAuth();
-  const queryClient = useQueryClient();
+function AccountRow({
+  account,
+  onEnter,
+  onActivate,
+  onDeactivate,
+  isMutating,
+  isSearching,
+}: {
+  account: AccountTableRow;
+  onEnter: () => void;
+  onActivate: () => void;
+  onDeactivate: () => void;
+  isMutating?: boolean;
+  isSearching?: boolean;
+}) {
   const balanceNum = parseFloat(account.currentBalance);
   const style = TYPE_STYLES[account.type];
-
-  // Action mutations
-  const activateMutation = useMutation({
-    mutationFn: () => activateAccount(account.id, token),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: () => deactivateAccount(account.id, token),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-  });
+  const { t } = useTranslation();
 
   return (
     <tr
@@ -390,7 +419,7 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
                 <>
                   <div className="h-1 w-1 rounded-full bg-zinc-700" />
                   <div className="text-[10px] font-medium text-teal-500/70 truncate max-w-[200px] uppercase tracking-wider">
-                    in {account.parentAccount.name}
+                    {t("accounts.row.inParent", { name: account.parentAccount.name })}
                   </div>
                 </>
               )}
@@ -401,18 +430,18 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
       <td className="px-3 py-4">
         <div className="flex items-center gap-2">
           <StatusPill
-            label={account.isPosting ? "Posting" : "Header"}
+            label={account.isPosting ? t("accounts.role.posting") : t("accounts.role.header")}
             tone={account.isPosting ? "positive" : "neutral"}
           />
           {!account.isActive && (
             <StatusPill
-              label="Inactive"
+              label={t("accounts.status.inactive")}
               tone="warning"
             />
           )}
           {!account.isPosting && (
             <span className="text-[9px] font-bold uppercase tracking-tighter text-teal-500/50 group-hover:text-teal-400 group-hover:translate-x-1 transition-all">
-              Go to level
+              {t("accounts.row.goToLevel")}
             </span>
           )}
         </div>
@@ -432,7 +461,7 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
               href={`/accounts/new?parentAccountId=${account.id}`}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 transition-colors"
               onClick={(e) => e.stopPropagation()}
-              title="Add Child Account"
+            title={t("accounts.action.addChild")}
             >
               <PlusCircle className="h-4 w-4" />
             </Link>
@@ -441,25 +470,25 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
             href={`/accounts/edit/${account.id}`}
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
             onClick={(e) => e.stopPropagation()}
-            title="Edit Account"
+            title={t("accounts.action.edit")}
           >
             <Edit className="h-4 w-4" />
           </Link>
           {account.isActive ? (
             <button
-              onClick={(e) => { e.stopPropagation(); deactivateMutation.mutate(); }}
-              disabled={deactivateMutation.isPending}
+              onClick={(e) => { e.stopPropagation(); onDeactivate(); }}
+              disabled={isMutating}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-rose-500/10 hover:text-rose-400 transition-colors disabled:opacity-50"
-              title="Deactivate Account"
+              title={t("accounts.action.deactivate")}
             >
               <PowerOff className="h-4 w-4" />
             </button>
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); activateMutation.mutate(); }}
-              disabled={activateMutation.isPending}
+              onClick={(e) => { e.stopPropagation(); onActivate(); }}
+              disabled={isMutating}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-teal-500/10 hover:text-teal-400 transition-colors disabled:opacity-50"
-              title="Activate Account"
+              title={t("accounts.action.activate")}
             >
               <Power className="h-4 w-4" />
             </button>
@@ -469,4 +498,3 @@ function AccountRow({ account, onEnter, isSearching }: { account: Account; onEnt
     </tr>
   );
 }
-

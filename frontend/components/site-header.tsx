@@ -17,9 +17,20 @@ import {
   LuPanelLeftClose as PanelLeftClose,
   LuPanelLeftOpen as PanelLeftOpen,
 } from "react-icons/lu";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import { useTranslation, TranslationKey } from "@/lib/i18n";
+import { useSettings } from "@/providers/settings-provider";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  getAccounts,
+  getAccountOptions,
+  getFiscalYears,
+  getJournalEntryTypes,
+  getSegmentDefinitions,
+  getAccountSubtypes,
+} from "@/lib/api";
 
 type NavGroup = {
   labelKey: TranslationKey;
@@ -69,8 +80,10 @@ export function SiteHeader({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isHydrated, logout, user } = useAuth();
+  const queryClient = useQueryClient();
+  const { isAuthenticated, isHydrated, logout, user, token } = useAuth();
   const { t } = useTranslation();
+  const { language, setLanguage } = useSettings();
 
   const isLoginPage = pathname === "/login" || pathname === "/register";
 
@@ -87,10 +100,78 @@ export function SiteHeader({
     );
   }
 
+  const prefetchForHref = (href: string) => {
+    if (!token) return;
+
+    // Accounts list needed in multiple screens (posting + active subset).
+    const prefetchPostingAccounts = () =>
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
+        queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+        staleTime: 5 * 60 * 1000,
+      });
+
+    if (href.startsWith("/accounts")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.accounts(token, { parentAccountId: null }),
+        queryFn: () => getAccounts({ parentAccountId: null }, token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/journal-entries")) {
+      void prefetchPostingAccounts();
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.journalEntryTypes(token),
+        queryFn: () => getJournalEntryTypes(token),
+        staleTime: 10 * 60 * 1000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/general-ledger")) {
+      void prefetchPostingAccounts();
+      return;
+    }
+
+    if (href.startsWith("/master-data")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.segmentDefinitions(token),
+        queryFn: () => getSegmentDefinitions(token),
+        staleTime: 10 * 60 * 1000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.accountSubtypes(token),
+        queryFn: () => getAccountSubtypes(token),
+        staleTime: 10 * 60 * 1000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.journalEntryTypes(token),
+        queryFn: () => getJournalEntryTypes(token),
+        staleTime: 10 * 60 * 1000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/fiscal")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.fiscalYears(token),
+        queryFn: () => getFiscalYears(token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/audit")) {
+      return;
+    }
+  };
+
   return (
     <aside
       className={cn(
-        "fixed ltr:left-0 rtl:right-0 top-0 z-40 flex h-full flex-col ltr:border-r rtl:border-l border-gray-200 bg-white transition-[width] duration-300 ease-out",
+        "fixed ltr:left-0 rtl:right-0 top-0 z-40 flex h-full flex-col ltr:border-r rtl:border-l border-gray-200 bg-white",
         isCollapsed ? "w-20" : "w-60"
       )}
     >
@@ -103,7 +184,28 @@ export function SiteHeader({
         </div>
       </div>
 
-      <div className="px-3 pt-3">
+      <div className="px-3 pt-3 space-y-2">
+        <button
+          type="button"
+          onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
+          className={cn(
+            "flex w-full items-center rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700",
+            isCollapsed ? "justify-center" : "justify-between",
+          )}
+          aria-label={t("language.toggle.aria")}
+          title={t("language.toggle.aria")}
+        >
+          <span className={cn(isCollapsed && "sr-only")}>
+            {language === "ar" ? t("language.arabicShort") : t("language.englishShort")}
+          </span>
+          <span className={cn("inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-black tracking-widest text-gray-600", isCollapsed && "sr-only")}>
+            {language === "ar" ? "RTL" : "LTR"}
+          </span>
+          <span className={cn("font-black tracking-widest text-gray-600", !isCollapsed && "sr-only")}>
+            {language === "ar" ? "AR" : "EN"}
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={onToggleCollapsed}
@@ -134,6 +236,7 @@ export function SiteHeader({
                   <Link
                     key={item.href}
                     href={item.href}
+                    onMouseEnter={() => prefetchForHref(item.href)}
                     title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
                     className={cn(
                       "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
