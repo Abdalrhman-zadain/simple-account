@@ -92,7 +92,9 @@ export function SiteHeader({
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-gray-900">
-            <SiQuickbooks className="h-6 w-6 text-primary" />
+            <div className="text-primary">
+              <SiQuickbooks size={24} />
+            </div>
             {t("app.title")}
           </Link>
         </div>
@@ -177,7 +179,9 @@ export function SiteHeader({
     >
       {/* Logo */}
       <div className={cn("flex items-center border-b border-gray-200 px-5 py-6", isCollapsed ? "justify-center" : "gap-3")}>
-        <SiQuickbooks className="h-8 w-8 text-primary" />
+        <div className="text-primary">
+          <SiQuickbooks size={32} />
+        </div>
         <div className={cn(isCollapsed && "sr-only")}>
           <div className="text-sm font-bold tracking-tight text-gray-900">{t("app.title")}</div>
           <div className="text-[10px] font-medium uppercase tracking-widest text-gray-500">{t("app.subtitle")}</div>
@@ -215,11 +219,25 @@ export function SiteHeader({
           )}
           aria-label={isCollapsed ? "Open sidebar" : "Close sidebar"}
         >
-          {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           <span className={cn(isCollapsed && "sr-only")}>{isCollapsed ? "Open" : "Close"}</span>
         </button>
       </div>
 
+      {/* Quick action */}
+      <div className="px-3 pt-4">
+        <Link
+          href="/accounts/new"
+          className={cn(
+            "flex w-full items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/20 hover:text-primary",
+            isCollapsed && "px-0",
+          )}
+          title="New Account"
+        >
+          <PlusCircle size={16} />
+          <span className={cn(isCollapsed && "sr-only")}>New Account</span>
+        </Link>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
@@ -246,9 +264,9 @@ export function SiteHeader({
                         : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                     )}
                   >
-                    <Icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
+                    <Icon size={16} className={cn("shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
                     <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{t(item.labelKey)}</span>
-                    {isActive && !isCollapsed && <ChevronRight className="h-3.5 w-3.5 text-gray-400 ltr:rotate-0 rtl:rotate-180" />}
+                    {isActive && !isCollapsed && <div className="text-gray-400 ltr:rotate-0 rtl:rotate-180"><ChevronRight size={14} /></div>}
                   </Link>
                 );
               })}
@@ -261,8 +279,8 @@ export function SiteHeader({
       {isHydrated && isAuthenticated && (
         <div className="border-t border-gray-200 p-3">
           <div className={cn("flex items-center gap-3 rounded-xl p-3 hover:bg-gray-50 transition-all group", isCollapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200">
-              <User className="h-4 w-4 text-gray-500" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200 text-gray-500">
+              <User size={16} />
             </div>
             <div className={cn("flex-1 min-w-0", isCollapsed && "sr-only")}>
               <div className="truncate text-xs font-bold text-gray-900">{user?.name || "User"}</div>
@@ -273,7 +291,7 @@ export function SiteHeader({
               className={cn("shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all ltr:rotate-0 rtl:rotate-180", isCollapsed && "sr-only")}
               title="Logout"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut size={14} />
             </button>
           </div>
         </div>
