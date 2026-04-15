@@ -381,6 +381,7 @@ Purpose:
 - manage account segment definitions and values
 - manage user-defined account classes (subtypes)
 - manage user-defined journal entry types
+- manage user-defined payment method types
 - support enterprise-style segmented account coding
 
 Main data involved:
@@ -388,6 +389,7 @@ Main data involved:
 - `SegmentDefinition`
 - `SegmentValue`
 - `AccountSubtype`
+- `PaymentMethodType`
 - `JournalEntryType`
 - account segment assignments
 
@@ -397,6 +399,7 @@ Controller responsibility:
 - manage segment definitions
 - manage segment values
 - manage account subtypes (account classes)
+- manage payment method types
 
 Service responsibility:
 
@@ -453,6 +456,10 @@ Current backend controller routes:
 - `POST /account-subtypes`
 - `PATCH /account-subtypes/:id`
 - `DELETE /account-subtypes/:id`
+- `GET /payment-method-types`
+- `POST /payment-method-types`
+- `PATCH /payment-method-types/:id`
+- `DELETE /payment-method-types/:id`
 - `GET /journal-entry-types`
 - `POST /journal-entry-types`
 - `PATCH /journal-entry-types/:id`

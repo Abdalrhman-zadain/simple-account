@@ -72,7 +72,7 @@ export function BankCashAccountsTable({
                 </td>
                 <td className="px-6 py-4">
                   <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-bold text-gray-700">
-                    {t(`bankCash.type.${row.type}`)}
+                    {row.type}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right font-mono text-xs font-black text-gray-900">

@@ -1,13 +1,15 @@
-import { type AccountOption, type BankCashAccountType, BANK_CASH_ACCOUNT_TYPES } from "@/types/api";
+import { type AccountOption, type BankCashAccountType, type PaymentMethodType } from "@/types/api";
 import { Button, SidePanel } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n";
 
 import type { EditorState } from "../bank-cash-accounts.types";
+import { LinkedAccountAutocomplete } from "./linked-account-autocomplete";
 
 export function BankCashAccountEditor({
   isOpen,
   editor,
   postingAccounts,
+  paymentMethodTypes,
   errorMessage,
   isSubmitting,
   onClose,
@@ -17,6 +19,7 @@ export function BankCashAccountEditor({
   isOpen: boolean;
   editor: EditorState;
   postingAccounts: AccountOption[];
+  paymentMethodTypes: PaymentMethodType[];
   errorMessage: string | null;
   isSubmitting: boolean;
   onClose: () => void;
@@ -24,6 +27,13 @@ export function BankCashAccountEditor({
   onChange: (next: EditorState) => void;
 }) {
   const { t } = useTranslation();
+
+  const handleTypeChange = (nextType: BankCashAccountType) => {
+    onChange({
+      ...editor,
+      type: nextType,
+    });
+  };
 
   return (
     <SidePanel
@@ -38,30 +48,34 @@ export function BankCashAccountEditor({
           </label>
           <select
             value={editor.type}
-            onChange={(event) => onChange({ ...editor, type: event.target.value as BankCashAccountType })}
+            onChange={(event) => handleTypeChange(event.target.value as BankCashAccountType)}
             className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
           >
-            {BANK_CASH_ACCOUNT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {t(`bankCash.type.${type}`)}
-              </option>
-            ))}
+            <option value="">{t("bankCash.form.typePlaceholder")}</option>
+            {paymentMethodTypes
+              .filter((type) => type.isActive)
+              .map((type) => (
+                <option key={type.id} value={type.name}>
+                  {type.name}
+                </option>
+              ))}
           </select>
           <p className="mt-1.5 text-xs text-gray-500">{t("bankCash.form.typeHelp")}</p>
         </div>
 
-        <Field label={t("bankCash.form.name")} value={editor.name} onChange={(value) => onChange({ ...editor, name: value })} />
         <Field
           label={t("bankCash.form.bankName")}
           value={editor.bankName}
           onChange={(value) => onChange({ ...editor, bankName: value })}
           hint={t("bankCash.form.bankNameHelp")}
+          disabled={!editor.type}
         />
         <Field
           label={t("bankCash.form.accountNumber")}
           value={editor.accountNumber}
           onChange={(value) => onChange({ ...editor, accountNumber: value })}
           hint={t("bankCash.form.accountNumberHelp")}
+          disabled={!editor.type}
         />
         <Field
           label={t("bankCash.form.currency")}
@@ -71,27 +85,23 @@ export function BankCashAccountEditor({
 
         <div>
           <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">
-            {t("bankCash.form.linkedAccount")}
+            {t("bankCash.form.name")}
           </label>
-          <select
+          <LinkedAccountAutocomplete
+            options={postingAccounts}
             value={editor.accountId}
-            onChange={(event) => {
-              const selected = postingAccounts.find((item) => item.id === event.target.value);
+            onSelect={(selected) =>
               onChange({
                 ...editor,
-                accountId: event.target.value,
-                currencyCode: selected?.currencyCode ?? editor.currencyCode,
-              });
-            }}
-            className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
-          >
-            <option value="">{t("bankCash.form.linkedAccountPlaceholder")}</option>
-            {postingAccounts.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.code} · {option.name}
-              </option>
-            ))}
-          </select>
+                name: selected.name,
+                accountId: selected.id,
+                currencyCode: selected.currencyCode,
+              })
+            }
+            placeholder={t("bankCash.form.namePlaceholder")}
+            helpText={t("bankCash.form.nameHelp")}
+            emptyText={t("bankCash.form.nameEmpty")}
+          />
         </div>
 
         {errorMessage ? (
@@ -118,19 +128,22 @@ function Field({
   value,
   onChange,
   hint,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   hint?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">{label}</label>
       <input
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40 disabled:cursor-not-allowed disabled:opacity-60"
       />
       {hint ? <p className="mt-1.5 text-xs text-gray-500">{hint}</p> : null}
     </div>

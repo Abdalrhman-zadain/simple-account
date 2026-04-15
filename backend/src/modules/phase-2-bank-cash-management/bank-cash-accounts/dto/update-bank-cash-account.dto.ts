@@ -1,10 +1,10 @@
-import { BankCashAccountType } from '../../../../generated/prisma';
-import { IsEnum, IsOptional, IsString, Length } from 'class-validator';
+import { IsOptional, IsString, Length } from 'class-validator';
 
 export class UpdateBankCashAccountDto {
   @IsOptional()
-  @IsEnum(BankCashAccountType)
-  type?: BankCashAccountType;
+  @IsString()
+  @Length(1, 64)
+  type?: string;
 
   @IsOptional()
   @IsString()

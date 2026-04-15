@@ -2,23 +2,27 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban } from "react-icons/lu";
+import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban, LuWallet as Wallet } from "react-icons/lu";
 import {
     createAccountSubtype,
     createJournalEntryType,
+    createPaymentMethodType,
     createSegmentValue,
     deactivateAccountSubtype,
     deactivateJournalEntryType,
+    deactivatePaymentMethodType,
     deactivateSegmentValue,
     getAccountSubtypes,
     getJournalEntryTypes,
+    getPaymentMethodTypes,
     getSegmentDefinitions,
     updateAccountSubtype,
     updateJournalEntryType,
+    updatePaymentMethodType,
     updateSegmentValue,
 } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
-import { AccountSubtype, JournalEntryType, SegmentDefinition, SegmentValue } from "@/types/api";
+import { AccountSubtype, JournalEntryType, PaymentMethodType, SegmentDefinition, SegmentValue } from "@/types/api";
 import { SectionHeading, StatusPill, Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
@@ -54,6 +58,11 @@ export function MasterDataPage() {
     const [newTypeName, setNewTypeName] = useState("");
     const [showAddType, setShowAddType] = useState(false);
 
+    const [paymentMethodTypeEditingId, setPaymentMethodTypeEditingId] = useState<string | null>(null);
+    const [editPaymentMethodTypeName, setEditPaymentMethodTypeName] = useState("");
+    const [newPaymentMethodTypeName, setNewPaymentMethodTypeName] = useState("");
+    const [showAddPaymentMethodType, setShowAddPaymentMethodType] = useState(false);
+
     const { data: definitions = [], isLoading } = useQuery({
         queryKey: ["segment-definitions", token],
         queryFn: () => getSegmentDefinitions(token),
@@ -67,6 +76,11 @@ export function MasterDataPage() {
     const { data: journalEntryTypes = [], isLoading: isLoadingTypes } = useQuery({
         queryKey: ["journal-entry-types", token],
         queryFn: () => getJournalEntryTypes(token),
+    });
+
+    const { data: paymentMethodTypes = [], isLoading: isLoadingPaymentMethodTypes } = useQuery({
+        queryKey: ["payment-method-types", token],
+        queryFn: () => getPaymentMethodTypes(token),
     });
 
     const createMutation = useMutation({
@@ -136,12 +150,35 @@ export function MasterDataPage() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journal-entry-types"] }),
     });
 
-    if (isLoading || isLoadingSubtypes || isLoadingTypes) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
+    const createPaymentMethodTypeMutation = useMutation({
+        mutationFn: (name: string) => createPaymentMethodType({ name }, token),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["payment-method-types"] });
+            setNewPaymentMethodTypeName("");
+            setShowAddPaymentMethodType(false);
+        },
+    });
+
+    const updatePaymentMethodTypeMutation = useMutation({
+        mutationFn: ({ id, name }: { id: string; name: string }) => updatePaymentMethodType(id, { name }, token),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["payment-method-types"] });
+            setPaymentMethodTypeEditingId(null);
+        },
+    });
+
+    const deactivatePaymentMethodTypeMutation = useMutation({
+        mutationFn: (id: string) => deactivatePaymentMethodType(id, token),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payment-method-types"] }),
+    });
+
+    if (isLoading || isLoadingSubtypes || isLoadingTypes || isLoadingPaymentMethodTypes) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
 
     const TABS = [
         ...definitions.map((def) => ({ kind: "segment" as const, def })),
         { kind: "account-subtypes" as const, def: null },
         { kind: "journal-entry-types" as const, def: null },
+        { kind: "payment-method-types" as const, def: null },
     ];
 
     const active = TABS[activeTab];
@@ -159,17 +196,20 @@ export function MasterDataPage() {
                 {TABS.map((tab, i) => {
                     const isSubtypeTab = tab.kind === "account-subtypes";
                     const isTypeTab = tab.kind === "journal-entry-types";
+                    const isPaymentMethodTypeTab = tab.kind === "payment-method-types";
                     const def = tab.def as SegmentDefinition | null;
-                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : (SEGMENT_ICONS[i] ?? Building2);
+                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : isPaymentMethodTypeTab ? Wallet : (SEGMENT_ICONS[i] ?? Building2);
                     const color =
                         isSubtypeTab
                             ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/20"
                             : isTypeTab
                                 ? "text-indigo-400 bg-indigo-400/10 border-indigo-400/20"
+                                : isPaymentMethodTypeTab
+                                    ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20"
                                 : (SEGMENT_COLORS[i] ?? SEGMENT_COLORS[0]);
                     return (
                         <button
-                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : def!.id}
+                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : isPaymentMethodTypeTab ? "payment-method-types" : def!.id}
                             onClick={() => {
                                 setActiveTab(i);
                                 setShowAddSegmentValue(false);
@@ -178,6 +218,8 @@ export function MasterDataPage() {
                                 setSubtypeEditingId(null);
                                 setShowAddType(false);
                                 setTypeEditingId(null);
+                                setShowAddPaymentMethodType(false);
+                                setPaymentMethodTypeEditingId(null);
                             }}
                             className={cn(
                                 "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold border transition-all",
@@ -185,7 +227,7 @@ export function MasterDataPage() {
                             )}
                         >
                             <Icon className="h-4 w-4" />
-                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : def!.name}
+                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : isPaymentMethodTypeTab ? t("master.tab.paymentMethodTypes") : def!.name}
                             <span className={cn(
                                 "ml-1 rounded-full px-2 py-0.5 text-[10px] font-black",
                                 activeTab === i ? "bg-gray-100" : "bg-gray-100"
@@ -194,6 +236,8 @@ export function MasterDataPage() {
                                     ? accountSubtypes.filter((s) => s.isActive).length
                                     : isTypeTab
                                         ? journalEntryTypes.filter((t) => t.isActive).length
+                                        : isPaymentMethodTypeTab
+                                            ? paymentMethodTypes.filter((t) => t.isActive).length
                                         : def!.values.filter(v => v.isActive).length}
                             </span>
                         </button>
@@ -512,6 +556,116 @@ export function MasterDataPage() {
                                                     {row.isActive && (
                                                         <button
                                                             onClick={() => { if (confirm(t("common.confirm.deactivate", { name: row.name }))) deactivateTypeMutation.mutate(row.id); }}
+                                                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </Card>
+            )}
+
+            {active?.kind === "payment-method-types" && (
+                <Card className="p-0 border border-gray-200 bg-panel/40 overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">{t("master.section.paymentMethodTypes.title")}</h2>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                {t("master.section.paymentMethodTypes.description")}
+                            </p>
+                        </div>
+                        <Button onClick={() => setShowAddPaymentMethodType(true)} disabled={showAddPaymentMethodType}>
+                            <Plus className="h-4 w-4 mr-2" /> {t("master.section.paymentMethodTypes.add")}
+                        </Button>
+                    </div>
+
+                    {showAddPaymentMethodType && (
+                        <div className="border-b border-gray-200 px-6 py-4 bg-cyan-500/5">
+                            <div className="flex items-center gap-3">
+                                <input
+                                    value={newPaymentMethodTypeName}
+                                    onChange={(e) => setNewPaymentMethodTypeName(e.target.value)}
+                                    placeholder={t("master.paymentMethodTypes.namePlaceholder")}
+                                    className="flex-1 rounded-lg border border-cyan-500/30 bg-gray-100 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
+                                />
+                                <button
+                                    onClick={() => createPaymentMethodTypeMutation.mutate(newPaymentMethodTypeName)}
+                                    disabled={!newPaymentMethodTypeName.trim() || createPaymentMethodTypeMutation.isPending}
+                                    className="flex items-center gap-1.5 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-bold text-cyan-950 hover:bg-cyan-400 disabled:opacity-50 transition-all"
+                                >
+                                    <Check className="h-4 w-4" /> {t("common.action.save")}
+                                </button>
+                                <button onClick={() => setShowAddPaymentMethodType(false)} className="p-2 text-gray-500 hover:text-gray-900">
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            {createPaymentMethodTypeMutation.isError && (
+                                <div className="mt-2 text-xs text-red-400">
+                                    {(createPaymentMethodTypeMutation.error as Error).message || t("master.paymentMethodTypes.createError")}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <table className="w-full text-left">
+                        <thead className="border-b border-gray-200 bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.name")}</th>
+                                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 text-center">{t("common.table.status")}</th>
+                                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.actions")}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {paymentMethodTypes.length === 0 ? (
+                                <tr><td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-600">{t("master.paymentMethodTypes.empty")}</td></tr>
+                            ) : paymentMethodTypes.map((row: PaymentMethodType) => (
+                                <tr key={row.id} className="group hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        {paymentMethodTypeEditingId === row.id ? (
+                                            <input
+                                                value={editPaymentMethodTypeName}
+                                                onChange={(e) => setEditPaymentMethodTypeName(e.target.value)}
+                                                className="rounded-lg border border-cyan-500/30 bg-gray-100 px-2 py-1 text-sm text-gray-900 focus:outline-none w-64"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-medium text-zinc-200">{row.name}</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <StatusPill label={row.isActive ? t("common.status.active") : t("common.status.inactive")} tone={row.isActive ? "positive" : "neutral"} />
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {paymentMethodTypeEditingId === row.id ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => updatePaymentMethodTypeMutation.mutate({ id: row.id, name: editPaymentMethodTypeName })}
+                                                        className="p-1.5 rounded-lg text-cyan-400 hover:bg-cyan-400/10"
+                                                    >
+                                                        <Check className="h-4 w-4" />
+                                                    </button>
+                                                    <button onClick={() => setPaymentMethodTypeEditingId(null)} className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900">
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setPaymentMethodTypeEditingId(row.id); setEditPaymentMethodTypeName(row.name); }}
+                                                        className="p-1.5 rounded-lg text-gray-500 hover:text-cyan-400 hover:bg-cyan-400/10 transition-all"
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </button>
+                                                    {row.isActive && (
+                                                        <button
+                                                            onClick={() => { if (confirm(t("common.confirm.deactivate", { name: row.name }))) deactivatePaymentMethodTypeMutation.mutate(row.id); }}
                                                             className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all"
                                                         >
                                                             <X className="h-4 w-4" />

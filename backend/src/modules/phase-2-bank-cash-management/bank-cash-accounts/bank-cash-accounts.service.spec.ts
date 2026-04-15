@@ -8,6 +8,9 @@ describe('BankCashAccountsService', () => {
     account: {
       findUnique: jest.fn(),
     },
+    paymentMethodType: {
+      findFirst: jest.fn(),
+    },
     bankCashAccount: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -22,6 +25,10 @@ describe('BankCashAccountsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new BankCashAccountsService(prisma as never);
+    prisma.paymentMethodType.findFirst.mockImplementation(async ({ where }: { where: { name?: { equals?: string } } }) => {
+      const name = where.name?.equals;
+      return name ? { name } : null;
+    });
   });
 
   it('creates a bank account linked to an active posting asset account', async () => {
@@ -38,8 +45,8 @@ describe('BankCashAccountsService', () => {
     prisma.bankCashAccount.findUnique.mockResolvedValue(null);
     prisma.bankCashAccount.create.mockResolvedValue({
       id: 'bc-1',
-      type: 'BANK',
-      name: 'Main Bank Account',
+      type: 'Bank',
+      name: 'Main Bank',
       bankName: 'Arab Bank',
       accountNumber: '123456',
       currencyCode: 'JOD',
@@ -59,7 +66,7 @@ describe('BankCashAccountsService', () => {
     });
 
     const result = await service.create({
-      type: 'BANK',
+      type: 'Bank',
       name: 'Main Bank Account',
       bankName: 'Arab Bank',
       accountNumber: '123456',
@@ -70,8 +77,8 @@ describe('BankCashAccountsService', () => {
     expect(prisma.bankCashAccount.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          type: 'BANK',
-          name: 'Main Bank Account',
+          type: 'Bank',
+          name: 'Main Bank',
           account: {
             connect: {
               id: 'acct-1',
@@ -82,6 +89,58 @@ describe('BankCashAccountsService', () => {
     );
     expect(result.currentBalance).toBe('1250.00');
     expect(result.status).toBe('ACTIVE');
+  });
+
+  it('allows non-bank account types without bank-only requirements', async () => {
+    prisma.paymentMethodType.findFirst.mockResolvedValue({ name: 'Cash' });
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'acct-cash',
+      code: '1100002',
+      name: 'Petty Cash',
+      type: 'ASSET',
+      currentBalance: { toString: () => '75.00' },
+      currencyCode: 'JOD',
+      isActive: true,
+      isPosting: true,
+    });
+    prisma.bankCashAccount.findUnique.mockResolvedValue(null);
+    prisma.bankCashAccount.create.mockResolvedValue({
+      id: 'bc-cash',
+      type: 'Cash',
+      name: 'Petty Cash',
+      bankName: null,
+      accountNumber: null,
+      currencyCode: 'JOD',
+      isActive: true,
+      createdAt: new Date('2026-04-14T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-14T00:00:00.000Z'),
+      account: {
+        id: 'acct-cash',
+        code: '1100002',
+        name: 'Petty Cash',
+        type: 'ASSET',
+        currentBalance: { toString: () => '75.00' },
+        currencyCode: 'JOD',
+        isActive: true,
+        isPosting: true,
+      },
+    });
+
+    const result = await service.create({
+      type: 'Cash',
+      name: 'Front Desk Cash',
+      currencyCode: 'JOD',
+      accountId: 'acct-cash',
+    });
+
+    expect(prisma.bankCashAccount.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: 'Cash',
+        }),
+      }),
+    );
+    expect(result.type).toBe('Cash');
   });
 
   it('rejects linking a non-posting account', async () => {
@@ -98,7 +157,7 @@ describe('BankCashAccountsService', () => {
 
     await expect(
       service.create({
-        type: 'CASH',
+        type: 'Cash',
         name: 'Petty Cash',
         currencyCode: 'JOD',
         accountId: 'acct-header',
@@ -109,7 +168,7 @@ describe('BankCashAccountsService', () => {
   it('prevents editing a deactivated bank/cash account', async () => {
     prisma.bankCashAccount.findUnique.mockResolvedValue({
       id: 'bc-2',
-      type: 'CASH',
+      type: 'Cash',
       name: 'Petty Cash',
       bankName: null,
       accountNumber: null,
@@ -131,10 +190,56 @@ describe('BankCashAccountsService', () => {
     await expect(service.update('bc-2', { name: 'Front Desk Cash' })).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('requires bank details for bank accounts', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'acct-bank',
+      code: '1100001',
+      name: 'Main Bank',
+      type: 'ASSET',
+      currentBalance: { toString: () => '0.00' },
+      currencyCode: 'JOD',
+      isActive: true,
+      isPosting: true,
+    });
+
+    await expect(
+      service.create({
+        type: 'Bank',
+        name: 'Main Bank Account',
+        currencyCode: 'JOD',
+        accountId: 'acct-bank',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects a currency that does not match the linked chart-of-accounts entry', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'acct-foreign',
+      code: '1100004',
+      name: 'USD Bank',
+      type: 'ASSET',
+      currentBalance: { toString: () => '500.00' },
+      currencyCode: 'USD',
+      isActive: true,
+      isPosting: true,
+    });
+
+    await expect(
+      service.create({
+        type: 'Bank',
+      name: 'USD Bank Account',
+        bankName: 'Arab Bank',
+        accountNumber: '123456',
+        currencyCode: 'JOD',
+        accountId: 'acct-foreign',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('lists transactions for the linked account with journal entry type labels', async () => {
     prisma.bankCashAccount.findUnique.mockResolvedValue({
       id: 'bc-3',
-      type: 'BANK',
+      type: 'Bank',
       name: 'Main Bank',
       bankName: 'Arab Bank',
       accountNumber: '123',
@@ -193,7 +298,7 @@ describe('BankCashAccountsService', () => {
 
     await expect(
       service.create({
-        type: 'BANK',
+        type: 'Bank',
         name: 'Main Bank Account',
         bankName: 'Arab Bank',
         accountNumber: '123456',
@@ -201,5 +306,70 @@ describe('BankCashAccountsService', () => {
         accountId: 'acct-1',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('rejects account types that are not active master-data subtypes', async () => {
+    prisma.paymentMethodType.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        type: 'Wallet',
+        name: 'Wallet Account',
+        currencyCode: 'JOD',
+        accountId: 'acct-1',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('allows custom account types from master data', async () => {
+    prisma.paymentMethodType.findFirst.mockResolvedValue({ name: 'Wallet' });
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'acct-wallet',
+      code: '1100005',
+      name: 'Wallet Clearing',
+      type: 'ASSET',
+      currentBalance: { toString: () => '25.00' },
+      currencyCode: 'JOD',
+      isActive: true,
+      isPosting: true,
+    });
+    prisma.bankCashAccount.findUnique.mockResolvedValue(null);
+    prisma.bankCashAccount.create.mockResolvedValue({
+      id: 'bc-wallet',
+      type: 'Wallet',
+      name: 'Wallet Clearing',
+      bankName: null,
+      accountNumber: null,
+      currencyCode: 'JOD',
+      isActive: true,
+      createdAt: new Date('2026-04-14T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-14T00:00:00.000Z'),
+      account: {
+        id: 'acct-wallet',
+        code: '1100005',
+        name: 'Wallet Clearing',
+        type: 'ASSET',
+        currentBalance: { toString: () => '25.00' },
+        currencyCode: 'JOD',
+        isActive: true,
+        isPosting: true,
+      },
+    });
+
+    const result = await service.create({
+      type: 'Wallet',
+      name: 'Office Wallet',
+      currencyCode: 'JOD',
+      accountId: 'acct-wallet',
+    });
+
+    expect(result.type).toBe('Wallet');
+    expect(prisma.bankCashAccount.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: 'Wallet',
+        }),
+      }),
+    );
   });
 });

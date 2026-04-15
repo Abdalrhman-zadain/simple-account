@@ -11,6 +11,7 @@ import {
   getAccountOptions,
   getBankCashAccounts,
   getBankCashAccountTransactions,
+  getPaymentMethodTypes,
   updateBankCashAccount,
 } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -45,6 +46,12 @@ export function BankCashAccountsPage() {
   const postingAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "ASSET", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "ASSET" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const paymentMethodTypesQuery = useQuery({
+    queryKey: queryKeys.paymentMethodTypes(token),
+    queryFn: () => getPaymentMethodTypes(token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -108,7 +115,7 @@ export function BankCashAccountsPage() {
     setEditor({
       id: row.id,
       type: row.type,
-      name: row.name,
+      name: row.account.name,
       bankName: row.bankName ?? "",
       accountNumber: row.accountNumber ?? "",
       currencyCode: row.currencyCode,
@@ -126,7 +133,7 @@ export function BankCashAccountsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 motion-reduce:animate-none">
+    <div className="space-y-8">
       <SectionHeading
         title={t("bankCash.title")}
         description={t("bankCash.description")}
@@ -144,6 +151,7 @@ export function BankCashAccountsPage() {
         search={search}
         typeFilter={typeFilter}
         statusFilter={statusFilter}
+        paymentMethodTypes={paymentMethodTypesQuery.data ?? []}
         onSearchChange={setSearch}
         onTypeFilterChange={setTypeFilter}
         onStatusFilterChange={setStatusFilter}
@@ -172,6 +180,7 @@ export function BankCashAccountsPage() {
         isOpen={isEditorOpen}
         editor={editor}
         postingAccounts={postingAccountsQuery.data ?? []}
+        paymentMethodTypes={paymentMethodTypesQuery.data ?? []}
         errorMessage={editorError}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setIsEditorOpen(false)}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/providers/settings-provider";
+import { useEffect, useMemo, useState } from "react";
 
 const enTranslations: Record<string, string> = {
   "app.title": "Genius ERP",
@@ -28,7 +28,7 @@ const enTranslations: Record<string, string> = {
   "settings.note":
     "Note: Changing the language updates the layout direction (LTR/RTL) immediately.",
 
-  "bankCash.title": "Bank & Cash Accounts",
+  "bankCash.title": "Payment Methods",
   "bankCash.description":
     "Register operational bank and cash accounts, link them to posting accounts, and review balances and transaction history.",
   "bankCash.button.new": "New Bank/Cash Account",
@@ -61,15 +61,21 @@ const enTranslations: Record<string, string> = {
   "bankCash.form.createTitle": "New Bank/Cash Account",
   "bankCash.form.editTitle": "Edit Bank/Cash Account",
   "bankCash.form.name": "Account Name",
+  "bankCash.form.namePlaceholder": "Search by account code or account name",
+  "bankCash.form.nameHelp": "Choose an active posting account. You can search by account number or account name.",
+  "bankCash.form.nameEmpty": "No matching posting account found.",
   "bankCash.form.bankName": "Bank Name / Cash Location",
   "bankCash.form.accountNumber": "Account Number / Reference",
   "bankCash.form.currency": "Currency",
   "bankCash.form.linkedAccount": "Linked COA Account",
-  "bankCash.form.type": "Account Type",
-  "bankCash.form.typeHelp": "Every bank/cash account must link to an active posting asset account in the chart of accounts.",
-  "bankCash.form.bankNameHelp": "Required for bank accounts. For cash accounts, use this field for the drawer/location if needed.",
-  "bankCash.form.accountNumberHelp": "Required for bank accounts. Optional for cash accounts.",
+  "bankCash.form.type": "Payment Method Type",
+  "bankCash.form.typePlaceholder": "Select a payment method type",
+  "bankCash.form.typeHelp": "Payment methods come from Master Data. Add Bank, Cash, Click, Wallet, or any other payment method there.",
+  "bankCash.form.bankNameHelp": "Required when the account type is Bank. Optional for other account types.",
+  "bankCash.form.accountNumberHelp": "Required when the account type is Bank. Optional for other account types.",
   "bankCash.form.linkedAccountPlaceholder": "Select a posting asset account",
+  "bankCash.form.linkedAccountSearchHelp": "Start typing the account code or name to filter the chart of accounts.",
+  "bankCash.form.linkedAccountEmpty": "No matching posting asset account found.",
   "bankCash.form.cancel": "Cancel",
   "bankCash.form.create": "Create",
   "bankCash.form.save": "Save Changes",
@@ -219,14 +225,19 @@ const enTranslations: Record<string, string> = {
 
   "master.tab.accountSubtypes": "Account Classes",
   "master.tab.journalEntryTypes": "Journal Entry Types",
+  "master.tab.paymentMethodTypes": "Payment Method Types",
   "master.section.accountSubtypes.title": "Account Classes (Subtypes)",
   "master.section.accountSubtypes.description": "Create your own account classes like Bank, Cash, Receivable, Payable, etc.",
   "master.section.accountSubtypes.add": "Add Class",
   "master.section.journalEntryTypes.title": "Journal Entry Types",
   "master.section.journalEntryTypes.description": "Create your own journal entry types like Payment, Invoice, Adjustment, Transfer, etc.",
   "master.section.journalEntryTypes.add": "Add Type",
+  "master.section.paymentMethodTypes.title": "Payment Method Types",
+  "master.section.paymentMethodTypes.description": "Create payment methods like Bank, Cash, Click, Wallet, Card, or any other way customers can pay.",
+  "master.section.paymentMethodTypes.add": "Add Payment Method",
   "master.accountSubtypes.createError": "Failed to create account class.",
   "master.journalEntryTypes.createError": "Failed to create journal entry type.",
+  "master.paymentMethodTypes.createError": "Failed to create payment method type.",
 
   "journal.accountSelect.placeholder": "— Select posting account —",
   "journal.accountSelect.noMatches": "No matches.",
@@ -250,10 +261,12 @@ const enTranslations: Record<string, string> = {
   "master.segmentValues.empty": "No values yet. Add one above.",
   "master.accountSubtypes.empty": "No classes yet. Add one above.",
   "master.journalEntryTypes.empty": "No types yet. Add one above.",
+  "master.paymentMethodTypes.empty": "No payment methods yet. Add one above.",
   "master.segmentValues.codePlaceholder": "Code (e.g., AMM)",
   "master.segmentValues.namePlaceholder": "Full name (e.g., Amman)",
   "master.accountSubtypes.namePlaceholder": "Class name (e.g., Bank)",
   "master.journalEntryTypes.namePlaceholder": "Type name (e.g., Payment)",
+  "master.paymentMethodTypes.namePlaceholder": "Payment method name (e.g., Click)",
 
   "common.confirm.deactivate": "Deactivate \"{name}\"?",
 

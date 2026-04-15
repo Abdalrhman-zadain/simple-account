@@ -36,6 +36,7 @@ Accounting meaning:
 - real posting targets are controlled by `isPosting`
 - current account balance is stored directly and updated by posting logic
 - operational bank/cash records wrap specific posting accounts for balance and history views
+- records typed as `Bank` require `bankName` and `accountNumber`; other payment-method types may leave those fields empty or use them as operational references
 
 ### Journals
 
@@ -143,6 +144,7 @@ Account
 
 BankCashAccount
   └─ account -> Account
+  └─ type -> active PaymentMethodType.name (application-level validation)
 
 JournalEntry
   ├─ lines -> JournalEntryLine[]
@@ -170,7 +172,7 @@ Ownership by module:
 
 - Chart of Accounts:
   - `Account`
-- Bank & Cash Accounts:
+- Payment Methods:
   - `BankCashAccount`
   - reads linked `Account`
   - reads linked `LedgerTransaction`

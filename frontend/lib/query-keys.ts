@@ -38,6 +38,9 @@ export const queryKeys = {
   accountSubtypes(token: string | null) {
     return ["account-subtypes", token] as const;
   },
+  paymentMethodTypes(token: string | null) {
+    return ["payment-method-types", token] as const;
+  },
   segmentDefinitions(token: string | null) {
     return ["segment-definitions", token] as const;
   },

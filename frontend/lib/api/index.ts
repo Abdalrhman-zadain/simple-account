@@ -1,45 +1,47 @@
-import {
-  Account,
-  AccountOption,
-  AccountTableRow,
-  AccountSubtype,
-  AccountTreeNode,
-  AccountsQuery,
-  ApiCheckResult,
-  ApiErrorShape,
-  AuditLogEntry,
-  BankCashAccount,
-  BankCashAccountsQuery,
-  BankCashAccountTransactionsResponse,
-  CreateAccountSubtypePayload,
-  CreateAccountPayload,
-  CreateBankCashAccountPayload,
-  CreateJournalEntryTypePayload,
-  CreateJournalEntryPayload,
-  CreateSegmentValuePayload,
-  FiscalPeriod,
-  FiscalYear,
-  JournalEntriesQuery,
-  JournalEntry,
-  LedgerEntry,
-  LedgerQuery,
-  LedgerResponse,
-  LoginPayload,
-  LoginResponse,
-  RegisterPayload,
-  RegisterResponse,
-  SegmentDefinition,
-  SegmentValue,
-  UpdateAccountSubtypePayload,
-  UpdateAccountPayload,
-  UpdateBankCashAccountPayload,
-  UpdateJournalEntryTypePayload,
-  UpdateSegmentValuePayload,
-  JournalEntryType,
-} from "@/types/api";
 import { getApiBaseUrl } from "@/lib/config/api";
-import { buildAccountQuery } from "@/lib/utils";
 import { clearSession } from "@/lib/storage";
+import { buildAccountQuery } from "@/lib/utils";
+import {
+    Account,
+    AccountOption,
+    AccountsQuery,
+    AccountSubtype,
+    AccountTableRow,
+    AccountTreeNode,
+    ApiCheckResult,
+    ApiErrorShape,
+    AuditLogEntry,
+    BankCashAccount,
+    BankCashAccountsQuery,
+    BankCashAccountTransactionsResponse,
+    CreateAccountPayload,
+    CreateAccountSubtypePayload,
+    CreateBankCashAccountPayload,
+    CreateJournalEntryPayload,
+    CreateJournalEntryTypePayload,
+    CreatePaymentMethodTypePayload,
+    CreateSegmentValuePayload,
+    FiscalPeriod,
+    FiscalYear,
+    JournalEntriesQuery,
+    JournalEntry,
+    JournalEntryType,
+    LedgerQuery,
+    LedgerResponse,
+    LoginPayload,
+    LoginResponse,
+    PaymentMethodType,
+    RegisterPayload,
+    RegisterResponse,
+    SegmentDefinition,
+    SegmentValue,
+    UpdateAccountPayload,
+    UpdateAccountSubtypePayload,
+    UpdateBankCashAccountPayload,
+    UpdateJournalEntryTypePayload,
+    UpdatePaymentMethodTypePayload,
+    UpdateSegmentValuePayload
+} from "@/types/api";
 
 export class ApiError extends Error {
   status: number;
@@ -204,7 +206,7 @@ export async function getAccountTransactions(params: LedgerQuery, token?: string
   return apiRequest<LedgerResponse>(`/general-ledger${suffix}`, { token });
 }
 
-// ─── Bank & Cash Accounts ─────────────────────────────────────────────────────
+// ─── Payment Methods ─────────────────────────────────────────────────────
 
 export async function getBankCashAccounts(params: BankCashAccountsQuery = {}, token?: string | null) {
   const searchParams = new URLSearchParams();
@@ -284,6 +286,32 @@ export async function updateAccountSubtype(id: string, payload: UpdateAccountSub
 
 export async function deactivateAccountSubtype(id: string, token?: string | null) {
   return apiRequest<AccountSubtype>(`/account-subtypes/${id}`, { method: "DELETE", token });
+}
+
+// ─── Payment Method Types ─────────────────────────────────────────────────────
+
+export async function getPaymentMethodTypes(token?: string | null) {
+  return apiRequest<PaymentMethodType[]>("/payment-method-types", { token });
+}
+
+export async function createPaymentMethodType(payload: CreatePaymentMethodTypePayload, token?: string | null) {
+  return apiRequest<PaymentMethodType>("/payment-method-types", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePaymentMethodType(id: string, payload: UpdatePaymentMethodTypePayload, token?: string | null) {
+  return apiRequest<PaymentMethodType>(`/payment-method-types/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivatePaymentMethodType(id: string, token?: string | null) {
+  return apiRequest<PaymentMethodType>(`/payment-method-types/${id}`, { method: "DELETE", token });
 }
 
 // ─── Journal Entry Types ───────────────────────────────────────────────────────

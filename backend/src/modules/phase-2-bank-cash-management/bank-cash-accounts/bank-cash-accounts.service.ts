@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Prisma, type BankCashAccountType } from '../../../generated/prisma';
+import { Prisma } from '../../../generated/prisma';
 
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AccountNotFoundException } from '../../phase-1-accounting-foundation/accounting-core/validation-rules/accounting-errors';
@@ -19,7 +19,7 @@ export class BankCashAccountsService {
   async list(query: ListQuery = {}) {
     const rows = await this.prisma.bankCashAccount.findMany({
       where: {
-        type: query.type as BankCashAccountType | undefined,
+        type: query.type?.trim() || undefined,
         isActive: query.isActive ? query.isActive === 'true' : undefined,
         OR: query.search
           ? [
@@ -291,32 +291,26 @@ export class BankCashAccountsService {
     dto: CreateBankCashAccountDto | UpdateBankCashAccountDto,
     currentId?: string,
   ): Promise<{
-    type: BankCashAccountType;
+    type: string;
     name: string;
     bankName: string | null;
     accountNumber: string | null;
     currencyCode: string;
     accountId: string;
   }> {
-    const name = dto.name?.trim();
-    const bankName = dto.bankName?.trim() || null;
-    const accountNumber = dto.accountNumber?.trim() || null;
+    const rawBankName = dto.bankName?.trim() || null;
+    const rawAccountNumber = dto.accountNumber?.trim() || null;
     const currencyCode = dto.currencyCode?.trim().toUpperCase();
-    const type = dto.type;
-
-    if (!name) {
-      throw new BadRequestException('Name is required.');
-    }
-
-    if (!type) {
-      throw new BadRequestException('Type is required.');
-    }
+    const type = await this.normalizeAndValidateType(dto.type);
 
     if (!currencyCode) {
       throw new BadRequestException('Currency code is required.');
     }
 
-    if (type === 'BANK') {
+    const bankName = rawBankName;
+    const accountNumber = rawAccountNumber;
+
+    if (this.isBankType(type)) {
       if (!bankName) {
         throw new BadRequestException('Bank name is required for bank accounts.');
       }
@@ -370,7 +364,7 @@ export class BankCashAccountsService {
 
     return {
       type,
-      name,
+      name: linkedAccount.name,
       bankName,
       accountNumber,
       currencyCode,
@@ -392,7 +386,7 @@ export class BankCashAccountsService {
   private mapSummary(
     row: {
       id: string;
-      type: BankCashAccountType;
+      type: string;
       name: string;
       bankName: string | null;
       accountNumber: string | null;
@@ -443,5 +437,36 @@ export class BankCashAccountsService {
       Array.isArray(error.meta?.target) &&
       error.meta?.target.includes('accountId')
     );
+  }
+
+  private async normalizeAndValidateType(type: string | undefined) {
+    const normalizedType = type?.trim();
+
+    if (!normalizedType) {
+      throw new BadRequestException('Type is required.');
+    }
+
+    const subtype = await this.prisma.paymentMethodType.findFirst({
+      where: {
+        isActive: true,
+        name: {
+          equals: normalizedType,
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        name: true,
+      },
+    });
+
+    if (!subtype) {
+      throw new BadRequestException(`Unknown or inactive payment method type: "${normalizedType}".`);
+    }
+
+    return subtype.name;
+  }
+
+  private isBankType(type: string) {
+    return type.trim().toLowerCase() === 'bank';
   }
 }

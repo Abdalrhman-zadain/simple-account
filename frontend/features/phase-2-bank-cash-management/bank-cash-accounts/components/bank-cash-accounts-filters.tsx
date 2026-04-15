@@ -1,5 +1,4 @@
-import type { BankCashAccountType } from "@/types/api";
-import { BANK_CASH_ACCOUNT_TYPES } from "@/types/api";
+import type { BankCashAccountType, PaymentMethodType } from "@/types/api";
 import { Card } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n";
 
@@ -7,6 +6,7 @@ export function BankCashAccountsFilters({
   search,
   typeFilter,
   statusFilter,
+  paymentMethodTypes,
   onSearchChange,
   onTypeFilterChange,
   onStatusFilterChange,
@@ -14,6 +14,7 @@ export function BankCashAccountsFilters({
   search: string;
   typeFilter: BankCashAccountType | "";
   statusFilter: "true" | "false" | "";
+  paymentMethodTypes: PaymentMethodType[];
   onSearchChange: (value: string) => void;
   onTypeFilterChange: (value: BankCashAccountType | "") => void;
   onStatusFilterChange: (value: "true" | "false" | "") => void;
@@ -35,11 +36,13 @@ export function BankCashAccountsFilters({
           className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
         >
           <option value="">{t("bankCash.filters.allTypes")}</option>
-          {BANK_CASH_ACCOUNT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(`bankCash.type.${type}`)}
-            </option>
-          ))}
+          {paymentMethodTypes
+            .filter((type) => type.isActive)
+            .map((type) => (
+              <option key={type.id} value={type.name}>
+                {type.name}
+              </option>
+            ))}
         </select>
         <select
           value={statusFilter}

@@ -1,8 +1,8 @@
 import React, { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-export { Skeleton } from "./skeleton";
 import { Skeleton } from "./skeleton";
+export { Skeleton };
 
 export function PageShell({ children }: { children: ReactNode }) {
   return (
@@ -43,7 +43,7 @@ export function SectionHeading({
   return (
     <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between mb-8">
       <div className="space-y-3">
-        <h1 className="app-title text-5xl font-black tracking-tight">{title}</h1>
+        <h1 className="app-title text-3xl font-black tracking-tight sm:text-4xl xl:text-5xl">{title}</h1>
         {description ? <p className="app-subtitle text-lg leading-relaxed">{description}</p> : null}
       </div>
       <div className="flex-shrink-0">
@@ -167,11 +167,11 @@ export function SidePanel({
     )}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className={cn(
-        "absolute inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl transition-transform duration-300 transform",
+        "absolute inset-y-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl transition-transform duration-300 transform sm:inset-y-4 sm:right-4 sm:h-[calc(100vh-2rem)] sm:rounded-3xl sm:border sm:border-gray-200",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
-        <div className="h-full flex flex-col border-l border-gray-200">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
+        <div className="flex h-full flex-col border-l border-gray-200 sm:border-l-0">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-gray-50 p-6">
             <h2 className="text-lg font-bold text-gray-900">{title}</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-900">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -41,8 +41,10 @@ Where to edit:
 What else to check:
 
 - linked account must be an active posting asset account
+- payment-method type must match an active `PaymentMethodType` from Master Data
 - linked account must remain unique per bank/cash record
 - currency must match the linked chart-of-accounts account
+- records typed as `Bank` require `bankName` and `accountNumber`; other types may leave those fields empty
 - deactivated records must stay visible for history but blocked from edit and new selection
 - history reads must come from posted ledger transactions, not drafts
 

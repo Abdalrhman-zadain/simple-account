@@ -101,6 +101,25 @@ export type UpdateAccountSubtypePayload = {
   isActive?: boolean;
 };
 
+// ─── Payment Method Types ─────────────────────────────────────────────────────
+
+export type PaymentMethodType = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatePaymentMethodTypePayload = {
+  name: string;
+};
+
+export type UpdatePaymentMethodTypePayload = {
+  name?: string;
+  isActive?: boolean;
+};
+
 // ─── Journal Entry Types ───────────────────────────────────────────────────────
 
 export type JournalEntryType = {
@@ -144,11 +163,9 @@ export type FiscalYear = {
   periods: FiscalPeriod[];
 };
 
-// ─── Bank & Cash Accounts ─────────────────────────────────────────────────────
+// ─── Payment Methods ─────────────────────────────────────────────────────
 
-export const BANK_CASH_ACCOUNT_TYPES = ["BANK", "CASH"] as const;
-
-export type BankCashAccountType = (typeof BANK_CASH_ACCOUNT_TYPES)[number];
+export type BankCashAccountType = string;
 
 export type BankCashAccount = {
   id: string;

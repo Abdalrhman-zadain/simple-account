@@ -11,7 +11,7 @@ export type EditorState = {
 };
 
 export const EMPTY_EDITOR: EditorState = {
-  type: "BANK",
+  type: "",
   name: "",
   bankName: "",
   accountNumber: "",
