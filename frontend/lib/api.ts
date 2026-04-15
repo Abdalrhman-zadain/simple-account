@@ -1,1 +1,1 @@
-export * from "@/lib/api/index";
+export * from "./api/index";

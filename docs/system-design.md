@@ -184,7 +184,7 @@ Resulting accounting meaning:
 
 - each payment-method record links to exactly one posting account in the chart of accounts
 - the payment-method type list comes from active `PaymentMethodType` master data entries, so users can add new payment methods without code changes
-- the form chooses the linked posting account through account-name autocomplete that searches by account code or account name
+- the form can suggest and link the posting account while the user types either the bank reference field or the dedicated linked-account autocomplete, and both search by account code or account name
 - records typed as `Bank` still require bank-specific details, while other classes can use the optional detail fields as needed
 - current balance is read from the linked posting account balance
 - transaction history is derived from posted ledger rows for the linked posting account

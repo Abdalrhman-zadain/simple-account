@@ -43,6 +43,7 @@ What else to check:
 - linked account must be an active posting asset account
 - payment-method type must match an active `PaymentMethodType` from Master Data
 - linked account must remain unique per bank/cash record
+- account linking autocomplete may be driven either from the dedicated linked-account field or from the account-number/reference search suggestions, but both must resolve to the same posting account selection
 - currency must match the linked chart-of-accounts account
 - records typed as `Bank` require `bankName` and `accountNumber`; other types may leave those fields empty
 - deactivated records must stay visible for history but blocked from edit and new selection

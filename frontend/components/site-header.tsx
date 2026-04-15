@@ -1,38 +1,37 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { SiQuickbooks } from "react-icons/si";
 import {
-  LuBookOpen as BookOpen,
-  LuFileText as FileText,
-  LuChartColumn as BarChart2,
-  LuSettings2 as Settings2,
-  LuCalendar as Calendar,
-  LuShieldCheck as ShieldCheck,
-  LuLogOut as LogOut,
-  LuUser as User,
-  LuCirclePlus as PlusCircle,
-  LuChevronRight as ChevronRight,
-  LuPanelLeftClose as PanelLeftClose,
-  LuPanelLeftOpen as PanelLeftOpen,
-  LuWalletMinimal as WalletMinimal,
-} from "react-icons/lu";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/providers/auth-provider";
-import { cn } from "@/lib/utils";
-import { useTranslation, TranslationKey } from "@/lib/i18n";
-import { useSettings } from "@/providers/settings-provider";
-import { queryKeys } from "@/lib/query-keys";
-import {
-  getAccounts,
   getAccountOptions,
+  getAccounts,
+  getAccountSubtypes,
   getBankCashAccounts,
   getFiscalYears,
   getJournalEntryTypes,
   getSegmentDefinitions,
-  getAccountSubtypes,
 } from "@/lib/api";
+import { TranslationKey, useTranslation } from "@/lib/i18n";
+import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
+import { useSettings } from "@/providers/settings-provider";
+import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LuChartColumn as BarChart2,
+  LuBookOpen as BookOpen,
+  LuCalendar as Calendar,
+  LuChevronRight as ChevronRight,
+  LuFileText as FileText,
+  LuLogOut as LogOut,
+  LuPanelLeftClose as PanelLeftClose,
+  LuPanelLeftOpen as PanelLeftOpen,
+  LuSettings2 as Settings2,
+  LuShieldCheck as ShieldCheck,
+  LuUser as User,
+  LuWalletMinimal as WalletMinimal
+} from "react-icons/lu";
+import { SiQuickbooks } from "react-icons/si";
 
 type NavGroup = {
   labelKey: TranslationKey;
@@ -233,21 +232,6 @@ export function SiteHeader({
           {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
           <span className={cn(isCollapsed && "sr-only")}>{isCollapsed ? "Open" : "Close"}</span>
         </button>
-      </div>
-
-      {/* Quick action */}
-      <div className="px-3 pt-4">
-        <Link
-          href="/accounts/new"
-          className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-xl bg-primary/10 border border-primary/20 py-2.5 text-xs font-bold text-primary transition-all hover:bg-primary/20 hover:text-primary",
-            isCollapsed && "px-0",
-          )}
-          title="New Account"
-        >
-          <PlusCircle size={16} />
-          <span className={cn(isCollapsed && "sr-only")}>New Account</span>
-        </Link>
       </div>
 
       {/* Navigation */}
