@@ -263,6 +263,7 @@ export type Account = {
   currentBalance: string;
   parentAccountId?: string | null;
   parentAccount?: Account | null;
+  ancestors?: Array<{ id: string; name: string; code: string; parentAccountId: string | null }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -273,6 +274,7 @@ export type AccountTableRow = Pick<
   Account,
   "id" | "code" | "name" | "type" | "isPosting" | "isActive" | "currentBalance" | "parentAccountId"
 > & {
+  canDelete: boolean;
   parentAccount?: { id: string; name: string } | null;
 };
 

@@ -13,9 +13,17 @@ export type ActiveFilterChip = {
   remove: string;
 };
 
+export type AccountsSearchFilters = {
+  search: string;
+  type: ChartAccountType[];
+  isActive: Array<"true" | "false">;
+  isPosting: Array<"true" | "false">;
+};
+
 export type AccountRowActionState = {
   onActivate: (accountId: string) => void;
   onDeactivate: (accountId: string) => void;
+  onDelete: (accountId: string) => void;
   isMutating: (accountId: string) => boolean;
 };
 
@@ -26,6 +34,8 @@ export type AccountsTableProps = {
   isPending: boolean;
   isSearching: boolean;
   parentId: string | null;
+  parentType?: string | null;
   onEnter: (accountId: string) => void;
+  onBack: () => void;
   actions: AccountRowActionState;
 };

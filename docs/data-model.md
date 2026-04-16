@@ -104,12 +104,17 @@ Main models:
 - `SegmentDefinition`
 - `SegmentValue`
 - `AccountSubtype`
+- `PaymentMethodType`
+- `JournalEntryType`
 
 Accounting meaning:
 
 - allows enterprise-style segmented coding and reference data
 - links segment values to accounts
 - provides a controlled list of user-defined account classes (stored on `Account.subtype` as a string)
+- provides a controlled list of active payment methods used by `BankCashAccount.type`
+- provides a controlled list of active journal entry classifications used by `JournalEntry.type`
+- default payment-method rows include `Bank` and `Cash`, and existing bank/cash record types are backfilled into `PaymentMethodType` during migration
 
 ### Audit And Users
 
@@ -146,6 +151,12 @@ BankCashAccount
   └─ account -> Account
   └─ type -> active PaymentMethodType.name (application-level validation)
 
+PaymentMethodType
+  └─ referenced by -> BankCashAccount.type (application-level validation)
+
+JournalEntryType
+  └─ referenced by -> JournalEntry.type (application-level validation)
+
 JournalEntry
   ├─ lines -> JournalEntryLine[]
   ├─ ledgerLines -> LedgerTransaction[]
@@ -174,6 +185,7 @@ Ownership by module:
   - `Account`
 - Payment Methods:
   - `BankCashAccount`
+  - validates `type` against active `PaymentMethodType`
   - reads linked `Account`
   - reads linked `LedgerTransaction`
 - Journal Entries:
@@ -193,6 +205,9 @@ Ownership by module:
 - Master Data:
   - `SegmentDefinition`
   - `SegmentValue`
+  - `AccountSubtype`
+  - `PaymentMethodType`
+  - `JournalEntryType`
 - Audit:
   - `AuditLog`
 - Platform Auth:

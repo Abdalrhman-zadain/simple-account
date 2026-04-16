@@ -1,6 +1,6 @@
 import { AccountTableRow } from "@/types/api";
 
-import { ActiveFilterChip, ChartAccountType, CommandSuggestion } from "./chart-of-accounts.types";
+import { AccountsSearchFilters, ActiveFilterChip, ChartAccountType, CommandSuggestion } from "./chart-of-accounts.types";
 
 export const COMMANDS: CommandSuggestion[] = [
   { label: "type: ASSET", value: "type:ASSET", category: "Filter" },
@@ -22,34 +22,98 @@ export const TYPE_STYLES: Record<ChartAccountType, { badge: string; dot: string;
   EXPENSE: { badge: "bg-rose-500/10 text-rose-700 border-rose-500/20", dot: "bg-rose-500", label: "accountType.EXPENSE" },
 };
 
+function tokenizeSearchQuery(searchQuery: string) {
+  return searchQuery
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function unique<T>(values: T[]) {
+  return [...new Set(values)];
+}
+
+function parseFilterToken(token: string) {
+  const [rawPrefix, ...rest] = token.split(":");
+  const prefix = rawPrefix?.toLowerCase();
+  const value = rest.join(":");
+
+  if (!prefix || !value) {
+    return null;
+  }
+
+  return { prefix, value };
+}
+
 export function buildSearchFilters(searchQuery: string) {
-  const params: Record<string, string> = { search: searchQuery };
+  const tokens = tokenizeSearchQuery(searchQuery);
+  const params: AccountsSearchFilters = {
+    search: "",
+    type: [],
+    isActive: [],
+    isPosting: [],
+  };
+  const searchTerms: string[] = [];
 
-  if (searchQuery.includes("type:")) {
-    const match = searchQuery.match(/type:(\w+)/i);
-    if (match) {
-      params.type = match[1].toUpperCase();
-      params.search = searchQuery.replace(/type:\w+/i, "").trim();
+  for (const token of tokens) {
+    const parsed = parseFilterToken(token);
+
+    if (parsed?.prefix === "type") {
+      const typeValue = parsed.value.toUpperCase() as ChartAccountType;
+
+      if (Object.prototype.hasOwnProperty.call(TYPE_STYLES, typeValue)) {
+        params.type.push(typeValue);
+        continue;
+      }
     }
+
+    if (parsed?.prefix === "status") {
+      const value = parsed.value.toLowerCase();
+
+      if (value === "active" || value === "inactive") {
+        params.isActive.push(value === "active" ? "true" : "false");
+        continue;
+      }
+    }
+
+    if (parsed?.prefix === "is") {
+      const value = parsed.value.toLowerCase();
+
+      if (value === "posting" || value === "header") {
+        params.isPosting.push(value === "posting" ? "true" : "false");
+        continue;
+      }
+    }
+
+    searchTerms.push(token);
   }
 
-  if (searchQuery.includes("status:")) {
-    const match = searchQuery.match(/status:(\w+)/i);
-    if (match) {
-      params.isActive = match[1].toLowerCase() === "active" ? "true" : "false";
-      params.search = params.search.replace(/status:\w+/i, "").trim();
-    }
-  }
-
-  if (searchQuery.includes("is:")) {
-    const match = searchQuery.match(/is:(\w+)/i);
-    if (match) {
-      params.isPosting = match[1].toLowerCase() === "posting" ? "true" : "false";
-      params.search = params.search.replace(/is:\w+/i, "").trim();
-    }
-  }
+  params.type = unique(params.type);
+  params.isActive = unique(params.isActive);
+  params.isPosting = unique(params.isPosting);
+  params.search = searchTerms.join(" ").trim();
 
   return params;
+}
+
+export function applyAccountFilters(accounts: AccountTableRow[], filters: AccountsSearchFilters) {
+  return accounts.filter((account) => {
+    if (filters.type.length > 0 && !filters.type.includes(account.type as ChartAccountType)) {
+      return false;
+    }
+
+    const accountStatus = account.isActive ? "true" : "false";
+    if (filters.isActive.length > 0 && !filters.isActive.includes(accountStatus)) {
+      return false;
+    }
+
+    const accountRole = account.isPosting ? "true" : "false";
+    if (filters.isPosting.length > 0 && !filters.isPosting.includes(accountRole)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function collectStats(nodes: AccountTableRow[]): Record<ChartAccountType, number> {
@@ -81,33 +145,71 @@ export function collectTotalBalance(nodes: AccountTableRow[]): number {
 }
 
 export function getCommandSuggestions(searchQuery: string) {
-  const input = searchQuery.toLowerCase();
-  if (!input) {
-    return [];
+  const hasTrailingSpace = /\s$/.test(searchQuery);
+  const tokens = searchQuery.trimStart().split(/\s+/).filter(Boolean);
+  const activeToken = (hasTrailingSpace ? "" : tokens.at(-1) ?? "").toLowerCase();
+  const normalizedToken = activeToken.replace(/\s+/g, "");
+  const activeFilters = new Set(tokenizeSearchQuery(searchQuery).map((token) => token.toLowerCase()));
+
+  if (!normalizedToken) {
+    return COMMANDS.filter((command) => !activeFilters.has(command.value.toLowerCase()));
   }
 
-  return COMMANDS.filter((command) => command.label.toLowerCase().includes(input));
+  return COMMANDS.filter(
+    (command) =>
+      !activeFilters.has(command.value.toLowerCase()) &&
+      (command.label.toLowerCase().replace(/\s+/g, "").includes(normalizedToken) ||
+        command.value.toLowerCase().includes(normalizedToken)),
+  );
 }
 
 export function getActiveFilterChips(searchQuery: string): ActiveFilterChip[] {
   const chips: ActiveFilterChip[] = [];
-  const typeMatch = searchQuery.match(/type:(\w+)/i);
-  const statusMatch = searchQuery.match(/status:(\w+)/i);
-  const isMatch = searchQuery.match(/is:(\w+)/i);
 
-  if (typeMatch) {
-    chips.push({ label: `type: ${typeMatch[1].toUpperCase()}`, remove: typeMatch[0] });
-  }
-  if (statusMatch) {
-    chips.push({ label: `status: ${statusMatch[1].toLowerCase()}`, remove: statusMatch[0] });
-  }
-  if (isMatch) {
-    chips.push({ label: `is: ${isMatch[1].toLowerCase()}`, remove: isMatch[0] });
+  for (const token of tokenizeSearchQuery(searchQuery)) {
+    const parsed = parseFilterToken(token);
+
+    if (parsed?.prefix === "type") {
+      const typeValue = parsed.value.toUpperCase() as ChartAccountType;
+      if (Object.prototype.hasOwnProperty.call(TYPE_STYLES, typeValue)) {
+        chips.push({ label: `type: ${typeValue}`, remove: token });
+      }
+      continue;
+    }
+
+    if (parsed?.prefix === "status") {
+      const value = parsed.value.toLowerCase();
+      if (value === "active" || value === "inactive") {
+        chips.push({ label: `status: ${value}`, remove: token });
+      }
+      continue;
+    }
+
+    if (parsed?.prefix === "is") {
+      const value = parsed.value.toLowerCase();
+      if (value === "posting" || value === "header") {
+        chips.push({ label: `is: ${value}`, remove: token });
+      }
+    }
   }
 
   return chips;
 }
 
 export function removeFilterToken(searchQuery: string, token: string) {
-  return searchQuery.replace(new RegExp(token.replace(":", "\\:"), "i"), "").trim();
+  const normalized = token.toLowerCase();
+  return tokenizeSearchQuery(searchQuery)
+    .filter((item) => item.toLowerCase() !== normalized)
+    .join(" ");
+}
+
+export function appendSearchFilter(searchQuery: string, value: string) {
+  const tokens = tokenizeSearchQuery(searchQuery);
+  const normalizedValue = value.toLowerCase();
+
+  if (tokens.some((token) => token.toLowerCase() === normalizedValue)) {
+    return `${tokens.join(" ")} `.trimStart();
+  }
+
+  return `${[...tokens, value].join(" ")} `.trimStart();
 }

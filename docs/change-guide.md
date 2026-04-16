@@ -42,6 +42,7 @@ What else to check:
 
 - linked account must be an active posting asset account
 - payment-method type must match an active `PaymentMethodType` from Master Data
+- the default payment-method set is `Bank` and `Cash`; additional methods are managed in Master Data rather than hard-coded in the bank/cash feature
 - linked account must remain unique per bank/cash record
 - account linking autocomplete may be driven either from the dedicated linked-account field or from the account-number/reference search suggestions, but both must resolve to the same posting account selection
 - currency must match the linked chart-of-accounts account
@@ -75,6 +76,7 @@ What else to check:
 - required account type selection
 - account subtype (class) selection is optional but must match an active `AccountSubtype` (managed under Master Data)
 - header vs posting selection
+- chart search must keep multiple filter tokens together when users combine `type:`, `status:`, and `is:` filters, including multiple tokens from the same filter family
 - parent context passed from navigation or route params
 - parent context must only come from header accounts, never from posting-account drilldown state
 - next-code generation (it depends on `parentId` and whether the new account is Header vs Posting)
@@ -100,6 +102,31 @@ Checks to run:
 If your environment already contains older numeric charts that used **6-digit** numeric codes, run the one-time migration:
 
 - `backend`: `npm run prisma:migrate:account-codes:6-to-7`
+
+## Add Or Change Account Deletion Behavior
+
+Where to edit:
+
+- `frontend/features/accounting/chart-of-accounts`
+- backend `phase-1-accounting-foundation/accounting-core/chart-of-accounts`
+
+What else to check:
+
+- accounts referenced by journal entry lines must stay non-deletable
+- accounts with posted ledger rows must stay non-deletable
+- the chart table should hide the delete action when the account is not deletable, not just fail after click
+- deletion errors should stay user-readable because the chart UI surfaces backend validation messages directly
+
+Must remain compatible:
+
+- chart-of-accounts route behavior
+- auditability of posted history and journal-entry references
+
+Checks to run:
+
+- backend account service tests
+- backend build
+- frontend typecheck
 
 ## Update Posting Rules
 

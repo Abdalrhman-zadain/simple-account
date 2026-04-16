@@ -117,6 +117,8 @@ const arTranslations: Record<string, string> = {
   "accounts.action.edit": "تعديل الحساب",
   "accounts.action.deactivate": "تعطيل الحساب",
   "accounts.action.activate": "تفعيل الحساب",
+  "accounts.action.delete": "حذف الحساب",
+  "accounts.confirm.delete": "هل تريد حذف هذا الحساب؟ يُسمح بذلك فقط إذا لم يكن للحساب أي سجل حركات.",
 
   "accountType.ASSET": "أصل",
   "accountType.LIABILITY": "التزام",

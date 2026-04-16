@@ -268,208 +268,253 @@ export function CreateAccountForm({ accountId }: { accountId?: string }) {
         </div>
       )}
 
-      <Card className="max-w-3xl bg-panel/40 border-gray-200  p-0 shadow-2xl overflow-hidden">
+      <Card className="max-w-5xl bg-white/40 border-gray-200/50 p-0 shadow-2xl overflow-hidden backdrop-blur-xl ring-1 ring-white/20">
         <form
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
+          className="divide-y divide-gray-200/50"
         >
 
-          {/* ── Section 1: Account Class ─────────────────────────── */}
-          <div className="p-12 space-y-8">
-            <SectionLabel icon="🏷️">{t("accounts.typeAndClass")}</SectionLabel>
-            <div className="grid gap-5 sm:grid-cols-2">
-              {hasParent ? (
-                <Field label={t("accounts.type")}>
-                  <Input value={formatAccountType(watchedType)} disabled className="bg-gray-50/50" />
-                </Field>
-              ) : (
-                <Field label={t("accounts.type")} error={form.formState.errors.type?.message}>
-                  <Select {...form.register("type")}>
-                    {ACCOUNT_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {formatAccountType(type)}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              )}
-              <Field label={t("accounts.role.label")}>
-                <Select
-                  value={form.watch("accountKind")}
-                  onChange={(event) => {
-                    const nextKind = event.target.value as "posting" | "header";
-                    form.setValue("accountKind", nextKind);
-                    form.setValue("isPosting", nextKind === "posting");
-                  }}
-                >
-                  <option value="posting">{t("accounts.role.posting")}</option>
-                  <option value="header">{t("accounts.role.header")}</option>
-                </Select>
-              </Field>
-            </div>
+          <div className="grid lg:grid-cols-12">
+            {/* ── Left Column: Type & Role ─────────────────────────── */}
+            <div className="lg:col-span-5 p-12 space-y-10 bg-gray-50/50">
+              <SectionLabel icon="🏷️">{t("accounts.typeAndClass")}</SectionLabel>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field
-                label={t("accounts.subtype.label")}
-                hint={t("accounts.subtype.hint")}
-                error={form.formState.errors.subtype?.message}
-              >
-                <Select
-                  value={watchedSubtype || ""}
-                  onChange={(e) => form.setValue("subtype", e.target.value)}
-                  disabled={accountSubtypesQuery.isLoading}
-                >
-                  <option value="">— {t("common.none")} —</option>
-                  {(accountSubtypesQuery.data ?? [])
-                    .filter((s: AccountSubtype) => s.isActive || s.name === watchedSubtype)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((s: AccountSubtype) => (
-                      <option key={s.id} value={s.name}>
-                        {s.name}{s.isActive ? "" : ` (${t("common.status.inactive")})`}
-                      </option>
-                    ))}
-                </Select>
-              </Field>
+              <div className="space-y-6">
+                {hasParent ? (
+                  <Field label={t("accounts.type")}>
+                    <Input value={formatAccountType(watchedType)} disabled className="bg-gray-100/50 font-semibold" />
+                  </Field>
+                ) : (
+                  <Field label={t("accounts.type")} error={form.formState.errors.type?.message}>
+                    <Select {...form.register("type")} className="font-semibold">
+                      {ACCOUNT_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                          {formatAccountType(type)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
 
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => setShowAddSubtype((v) => !v)}
-                >
-                  {t("accounts.form.subtype.addToggle")}
-                </Button>
-              </div>
-            </div>
-
-            {showAddSubtype && (
-              <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Input
-                    placeholder={t("accounts.subtype.placeholder")}
-                    value={newSubtypeName}
-                    onChange={(e) => setNewSubtypeName(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button
+                <Field label={t("accounts.role.label")}>
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-200/50 rounded-xl">
+                    <button
                       type="button"
-                      disabled={!newSubtypeName.trim() || createSubtypeMutation.isPending}
-                      onClick={() => createSubtypeMutation.mutate(newSubtypeName)}
-                    >
-                      {createSubtypeMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Plus className="mr-2 h-4 w-4" />
+                      onClick={() => {
+                        form.setValue("accountKind", "header");
+                        form.setValue("isPosting", false);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-all",
+                        watchedKind === "header"
+                          ? "bg-white text-gray-900 shadow-sm ring-1 ring-black/5"
+                          : "text-gray-500 hover:text-gray-900"
                       )}
-                      {t("accounts.form.subtype.save")}
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => setShowAddSubtype(false)}>
-                      {t("common.action.cancel")}
-                    </Button>
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-widest">{t("accounts.role.header")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        form.setValue("accountKind", "posting");
+                        form.setValue("isPosting", true);
+                      }}
+                      className={cn(
+                        "flex flex-col items-center gap-1 py-3 px-2 rounded-lg transition-all",
+                        watchedKind === "posting"
+                          ? "bg-teal-500 text-white shadow-lg shadow-teal-500/20"
+                          : "text-gray-500 hover:text-gray-900"
+                      )}
+                    >
+                      <span className="text-[11px] font-black uppercase tracking-widest">{t("accounts.role.posting")}</span>
+                    </button>
                   </div>
+                </Field>
+
+                <div className="space-y-4 pt-4">
+                  <Field
+                    label={t("accounts.subtype.label")}
+                    hint={t("accounts.subtype.hint")}
+                    error={form.formState.errors.subtype?.message}
+                  >
+                    <Select
+                      value={watchedSubtype || ""}
+                      onChange={(e) => form.setValue("subtype", e.target.value)}
+                      disabled={accountSubtypesQuery.isLoading}
+                    >
+                      <option value="">— {t("common.none")} —</option>
+                      {(accountSubtypesQuery.data ?? [])
+                        .filter((s: AccountSubtype) => s.isActive || s.name === watchedSubtype)
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((s: AccountSubtype) => (
+                          <option key={s.id} value={s.name}>
+                            {s.name}{s.isActive ? "" : ` (${t("common.status.inactive")})`}
+                          </option>
+                        ))}
+                    </Select>
+                  </Field>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-xs hover:bg-teal-500/5 hover:text-teal-600 border border-dashed border-gray-300 hover:border-teal-500/20"
+                    onClick={() => setShowAddSubtype((v) => !v)}
+                  >
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    {t("accounts.form.subtype.addToggle")}
+                  </Button>
                 </div>
-                {createSubtypeMutation.isError && (
-                  <div className="mt-2 text-xs text-red-400">
-                    {(createSubtypeMutation.error as Error).message || t("accounts.subtype.createError")}
+
+                {showAddSubtype && (
+                  <div className="rounded-2xl border border-teal-500/20 bg-teal-500/10 p-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex flex-col gap-3">
+                      <Input
+                        placeholder={t("accounts.subtype.placeholder")}
+                        value={newSubtypeName}
+                        onChange={(e) => setNewSubtypeName(e.target.value)}
+                        className="bg-white/80"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          className="flex-1"
+                          disabled={!newSubtypeName.trim() || createSubtypeMutation.isPending}
+                          onClick={() => createSubtypeMutation.mutate(newSubtypeName)}
+                        >
+                          {createSubtypeMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          {t("accounts.form.subtype.save")}
+                        </Button>
+                        <Button type="button" variant="ghost" className="px-3" onClick={() => setShowAddSubtype(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {/* Live type badge preview */}
-            {watchedType && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{t("accounts.form.preview")}</span>
-                <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wide", TYPE_COLORS[watchedType])}>
-                  {formatAccountType(watchedType)}
-                </span>
-                <span className={cn("inline-flex rounded-full border px-3 py-0.5 text-xs font-medium", watchedKind === "posting" ? "bg-teal-500/10 text-teal-400 border-teal-500/20" : "bg-zinc-500/10 text-gray-400 border-zinc-500/20")}>
-                  {watchedKind === "posting" ? t("accounts.role.posting") : t("accounts.role.header")}
-                </span>
-                {watchedSubtype?.trim() && (
-                  <span className="inline-flex rounded-full border px-3 py-0.5 text-xs font-medium bg-gray-100 text-gray-900 border-gray-200">
-                    {watchedSubtype.trim()}
-                  </span>
+            {/* ── Right Column: Names & Settings ─────────────────────────── */}
+            <div className="lg:col-span-7 divide-y divide-gray-200/50">
+              <div className="p-12 space-y-10">
+                <SectionLabel icon="📝">{t("accounts.form.section.names")}</SectionLabel>
+                <div className="grid gap-8 sm:grid-cols-2">
+                  <Field label={t("accounts.form.nameEnLabel")} error={form.formState.errors.name?.message}>
+                    <Input placeholder={t("accounts.form.nameEnPlaceholder")} {...form.register("name")} className="text-lg font-bold" />
+                  </Field>
+                  <Field label={t("accounts.form.nameArLabel")} hint={t("accounts.form.nameArHint")} error={form.formState.errors.nameAr?.message}>
+                    <Input placeholder={t("accounts.form.nameArPlaceholder")} dir="rtl" {...form.register("nameAr")} className="text-lg font-bold" />
+                  </Field>
+                </div>
+                <Field label={t("accounts.form.descriptionLabel")} error={form.formState.errors.description?.message}>
+                  <Textarea
+                    placeholder={t("accounts.form.descriptionPlaceholder")}
+                    rows={4}
+                    {...form.register("description")}
+                    className="resize-none"
+                  />
+                </Field>
+
+                {watchedType && (
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t("accounts.form.preview")}</span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={cn("inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wider", TYPE_COLORS[watchedType])}>
+                        {formatAccountType(watchedType)}
+                      </span>
+                      <span className={cn(
+                        "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold",
+                        watchedKind === "posting"
+                          ? "bg-teal-500/10 text-teal-400 border-teal-500/20 shadow-[0_0_12px_rgba(20,184,166,0.1)]"
+                          : "bg-gray-100 text-gray-500 border-gray-200"
+                      )}>
+                        {watchedKind === "posting" ? t("accounts.role.posting") : t("accounts.role.header")}
+                      </span>
+                      {watchedSubtype?.trim() && (
+                        <span className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold bg-zinc-800 text-white border-zinc-700">
+                          {watchedSubtype.trim()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          <div className="border-t border-gray-200" />
+              <div className="p-12 space-y-8">
+                <SectionLabel icon="⚙️">{t("accounts.form.postingSettings")}</SectionLabel>
+                <div className="flex flex-col gap-4">
+                  <label className={cn(
+                    "group flex items-start gap-4 cursor-pointer rounded-2xl border p-5 transition-all",
+                    watchedAllowManual
+                      ? "border-teal-500/30 bg-teal-500/5 ring-1 ring-teal-500/20 shadow-sm"
+                      : "border-gray-200 bg-white hover:bg-gray-50"
+                  )}>
+                    <div className="mt-1">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 rounded border-gray-300 text-teal-500 focus:ring-teal-500 accent-teal-500 transition-all"
+                        checked={watchedAllowManual}
+                        onChange={(e) => form.setValue("allowManualPosting", e.target.checked)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className={cn("text-sm font-bold transition-colors", watchedAllowManual ? "text-teal-400" : "text-gray-900")}>
+                        {t("accounts.form.allowManual.label")}
+                      </span>
+                      <p className="text-xs text-gray-500 leading-relaxed max-w-md">
+                        {t("accounts.form.allowManual.help")}
+                      </p>
+                    </div>
+                  </label>
 
-          {/* ── Section 2: Names ──────────────────────────────────── */}
-          <div className="p-12 space-y-8">
-            <SectionLabel icon="📝">{t("accounts.form.section.names")}</SectionLabel>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label={t("accounts.form.nameEnLabel")} error={form.formState.errors.name?.message}>
-                <Input placeholder={t("accounts.form.nameEnPlaceholder")} {...form.register("name")} />
-              </Field>
-              <Field label={t("accounts.form.nameArLabel")} hint={t("accounts.form.nameArHint")} error={form.formState.errors.nameAr?.message}>
-                <Input placeholder={t("accounts.form.nameArPlaceholder")} dir="rtl" {...form.register("nameAr")} />
-              </Field>
-            </div>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label={t("accounts.form.descriptionLabel")} error={form.formState.errors.description?.message}>
-                <Textarea
-                  placeholder={t("accounts.form.descriptionPlaceholder")}
-                  rows={3}
-                  {...form.register("description")}
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200" />
-
-          {/* ── Section 3: Settings ───────────────────────────────── */}
-          <div className="p-12 space-y-8">
-            <SectionLabel icon="⚙️">{t("accounts.form.postingSettings")}</SectionLabel>
-            <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 p-4 hover:bg-gray-50 transition-colors">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 shrink-0 rounded accent-teal-500 cursor-pointer"
-                checked={watchedAllowManual}
-                onChange={(e) => form.setValue("allowManualPosting", e.target.checked)}
-              />
-              <div>
-                <span className="text-sm font-semibold text-zinc-200">{t("accounts.form.allowManual.label")}</span>
-                <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
-                  {t("accounts.form.allowManual.help")}
-                </p>
+                  {!watchedAllowManual && (
+                    <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-5 py-4 animate-in zoom-in-95 duration-300">
+                      <Info className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+                      <p className="text-xs text-amber-300 font-medium">
+                        {t("accounts.form.allowManual.disabledNote")}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </label>
-            {!watchedAllowManual && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3">
-                <Info className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
-                <p className="text-xs text-amber-300">
-                  {t("accounts.form.allowManual.disabledNote")}
-                </p>
-              </div>
-            )}
+            </div>
           </div>
 
-          {/* ── Error ──────────────────────────────────────────────── */}
-          {mutation.isError && (
-            <div className="mx-8 mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-              {(mutation.error as Error).message || t("accounts.form.error.saveFailed")}
+          {/* ── Error & Footer ────────────────────────────────────────────── */}
+          <div className="bg-gray-50/50 p-12">
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1">
+                {mutation.isError && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-3 text-sm text-red-400 flex items-center gap-3 animate-pulse">
+                    <X className="h-4 w-4" />
+                    {(mutation.error as Error).message || t("accounts.form.error.saveFailed")}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-4 sm:flex-row-reverse sm:items-center shrink-0">
+                <Button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="px-12 h-12 text-base font-bold shadow-2xl shadow-teal-500/20 rounded-xl"
+                >
+                  {mutation.isPending
+                    ? <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    : <Save className="mr-2 h-5 w-5" />}
+                  {isEdit ? t("accounts.form.action.saveChanges") : t("accounts.form.action.create")}
+                </Button>
+                <Link
+                  href="/accounts"
+                  className="inline-flex items-center justify-center gap-2 text-sm font-bold text-gray-400 hover:text-gray-900 px-8 h-12 transition-all rounded-xl hover:bg-white hover:shadow-lg hover:shadow-gray-200/50"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {t("common.action.cancel")}
+                </Link>
+              </div>
             </div>
-          )}
-
-          {/* ── Actions ────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-4 sm:flex-row-reverse sm:items-center px-12 pb-12 pt-0">
-            <Button type="submit" disabled={mutation.isPending} className="px-10 h-11 shadow-lg shadow-teal-500/20">
-              {mutation.isPending
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Save className="mr-2 h-4 w-4" />}
-              {isEdit ? t("accounts.form.action.saveChanges") : t("accounts.form.action.create")}
-            </Button>
-            <Link
-              href="/accounts"
-              className="inline-flex items-center justify-center gap-2 text-sm font-medium text-gray-400 hover:text-gray-900 px-6 h-11 transition rounded-full hover:bg-gray-100"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              {t("common.action.cancel")}
-            </Link>
           </div>
         </form>
       </Card>

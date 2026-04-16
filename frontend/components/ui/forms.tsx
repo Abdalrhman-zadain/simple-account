@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { forwardRef, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -26,38 +26,44 @@ export function Field({
   );
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>((props, ref) => {
   return (
     <input
       {...props}
+      ref={ref}
       className={cn(
         "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10",
         props.className,
       )}
     />
   );
-}
+});
+Input.displayName = "Input";
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>((props, ref) => {
   return (
     <select
       {...props}
+      ref={ref}
       className={cn(
         "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10 [&>option]:bg-white",
         props.className,
       )}
     />
   );
-}
+});
+Select.displayName = "Select";
 
-export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>((props, ref) => {
   return (
     <textarea
       {...props}
+      ref={ref}
       className={cn(
         "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10",
         props.className,
       )}
     />
   );
-}
+});
+Textarea.displayName = "Textarea";

@@ -417,7 +417,8 @@ export class AccountsService {
     search?: string;
     parentAccountId?: string | null;
   }) {
-    return this.prisma.account.findMany({
+    // 1. Fetch the requested accounts and their primary counts.
+    const accounts = await this.prisma.account.findMany({
       where: this.buildAccountListWhere(query),
       select: {
         id: true,
@@ -434,9 +435,40 @@ export class AccountsService {
             name: true,
           },
         },
+        _count: {
+          select: {
+            journalLines: true,
+            ledgerLines: true,
+          },
+        },
       },
       orderBy: [{ code: 'asc' }],
     });
+
+    // 2. To determine if a Header account can be deleted, we must know if its 
+    // subtree is clean. Fetching subtree status for each row recursively can be 
+    // expensive. For now, we perform a lightweight check: if it's a posting 
+    // account, check its counts. If it's a header, we fetch descendants 
+    // only when needed or use an optimistic check.
+    // Optimization: We fetch all descendant transfers in one go for the visible set.
+    const results = [];
+    for (const account of accounts) {
+      let canDelete = account._count.journalLines === 0 && account._count.ledgerLines === 0;
+
+      if (canDelete && !account.isPosting) {
+        // If it's a header and clean so far, check its children.
+        const descendantIds = await this.getDescendantIds(account.id);
+        const subtreeHasHistory = await this.hasAnyTransferHistory(descendantIds);
+        canDelete = !subtreeHasHistory;
+      }
+
+      results.push({
+        ...account,
+        canDelete,
+      });
+    }
+
+    return results;
   }
 
   private buildAccountListWhere(query?: {
@@ -492,7 +524,14 @@ export class AccountsService {
         segment3Value: true,
         segment4Value: true,
         segment5Value: true,
-        parentAccount: true,
+        parentAccount: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            parentAccountId: true,
+          }
+        },
       }
     });
 
@@ -500,7 +539,35 @@ export class AccountsService {
       throw new AccountNotFoundException(id);
     }
 
-    return account;
+    const ancestors = await this.getAncestors(id);
+
+    return {
+      ...account,
+      ancestors,
+    };
+  }
+
+  private async getAncestors(id: string): Promise<Array<{ id: string; name: string; code: string; parentAccountId: string | null }>> {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: { parentAccountId: true }
+    });
+
+    if (!account || !account.parentAccountId) {
+      return [];
+    }
+
+    const parent = await this.prisma.account.findUnique({
+      where: { id: account.parentAccountId },
+      select: { id: true, name: true, code: true, parentAccountId: true }
+    });
+
+    if (!parent) {
+      return [];
+    }
+
+    const higherAncestors = await this.getAncestors(parent.id);
+    return [...higherAncestors, parent];
   }
 
   async update(id: string, dto: UpdateAccountDto) {
@@ -600,6 +667,83 @@ export class AccountsService {
       where: { id },
       data: { isActive: true },
     });
+  }
+
+  async remove(id: string) {
+    const account = await this.ensureAccountExists(id);
+
+    // 1. Check if the account itself or any descendant has transfers.
+    const descendantIds = await this.getDescendantIds(id);
+    const allAffectedIds = [id, ...descendantIds];
+
+    const hasHistory = await this.hasAnyTransferHistory(allAffectedIds);
+
+    if (hasHistory) {
+      throw new BadRequestException(
+        descendantIds.length > 0
+          ? 'Cannot delete an account that has transfer history (including its subtree).'
+          : 'Cannot delete an account that has transfer history.'
+      );
+    }
+
+    // 2. Subtree is clean. Perform cascading deletion in a transaction.
+    // Deleting from the bottom up to respect foreign key constraints.
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Reverse the descendant IDs to delete children before parents.
+        // getDescendantIds returns children then grandchildren, so reversing 
+        // gives us grandchildren then children.
+        const reversedDescendantIds = [...descendantIds].reverse();
+
+        for (const descId of reversedDescendantIds) {
+          await tx.account.delete({
+            where: { id: descId },
+          });
+        }
+
+        return await tx.account.delete({
+          where: { id: id },
+        });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new BadRequestException('Cannot delete an account while it is still linked to other records.');
+      }
+
+      throw error;
+    }
+  }
+
+  private async getDescendantIds(parentId: string): Promise<string[]> {
+    const children = await this.prisma.account.findMany({
+      where: { parentAccountId: parentId },
+      select: { id: true },
+    });
+
+    let ids: string[] = children.map(c => c.id);
+    for (const child of children) {
+      const descendants = await this.getDescendantIds(child.id);
+      ids = ids.concat(descendants);
+    }
+
+    return ids;
+  }
+
+  private async hasAnyTransferHistory(accountIds: string[]): Promise<boolean> {
+    if (accountIds.length === 0) return false;
+
+    const [journalUsage, postedUsage] = await Promise.all([
+      this.prisma.journalEntryLine.findFirst({
+        where: { accountId: { in: accountIds } },
+        select: { id: true },
+      }),
+      this.prisma.ledgerTransaction.findFirst({
+        where: { accountId: { in: accountIds } },
+        select: { id: true },
+      }),
+    ]);
+
+    return !!(journalUsage || postedUsage);
   }
 
   private async ensureAccountExists(id: string, db: DbClient = this.prisma) {
