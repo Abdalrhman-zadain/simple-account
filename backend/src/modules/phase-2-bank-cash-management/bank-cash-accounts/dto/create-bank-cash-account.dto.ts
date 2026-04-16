@@ -1,4 +1,5 @@
-import { IsOptional, IsString, Length } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsNumber, IsOptional, IsString, Length, Min } from 'class-validator';
 
 export class CreateBankCashAccountDto {
   @IsString()
@@ -25,4 +26,14 @@ export class CreateBankCashAccountDto {
 
   @IsString()
   accountId!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  openingBalance?: number;
+
+  @IsOptional()
+  @IsString()
+  openingBalanceOffsetAccountId?: string;
 }

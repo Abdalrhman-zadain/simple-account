@@ -14,6 +14,7 @@ Main model:
 
 - `Account`
 - `BankCashAccount`
+- `BankCashTransaction`
 
 Key fields:
 
@@ -37,6 +38,8 @@ Accounting meaning:
 - current account balance is stored directly and updated by posting logic
 - operational bank/cash records wrap specific posting accounts for balance and history views
 - records typed as `Bank` require `bankName` and `accountNumber`; other payment-method types may leave those fields empty or use them as operational references
+- receipt, payment, and transfer records are stored as `BankCashTransaction` rows and affect balances only after posting creates a journal entry
+- bank/cash opening balances are not stored as a separate balance field; they are posted as normal journal/ledger history against the linked account and an offset posting account
 
 ### Journals
 
@@ -84,6 +87,7 @@ Accounting meaning:
 - the posting batch groups a posting operation
 - ledger rows are the authoritative posted history behind the general ledger
 - bank/cash transaction history is derived from ledger rows for the linked posting account
+- posted bank/cash transaction records link to the journal entry that created their ledger rows
 
 ### Fiscal Control
 
@@ -104,17 +108,12 @@ Main models:
 - `SegmentDefinition`
 - `SegmentValue`
 - `AccountSubtype`
-- `PaymentMethodType`
-- `JournalEntryType`
 
 Accounting meaning:
 
 - allows enterprise-style segmented coding and reference data
 - links segment values to accounts
 - provides a controlled list of user-defined account classes (stored on `Account.subtype` as a string)
-- provides a controlled list of active payment methods used by `BankCashAccount.type`
-- provides a controlled list of active journal entry classifications used by `JournalEntry.type`
-- default payment-method rows include `Bank` and `Cash`, and existing bank/cash record types are backfilled into `PaymentMethodType` during migration
 
 ### Audit And Users
 
@@ -151,12 +150,6 @@ BankCashAccount
   └─ account -> Account
   └─ type -> active PaymentMethodType.name (application-level validation)
 
-PaymentMethodType
-  └─ referenced by -> BankCashAccount.type (application-level validation)
-
-JournalEntryType
-  └─ referenced by -> JournalEntry.type (application-level validation)
-
 JournalEntry
   ├─ lines -> JournalEntryLine[]
   ├─ ledgerLines -> LedgerTransaction[]
@@ -185,9 +178,10 @@ Ownership by module:
   - `Account`
 - Payment Methods:
   - `BankCashAccount`
-  - validates `type` against active `PaymentMethodType`
+  - `BankCashTransaction`
   - reads linked `Account`
   - reads linked `LedgerTransaction`
+  - creates linked `JournalEntry` rows through Phase 1 journal/posting services when receipt, payment, or transfer drafts are posted
 - Journal Entries:
   - `JournalEntry`
   - `JournalEntryLine`
@@ -205,9 +199,6 @@ Ownership by module:
 - Master Data:
   - `SegmentDefinition`
   - `SegmentValue`
-  - `AccountSubtype`
-  - `PaymentMethodType`
-  - `JournalEntryType`
 - Audit:
   - `AuditLog`
 - Platform Auth:

@@ -12,65 +12,136 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+  LOCKED
+}
+
+enum BankCashTransactionKind {
+  RECEIPT
+  PAYMENT
+  TRANSFER
+}
+
+enum BankCashTransactionStatus {
+  DRAFT
+  POSTED
+}
+
 model Account {
-  id                 String              @id @default(cuid())
-  code               String              @unique
-  name               String
-  type               AccountType
-  isActive           Boolean             @default(true)
-  parentAccountId    String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  currentBalance     Decimal             @default(0) @db.Decimal(18, 2)
-  allowManualPosting Boolean             @default(true)
-  createdById        String?
-  currencyCode       String              @default("JOD")
-  description        String?
-  isPosting          Boolean             @default(true)
-  segment1           String?
-  segment1ValueId    String?
-  segment2           String?
-  segment2ValueId    String?
-  segment3           String?
-  segment3ValueId    String?
-  segment4           String?
-  segment4ValueId    String?
-  segment5           String?
-  segment5ValueId    String?
-  updatedById        String?
-  nameAr             String?
-  subtype            String?
-  createdBy          User?               @relation("AccountCreator", fields: [createdById], references: [id])
-  parentAccount      Account?            @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
-  childAccounts      Account[]           @relation("AccountHierarchy")
-  segment1Value      SegmentValue?       @relation("Segment1", fields: [segment1ValueId], references: [id])
-  segment2Value      SegmentValue?       @relation("Segment2", fields: [segment2ValueId], references: [id])
-  segment3Value      SegmentValue?       @relation("Segment3", fields: [segment3ValueId], references: [id])
-  segment4Value      SegmentValue?       @relation("Segment4", fields: [segment4ValueId], references: [id])
-  segment5Value      SegmentValue?       @relation("Segment5", fields: [segment5ValueId], references: [id])
-  updatedBy          User?               @relation("AccountUpdater", fields: [updatedById], references: [id])
-  bankCashAccount    BankCashAccount?
-  journalLines       JournalEntryLine[]
-  ledgerLines        LedgerTransaction[]
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  nameAr      String? // Arabic name
+  description String?
+  type        AccountType
+  subtype     String? // e.g. Bank, Cash, Receivable, Payable
+  isPosting   Boolean     @default(true)
+
+  // Enterprise Segments (Relational)
+  segment1ValueId String?
+  segment1Value   SegmentValue? @relation("Segment1", fields: [segment1ValueId], references: [id])
+  segment2ValueId String?
+  segment2Value   SegmentValue? @relation("Segment2", fields: [segment2ValueId], references: [id])
+  segment3ValueId String?
+  segment3Value   SegmentValue? @relation("Segment3", fields: [segment3ValueId], references: [id])
+  segment4ValueId String?
+  segment4Value   SegmentValue? @relation("Segment4", fields: [segment4ValueId], references: [id])
+  segment5ValueId String?
+  segment5Value   SegmentValue? @relation("Segment5", fields: [segment5ValueId], references: [id])
+
+  // Legacy/String Segments (for quick reference)
+  segment1 String? // Company
+  segment2 String? // Natural Account
+  segment3 String? // Department
+  segment4 String? // Branch
+  segment5 String? // Project
+
+  currencyCode                    String                @default("JOD")
+  isActive                        Boolean               @default(true)
+  allowManualPosting              Boolean               @default(true)
+  currentBalance                  Decimal               @default(0) @db.Decimal(18, 2)
+  parentAccountId                 String?
+  parentAccount                   Account?              @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts                   Account[]             @relation("AccountHierarchy")
+  journalLines                    JournalEntryLine[]
+  ledgerLines                     LedgerTransaction[]
+  bankCashAccount                 BankCashAccount?
+  bankCashCounterpartTransactions BankCashTransaction[] @relation("BankCashCounterAccount")
+
+  createdById String?
+  createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("AccountUpdater", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type, isActive])
   @@index([parentAccountId])
 }
 
 model BankCashAccount {
-  id            String   @id @default(cuid())
-  type          String
-  name          String
-  bankName      String?
-  accountNumber String?
-  currencyCode  String   @default("JOD")
-  isActive      Boolean  @default(true)
-  accountId     String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  account       Account  @relation(fields: [accountId], references: [id])
+  id                   String                @id @default(cuid())
+  type                 String
+  name                 String
+  bankName             String?
+  accountNumber        String?
+  currencyCode         String                @default("JOD")
+  isActive             Boolean               @default(true)
+  accountId            String                @unique
+  account              Account               @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  transactions         BankCashTransaction[] @relation("BankCashPrimaryAccount")
+  sourceTransfers      BankCashTransaction[] @relation("BankCashSourceAccount")
+  destinationTransfers BankCashTransaction[] @relation("BankCashDestinationAccount")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@index([type, isActive])
+}
+
+model BankCashTransaction {
+  id                           String                    @id @default(cuid())
+  kind                         BankCashTransactionKind
+  status                       BankCashTransactionStatus @default(DRAFT)
+  reference                    String                    @unique
+  transactionDate              DateTime
+  amount                       Decimal                   @db.Decimal(18, 2)
+  description                  String?
+  counterpartyName             String?
+  bankCashAccountId            String?
+  bankCashAccount              BankCashAccount?          @relation("BankCashPrimaryAccount", fields: [bankCashAccountId], references: [id], onDelete: Restrict)
+  sourceBankCashAccountId      String?
+  sourceBankCashAccount        BankCashAccount?          @relation("BankCashSourceAccount", fields: [sourceBankCashAccountId], references: [id], onDelete: Restrict)
+  destinationBankCashAccountId String?
+  destinationBankCashAccount   BankCashAccount?          @relation("BankCashDestinationAccount", fields: [destinationBankCashAccountId], references: [id], onDelete: Restrict)
+  counterAccountId             String?
+  counterAccount               Account?                  @relation("BankCashCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
+  journalEntryId               String?                   @unique
+  journalEntry                 JournalEntry?             @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  postedAt                     DateTime?
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+
+  @@index([kind, status, transactionDate])
+  @@index([bankCashAccountId])
+  @@index([sourceBankCashAccountId])
+  @@index([destinationBankCashAccountId])
+  @@index([counterAccountId])
 }
 
 model AccountSubtype {
@@ -97,35 +168,41 @@ model JournalEntryType {
   id        String         @id @default(cuid())
   name      String         @unique
   isActive  Boolean        @default(true)
+  entries   JournalEntry[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  entries   JournalEntry[]
 
   @@index([isActive])
 }
 
 model JournalEntry {
-  id                 String              @id @default(cuid())
-  reference          String              @unique
-  description        String?
-  entryDate          DateTime
-  status             JournalEntryStatus  @default(DRAFT)
-  postedAt           DateTime?
-  postingBatchId     String?             @unique
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  reversalOfId       String?             @unique
-  createdById        String?
-  fiscalPeriodId     String?
+  id          String             @id @default(cuid())
+  reference   String             @unique
+  description String?
+  entryDate   DateTime
+  status      JournalEntryStatus @default(DRAFT)
+  postedAt    DateTime?
+
   journalEntryTypeId String?
-  createdBy          User?               @relation("JournalCreator", fields: [createdById], references: [id])
-  fiscalPeriod       FiscalPeriod?       @relation(fields: [fiscalPeriodId], references: [id])
-  journalEntryType   JournalEntryType?   @relation(fields: [journalEntryTypeId], references: [id])
-  postingBatch       PostingBatch?       @relation(fields: [postingBatchId], references: [id])
-  reversalOf         JournalEntry?       @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
-  reversedBy         JournalEntry?       @relation("JournalEntryReversal")
-  lines              JournalEntryLine[]
-  ledgerLines        LedgerTransaction[]
+  journalEntryType   JournalEntryType? @relation(fields: [journalEntryTypeId], references: [id])
+
+  fiscalPeriodId String?
+  fiscalPeriod   FiscalPeriod? @relation(fields: [fiscalPeriodId], references: [id])
+
+  reversalOfId        String?              @unique
+  reversalOf          JournalEntry?        @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
+  reversedBy          JournalEntry?        @relation("JournalEntryReversal")
+  lines               JournalEntryLine[]
+  ledgerLines         LedgerTransaction[]
+  postingBatchId      String?              @unique
+  postingBatch        PostingBatch?        @relation(fields: [postingBatchId], references: [id])
+  bankCashTransaction BankCashTransaction?
+
+  createdById String?
+  createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status, entryDate])
   @@index([fiscalPeriodId])
@@ -140,10 +217,10 @@ model JournalEntryLine {
   description    String?
   debitAmount    Decimal             @db.Decimal(18, 2)
   creditAmount   Decimal             @db.Decimal(18, 2)
-  createdAt      DateTime            @default(now())
-  account        Account             @relation(fields: [accountId], references: [id])
-  journalEntry   JournalEntry        @relation(fields: [journalEntryId], references: [id])
+  journalEntry   JournalEntry        @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  account        Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
   ledgerLines    LedgerTransaction[]
+  createdAt      DateTime            @default(now())
 
   @@unique([journalEntryId, lineNumber])
   @@index([accountId])
@@ -152,15 +229,15 @@ model JournalEntryLine {
 model PostingBatch {
   id           String              @id @default(cuid())
   postedAt     DateTime            @default(now())
-  createdAt    DateTime            @default(now())
   journalEntry JournalEntry?
   ledgerLines  LedgerTransaction[]
+  createdAt    DateTime            @default(now())
 
   @@index([postedAt])
 }
 
 model LedgerTransaction {
-  id                 String           @id @default(cuid())
+  id                 String   @id @default(cuid())
   postingBatchId     String
   journalEntryId     String
   journalEntryLineId String
@@ -169,17 +246,21 @@ model LedgerTransaction {
   entryDate          DateTime
   postedAt           DateTime
   description        String?
-  debitAmount        Decimal          @db.Decimal(18, 2)
-  creditAmount       Decimal          @db.Decimal(18, 2)
-  createdAt          DateTime         @default(now())
-  createdById        String?
-  fiscalPeriodId     String?
-  account            Account          @relation(fields: [accountId], references: [id])
-  createdBy          User?            @relation("LedgerCreator", fields: [createdById], references: [id])
-  fiscalPeriod       FiscalPeriod?    @relation(fields: [fiscalPeriodId], references: [id])
-  journalEntry       JournalEntry     @relation(fields: [journalEntryId], references: [id])
-  journalEntryLine   JournalEntryLine @relation(fields: [journalEntryLineId], references: [id])
-  postingBatch       PostingBatch     @relation(fields: [postingBatchId], references: [id])
+  debitAmount        Decimal  @db.Decimal(18, 2)
+  creditAmount       Decimal  @db.Decimal(18, 2)
+
+  fiscalPeriodId String?
+  fiscalPeriod   FiscalPeriod? @relation(fields: [fiscalPeriodId], references: [id])
+
+  postingBatch     PostingBatch     @relation(fields: [postingBatchId], references: [id], onDelete: Restrict)
+  journalEntry     JournalEntry     @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  journalEntryLine JournalEntryLine @relation(fields: [journalEntryLineId], references: [id], onDelete: Restrict)
+  account          Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  createdById String?
+  createdBy   User?   @relation("LedgerCreator", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@index([accountId, entryDate, postedAt])
   @@index([journalEntryId])
@@ -193,121 +274,65 @@ model FiscalYear {
   startDate DateTime
   endDate   DateTime
   status    PeriodStatus   @default(OPEN)
+  periods   FiscalPeriod[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  periods   FiscalPeriod[]
 }
 
 model FiscalPeriod {
   id           String              @id @default(cuid())
   fiscalYearId String
+  fiscalYear   FiscalYear          @relation(fields: [fiscalYearId], references: [id])
   periodNumber Int
   name         String
   startDate    DateTime
   endDate      DateTime
   status       PeriodStatus        @default(OPEN)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  fiscalYear   FiscalYear          @relation(fields: [fiscalYearId], references: [id])
   entries      JournalEntry[]
   ledgerLines  LedgerTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@unique([fiscalYearId, periodNumber])
 }
 
 model SegmentDefinition {
   id          String         @id @default(cuid())
-  index       Int            @unique
-  name        String
+  index       Int            @unique // 1 to 5
+  name        String // e.g. Department
   description String?
+  values      SegmentValue[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
-  values      SegmentValue[]
 }
 
 model SegmentValue {
   id           String            @id @default(cuid())
   definitionId String
+  definition   SegmentDefinition @relation(fields: [definitionId], references: [id])
   code         String
   name         String
   isActive     Boolean           @default(true)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  accountsAsS1 Account[]         @relation("Segment1")
-  accountsAsS2 Account[]         @relation("Segment2")
-  accountsAsS3 Account[]         @relation("Segment3")
-  accountsAsS4 Account[]         @relation("Segment4")
-  accountsAsS5 Account[]         @relation("Segment5")
-  definition   SegmentDefinition @relation(fields: [definitionId], references: [id])
-  users        User[]            @relation("UserAtCompany")
+
+  accountsAsS1 Account[] @relation("Segment1")
+  accountsAsS2 Account[] @relation("Segment2")
+  accountsAsS3 Account[] @relation("Segment3")
+  accountsAsS4 Account[] @relation("Segment4")
+  accountsAsS5 Account[] @relation("Segment5")
+
+  // Link users to their primary company (where definition.index = 1)
+  users User[] @relation("UserAtCompany")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([definitionId, code])
 }
 
-model AuditLog {
-  id        String      @id @default(cuid())
-  userId    String?
-  entity    String
-  entityId  String?
-  action    AuditAction
-  details   Json?
-  companyId String?
-  createdAt DateTime    @default(now())
-  user      User?       @relation(fields: [userId], references: [id])
-
-  @@index([entity, entityId])
-  @@index([userId])
-  @@index([companyId])
-  @@index([createdAt])
-}
-
-model User {
-  id                 String              @id @default(cuid())
-  email              String              @unique
-  password           String
-  name               String?
-  role               UserRole            @default(USER)
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  companyId          String?
-  parentUserId       String?
-  createdAccounts    Account[]           @relation("AccountCreator")
-  updatedAccounts    Account[]           @relation("AccountUpdater")
-  auditLogs          AuditLog[]
-  createdJournals    JournalEntry[]      @relation("JournalCreator")
-  createdLedgerLines LedgerTransaction[] @relation("LedgerCreator")
-  company            SegmentValue?       @relation("UserAtCompany", fields: [companyId], references: [id])
-  parentUser         User?               @relation("UserHierarchy", fields: [parentUserId], references: [id])
-  childrenUsers      User[]              @relation("UserHierarchy")
-
-  @@index([email])
-  @@index([companyId])
-}
-
-enum AccountType {
-  ASSET
-  LIABILITY
-  EQUITY
-  REVENUE
-  EXPENSE
-}
-
-enum JournalEntryStatus {
-  DRAFT
-  POSTED
-}
-
-enum PeriodStatus {
-  OPEN
-  CLOSED
-  LOCKED
-}
-
 enum UserRole {
-  ADMIN
-  MANAGER
-  USER
+  ADMIN // Global SuperAdmin
+  MANAGER // Company Root User
+  USER // Company Accountant
 }
 
 enum AuditAction {
@@ -319,4 +344,54 @@ enum AuditAction {
   OPEN
   CLOSE
   VIEW
+}
+
+model AuditLog {
+  id       String      @id @default(cuid())
+  userId   String?
+  user     User?       @relation(fields: [userId], references: [id])
+  entity   String // e.g. "Account", "JournalEntry"
+  entityId String?
+  action   AuditAction
+  details  Json?
+
+  // Explicitly scoped to company for fast filtering
+  companyId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+}
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  password String
+  name     String?
+  role     UserRole @default(USER)
+  isActive Boolean  @default(true)
+
+  // Multi-Tenancy
+  companyId String?
+  company   SegmentValue? @relation("UserAtCompany", fields: [companyId], references: [id])
+
+  // Hierarchical Management
+  parentUserId  String?
+  parentUser    User?   @relation("UserHierarchy", fields: [parentUserId], references: [id])
+  childrenUsers User[]  @relation("UserHierarchy")
+
+  createdAccounts    Account[]           @relation("AccountCreator")
+  updatedAccounts    Account[]           @relation("AccountUpdater")
+  createdJournals    JournalEntry[]      @relation("JournalCreator")
+  createdLedgerLines LedgerTransaction[] @relation("LedgerCreator")
+  auditLogs          AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([companyId])
 }

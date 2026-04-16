@@ -19,12 +19,14 @@ Current Status:
 - performance verification must run from `frontend/` against the production Next server (`npm run build && npm run start`), not against dev mode or another package/toolchain in the repo
 - the frontend shell now mirrors the language preference into a cookie so server rendering can keep `lang`/`dir` aligned with the persisted setting and avoid avoidable LTR/RTL layout shift on reloads
 - local fonts should stay compressed (`.woff2`) in `frontend/app/fonts`; shipping raw `.ttf` assets materially increases first-load transfer size
+- the frontend npm scripts route Next through `frontend/scripts/next-run.ps1`, which clears stale `.next` artifacts before `dev` and `build` so OneDrive-backed reparse-point files do not break Next startup
 
 What this means for future edits:
 
 - if a change touches app-router behavior, route wrappers, auth gating, or page composition, re-verify the production build to ensure the fix remains stable.
 - if a change touches language initialization, shell layout, or global font wiring, re-run Lighthouse against the production server to catch regressions in request weight or CLS.
 - if the failure recurs, document the specific triggers or environment details here.
+- if frontend script changes bypass `next-run.ps1`, re-verify that stale `.next` artifacts are not the cause before assuming dev/build failures come from application code
 
 ## Documentation Warning
 
@@ -33,3 +35,15 @@ If code and docs drift:
 - trust the code first
 - update docs immediately after confirming behavior
 - do not keep outdated architecture descriptions in `docs/`
+
+## Phase 2 Bank & Cash Scope
+
+Current limitation:
+
+- customer and supplier master records are not implemented in the current system, so receipt/payment transactions currently store an optional `counterpartyName` instead of a relational customer/supplier link.
+- bank statement import, manual statement lines, matching, unmatched views, and reconciliation audit status are not implemented yet.
+
+What this means for future edits:
+
+- add customer/supplier relations only after the owning customer/supplier modules or master records exist
+- implement reconciliation as a separate Phase 2 submodule instead of mixing statement matching into the receipt/payment/transfer transaction service

@@ -8,6 +8,8 @@ export type EditorState = {
   accountNumber: string;
   currencyCode: string;
   accountId: string;
+  openingBalance: string;
+  openingBalanceOffsetAccountId: string;
 };
 
 export const EMPTY_EDITOR: EditorState = {
@@ -17,4 +19,6 @@ export const EMPTY_EDITOR: EditorState = {
   accountNumber: "",
   currencyCode: "JOD",
   accountId: "",
+  openingBalance: "",
+  openingBalanceOffsetAccountId: "",
 };

@@ -9,6 +9,7 @@ The current business scope is:
 - multi-tenant platform authentication (companies, users, roles)
 - Phase 1 Accounting Foundation
 - bank and cash account registry linked to posting accounts for operational balances and history
+- bank/cash receipt, payment, and transfer drafts that post through generated journal entries
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -44,6 +45,7 @@ The backend root module wires three major concerns:
 - `modules/platform/auth`
 - `modules/phase-1-accounting-foundation/accounting-core`
 - `modules/phase-2-bank-cash-management/bank-cash-accounts`
+- `modules/phase-2-bank-cash-management/bank-cash-transactions`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -79,8 +81,9 @@ Thin route files compose:
 The backend also includes a dedicated Phase 2 module:
 
 - `modules/phase-2-bank-cash-management/bank-cash-accounts`
+- `modules/phase-2-bank-cash-management/bank-cash-transactions`
 
-This module owns the operational bank/cash account registry and the history views derived from linked posting accounts.
+These modules own the operational bank/cash account registry, receipt/payment/transfer workflow records, and history views derived from linked posting accounts.
 
 ## Auth Boundary
 
@@ -110,6 +113,10 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/accounts/edit/[id]`
 - `/journal-entries`
 - `/bank-cash-accounts`
+- `/bank-cash-transactions`
+- `/bank-cash-transactions/receipts`
+- `/bank-cash-transactions/payments`
+- `/bank-cash-transactions/transfers`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`
@@ -186,10 +193,34 @@ Resulting accounting meaning:
 - the payment-method type list comes from active `PaymentMethodType` master data entries, so users can add new payment methods without code changes
 - master data seeds `Bank` and `Cash` payment methods by default, and migrated environments also preserve distinct existing bank/cash types as `PaymentMethodType` rows
 - the form can suggest and link the posting account while the user types either the bank reference field or the dedicated linked-account autocomplete, and both search by account code or account name
+- account creation may include an opening balance; when it does, the user must also choose an offset posting account so Phase 1 can post a balanced opening entry
 - once a posting account is chosen, the editor keeps that linked account visible and lets the user explicitly change it
 - records typed as `Bank` still require bank-specific details, while other classes can use the optional detail fields as needed
 - current balance is read from the linked posting account balance
 - transaction history is derived from posted ledger rows for the linked posting account
+
+### Bank & Cash Transaction Flow
+
+The receipt, payment, and transfer flow is:
+
+```text
+Browser or API client
+  -> POST /bank-cash-transactions/receipts|payments|transfers
+  -> BankCashTransactionsController
+  -> BankCashTransactionsService
+  -> create a DRAFT BankCashTransaction
+  -> POST /bank-cash-transactions/:id/post
+  -> create a balanced JournalEntry through Phase 1 journal services
+  -> post that journal entry through PostingService
+  -> update BankCashTransaction to POSTED and link journalEntryId
+```
+
+Resulting accounting meaning:
+
+- operational receipt, payment, and transfer records can be saved as drafts before they affect accounting
+- posting creates normal journal entries and ledger rows instead of bypassing Phase 1 accounting rules
+- selected bank/cash records must be active, and transfers require different source and destination accounts
+- posted operational records are locked from editing and retain their generated journal-entry link
 
 ## Module Interaction Rules
 

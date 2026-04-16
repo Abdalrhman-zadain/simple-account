@@ -479,3 +479,10 @@ Current backend controller routes:
 - `PATCH /bank-cash-accounts/:id`
 - `POST /bank-cash-accounts/:id/deactivate`
 - `GET /bank-cash-accounts/:id/transactions`
+- `GET /bank-cash-transactions`
+- `POST /bank-cash-transactions/receipts`
+- `POST /bank-cash-transactions/payments`
+- `POST /bank-cash-transactions/transfers`
+- `GET /bank-cash-transactions/:id`
+- `PATCH /bank-cash-transactions/:id`
+- `POST /bank-cash-transactions/:id/post`

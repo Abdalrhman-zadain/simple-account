@@ -1,6 +1,6 @@
 # System Structure Report
 
-**Scope:** Phase 1 Accounting Foundation and `platform/auth` only.
+**Scope:** Phase 1 Accounting Foundation, Phase 2 Bank & Cash Management, and `platform/auth`.
 
 A concise description of the current system shape for architecture review, handoff, or engineering status updates.
 
@@ -59,6 +59,7 @@ flowchart TB
     B1["platform/auth module"]
     B2["phase-1-accounting-foundation/accounting-core module"]
     B4["phase-2-bank-cash-management/bank-cash-accounts module"]
+    B5["phase-2-bank-cash-management/bank-cash-transactions module"]
     B3["backend/src/common/prisma"]
   end
 
@@ -69,12 +70,16 @@ flowchart TB
   A3 -->|HTTP JSON| B1
   A3 -->|HTTP JSON| B2
   A3 -->|HTTP JSON| B4
+  A3 -->|HTTP JSON| B5
   A5 -->|API client| B1
   A5 -->|API client| B2
   A5 -->|API client| B4
+  A5 -->|API client| B5
   B1 -->|uses| B3
   B2 -->|uses| B3
   B4 -->|uses| B3
+  B5 -->|uses| B2
+  B5 -->|uses| B3
   B3 -->|Prisma ORM| C1
 ```
 
@@ -93,6 +98,7 @@ flowchart TB
 - `backend/src/modules/platform/auth` — authentication, JWT, tenant context
 - `backend/src/modules/phase-1-accounting-foundation/accounting-core` — accounting domain logic and controllers
 - `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts` — bank/cash operational registry
+- `backend/src/modules/phase-2-bank-cash-management/bank-cash-transactions` — receipt, payment, and transfer workflow records that post through accounting journals
 
 ## Request flow example
 
@@ -125,6 +131,7 @@ This ERD is generated directly from `backend/prisma/schema.prisma` using `prisma
 ### Key connection notes
 - `Account.parentAccountId` creates account hierarchy.
 - `BankCashAccount` links an operational bank/cash record to one posting `Account`.
+- `BankCashTransaction` stores receipt, payment, and transfer drafts and links posted records to generated `JournalEntry` rows.
 - `JournalEntryLine` links each journal line to its `JournalEntry` and `Account`.
 - `LedgerTransaction` is the posted history row for a journal line and posting batch.
 - `PostingBatch` groups posted ledger rows for a journal entry.

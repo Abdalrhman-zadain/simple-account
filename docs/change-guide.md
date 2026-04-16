@@ -47,6 +47,7 @@ What else to check:
 - account linking autocomplete may be driven either from the dedicated linked-account field or from the account-number/reference search suggestions, but both must resolve to the same posting account selection
 - currency must match the linked chart-of-accounts account
 - records typed as `Bank` require `bankName` and `accountNumber`; other types may leave those fields empty
+- if an opening balance is provided, an offset posting account must also be selected so the system can post a balanced opening entry
 - deactivated records must stay visible for history but blocked from edit and new selection
 - history reads must come from posted ledger transactions, not drafts
 
@@ -61,6 +62,37 @@ Checks to run:
 - backend tests
 - backend build
 - frontend typecheck
+- Prisma generate and migration review
+
+## Add Or Change Bank/Cash Transactions
+
+Where to edit:
+
+- backend `phase-2-bank-cash-management/bank-cash-transactions`
+- `backend/prisma/schema.prisma` and Prisma migration files if transaction shape changes
+- frontend Phase 2 transaction features and API wrappers when UI is added
+- route files under `frontend/app/(erp)/bank-cash-transactions/...` should stay thin and compose the owning feature page
+
+What else to check:
+
+- receipts and payments must select an active bank/cash account and an active posting counter account
+- transfers must select active, different source and destination bank/cash accounts
+- transaction drafts must not update balances until posted
+- posting must create a journal entry and use Phase 1 posting logic so ledger rows and account balances remain consistent
+- posted transactions must stay locked from edit and retain their journal-entry link
+- deactivated bank/cash accounts must not be selectable for new receipts, payments, or transfers
+
+Must remain compatible:
+
+- existing `/bank-cash-accounts` route and registry behavior
+- `/bank-cash-transactions/receipts`, `/bank-cash-transactions/payments`, and `/bank-cash-transactions/transfers` should keep their workflow intent unless intentionally changed
+- Phase 1 journal-entry and posting invariants
+- ledger history as the authoritative source for posted account activity
+
+Checks to run:
+
+- backend tests
+- backend build
 - Prisma generate and migration review
 
 ## Change Account Creation Behavior
