@@ -14,9 +14,14 @@ import {
     BankCashAccount,
     BankCashAccountsQuery,
     BankCashAccountTransactionsResponse,
+    BankCashTransaction,
+    BankCashTransactionsQuery,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
     CreateBankCashAccountPayload,
+    CreatePaymentPayload,
+    CreateReceiptPayload,
+    CreateTransferPayload,
     CreateJournalEntryPayload,
     CreateJournalEntryTypePayload,
     CreatePaymentMethodTypePayload,
@@ -38,6 +43,7 @@ import {
     UpdateAccountPayload,
     UpdateAccountSubtypePayload,
     UpdateBankCashAccountPayload,
+    UpdateBankCashTransactionPayload,
     UpdateJournalEntryTypePayload,
     UpdatePaymentMethodTypePayload,
     UpdateSegmentValuePayload
@@ -250,6 +256,61 @@ export async function getBankCashAccountTransactions(
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
   return apiRequest<BankCashAccountTransactionsResponse>(`/bank-cash-accounts/${id}/transactions${suffix}`, { token });
+}
+
+export async function getBankCashTransactions(params: BankCashTransactionsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.kind) searchParams.set("kind", params.kind);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.bankCashAccountId) searchParams.set("bankCashAccountId", params.bankCashAccountId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<BankCashTransaction[]>(`/bank-cash-transactions${suffix}`, { token });
+}
+
+export async function getBankCashTransactionById(id: string, token?: string | null) {
+  return apiRequest<BankCashTransaction>(`/bank-cash-transactions/${id}`, { token });
+}
+
+export async function createReceiptTransaction(payload: CreateReceiptPayload, token?: string | null) {
+  return apiRequest<BankCashTransaction>("/bank-cash-transactions/receipts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createPaymentTransaction(payload: CreatePaymentPayload, token?: string | null) {
+  return apiRequest<BankCashTransaction>("/bank-cash-transactions/payments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createTransferTransaction(payload: CreateTransferPayload, token?: string | null) {
+  return apiRequest<BankCashTransaction>("/bank-cash-transactions/transfers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateBankCashTransaction(id: string, payload: UpdateBankCashTransactionPayload, token?: string | null) {
+  return apiRequest<BankCashTransaction>(`/bank-cash-transactions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postBankCashTransaction(id: string, token?: string | null) {
+  return apiRequest<BankCashTransaction>(`/bank-cash-transactions/${id}/post`, {
+    method: "POST",
+    token,
+  });
 }
 
 // ─── Segments ─────────────────────────────────────────────────────────────────

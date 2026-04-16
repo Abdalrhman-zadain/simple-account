@@ -464,3 +464,10 @@ Current backend controller routes:
 - `POST /journal-entry-types`
 - `PATCH /journal-entry-types/:id`
 - `DELETE /journal-entry-types/:id`
+- `GET /bank-cash-transactions`
+- `POST /bank-cash-transactions/receipts`
+- `POST /bank-cash-transactions/payments`
+- `POST /bank-cash-transactions/transfers`
+- `GET /bank-cash-transactions/:id`
+- `PATCH /bank-cash-transactions/:id`
+- `POST /bank-cash-transactions/:id/post`

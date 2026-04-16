@@ -1,37 +1,40 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { SiQuickbooks } from "react-icons/si";
+import {
+  LuBookOpen as BookOpen,
+  LuFileText as FileText,
+  LuChartColumn as BarChart2,
+  LuSettings2 as Settings2,
+  LuCalendar as Calendar,
+  LuShieldCheck as ShieldCheck,
+  LuLogOut as LogOut,
+  LuUser as User,
+  LuChevronRight as ChevronRight,
+  LuPanelLeftClose as PanelLeftClose,
+  LuPanelLeftOpen as PanelLeftOpen,
+  LuWalletMinimal as WalletMinimal,
+  LuReceiptText as ReceiptText,
+} from "react-icons/lu";
+
+import { useAuth } from "@/providers/auth-provider";
+import { cn } from "@/lib/utils";
+import { useTranslation, TranslationKey } from "@/lib/i18n";
+import { useSettings } from "@/providers/settings-provider";
+import { queryKeys } from "@/lib/query-keys";
 import {
   getAccountOptions,
   getAccounts,
   getAccountSubtypes,
   getBankCashAccounts,
+  getBankCashTransactions,
   getFiscalYears,
   getJournalEntryTypes,
   getSegmentDefinitions,
 } from "@/lib/api";
-import { TranslationKey, useTranslation } from "@/lib/i18n";
-import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/providers/auth-provider";
-import { useSettings } from "@/providers/settings-provider";
-import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  LuChartColumn as BarChart2,
-  LuBookOpen as BookOpen,
-  LuCalendar as Calendar,
-  LuChevronRight as ChevronRight,
-  LuFileText as FileText,
-  LuLogOut as LogOut,
-  LuPanelLeftClose as PanelLeftClose,
-  LuPanelLeftOpen as PanelLeftOpen,
-  LuSettings2 as Settings2,
-  LuShieldCheck as ShieldCheck,
-  LuUser as User,
-  LuWalletMinimal as WalletMinimal
-} from "react-icons/lu";
-import { SiQuickbooks } from "react-icons/si";
 
 type NavGroup = {
   labelKey: TranslationKey;
@@ -48,6 +51,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/accounts", labelKey: "nav.item.chartOfAccounts", icon: BookOpen },
       { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
+      { href: "/bank-cash-transactions/receipts", labelKey: "nav.item.bankCashTransactions", icon: ReceiptText },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -61,15 +65,11 @@ const navGroups: NavGroup[] = [
   },
   {
     labelKey: "nav.group.control",
-    items: [
-      { href: "/audit", labelKey: "nav.item.auditTrail", icon: ShieldCheck },
-    ],
+    items: [{ href: "/audit", labelKey: "nav.item.auditTrail", icon: ShieldCheck }],
   },
   {
     labelKey: "nav.group.system",
-    items: [
-      { href: "/settings", labelKey: "nav.item.settings", icon: Settings2 },
-    ],
+    items: [{ href: "/settings", labelKey: "nav.item.settings", icon: Settings2 }],
   },
 ];
 
@@ -107,7 +107,6 @@ export function SiteHeader({
   const prefetchForHref = (href: string) => {
     if (!token) return;
 
-    // Accounts list needed in multiple screens (posting + active subset).
     const prefetchPostingAccounts = () =>
       queryClient.prefetchQuery({
         queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
@@ -139,6 +138,21 @@ export function SiteHeader({
       void queryClient.prefetchQuery({
         queryKey: queryKeys.bankCashAccounts(token),
         queryFn: () => getBankCashAccounts({}, token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/bank-cash-transactions")) {
+      void prefetchPostingAccounts();
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
+        queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankCashTransactions(token, { kind: "RECEIPT" }),
+        queryFn: () => getBankCashTransactions({ kind: "RECEIPT" }, token),
         staleTime: 30_000,
       });
       return;
@@ -176,29 +190,24 @@ export function SiteHeader({
       });
       return;
     }
-
-    if (href.startsWith("/audit")) {
-      return;
-    }
   };
 
   return (
     <aside
       className={cn(
         "fixed ltr:left-0 rtl:right-0 top-0 z-40 flex h-full flex-col ltr:border-r rtl:border-l border-gray-200 bg-white",
-        isCollapsed ? "w-20" : "w-60"
+        isCollapsed ? "w-20" : "w-60",
       )}
     >
-      {/* Logo */}
       <div className={cn("flex items-center border-b border-gray-200 px-6 py-8", isCollapsed ? "justify-center" : "gap-4")}>
         <SiQuickbooks className="h-10 w-10 text-primary" />
         <div className={cn(isCollapsed && "sr-only")}>
           <div className="text-base font-black tracking-tight text-gray-900">{t("app.title")}</div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mt-1">{t("app.subtitle")}</div>
+          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">{t("app.subtitle")}</div>
         </div>
       </div>
 
-      <div className="px-3 pt-3 space-y-2">
+      <div className="space-y-2 px-3 pt-3">
         <button
           type="button"
           onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
@@ -212,7 +221,12 @@ export function SiteHeader({
           <span className={cn(isCollapsed && "sr-only")}>
             {language === "ar" ? t("language.arabicShort") : t("language.englishShort")}
           </span>
-          <span className={cn("inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-black tracking-widest text-gray-600", isCollapsed && "sr-only")}>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-black tracking-widest text-gray-600",
+              isCollapsed && "sr-only",
+            )}
+          >
             {language === "ar" ? "RTL" : "LTR"}
           </span>
           <span className={cn("font-black tracking-widest text-gray-600", !isCollapsed && "sr-only")}>
@@ -234,8 +248,7 @@ export function SiteHeader({
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-10">
+      <nav className="flex-1 overflow-y-auto space-y-10 px-4 py-8">
         {navGroups.map((group) => (
           <div key={group.labelKey}>
             <span className={cn("mb-4 block px-3 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400", isCollapsed && "sr-only")}>
@@ -252,11 +265,11 @@ export function SiteHeader({
                     onMouseEnter={() => prefetchForHref(item.href)}
                     title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
                     className={cn(
-                      "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0",
+                      "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0",
                       isCollapsed && "justify-center",
                       isActive
-                        ? "bg-gray-100 text-gray-900 border border-gray-200 shadow-sm"
-                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                        ? "border border-gray-200 bg-gray-100 text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
                     )}
                   >
                     <Icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
@@ -270,20 +283,25 @@ export function SiteHeader({
         ))}
       </nav>
 
-      {/* User footer */}
       {isHydrated && isAuthenticated && (
         <div className="border-t border-gray-200 p-3">
-          <div className={cn("flex items-center gap-3 rounded-xl p-3 hover:bg-gray-50 transition-all group", isCollapsed && "justify-center")}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 border border-gray-200 text-gray-500">
+          <div className={cn("group flex items-center gap-3 rounded-xl p-3 transition-all hover:bg-gray-50", isCollapsed && "justify-center")}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-100 text-gray-500">
               <User size={16} />
             </div>
-            <div className={cn("flex-1 min-w-0", isCollapsed && "sr-only")}>
+            <div className={cn("min-w-0 flex-1", isCollapsed && "sr-only")}>
               <div className="truncate text-xs font-bold text-gray-900">{user?.name || "User"}</div>
               <div className="truncate text-[10px] text-gray-500">{user?.email}</div>
             </div>
             <button
-              onClick={() => { logout(); router.push("/login"); }}
-              className={cn("shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all ltr:rotate-0 rtl:rotate-180", isCollapsed && "sr-only")}
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              className={cn(
+                "shrink-0 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-red-50 hover:text-red-600 ltr:rotate-0 rtl:rotate-180",
+                isCollapsed && "sr-only",
+              )}
               title="Logout"
             >
               <LogOut size={14} />

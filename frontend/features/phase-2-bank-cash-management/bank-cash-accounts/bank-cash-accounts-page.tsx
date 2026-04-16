@@ -49,6 +49,12 @@ export function BankCashAccountsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const offsetAccountsQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
+    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const paymentMethodTypesQuery = useQuery({
     queryKey: queryKeys.paymentMethodTypes(token),
     queryFn: () => getPaymentMethodTypes(token),
@@ -120,6 +126,8 @@ export function BankCashAccountsPage() {
       accountNumber: row.accountNumber ?? "",
       currencyCode: row.currencyCode,
       accountId: row.account.id,
+      openingBalance: "",
+      openingBalanceOffsetAccountId: "",
     });
     setIsEditorOpen(true);
   };
@@ -180,6 +188,7 @@ export function BankCashAccountsPage() {
         isOpen={isEditorOpen}
         editor={editor}
         postingAccounts={postingAccountsQuery.data ?? []}
+        offsetAccounts={(offsetAccountsQuery.data ?? []).filter((account) => account.id !== editor.accountId)}
         paymentMethodTypes={paymentMethodTypesQuery.data ?? []}
         errorMessage={editorError}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
@@ -199,5 +208,7 @@ function toPayload(editor: EditorState) {
     accountNumber: editor.accountNumber || undefined,
     currencyCode: editor.currencyCode,
     accountId: editor.accountId,
+    openingBalance: editor.openingBalance ? Number(editor.openingBalance) : undefined,
+    openingBalanceOffsetAccountId: editor.openingBalanceOffsetAccountId || undefined,
   };
 }

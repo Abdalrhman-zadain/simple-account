@@ -147,3 +147,37 @@ Prisma Studio usually opens at:
 ```text
 http://localhost:5555
 ```
+
+## Run Tests
+
+### Backend Test Cases
+
+Run the backend Jest test suite from the backend folder:
+
+```powershell
+cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+npm test
+```
+
+To keep the backend tests running while you edit code:
+
+```powershell
+cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+npm run test:watch
+```
+
+### Frontend Checks
+
+The frontend does not currently have a test runner script. Use TypeScript checking to validate frontend code:
+
+```powershell
+cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
+npm run typecheck
+```
+
+You can also run a production build check:
+
+```powershell
+cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
+npm run build
+```

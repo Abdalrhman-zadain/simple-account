@@ -15,16 +15,23 @@ describe('BankCashAccountsService', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
+      delete: jest.fn(),
       update: jest.fn(),
     },
     ledgerTransaction: {
       findMany: jest.fn(),
     },
   };
+  const journalEntriesService = {
+    create: jest.fn(),
+  };
+  const postingService = {
+    post: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new BankCashAccountsService(prisma as never);
+    service = new BankCashAccountsService(prisma as never, journalEntriesService as never, postingService as never);
     prisma.paymentMethodType.findFirst.mockImplementation(async ({ where }: { where: { name?: { equals?: string } } }) => {
       const name = where.name?.equals;
       return name ? { name } : null;
@@ -89,6 +96,96 @@ describe('BankCashAccountsService', () => {
     );
     expect(result.currentBalance).toBe('1250.00');
     expect(result.status).toBe('ACTIVE');
+  });
+
+  it('posts an opening balance when provided during creation', async () => {
+    prisma.account.findUnique
+      .mockResolvedValueOnce({
+        id: 'acct-1',
+        code: '1100001',
+        name: 'Main Bank',
+        type: 'ASSET',
+        currentBalance: { toString: () => '0.00' },
+        currencyCode: 'JOD',
+        isActive: true,
+        isPosting: true,
+      })
+      .mockResolvedValueOnce({
+        id: 'offset-1',
+        name: 'Opening Balance Equity',
+        currencyCode: 'JOD',
+        isActive: true,
+        isPosting: true,
+        allowManualPosting: true,
+      });
+    prisma.bankCashAccount.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'bc-1',
+        type: 'Bank',
+        name: 'Main Bank',
+        bankName: 'Arab Bank',
+        accountNumber: '123456',
+        currencyCode: 'JOD',
+        isActive: true,
+        createdAt: new Date('2026-04-14T00:00:00.000Z'),
+        updatedAt: new Date('2026-04-14T00:00:00.000Z'),
+        account: {
+          id: 'acct-1',
+          code: '1100001',
+          name: 'Main Bank',
+          type: 'ASSET',
+          currentBalance: { toString: () => '500.00' },
+          currencyCode: 'JOD',
+          isActive: true,
+          isPosting: true,
+        },
+      });
+    prisma.bankCashAccount.create.mockResolvedValue({
+      id: 'bc-1',
+      type: 'Bank',
+      name: 'Main Bank',
+      bankName: 'Arab Bank',
+      accountNumber: '123456',
+      currencyCode: 'JOD',
+      isActive: true,
+      createdAt: new Date('2026-04-14T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-14T00:00:00.000Z'),
+      account: {
+        id: 'acct-1',
+        code: '1100001',
+        name: 'Main Bank',
+        type: 'ASSET',
+        currentBalance: { toString: () => '0.00' },
+        currencyCode: 'JOD',
+        isActive: true,
+        isPosting: true,
+      },
+    });
+    journalEntriesService.create.mockResolvedValue({ id: 'je-open-1' });
+    postingService.post.mockResolvedValue({ id: 'je-open-1' });
+
+    const result = await service.create({
+      type: 'Bank',
+      name: 'Main Bank Account',
+      bankName: 'Arab Bank',
+      accountNumber: '123456',
+      currencyCode: 'JOD',
+      accountId: 'acct-1',
+      openingBalance: 500,
+      openingBalanceOffsetAccountId: 'offset-1',
+    });
+
+    expect(journalEntriesService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lines: [
+          expect.objectContaining({ accountId: 'acct-1', debitAmount: 500, creditAmount: 0 }),
+          expect.objectContaining({ accountId: 'offset-1', debitAmount: 0, creditAmount: 500 }),
+        ],
+      }),
+    );
+    expect(postingService.post).toHaveBeenCalledWith('je-open-1');
+    expect(result.currentBalance).toBe('500.00');
   });
 
   it('allows non-bank account types without bank-only requirements', async () => {
@@ -232,6 +329,30 @@ describe('BankCashAccountsService', () => {
         accountNumber: '123456',
         currencyCode: 'JOD',
         accountId: 'acct-foreign',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('requires an offset account when opening balance is provided', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'acct-open',
+      code: '1100006',
+      name: 'Cash Drawer',
+      type: 'ASSET',
+      currentBalance: { toString: () => '0.00' },
+      currencyCode: 'JOD',
+      isActive: true,
+      isPosting: true,
+    });
+    prisma.bankCashAccount.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        type: 'Cash',
+        name: 'Cash Drawer',
+        currencyCode: 'JOD',
+        accountId: 'acct-open',
+        openingBalance: 100,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });

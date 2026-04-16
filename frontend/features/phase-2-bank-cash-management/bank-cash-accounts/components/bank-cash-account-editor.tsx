@@ -12,6 +12,7 @@ export function BankCashAccountEditor({
   isOpen,
   editor,
   postingAccounts,
+  offsetAccounts,
   paymentMethodTypes,
   errorMessage,
   isSubmitting,
@@ -22,6 +23,7 @@ export function BankCashAccountEditor({
   isOpen: boolean;
   editor: EditorState;
   postingAccounts: AccountOption[];
+  offsetAccounts: AccountOption[];
   paymentMethodTypes: PaymentMethodType[];
   errorMessage: string | null;
   isSubmitting: boolean;
@@ -164,6 +166,37 @@ export function BankCashAccountEditor({
           />
         </div>
 
+        {!editor.id ? (
+          <>
+            <Field
+              label={t("bankCash.form.openingBalance")}
+              value={editor.openingBalance}
+              onChange={(value) => onChange({ ...editor, openingBalance: value })}
+              hint={t("bankCash.form.openingBalanceHelp")}
+              type="number"
+            />
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">
+                {t("bankCash.form.openingBalanceOffsetAccount")}
+              </label>
+              <select
+                value={editor.openingBalanceOffsetAccountId}
+                onChange={(event) => onChange({ ...editor, openingBalanceOffsetAccountId: event.target.value })}
+                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+              >
+                <option value="">{t("bankCash.form.openingBalanceOffsetPlaceholder")}</option>
+                {offsetAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.code} · {account.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-gray-500">{t("bankCash.form.openingBalanceOffsetHelp")}</p>
+            </div>
+          </>
+        ) : null}
+
         {errorMessage ? (
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
@@ -189,17 +222,20 @@ function Field({
   onChange,
   hint,
   disabled = false,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   hint?: string;
   disabled?: boolean;
+  type?: string;
 }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">{label}</label>
       <input
+        type={type}
         value={value}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}

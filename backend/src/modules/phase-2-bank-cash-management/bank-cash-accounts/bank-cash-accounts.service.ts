@@ -2,6 +2,8 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { Prisma } from '../../../generated/prisma';
 
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { JournalEntriesService } from '../../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service';
+import { PostingService } from '../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
 import { AccountNotFoundException } from '../../phase-1-accounting-foundation/accounting-core/validation-rules/accounting-errors';
 import { CreateBankCashAccountDto } from './dto/create-bank-cash-account.dto';
 import { UpdateBankCashAccountDto } from './dto/update-bank-cash-account.dto';
@@ -14,7 +16,11 @@ type ListQuery = {
 
 @Injectable()
 export class BankCashAccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly journalEntriesService: JournalEntriesService,
+    private readonly postingService: PostingService,
+  ) {}
 
   async list(query: ListQuery = {}) {
     const rows = await this.prisma.bankCashAccount.findMany({
@@ -53,6 +59,7 @@ export class BankCashAccountsService {
 
   async create(dto: CreateBankCashAccountDto) {
     const normalized = await this.normalizeAndValidatePayload(dto);
+    let createdId: string | null = null;
 
     try {
       const created = await this.prisma.bankCashAccount.create({
@@ -84,8 +91,18 @@ export class BankCashAccountsService {
         },
       });
 
+      createdId = created.id;
+
+      if (normalized.openingBalance > 0) {
+        await this.postOpeningBalance(created.id, normalized);
+        return this.getById(created.id);
+      }
+
       return this.mapSummary(created);
     } catch (error) {
+      if (createdId) {
+        await this.prisma.bankCashAccount.delete({ where: { id: createdId } }).catch(() => undefined);
+      }
       if (this.isAccountUniqueConflict(error)) {
         throw new ConflictException('This chart-of-accounts record is already linked to another bank/cash account.');
       }
@@ -297,6 +314,8 @@ export class BankCashAccountsService {
     accountNumber: string | null;
     currencyCode: string;
     accountId: string;
+    openingBalance: number;
+    openingBalanceOffsetAccountId: string | null;
   }> {
     const rawBankName = dto.bankName?.trim() || null;
     const rawAccountNumber = dto.accountNumber?.trim() || null;
@@ -362,6 +381,48 @@ export class BankCashAccountsService {
       throw new ConflictException('This chart-of-accounts record is already linked to another bank/cash account.');
     }
 
+    const openingBalance = dto.openingBalance === undefined ? 0 : Number(dto.openingBalance);
+    let openingBalanceOffsetAccountId: string | null = null;
+
+    if (!Number.isFinite(openingBalance) || openingBalance < 0) {
+      throw new BadRequestException('Opening balance must be zero or a positive amount.');
+    }
+
+    if (openingBalance > 0) {
+      openingBalanceOffsetAccountId = dto.openingBalanceOffsetAccountId?.trim() || null;
+      if (!openingBalanceOffsetAccountId) {
+        throw new BadRequestException('Opening balance offset account is required when an opening balance is provided.');
+      }
+
+      const offsetAccount = await this.prisma.account.findUnique({
+        where: { id: openingBalanceOffsetAccountId },
+        select: {
+          id: true,
+          name: true,
+          currencyCode: true,
+          isActive: true,
+          isPosting: true,
+          allowManualPosting: true,
+        },
+      });
+
+      if (!offsetAccount) {
+        throw new AccountNotFoundException(openingBalanceOffsetAccountId);
+      }
+
+      if (!offsetAccount.isActive || !offsetAccount.isPosting || !offsetAccount.allowManualPosting) {
+        throw new BadRequestException('Opening balance offset account must be an active posting account that allows manual posting.');
+      }
+
+      if (offsetAccount.id === linkedAccount.id) {
+        throw new BadRequestException('Opening balance offset account must be different from the linked bank/cash account.');
+      }
+
+      if (offsetAccount.currencyCode.toUpperCase() !== currencyCode) {
+        throw new BadRequestException('Opening balance offset account currency must match the bank/cash account currency.');
+      }
+    }
+
     return {
       type,
       name: linkedAccount.name,
@@ -369,7 +430,48 @@ export class BankCashAccountsService {
       accountNumber,
       currencyCode,
       accountId: linkedAccount.id,
+      openingBalance,
+      openingBalanceOffsetAccountId,
     };
+  }
+
+  private async postOpeningBalance(
+    bankCashAccountId: string,
+    normalized: {
+      type: string;
+      name: string;
+      bankName: string | null;
+      accountNumber: string | null;
+      currencyCode: string;
+      accountId: string;
+      openingBalance: number;
+      openingBalanceOffsetAccountId: string | null;
+    },
+  ) {
+    if (!normalized.openingBalanceOffsetAccountId) {
+      return;
+    }
+
+    const journalEntry = await this.journalEntriesService.create({
+      entryDate: new Date().toISOString(),
+      description: `Opening balance for ${normalized.name}`,
+      lines: [
+        {
+          accountId: normalized.accountId,
+          description: `Opening balance for ${normalized.name}`,
+          debitAmount: normalized.openingBalance,
+          creditAmount: 0,
+        },
+        {
+          accountId: normalized.openingBalanceOffsetAccountId,
+          description: `Opening balance for ${normalized.name}`,
+          debitAmount: 0,
+          creditAmount: normalized.openingBalance,
+        },
+      ],
+    });
+
+    await this.postingService.post(journalEntry.id);
   }
 
   private async ensureExists(id: string) {

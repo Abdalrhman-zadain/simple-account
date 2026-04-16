@@ -196,6 +196,112 @@ export type BankCashAccountsQuery = {
   search?: string;
 };
 
+export type BankCashTransactionKind = "RECEIPT" | "PAYMENT" | "TRANSFER";
+export type BankCashTransactionStatus = "DRAFT" | "POSTED";
+
+export type BankCashTransaction = {
+  id: string;
+  kind: BankCashTransactionKind;
+  status: BankCashTransactionStatus;
+  reference: string;
+  transactionDate: string;
+  amount: string;
+  description?: string | null;
+  counterpartyName?: string | null;
+  bankCashAccount?: {
+    id: string;
+    type: string;
+    name: string;
+    currencyCode: string;
+    isActive: boolean;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  } | null;
+  sourceBankCashAccount?: {
+    id: string;
+    type: string;
+    name: string;
+    currencyCode: string;
+    isActive: boolean;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  } | null;
+  destinationBankCashAccount?: {
+    id: string;
+    type: string;
+    name: string;
+    currencyCode: string;
+    isActive: boolean;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  } | null;
+  counterAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    currencyCode: string;
+  } | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BankCashTransactionsQuery = {
+  kind?: BankCashTransactionKind | "";
+  status?: BankCashTransactionStatus | "";
+  bankCashAccountId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type CreateReceiptPayload = {
+  reference?: string;
+  transactionDate: string;
+  amount: number;
+  bankCashAccountId: string;
+  counterAccountId: string;
+  counterpartyName?: string;
+  description?: string;
+};
+
+export type CreatePaymentPayload = CreateReceiptPayload;
+
+export type CreateTransferPayload = {
+  reference?: string;
+  transactionDate: string;
+  amount: number;
+  sourceBankCashAccountId: string;
+  destinationBankCashAccountId: string;
+  description?: string;
+};
+
+export type UpdateBankCashTransactionPayload = Partial<{
+  reference: string;
+  transactionDate: string;
+  amount: number;
+  bankCashAccountId: string;
+  sourceBankCashAccountId: string;
+  destinationBankCashAccountId: string;
+  counterAccountId: string;
+  counterpartyName: string | null;
+  description: string | null;
+}>;
+
 export type CreateBankCashAccountPayload = {
   type: BankCashAccountType;
   name: string;
@@ -203,6 +309,8 @@ export type CreateBankCashAccountPayload = {
   accountNumber?: string;
   currencyCode: string;
   accountId: string;
+  openingBalance?: number;
+  openingBalanceOffsetAccountId?: string;
 };
 
 export type UpdateBankCashAccountPayload = Partial<CreateBankCashAccountPayload>;

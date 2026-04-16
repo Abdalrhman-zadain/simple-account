@@ -79,6 +79,7 @@ Current feature areas:
 - `features/accounting/audit`
 - `features/accounting/master-data`
 - `features/phase-2-bank-cash-management/bank-cash-accounts`
+- `features/phase-2-bank-cash-management/bank-cash-transactions`
 
 Put code here when:
 
@@ -194,6 +195,11 @@ Purpose:
 Current root:
 
 - `bank-cash-accounts`
+- `bank-cash-transactions`
+
+`bank-cash-accounts` owns the operational registry linked to chart-of-accounts posting accounts.
+
+`bank-cash-transactions` owns receipt, payment, and transfer drafts, posting actions, and links from posted operational records to generated journal entries.
 
 ### `frontend/features/phase-2-bank-cash-management`
 
@@ -204,6 +210,7 @@ Purpose:
 Current feature area:
 
 - `bank-cash-accounts`
+- `bank-cash-transactions`
 
 ## Edit Placement Rules
 
@@ -215,6 +222,8 @@ Use these rules before editing:
   - put it in `frontend/features/accounting/...`
 - bank/cash account registry UI, balance cards, or history tables:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-accounts`
+- bank/cash receipt, payment, or transfer screens:
+  - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-transactions`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -225,6 +234,8 @@ Use these rules before editing:
   - put it in the matching Phase 1 accounting submodule
 - bank/cash account linking or history endpoints:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts`
+- bank/cash receipt, payment, or transfer workflows:
+  - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-transactions`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

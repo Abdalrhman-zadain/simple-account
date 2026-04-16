@@ -14,6 +14,7 @@ Main model:
 
 - `Account`
 - `BankCashAccount`
+- `BankCashTransaction`
 
 Key fields:
 
@@ -37,6 +38,8 @@ Accounting meaning:
 - current account balance is stored directly and updated by posting logic
 - operational bank/cash records wrap specific posting accounts for balance and history views
 - records typed as `Bank` require `bankName` and `accountNumber`; other payment-method types may leave those fields empty or use them as operational references
+- receipt, payment, and transfer records are stored as `BankCashTransaction` rows and affect balances only after posting creates a journal entry
+- bank/cash opening balances are not stored as a separate balance field; they are posted as normal journal/ledger history against the linked account and an offset posting account
 
 ### Journals
 
@@ -84,6 +87,7 @@ Accounting meaning:
 - the posting batch groups a posting operation
 - ledger rows are the authoritative posted history behind the general ledger
 - bank/cash transaction history is derived from ledger rows for the linked posting account
+- posted bank/cash transaction records link to the journal entry that created their ledger rows
 
 ### Fiscal Control
 
@@ -174,8 +178,10 @@ Ownership by module:
   - `Account`
 - Payment Methods:
   - `BankCashAccount`
+  - `BankCashTransaction`
   - reads linked `Account`
   - reads linked `LedgerTransaction`
+  - creates linked `JournalEntry` rows through Phase 1 journal/posting services when receipt, payment, or transfer drafts are posted
 - Journal Entries:
   - `JournalEntry`
   - `JournalEntryLine`
