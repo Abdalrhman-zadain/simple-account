@@ -94,6 +94,37 @@ Checks to run:
 - backend build
 - Prisma generate and migration review
 
+## Add Or Change Bank Reconciliation
+
+Where to edit:
+
+- backend `phase-2-bank-cash-management/bank-reconciliations`
+- `backend/prisma/schema.prisma` and Prisma migration files if reconciliation data changes
+- frontend `features/phase-2-bank-cash-management/bank-reconciliations`
+- route files under `frontend/app/(erp)/bank-reconciliations`
+
+What else to check:
+
+- reconciliations must target active bank/cash records with active posting accounts behind them
+- statement lines must allow manual entry and bulk import line entry
+- matching must only use ledger rows from the linked posting account
+- already reconciled ledger rows must not be offered again as new unmatched system transactions
+- completing a reconciliation must not bypass match audit state
+- unmatched statement lines and unmatched system transactions should stay visible during review
+
+Must remain compatible:
+
+- `/bank-reconciliations` route behavior unless intentionally changed
+- linked-account ownership of bank/cash reconciliation history
+- Phase 1 ledger meaning as the authoritative source of posted system transactions
+
+Checks to run:
+
+- Prisma generate and migration review
+- backend tests
+- backend build
+- frontend typecheck
+
 ## Change Account Creation Behavior
 
 Where to edit:

@@ -8,6 +8,7 @@ const arTranslations: Record<string, string> = {
   "nav.group.system": "النظام",
   "nav.item.chartOfAccounts": "دليل الحسابات",
   "nav.item.bankCashAccounts": "البنوك والصندوق",
+  "nav.item.bankReconciliations": "التسوية البنكية",
   "nav.item.journalEntries": "قيود اليومية",
   "nav.item.generalLedger": "دفتر الأستاذ العام",
   "nav.item.masterData": "البيانات الأساسية",

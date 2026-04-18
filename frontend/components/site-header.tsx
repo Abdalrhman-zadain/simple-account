@@ -18,6 +18,7 @@ import {
   LuPanelLeftOpen as PanelLeftOpen,
   LuWalletMinimal as WalletMinimal,
   LuReceiptText as ReceiptText,
+  LuBadgeCheck as BadgeCheck,
 } from "react-icons/lu";
 
 import { useAuth } from "@/providers/auth-provider";
@@ -30,6 +31,7 @@ import {
   getAccounts,
   getAccountSubtypes,
   getBankCashAccounts,
+  getBankReconciliations,
   getBankCashTransactions,
   getFiscalYears,
   getJournalEntryTypes,
@@ -52,6 +54,7 @@ const navGroups: NavGroup[] = [
       { href: "/accounts", labelKey: "nav.item.chartOfAccounts", icon: BookOpen },
       { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
       { href: "/bank-cash-transactions/receipts", labelKey: "nav.item.bankCashTransactions", icon: ReceiptText },
+      { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -153,6 +156,20 @@ export function SiteHeader({
       void queryClient.prefetchQuery({
         queryKey: queryKeys.bankCashTransactions(token, { kind: "RECEIPT" }),
         queryFn: () => getBankCashTransactions({ kind: "RECEIPT" }, token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/bank-reconciliations")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
+        queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankReconciliations(token),
+        queryFn: () => getBankReconciliations({}, token),
         staleTime: 30_000,
       });
       return;

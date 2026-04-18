@@ -196,10 +196,13 @@ Current root:
 
 - `bank-cash-accounts`
 - `bank-cash-transactions`
+- `bank-reconciliations`
 
 `bank-cash-accounts` owns the operational registry linked to chart-of-accounts posting accounts.
 
 `bank-cash-transactions` owns receipt, payment, and transfer drafts, posting actions, and links from posted operational records to generated journal entries.
+
+`bank-reconciliations` owns statement-line import/manual entry, statement-to-ledger matching, reconciliation status, and unmatched review endpoints.
 
 ### `frontend/features/phase-2-bank-cash-management`
 
@@ -211,6 +214,7 @@ Current feature area:
 
 - `bank-cash-accounts`
 - `bank-cash-transactions`
+- `bank-reconciliations`
 
 ## Edit Placement Rules
 
@@ -224,6 +228,8 @@ Use these rules before editing:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-accounts`
 - bank/cash receipt, payment, or transfer screens:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-transactions`
+- bank/cash reconciliation screens:
+  - put it in `frontend/features/phase-2-bank-cash-management/bank-reconciliations`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -236,6 +242,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts`
 - bank/cash receipt, payment, or transfer workflows:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-transactions`
+- bank/cash reconciliation workflows:
+  - put them in `backend/src/modules/phase-2-bank-cash-management/bank-reconciliations`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

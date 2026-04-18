@@ -42,6 +42,17 @@ enum BankCashTransactionStatus {
   POSTED
 }
 
+enum BankReconciliationStatus {
+  DRAFT
+  COMPLETED
+}
+
+enum BankStatementLineStatus {
+  UNMATCHED
+  MATCHED
+  RECONCILED
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -108,6 +119,7 @@ model BankCashAccount {
   transactions         BankCashTransaction[] @relation("BankCashPrimaryAccount")
   sourceTransfers      BankCashTransaction[] @relation("BankCashSourceAccount")
   destinationTransfers BankCashTransaction[] @relation("BankCashDestinationAccount")
+  reconciliations      BankReconciliation[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -142,6 +154,57 @@ model BankCashTransaction {
   @@index([sourceBankCashAccountId])
   @@index([destinationBankCashAccountId])
   @@index([counterAccountId])
+}
+
+model BankReconciliation {
+  id                     String                   @id @default(cuid())
+  bankCashAccountId      String
+  bankCashAccount        BankCashAccount          @relation(fields: [bankCashAccountId], references: [id], onDelete: Restrict)
+  statementDate          DateTime
+  statementEndingBalance Decimal                  @db.Decimal(18, 2)
+  notes                  String?
+  status                 BankReconciliationStatus @default(DRAFT)
+  completedAt            DateTime?
+  statementLines         BankStatementLine[]
+  matches                BankReconciliationMatch[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@index([bankCashAccountId, status, statementDate])
+}
+
+model BankStatementLine {
+  id               String                  @id @default(cuid())
+  reconciliationId String
+  reconciliation   BankReconciliation      @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  transactionDate  DateTime
+  reference        String?
+  description      String?
+  debitAmount      Decimal                 @default(0) @db.Decimal(18, 2)
+  creditAmount     Decimal                 @default(0) @db.Decimal(18, 2)
+  status           BankStatementLineStatus @default(UNMATCHED)
+  matches          BankReconciliationMatch[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([reconciliationId, status, transactionDate])
+}
+
+model BankReconciliationMatch {
+  id                  String             @id @default(cuid())
+  reconciliationId    String
+  reconciliation      BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  statementLineId     String
+  statementLine       BankStatementLine  @relation(fields: [statementLineId], references: [id], onDelete: Cascade)
+  ledgerTransactionId String
+  ledgerTransaction   LedgerTransaction   @relation(fields: [ledgerTransactionId], references: [id], onDelete: Restrict)
+  isReconciled        Boolean            @default(false)
+  matchedAt           DateTime           @default(now())
+  reconciledAt        DateTime?
+
+  @@unique([statementLineId, ledgerTransactionId])
+  @@index([reconciliationId])
+  @@index([ledgerTransactionId])
 }
 
 model AccountSubtype {
@@ -256,6 +319,7 @@ model LedgerTransaction {
   journalEntry     JournalEntry     @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
   journalEntryLine JournalEntryLine @relation(fields: [journalEntryLineId], references: [id], onDelete: Restrict)
   account          Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  bankReconciliationMatches BankReconciliationMatch[]
 
   createdById String?
   createdBy   User?   @relation("LedgerCreator", fields: [createdById], references: [id])

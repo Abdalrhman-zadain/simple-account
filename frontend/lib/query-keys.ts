@@ -1,4 +1,10 @@
-import type { AccountsQuery, BankCashAccountsQuery, BankCashTransactionsQuery, JournalEntriesQuery } from "@/types/api";
+import type {
+  AccountsQuery,
+  BankCashAccountsQuery,
+  BankCashTransactionsQuery,
+  BankReconciliationsQuery,
+  JournalEntriesQuery,
+} from "@/types/api";
 
 type QueryKeyPart = string | number | boolean | null | undefined | Record<string, unknown>;
 
@@ -28,6 +34,12 @@ export const queryKeys = {
   },
   bankCashTransactions(token: string | null, params: BankCashTransactionsQuery = {}) {
     return ["bank-cash-transactions", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  bankReconciliations(token: string | null, params: BankReconciliationsQuery = {}) {
+    return ["bank-reconciliations", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  bankReconciliationById(token: string | null, id: string | null) {
+    return ["bank-reconciliation", token, id] as const;
   },
   journalEntries(token: string | null, params: JournalEntriesQuery = {}) {
     return ["journal-entries", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;

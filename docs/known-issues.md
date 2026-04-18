@@ -41,9 +41,9 @@ If code and docs drift:
 Current limitation:
 
 - customer and supplier master records are not implemented in the current system, so receipt/payment transactions currently store an optional `counterpartyName` instead of a relational customer/supplier link.
-- bank statement import, manual statement lines, matching, unmatched views, and reconciliation audit status are not implemented yet.
+- reconciliation statement import currently uses structured line entry and bulk line import inside the app/API; bank-specific file parser formats are not implemented yet.
 
 What this means for future edits:
 
 - add customer/supplier relations only after the owning customer/supplier modules or master records exist
-- implement reconciliation as a separate Phase 2 submodule instead of mixing statement matching into the receipt/payment/transfer transaction service
+- keep reconciliation as a separate Phase 2 submodule instead of mixing statement matching into the receipt/payment/transfer transaction service

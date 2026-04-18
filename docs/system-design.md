@@ -10,6 +10,7 @@ The current business scope is:
 - Phase 1 Accounting Foundation
 - bank and cash account registry linked to posting accounts for operational balances and history
 - bank/cash receipt, payment, and transfer drafts that post through generated journal entries
+- bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -46,6 +47,7 @@ The backend root module wires three major concerns:
 - `modules/phase-1-accounting-foundation/accounting-core`
 - `modules/phase-2-bank-cash-management/bank-cash-accounts`
 - `modules/phase-2-bank-cash-management/bank-cash-transactions`
+- `modules/phase-2-bank-cash-management/bank-reconciliations`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -82,8 +84,9 @@ The backend also includes a dedicated Phase 2 module:
 
 - `modules/phase-2-bank-cash-management/bank-cash-accounts`
 - `modules/phase-2-bank-cash-management/bank-cash-transactions`
+- `modules/phase-2-bank-cash-management/bank-reconciliations`
 
-These modules own the operational bank/cash account registry, receipt/payment/transfer workflow records, and history views derived from linked posting accounts.
+These modules own the operational bank/cash account registry, receipt/payment/transfer workflow records, reconciliation workpapers, and history views derived from linked posting accounts.
 
 ## Auth Boundary
 
@@ -117,6 +120,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/bank-cash-transactions/receipts`
 - `/bank-cash-transactions/payments`
 - `/bank-cash-transactions/transfers`
+- `/bank-reconciliations`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`
@@ -219,6 +223,30 @@ Resulting accounting meaning:
 - posting creates normal journal entries and ledger rows instead of bypassing Phase 1 accounting rules
 - selected bank/cash records must be active, and transfers require different source and destination accounts
 - posted operational records are locked from editing and retain their generated journal-entry link
+
+### Bank Reconciliation Flow
+
+The reconciliation flow is:
+
+```text
+Browser
+  -> /bank-reconciliations
+  -> app/(erp)/bank-reconciliations/page.tsx
+  -> BankReconciliationsPage in frontend/features/phase-2-bank-cash-management/bank-reconciliations
+  -> frontend/lib/api
+  -> GET/POST /bank-reconciliations and nested statement-line/match routes
+  -> BankReconciliationsController
+  -> BankReconciliationsService
+  -> Prisma BankReconciliation + BankStatementLine + BankReconciliationMatch + LedgerTransaction queries
+```
+
+Resulting accounting meaning:
+
+- reconciliation works against active bank/cash records and their linked posting accounts
+- statement lines can be entered one by one or imported in bulk line form during a reconciliation session
+- matching links statement lines to posted ledger transactions for the same linked account
+- matched rows can be marked reconciled and retain timestamps for audit review
+- unmatched statement lines and unmatched system transactions remain visible until the user resolves or accepts them
 
 ## Module Interaction Rules
 

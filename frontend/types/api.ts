@@ -269,6 +269,141 @@ export type BankCashTransactionsQuery = {
   search?: string;
 };
 
+export type BankReconciliationStatus = "DRAFT" | "COMPLETED";
+export type BankStatementLineStatus = "UNMATCHED" | "MATCHED" | "RECONCILED";
+
+export type BankReconciliationListItem = {
+  id: string;
+  status: BankReconciliationStatus;
+  statementDate: string;
+  statementEndingBalance: string;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  bankCashAccount: {
+    id: string;
+    type: string;
+    name: string;
+    currencyCode: string;
+    isActive: boolean;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  };
+  summary: {
+    statementLineCount: number;
+    unmatchedStatementLineCount: number;
+    matchedCount: number;
+    reconciledCount: number;
+  };
+};
+
+export type BankReconciliationLedgerTransaction = {
+  id: string;
+  reference: string;
+  entryDate: string;
+  postedAt: string;
+  description?: string | null;
+  debitAmount: string;
+  creditAmount: string;
+  journalEntryId: string;
+  journalReference: string;
+};
+
+export type BankReconciliationMatch = {
+  id: string;
+  isReconciled: boolean;
+  matchedAt: string;
+  reconciledAt?: string | null;
+  ledgerTransaction: BankReconciliationLedgerTransaction;
+};
+
+export type BankStatementLine = {
+  id: string;
+  transactionDate: string;
+  reference?: string | null;
+  description?: string | null;
+  debitAmount: string;
+  creditAmount: string;
+  status: BankStatementLineStatus;
+  createdAt: string;
+  updatedAt: string;
+  matches: BankReconciliationMatch[];
+};
+
+export type BankReconciliation = {
+  id: string;
+  status: BankReconciliationStatus;
+  statementDate: string;
+  statementEndingBalance: string;
+  notes?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  bankCashAccount: {
+    id: string;
+    type: string;
+    name: string;
+    currencyCode: string;
+    isActive: boolean;
+    currentBalance?: string | null;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  };
+  statementLines: BankStatementLine[];
+  unmatchedSystemTransactions: BankReconciliationLedgerTransaction[];
+  summary: {
+    statementLineCount: number;
+    unmatchedStatementLineCount: number;
+    matchedStatementLineCount: number;
+    reconciledStatementLineCount: number;
+    matchedCount: number;
+    reconciledCount: number;
+    statementNetAmount: string;
+    systemBalance: string;
+    statementEndingBalance: string;
+    balanceDifference: string;
+  };
+};
+
+export type BankReconciliationsQuery = {
+  bankCashAccountId?: string;
+  status?: BankReconciliationStatus | "";
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type CreateBankReconciliationPayload = {
+  bankCashAccountId: string;
+  statementDate: string;
+  statementEndingBalance: number;
+  notes?: string;
+};
+
+export type CreateBankStatementLinePayload = {
+  transactionDate: string;
+  reference?: string;
+  description?: string;
+  debitAmount: number;
+  creditAmount: number;
+};
+
+export type ImportBankStatementLinesPayload = {
+  lines: CreateBankStatementLinePayload[];
+};
+
+export type CreateBankReconciliationMatchPayload = {
+  statementLineId: string;
+  ledgerTransactionId: string;
+};
+
 export type CreateReceiptPayload = {
   reference?: string;
   transactionDate: string;

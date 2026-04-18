@@ -16,9 +16,15 @@ import {
     BankCashAccountTransactionsResponse,
     BankCashTransaction,
     BankCashTransactionsQuery,
+    BankReconciliation,
+    BankReconciliationsQuery,
+    BankReconciliationListItem,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
     CreateBankCashAccountPayload,
+    CreateBankReconciliationMatchPayload,
+    CreateBankReconciliationPayload,
+    CreateBankStatementLinePayload,
     CreatePaymentPayload,
     CreateReceiptPayload,
     CreateTransferPayload,
@@ -38,6 +44,7 @@ import {
     PaymentMethodType,
     RegisterPayload,
     RegisterResponse,
+    ImportBankStatementLinesPayload,
     SegmentDefinition,
     SegmentValue,
     UpdateAccountPayload,
@@ -308,6 +315,85 @@ export async function updateBankCashTransaction(id: string, payload: UpdateBankC
 
 export async function postBankCashTransaction(id: string, token?: string | null) {
   return apiRequest<BankCashTransaction>(`/bank-cash-transactions/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getBankReconciliations(params: BankReconciliationsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.bankCashAccountId) searchParams.set("bankCashAccountId", params.bankCashAccountId);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<BankReconciliationListItem[]>(`/bank-reconciliations${suffix}`, { token });
+}
+
+export async function getBankReconciliationById(id: string, token?: string | null) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${id}`, { token });
+}
+
+export async function createBankReconciliation(payload: CreateBankReconciliationPayload, token?: string | null) {
+  return apiRequest<BankReconciliation>("/bank-reconciliations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createBankStatementLine(
+  reconciliationId: string,
+  payload: CreateBankStatementLinePayload,
+  token?: string | null,
+) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/statement-lines`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function importBankStatementLines(
+  reconciliationId: string,
+  payload: ImportBankStatementLinesPayload,
+  token?: string | null,
+) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/statement-lines/import`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createBankReconciliationMatch(
+  reconciliationId: string,
+  payload: CreateBankReconciliationMatchPayload,
+  token?: string | null,
+) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/matches`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deleteBankReconciliationMatch(reconciliationId: string, matchId: string, token?: string | null) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/matches/${matchId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function reconcileBankReconciliationMatch(reconciliationId: string, matchId: string, token?: string | null) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/matches/${matchId}/reconcile`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function completeBankReconciliation(reconciliationId: string, token?: string | null) {
+  return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/complete`, {
     method: "POST",
     token,
   });
