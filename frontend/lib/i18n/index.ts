@@ -83,6 +83,8 @@ const enTranslations: Record<string, string> = {
   "bankCash.form.openingBalanceOffsetAccount": "Opening Balance Offset Account",
   "bankCash.form.openingBalanceOffsetPlaceholder": "Select the offset posting account",
   "bankCash.form.openingBalanceOffsetHelp": "Required when opening balance is greater than zero so the entry stays balanced.",
+  "bankCash.error.accountAlreadyLinked": "This chart-of-accounts record is already linked to another bank/cash account.",
+  "bankCash.error.openingBalanceOffsetRequired": "Opening balance offset account is required when an opening balance is provided.",
   "bankCash.form.cancel": "Cancel",
   "bankCash.form.create": "Create",
   "bankCash.form.save": "Save Changes",
@@ -459,14 +461,22 @@ export function useTranslation() {
         };
       }
 
-      void import("./ar").then((module) => {
-        if (isCancelled) {
-          return;
-        }
+      void import("./ar")
+        .then((module) => {
+          if (isCancelled) {
+            return;
+          }
 
-        cachedArabicTranslations = module.default;
-        setTranslations(module.default);
-      });
+          cachedArabicTranslations = module.default;
+          setTranslations(module.default);
+        })
+        .catch(() => {
+          if (isCancelled) {
+            return;
+          }
+
+          setTranslations(enTranslations);
+        });
     } else {
       setTranslations(enTranslations);
     }

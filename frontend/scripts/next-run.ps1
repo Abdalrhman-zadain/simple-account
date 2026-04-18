@@ -7,32 +7,38 @@ param(
 $ErrorActionPreference = "Stop"
 
 $frontendRoot = Split-Path -Parent $PSScriptRoot
-$repoNextDir = Join-Path $frontendRoot ".next"
+$devNextDir = Join-Path $frontendRoot ".next-dev"
+$buildNextDir = Join-Path $frontendRoot ".next"
 
 $nextCli = Join-Path $frontendRoot "node_modules\next\dist\bin\next"
 
-function Reset-NextArtifacts {
-  if (-not (Test-Path -LiteralPath $repoNextDir)) {
+function Reset-NextArtifacts([string]$targetDir) {
+  if (-not (Test-Path -LiteralPath $targetDir)) {
     return
   }
 
-  $item = Get-Item -LiteralPath $repoNextDir -Force
+  $item = Get-Item -LiteralPath $targetDir -Force
   if ($item.Attributes.ToString().Contains("ReparsePoint")) {
-    Remove-Item -LiteralPath $repoNextDir -Recurse -Force
+    Remove-Item -LiteralPath $targetDir -Recurse -Force
     return
   }
 
-  Remove-Item -LiteralPath $repoNextDir -Recurse -Force
+  Remove-Item -LiteralPath $targetDir -Recurse -Force
 }
 
 switch ($Mode) {
   "dev" {
-    Reset-NextArtifacts
+    Reset-NextArtifacts $devNextDir
+    $env:NEXT_DIST_DIR = ".next-dev"
     & node $nextCli dev
   }
   "build" {
-    Reset-NextArtifacts
+    Reset-NextArtifacts $buildNextDir
+    $env:NEXT_DIST_DIR = ".next"
     & node $nextCli build
   }
-  "start" { & node $nextCli start }
+  "start" {
+    $env:NEXT_DIST_DIR = ".next"
+    & node $nextCli start
+  }
 }

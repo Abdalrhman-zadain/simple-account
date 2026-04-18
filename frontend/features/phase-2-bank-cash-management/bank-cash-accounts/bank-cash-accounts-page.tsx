@@ -109,8 +109,8 @@ export function BankCashAccountsPage() {
 
   const editorError = useMemo(() => {
     const error = createMutation.error ?? updateMutation.error;
-    return error instanceof Error ? error.message : null;
-  }, [createMutation.error, updateMutation.error]);
+    return error instanceof Error ? localizeBankCashAccountError(error.message, t) : null;
+  }, [createMutation.error, t, updateMutation.error]);
 
   const openCreate = () => {
     setEditor(EMPTY_EDITOR);
@@ -211,4 +211,16 @@ function toPayload(editor: EditorState) {
     openingBalance: editor.openingBalance ? Number(editor.openingBalance) : undefined,
     openingBalanceOffsetAccountId: editor.openingBalanceOffsetAccountId || undefined,
   };
+}
+
+function localizeBankCashAccountError(message: string, t: (key: string) => string) {
+  if (message === "This chart-of-accounts record is already linked to another bank/cash account.") {
+    return t("bankCash.error.accountAlreadyLinked");
+  }
+
+  if (message === "Opening balance offset account is required when an opening balance is provided.") {
+    return t("bankCash.error.openingBalanceOffsetRequired");
+  }
+
+  return message;
 }
