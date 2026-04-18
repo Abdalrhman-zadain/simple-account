@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import { LuPlus as Plus } from "react-icons/lu";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { LuPlus as Plus, LuArrowLeft as ArrowLeft } from "react-icons/lu";
 
-import { activateAccount, deactivateAccount, getAccountById, getAccountTableRows } from "@/lib/api";
+import { activateAccount, deactivateAccount, deleteAccount, getAccountById, getAccountTableRows } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { Button, PageSkeleton, SectionHeading } from "@/components/ui";
 
 import {
+  applyAccountFilters,
+  appendSearchFilter,
   buildSearchFilters,
   collectStats,
   collectTotalBalance,
@@ -21,7 +23,7 @@ import {
   removeFilterToken,
 } from "./chart-of-accounts.utils";
 import { AccountsBreadcrumbs } from "./components/accounts-breadcrumbs";
-import { AccountsSearchBar } from "./components/accounts-search-bar";
+import { AccountsSearchBar, AccountsSearchBarHandle } from "./components/accounts-search-bar";
 import { AccountsStatsSummary } from "./components/accounts-stats-summary";
 import { AccountsTable } from "./components/accounts-table";
 
@@ -35,9 +37,14 @@ export function AccountsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchBarRef = useRef<AccountsSearchBarHandle>(null);
+  const tableAreaRef = useRef<HTMLDivElement>(null);
+  const lastScrolledId = useRef<string | null>(null);
+
+
 
   const filters = useMemo(() => buildSearchFilters(searchQuery), [searchQuery]);
-  const isSearching = !!(filters.search || filters.type || filters.isActive || filters.isPosting);
+  const isSearching = !!(filters.search || filters.type.length || filters.isActive.length || filters.isPosting.length);
 
   const { data: parentAccount } = useQuery({
     queryKey: ["account", parentId, token],
@@ -48,21 +55,15 @@ export function AccountsPage() {
 
   const accountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, {
-      parentAccountId: isSearching ? undefined : parentId,
+      parentAccountId: parentId,
       search: filters.search,
-      type: filters.type as any,
-      isActive: filters.isActive as any,
-      isPosting: filters.isPosting as any,
       view: "table",
     }),
     queryFn: () =>
       getAccountTableRows(
         {
-          parentAccountId: isSearching ? undefined : parentId,
+          parentAccountId: parentId,
           search: filters.search,
-          type: filters.type as any,
-          isActive: filters.isActive as any,
-          isPosting: filters.isPosting as any,
           view: "table",
         },
         token,
@@ -70,9 +71,24 @@ export function AccountsPage() {
     staleTime: 30_000,
   });
 
+  // Autofocus search bar and scroll to view on navigate
+  useEffect(() => {
+    if (!accountsQuery.isLoading && parentId !== lastScrolledId.current) {
+      if (tableAreaRef.current) {
+        tableAreaRef.current.scrollIntoView({ behavior: "auto", block: "start" });
+        lastScrolledId.current = parentId;
+      }
+    }
+
+    // Always attempt to focus if mounted
+    if (!accountsQuery.isLoading && searchBarRef.current) {
+      searchBarRef.current.focus();
+    }
+  }, [parentId, accountsQuery.isLoading]);
+
   const suggestions = useMemo(() => getCommandSuggestions(searchQuery), [searchQuery]);
   const activeFilters = useMemo(() => getActiveFilterChips(searchQuery), [searchQuery]);
-  const currentAccounts = accountsQuery.data ?? [];
+  const currentAccounts = useMemo(() => applyAccountFilters(accountsQuery.data ?? [], filters), [accountsQuery.data, filters]);
   const stats = useMemo(() => collectStats(currentAccounts), [currentAccounts]);
   const totalBalance = useMemo(() => collectTotalBalance(currentAccounts), [currentAccounts]);
 
@@ -83,6 +99,11 @@ export function AccountsPage() {
 
   const deactivateMutation = useMutation({
     mutationFn: (accountId: string) => deactivateAccount(accountId, token),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (accountId: string) => deleteAccount(accountId, token),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
   });
 
@@ -105,7 +126,20 @@ export function AccountsPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 motion-reduce:animate-none">
       <SectionHeading
-        title={parentAccount ? parentAccount.name : t("accounts.title.root")}
+        title={
+          <div className="flex items-center gap-3">
+            {parentId && (
+              <button
+                onClick={() => navigateTo(parentAccount?.parentAccountId ?? null)}
+                className="group flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white transition-all hover:border-teal-400 hover:text-teal-400"
+                title={t("common.back")}
+              >
+                <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+              </button>
+            )}
+            <span>{parentAccount ? parentAccount.name : t("accounts.title.root")}</span>
+          </div>
+        }
         description={parentAccount ? t("accounts.title.childrenOf", { code: parentAccount.code }) : t("accounts.description.root")}
         action={
           <div className="flex items-center gap-3">
@@ -124,40 +158,47 @@ export function AccountsPage() {
       <AccountsStatsSummary
         stats={stats}
         totalBalance={totalBalance}
-        onSelectType={(type) => setSearchQuery(`type:${type} `)}
+        onSelectType={(type) => setSearchQuery((prev) => appendSearchFilter(prev, `type:${type}`))}
       />
 
-      <AccountsSearchBar
-        searchQuery={searchQuery}
-        activeFilters={activeFilters}
-        suggestions={suggestions}
-        showSuggestions={showSuggestions}
-        onSearchChange={setSearchQuery}
-        onShowSuggestions={() => setShowSuggestions(true)}
-        onHideSuggestions={() => setShowSuggestions(false)}
-        onRemoveFilter={(token) => setSearchQuery((prev) => removeFilterToken(prev, token))}
-        onSelectSuggestion={(value) => {
-          setSearchQuery(`${value} `);
-          setShowSuggestions(false);
-        }}
-      />
+      <div ref={tableAreaRef} className="scroll-mt-10 space-y-8">
+        <AccountsSearchBar
+          ref={searchBarRef}
+          searchQuery={searchQuery}
+          activeFilters={activeFilters}
+          suggestions={suggestions}
+          showSuggestions={showSuggestions}
+          onSearchChange={setSearchQuery}
+          onShowSuggestions={() => setShowSuggestions(true)}
+          onHideSuggestions={() => setShowSuggestions(false)}
+          onRemoveFilter={(token) => setSearchQuery((prev) => removeFilterToken(prev, token))}
+          onSelectSuggestion={(value) => {
+            setSearchQuery((prev) => appendSearchFilter(prev, value));
+            setShowSuggestions(false);
+          }}
+        />
 
-      <AccountsTable
-        accounts={currentAccounts}
-        isLoading={accountsQuery.isLoading}
-        isError={accountsQuery.isError}
-        isPending={accountsQuery.isPending}
-        isSearching={isSearching}
-        parentId={parentId}
-        onEnter={navigateTo}
-        actions={{
-          onActivate: (accountId) => activateMutation.mutate(accountId),
-          onDeactivate: (accountId) => deactivateMutation.mutate(accountId),
-          isMutating: (accountId) =>
-            (activateMutation.isPending && activateMutation.variables === accountId) ||
-            (deactivateMutation.isPending && deactivateMutation.variables === accountId),
-        }}
-      />
+        <AccountsTable
+          accounts={currentAccounts}
+          isLoading={accountsQuery.isLoading}
+          isError={accountsQuery.isError}
+          isPending={accountsQuery.isPending}
+          isSearching={isSearching}
+          parentId={parentId}
+          parentType={parentAccount?.type}
+          onEnter={navigateTo}
+          onBack={() => navigateTo(parentAccount?.parentAccountId ?? null)}
+          actions={{
+            onActivate: (accountId) => activateMutation.mutate(accountId),
+            onDeactivate: (accountId) => deactivateMutation.mutate(accountId),
+            onDelete: (accountId) => deleteMutation.mutate(accountId),
+            isMutating: (accountId) =>
+              (activateMutation.isPending && activateMutation.variables === accountId) ||
+              (deactivateMutation.isPending && deactivateMutation.variables === accountId) ||
+              (deleteMutation.isPending && deleteMutation.variables === accountId),
+          }}
+        />
+      </div>
     </div>
   );
 }

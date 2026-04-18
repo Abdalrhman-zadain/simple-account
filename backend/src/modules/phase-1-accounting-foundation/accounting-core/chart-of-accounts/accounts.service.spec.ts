@@ -11,6 +11,16 @@ describe('AccountsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+    },
+    journalEntryLine: {
+      findFirst: jest.fn(),
+    },
+    ledgerTransaction: {
+      findFirst: jest.fn(),
+    },
+    bankCashAccount: {
+      findFirst: jest.fn(),
     },
   };
 
@@ -22,6 +32,14 @@ describe('AccountsService', () => {
     prisma.account.findUnique.mockResolvedValue(null);
     prisma.account.findFirst.mockReset();
     prisma.account.findFirst.mockResolvedValue(null);
+    prisma.account.delete.mockReset();
+    prisma.account.delete.mockResolvedValue({ id: 'deleted-account' });
+    prisma.journalEntryLine.findFirst.mockReset();
+    prisma.journalEntryLine.findFirst.mockResolvedValue(null);
+    prisma.ledgerTransaction.findFirst.mockReset();
+    prisma.ledgerTransaction.findFirst.mockResolvedValue(null);
+    prisma.bankCashAccount.findFirst.mockReset();
+    prisma.bankCashAccount.findFirst.mockResolvedValue(null);
     prisma.$executeRaw.mockResolvedValue(undefined);
     prisma.$queryRaw.mockResolvedValue([]);
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma as never));
@@ -127,6 +145,21 @@ describe('AccountsService', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('returns the full ancestor path in getById', async () => {
+    prisma.account.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+      if (where.id === 'grandchild') return { id: 'grandchild', parentAccountId: 'child' };
+      if (where.id === 'child') return { id: 'child', parentAccountId: 'root', name: 'Child', code: 'C' };
+      if (where.id === 'root') return { id: 'root', parentAccountId: null, name: 'Root', code: 'R' };
+      return null;
+    });
+
+    const result = (await service.getById('grandchild')) as any;
+
+    expect(result.ancestors).toHaveLength(2);
+    expect(result.ancestors[0].id).toBe('root');
+    expect(result.ancestors[1].id).toBe('child');
+  });
+
   it('returns a lightweight table view when requested', async () => {
     prisma.account.findMany.mockResolvedValue([
       {
@@ -139,6 +172,11 @@ describe('AccountsService', () => {
         currentBalance: { toString: () => '150.00' },
         parentAccountId: 'assets',
         parentAccount: { id: 'assets', name: 'Assets' },
+        _count: {
+          journalLines: 0,
+          ledgerLines: 0,
+          childAccounts: 0,
+        },
       },
     ]);
 
@@ -161,10 +199,72 @@ describe('AccountsService', () => {
               name: true,
             },
           },
+          _count: {
+            select: {
+              journalLines: true,
+              ledgerLines: true,
+            },
+          },
         }),
       }),
     );
     expect(result).toHaveLength(1);
+    expect(result[0].canDelete).toBe(true);
+  });
+
+  it('marks accounts with transfer usage as non-deletable in the table view', async () => {
+    prisma.account.findMany.mockResolvedValue([
+      {
+        id: 'cash',
+        code: '1100001',
+        name: 'Cash',
+        type: 'ASSET',
+        isPosting: true,
+        isActive: true,
+        currentBalance: { toString: () => '150.00' },
+        parentAccountId: 'assets',
+        parentAccount: { id: 'assets', name: 'Assets' },
+        bankCashAccount: null,
+        _count: {
+          childAccounts: 0,
+          journalLines: 1,
+          ledgerLines: 1,
+        },
+      },
+    ]);
+
+    const result = await service.listTableRows({ isActive: 'true' });
+
+    expect(result[0].canDelete).toBe(false);
+  });
+
+  it('marks accounts with child accounts as deletable in the table view if the subtree is clean', async () => {
+    prisma.account.findMany.mockResolvedValueOnce([
+      {
+        id: 'assets',
+        code: '1100000',
+        name: 'Assets',
+        type: 'ASSET',
+        isPosting: false,
+        isActive: true,
+        currentBalance: { toString: () => '0.00' },
+        parentAccountId: null,
+        parentAccount: null,
+        _count: {
+          journalLines: 0,
+          ledgerLines: 0,
+        },
+      },
+    ]);
+
+    // Mock getDescendantIds and hasAnyTransferHistory
+    prisma.account.findMany.mockResolvedValueOnce([]); // No children for getDescendantIds
+    prisma.journalEntryLine.findFirst.mockResolvedValue(null);
+    prisma.ledgerTransaction.findFirst.mockResolvedValue(null);
+
+    const result = await service.listTableRows({ isActive: 'true' });
+
+    expect(result[0].canDelete).toBe(true);
   });
 
   it('rejects creating a child under a posting account', async () => {
@@ -253,5 +353,76 @@ describe('AccountsService', () => {
         }),
       }),
     );
+  });
+
+  it('deletes an account when it has no transfer history and no children', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'unused-account',
+      name: 'Unused Account',
+      isPosting: true,
+    });
+    prisma.account.findMany.mockResolvedValue([]); // No children
+    prisma.account.findFirst.mockResolvedValue(null); // No children (second check)
+
+    const result = await service.remove('unused-account');
+
+    expect(prisma.account.delete).toHaveBeenCalledWith({
+      where: { id: 'unused-account' },
+    });
+  });
+
+  it('rejects deleting an account that has direct journal usage', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'cash',
+      name: 'Cash',
+      isPosting: true,
+    });
+    prisma.account.findMany.mockResolvedValue([]); // No children
+    prisma.journalEntryLine.findFirst.mockResolvedValue({ id: 'line-1' });
+
+    await expect(service.remove('cash')).rejects.toThrow(
+      'Cannot delete an account that has transfer history.',
+    );
+  });
+
+  it('rejects deleting an account when its child has transfers', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'assets-header',
+      name: 'Assets Header',
+      isPosting: false,
+    });
+    // First call to getDescendantIds find children of assets-header
+    prisma.account.findMany.mockResolvedValueOnce([{ id: 'child-account' }]);
+    // Second call to getDescendantIds (recursive) find children of child-account
+    prisma.account.findMany.mockResolvedValueOnce([]);
+
+    // Check transfers for [assets-header, child-account]
+    prisma.journalEntryLine.findFirst.mockResolvedValue({ id: 'line-child' });
+
+    await expect(service.remove('assets-header')).rejects.toThrow(
+      'Cannot delete an account that has transfer history (including its subtree).',
+    );
+  });
+
+  it('cascades deletion to clean children when deleting a head account', async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'clean-header',
+      name: 'Clean Header',
+      isPosting: false,
+    });
+
+    // getDescendantIds
+    prisma.account.findMany.mockResolvedValueOnce([{ id: 'child-1' }]); // children of clean-header
+    prisma.account.findMany.mockResolvedValueOnce([]); // children of child-1
+
+    // hasAnyTransferHistory calls
+    prisma.journalEntryLine.findFirst.mockResolvedValue(null);
+    prisma.ledgerTransaction.findFirst.mockResolvedValue(null);
+
+    await service.remove('clean-header');
+
+    // Should delete child first (because it was reversed), then header
+    expect(prisma.account.delete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'child-1' } }));
+    expect(prisma.account.delete).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'clean-header' } }));
   });
 });

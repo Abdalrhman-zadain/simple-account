@@ -5,7 +5,9 @@ import { LuDatabase as Database, LuRefreshCw as RefreshCw } from "react-icons/lu
 import { Card, StatusPill } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n";
 
-import { AccountsTableProps } from "../chart-of-accounts.types";
+import { cn } from "@/lib/utils";
+import { AccountsTableProps, ChartAccountType } from "../chart-of-accounts.types";
+import { TYPE_STYLES } from "../chart-of-accounts.utils";
 import { AccountRow } from "./account-row";
 
 export function AccountsTable({
@@ -15,7 +17,9 @@ export function AccountsTable({
   isPending,
   isSearching,
   parentId,
+  parentType,
   onEnter,
+  onBack,
   actions,
 }: AccountsTableProps) {
   const { t } = useTranslation();
@@ -28,7 +32,17 @@ export function AccountsTable({
             <Database className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-gray-900">{t("accounts.view.title")}</h2>
+            <h2 className="text-sm font-bold text-gray-900">
+              {t("accounts.view.title")}
+              {parentType && (
+                <span className={cn(
+                  "ml-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest shadow-sm",
+                  TYPE_STYLES[parentType as ChartAccountType].badge
+                )}>
+                  {t(`accountType.${parentType}`)}
+                </span>
+              )}
+            </h2>
             <p className="mt-0.5 text-[10px] font-medium uppercase tracking-widest text-gray-500">
               {parentId ? t("accounts.view.childAccounts") : t("accounts.view.rootAccounts")}
             </p>
@@ -59,6 +73,29 @@ export function AccountsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
+            {parentId && (
+              <tr
+                tabIndex={0}
+                className="group cursor-pointer outline-none transition-all hover:bg-teal-500/5 focus-visible:bg-teal-500/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500/20"
+                onClick={onBack}
+              >
+                <td className="px-10 py-4" colSpan={4}>
+                  <div className="flex items-center gap-6">
+                    <div className="flex h-1.5 w-1.5 items-center justify-center">
+                      <div className="h-1.5 w-1.5 rounded-full bg-teal-500/40 shadow-[0_0_8px_rgba(20,184,166,0.4)]" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-teal-400 group-hover:text-teal-300">
+                        ...
+                      </span>
+                      <span className="text-xs font-semibold text-gray-500 group-hover:text-teal-400/80 transition-colors">
+                        {t("common.back")}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
             {isLoading ? (
               <tr>
                 <td colSpan={4} className="px-6 py-20 text-center">
@@ -79,6 +116,7 @@ export function AccountsTable({
                   key={account.id}
                   account={account}
                   isSearching={isSearching}
+                  showType={!parentId}
                   isMutating={actions.isMutating(account.id)}
                   onEnter={() => {
                     if (!account.isPosting) {
@@ -87,6 +125,7 @@ export function AccountsTable({
                   }}
                   onActivate={() => actions.onActivate(account.id)}
                   onDeactivate={() => actions.onDeactivate(account.id)}
+                  onDelete={() => actions.onDelete(account.id)}
                 />
               ))
             )}

@@ -17,3 +17,4 @@ backend/src/generated/prisma
 frontend/node_modules
 frontend/.next
 *.tsbuildinfo
+.gemini/

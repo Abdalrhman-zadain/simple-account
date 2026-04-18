@@ -46,6 +46,7 @@ Controller responsibility:
 - list accounts
 - return account hierarchy
 - return the next account code
+- delete accounts that have no transfer history
 - activate and deactivate accounts
 - support a lightweight selector list mode for account pickers (`GET /accounts?view=selector`) so dropdowns do not load segment relations they do not use
 - support a lightweight table list mode for the chart page (`GET /accounts?view=table`) so the main account table does not load full segment relations for every visible row
@@ -65,6 +66,7 @@ Important business rules:
 - posting accounts are the real transaction buckets
 - posting accounts must remain leaf nodes and cannot own child accounts
 - child accounts may only be created under header accounts
+- accounts may only be deleted when they have no journal-entry usage and no posted ledger history
 - PostgreSQL also enforces the leaf-node rule so invalid hierarchy writes are rejected below the service layer
 - inactive accounts should not behave like active posting targets
 
@@ -111,14 +113,14 @@ Behavior:
     - Header accounts are visually interactive and suggest navigation (e.g., with a chevron or folder-like behavior).
     - Posting accounts are identified as leaf nodes and do not allow further drilling.
 - **Stats Summary**: The summary bar at the top displays statistics (total accounts, net balance) for the accounts currently visible at the current level.
-- **Search & Filtering**: The search bar allows filtering by name, code, type (e.g., `type:ASSET`), and role (`is:posting`).
+- **Search & Filtering**: The search bar allows filtering by name, code, type (e.g., `type:ASSET`), role (`is:posting`), and status (`status:active`). Users can stack multiple filter tokens in the same search query, including more than one token from the same filter family, and those filters continue to apply within the currently opened account level so header drill-down still works.
 - **Account Codes**: Codes are automatically generated and assigned on the backend based on parent placement and role (Header vs Posting).
   - The system supports **two code strategies**:
     - **Legacy/string codes** (including segmented enterprise-style codes) keep using the existing sibling-based allocation rules.
     - **7-digit numeric hierarchy codes** are enabled when the parent account code is exactly 7 digits (e.g. `1000000`).
       - Header child example: `1000000` → `1100000`
       - Posting child example: `1100000` → `1100001` (increments from the right within the parent range)
-- **Actions**: "Edit" and "Add Child" actions are available on each row via an actions menu or inline icons.
+- **Actions**: "Edit", "Add Child", and activation toggles are available on each row. The delete action is shown only for accounts with no transfer history.
 
 ## Journal Entries
 
@@ -400,6 +402,7 @@ Controller responsibility:
 - manage segment values
 - manage account subtypes (account classes)
 - manage payment method types
+- manage journal entry types
 
 Service responsibility:
 
@@ -410,10 +413,16 @@ Important business rules:
 
 - segment definitions and values shape account coding
 - they are foundational reference data, not ad hoc UI settings
+- `PaymentMethodType` rows drive the allowed values for `BankCashAccount.type`
+- bank/cash account creation and update must reject unknown or inactive payment method types
+- the baseline payment-method list starts with `Bank` and `Cash`, and later custom methods such as `Wallet` or `Click` are added through Master Data
+- journal entry creation and update must reject unknown or inactive journal entry types
 
 Dependencies inside Phase 1:
 
 - used by chart of accounts
+- used by journal entries
+- used by bank/cash accounts
 
 ## Current API Surface
 
@@ -464,6 +473,12 @@ Current backend controller routes:
 - `POST /journal-entry-types`
 - `PATCH /journal-entry-types/:id`
 - `DELETE /journal-entry-types/:id`
+- `GET /bank-cash-accounts`
+- `POST /bank-cash-accounts`
+- `GET /bank-cash-accounts/:id`
+- `PATCH /bank-cash-accounts/:id`
+- `POST /bank-cash-accounts/:id/deactivate`
+- `GET /bank-cash-accounts/:id/transactions`
 - `GET /bank-cash-transactions`
 - `POST /bank-cash-transactions/receipts`
 - `POST /bank-cash-transactions/payments`

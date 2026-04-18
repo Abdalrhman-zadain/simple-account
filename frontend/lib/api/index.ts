@@ -189,6 +189,13 @@ export async function updateAccount(id: string, payload: UpdateAccountPayload, t
   });
 }
 
+export async function deleteAccount(id: string, token?: string | null) {
+  return apiRequest<Account>(`/accounts/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function deactivateAccount(id: string, token?: string | null) {
   return apiRequest<Account>(`/accounts/${id}/deactivate`, { method: "POST", token });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LuChevronRight as ChevronRight, LuCirclePlus as PlusCircle, LuPen as Edit, LuPower as Power, LuPowerOff as PowerOff } from "react-icons/lu";
+import { LuChevronRight as ChevronRight, LuCirclePlus as PlusCircle, LuPen as Edit, LuPower as Power, LuPowerOff as PowerOff, LuTrash2 as Trash } from "react-icons/lu";
 
 import { StatusPill } from "@/components/ui";
 import { useTranslation } from "@/lib/i18n";
@@ -13,17 +13,21 @@ import { TYPE_STYLES } from "../chart-of-accounts.utils";
 export function AccountRow({
   account,
   isSearching,
+  showType,
   isMutating,
   onEnter,
   onActivate,
   onDeactivate,
+  onDelete,
 }: {
   account: AccountTableRow;
   isSearching: boolean;
+  showType?: boolean;
   isMutating: boolean;
   onEnter: () => void;
   onActivate: () => void;
   onDeactivate: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const balanceNum = parseFloat(account.currentBalance);
@@ -55,7 +59,17 @@ export function AccountRow({
               )}
             </div>
             <div className="mt-0.5 flex items-center gap-2">
-              <div className="text-[11px] font-mono font-medium text-gray-500">{account.code}</div>
+              <div className="text-[11px] font-mono font-medium text-gray-500">
+                {account.code}
+                {showType && (
+                  <span className={cn(
+                    "ml-2 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tighter",
+                    style.badge
+                  )}>
+                    {t(`accountType.${account.type}`)}
+                  </span>
+                )}
+              </div>
               {isSearching && account.parentAccount && (
                 <>
                   <div className="h-1 w-1 rounded-full bg-zinc-700" />
@@ -135,6 +149,21 @@ export function AccountRow({
               title={t("accounts.action.activate")}
             >
               <Power className="h-4 w-4" />
+            </button>
+          )}
+          {account.canDelete && (
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                if (confirm(t("accounts.confirm.delete"))) {
+                  onDelete();
+                }
+              }}
+              disabled={isMutating}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-rose-500/10 hover:text-rose-500 disabled:opacity-50"
+              title={t("accounts.action.delete")}
+            >
+              <Trash className="h-4 w-4" />
             </button>
           )}
         </div>
