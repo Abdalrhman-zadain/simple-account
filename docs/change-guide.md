@@ -126,6 +126,39 @@ Checks to run:
 - backend build
 - frontend typecheck
 
+## Add Or Change Sales & Receivables
+
+Where to edit:
+
+- backend `phase-3-sales-receivables/sales-receivables`
+- `backend/prisma/schema.prisma` and Prisma migration files if customer/invoice/note/allocation shape changes
+- frontend `features/phase-3-sales-receivables`
+- route files under `frontend/app/(erp)/sales-receivables`
+- frontend API wrappers/types in `frontend/lib/api` and `frontend/types/api` when UI or integration code is added
+
+What else to check:
+
+- customer records must remain deactivatable without deleting history
+- deactivated customers must not be selectable for new invoices or credit notes
+- invoice and credit-note drafts must stay editable, but posted documents must be locked
+- posting must create a journal entry and use Phase 1 posting logic so ledger rows and balances remain consistent
+- customer balance must increase on posted invoices and decrease on posted credit notes
+- receipt allocations must allow partial and multi-receipt behavior while preventing over-allocation
+- invoice outstanding/allocation status must stay consistent after postings and allocations
+- aging buckets must be derived from posted outstanding balances as of the report date
+
+Must remain compatible:
+
+- Phase 1 journal-entry and posting invariants
+- bank/cash transaction posting behavior used by receipt allocations
+- stable API naming under `/sales-receivables/...`
+
+Checks to run:
+
+- Prisma generate and migration review
+- backend build
+- frontend typecheck
+
 ## Change Account Creation Behavior
 
 Where to edit:

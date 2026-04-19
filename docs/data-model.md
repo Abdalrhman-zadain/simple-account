@@ -94,6 +94,34 @@ Accounting meaning:
 - posted bank/cash transaction records link to the journal entry that created their ledger rows
 - bank reconciliation matches link statement lines to ledger rows and store whether each match has been reconciled
 
+### Sales And Receivables
+
+Main models:
+
+- `Customer`
+- `SalesInvoice`
+- `SalesInvoiceLine`
+- `CreditNote`
+- `CreditNoteLine`
+- `ReceiptAllocation`
+
+Key fields:
+
+- customer `code`, `name`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
+- invoice/credit-note `reference`, `status`, `invoiceDate`/`noteDate`, `totalAmount`, and `journalEntryId`
+- invoice `allocatedAmount`, `outstandingAmount`, and `allocationStatus`
+- line `quantity`, `unitPrice`, `lineAmount`, and `revenueAccountId`
+- allocation `amount`, `allocatedAt`, and links to posted receipt transactions
+
+Accounting meaning:
+
+- customer receivable control links each customer to one posting receivable account
+- invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
+- posting creates journal/ledger history and links each document to its generated journal reference
+- customer balance is incremented on posted invoices and decremented on posted credit notes
+- receipt allocation updates invoice outstanding status while preventing over-allocation
+- aging is derived from posted invoice outstanding balances by age bucket
+
 ### Fiscal Control
 
 Main models:
@@ -222,6 +250,15 @@ Ownership by module:
   - `AuditLog`
 - Platform Auth:
   - `User`
+- Sales & Receivables:
+  - `Customer`
+  - `SalesInvoice`
+  - `SalesInvoiceLine`
+  - `CreditNote`
+  - `CreditNoteLine`
+  - `ReceiptAllocation`
+  - reads posted `BankCashTransaction` for receipt allocations
+  - creates linked `JournalEntry` rows through Phase 1 journal/posting services when invoices and credit notes are posted
 
 ## Balance Integrity Expectations
 

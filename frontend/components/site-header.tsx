@@ -19,6 +19,7 @@ import {
   LuWalletMinimal as WalletMinimal,
   LuReceiptText as ReceiptText,
   LuBadgeCheck as BadgeCheck,
+  LuUsers as Users,
 } from "react-icons/lu";
 
 import { useAuth } from "@/providers/auth-provider";
@@ -27,14 +28,18 @@ import { useTranslation, TranslationKey } from "@/lib/i18n";
 import { useSettings } from "@/providers/settings-provider";
 import { queryKeys } from "@/lib/query-keys";
 import {
+  getAgingReport,
   getAccountOptions,
   getAccounts,
   getAccountSubtypes,
   getBankCashAccounts,
   getBankReconciliations,
   getBankCashTransactions,
+  getCreditNotes,
+  getCustomers,
   getFiscalYears,
   getJournalEntryTypes,
+  getSalesInvoices,
   getSegmentDefinitions,
 } from "@/lib/api";
 
@@ -55,6 +60,7 @@ const navGroups: NavGroup[] = [
       { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
       { href: "/bank-cash-transactions/receipts", labelKey: "nav.item.bankCashTransactions", icon: ReceiptText },
       { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
+      { href: "/sales-receivables", labelKey: "nav.item.salesReceivables", icon: Users },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -170,6 +176,35 @@ export function SiteHeader({
       void queryClient.prefetchQuery({
         queryKey: queryKeys.bankReconciliations(token),
         queryFn: () => getBankReconciliations({}, token),
+        staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/sales-receivables")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.salesCustomers(token, {}),
+        queryFn: () => getCustomers({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.salesInvoices(token, {}),
+        queryFn: () => getSalesInvoices({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.salesCreditNotes(token, {}),
+        queryFn: () => getCreditNotes({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.bankCashTransactions(token, { kind: "RECEIPT", status: "POSTED" }),
+        queryFn: () => getBankCashTransactions({ kind: "RECEIPT", status: "POSTED" }, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.salesAging(token),
+        queryFn: () => getAgingReport(undefined, token),
         staleTime: 30_000,
       });
       return;

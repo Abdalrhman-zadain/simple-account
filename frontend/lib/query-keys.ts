@@ -3,7 +3,9 @@ import type {
   BankCashAccountsQuery,
   BankCashTransactionsQuery,
   BankReconciliationsQuery,
+  CustomersQuery,
   JournalEntriesQuery,
+  SalesDocumentsQuery,
 } from "@/types/api";
 
 type QueryKeyPart = string | number | boolean | null | undefined | Record<string, unknown>;
@@ -40,6 +42,24 @@ export const queryKeys = {
   },
   bankReconciliationById(token: string | null, id: string | null) {
     return ["bank-reconciliation", token, id] as const;
+  },
+  salesCustomers(token: string | null, params: CustomersQuery = {}) {
+    return ["sales-customers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  salesCustomerBalance(token: string | null, customerId: string | null) {
+    return ["sales-customer-balance", token, customerId] as const;
+  },
+  salesCustomerTransactions(token: string | null, customerId: string | null) {
+    return ["sales-customer-transactions", token, customerId] as const;
+  },
+  salesInvoices(token: string | null, params: SalesDocumentsQuery = {}) {
+    return ["sales-invoices", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  salesCreditNotes(token: string | null, params: SalesDocumentsQuery = {}) {
+    return ["sales-credit-notes", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  salesAging(token: string | null, asOfDate?: string) {
+    return ["sales-aging", token, asOfDate ?? null] as const;
   },
   journalEntries(token: string | null, params: JournalEntriesQuery = {}) {
     return ["journal-entries", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;

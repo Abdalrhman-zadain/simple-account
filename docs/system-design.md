@@ -11,6 +11,7 @@ The current business scope is:
 - bank and cash account registry linked to posting accounts for operational balances and history
 - bank/cash receipt, payment, and transfer drafts that post through generated journal entries
 - bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
+- sales and receivables workflows for customers, invoices, credit notes, receipt allocation, balance tracking, and aging
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -48,6 +49,7 @@ The backend root module wires three major concerns:
 - `modules/phase-2-bank-cash-management/bank-cash-accounts`
 - `modules/phase-2-bank-cash-management/bank-cash-transactions`
 - `modules/phase-2-bank-cash-management/bank-reconciliations`
+- `modules/phase-3-sales-receivables`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -121,6 +123,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/bank-cash-transactions/payments`
 - `/bank-cash-transactions/transfers`
 - `/bank-reconciliations`
+- `/sales-receivables`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`
@@ -249,6 +252,27 @@ Resulting accounting meaning:
 - matching links statement lines to posted ledger transactions for the same linked account
 - matched rows can be marked reconciled and retain timestamps for audit review
 - unmatched statement lines and unmatched system transactions remain visible until the user resolves or accepts them
+
+### Sales & Receivables Flow
+
+The sales/receivables flow is:
+
+```text
+Browser or API client
+  -> /sales-receivables/customers|invoices|credit-notes|receipt-allocations|reports/aging
+  -> SalesReceivablesController
+  -> SalesReceivablesService
+  -> Prisma Customer + SalesInvoice + CreditNote + ReceiptAllocation queries
+  -> for posting: create JournalEntry via Phase 1 services, then post through PostingService
+```
+
+Resulting accounting meaning:
+
+- customer master records store payment terms, credit limits, and receivable account linkage
+- sales invoices and credit notes can be drafted, then posted with generated journal entries
+- posting updates customer running balance and links operational documents to journal references
+- receipt allocation updates invoice outstanding/allocated status and prevents over-allocation
+- aging report buckets outstanding posted invoice balances into current, 31-60, 61-90, and over-90 days
 
 ## Module Interaction Rules
 

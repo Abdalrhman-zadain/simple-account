@@ -80,6 +80,7 @@ Current feature areas:
 - `features/accounting/master-data`
 - `features/phase-2-bank-cash-management/bank-cash-accounts`
 - `features/phase-2-bank-cash-management/bank-cash-transactions`
+- `features/phase-3-sales-receivables`
 
 Put code here when:
 
@@ -204,6 +205,18 @@ Current root:
 
 `bank-reconciliations` owns statement-line import/manual entry, statement-to-ledger matching, reconciliation status, and unmatched review endpoints.
 
+### `backend/src/modules/phase-3-sales-receivables`
+
+Purpose:
+
+- implemented Phase 3 sales and receivables workflows
+
+Current root:
+
+- `sales-receivables`
+
+`sales-receivables` owns customers, sales invoices, credit notes, receipt allocations, customer transaction history, and aging report endpoints while reusing Phase 1 journal/posting services for accounting impact.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -215,6 +228,16 @@ Current feature area:
 - `bank-cash-accounts`
 - `bank-cash-transactions`
 - `bank-reconciliations`
+
+### `frontend/features/phase-3-sales-receivables`
+
+Purpose:
+
+- feature-owned UI for implemented Phase 3 sales and receivables workflows
+
+Current feature area:
+
+- `sales-receivables`
 
 ## Edit Placement Rules
 
@@ -230,6 +253,8 @@ Use these rules before editing:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-cash-transactions`
 - bank/cash reconciliation screens:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-reconciliations`
+- sales/receivables screens:
+  - put them in `frontend/features/phase-3-sales-receivables`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -244,6 +269,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-cash-transactions`
 - bank/cash reconciliation workflows:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-reconciliations`
+- sales/receivables customer, invoice, credit-note, allocation, and aging workflows:
+  - put them in `backend/src/modules/phase-3-sales-receivables/sales-receivables`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

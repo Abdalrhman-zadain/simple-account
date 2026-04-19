@@ -2,6 +2,7 @@ import { getApiBaseUrl } from "@/lib/config/api";
 import { clearSession } from "@/lib/storage";
 import { buildAccountQuery } from "@/lib/utils";
 import {
+    AgingReport,
     Account,
     AccountOption,
     AccountsQuery,
@@ -11,6 +12,7 @@ import {
     ApiCheckResult,
     ApiErrorShape,
     AuditLogEntry,
+    AllocateReceiptPayload,
     BankCashAccount,
     BankCashAccountsQuery,
     BankCashAccountTransactionsResponse,
@@ -19,14 +21,21 @@ import {
     BankReconciliation,
     BankReconciliationsQuery,
     BankReconciliationListItem,
+    Customer,
+    CustomerBalance,
+    CustomerTransaction,
+    CustomersQuery,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
+    CreateCreditNotePayload,
+    CreateCustomerPayload,
     CreateBankCashAccountPayload,
     CreateBankReconciliationMatchPayload,
     CreateBankReconciliationPayload,
     CreateBankStatementLinePayload,
     CreatePaymentPayload,
     CreateReceiptPayload,
+    CreateSalesInvoicePayload,
     CreateTransferPayload,
     CreateJournalEntryPayload,
     CreateJournalEntryTypePayload,
@@ -42,17 +51,24 @@ import {
     LoginPayload,
     LoginResponse,
     PaymentMethodType,
+    ReceiptAllocationResult,
     RegisterPayload,
     RegisterResponse,
     ImportBankStatementLinesPayload,
     SegmentDefinition,
     SegmentValue,
+    SalesInvoice,
+    CreditNote,
+    SalesDocumentsQuery,
     UpdateAccountPayload,
     UpdateAccountSubtypePayload,
     UpdateBankCashAccountPayload,
     UpdateBankCashTransactionPayload,
+    UpdateCreditNotePayload,
+    UpdateCustomerPayload,
     UpdateJournalEntryTypePayload,
     UpdatePaymentMethodTypePayload,
+    UpdateSalesInvoicePayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
 
@@ -404,6 +420,130 @@ export async function completeBankReconciliation(reconciliationId: string, token
     method: "POST",
     token,
   });
+}
+
+// ─── Sales & Receivables ──────────────────────────────────────────────────────
+
+export async function getCustomers(params: CustomersQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<Customer[]>(`/sales-receivables/customers${suffix}`, { token });
+}
+
+export async function createCustomer(payload: CreateCustomerPayload, token?: string | null) {
+  return apiRequest<Customer>("/sales-receivables/customers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateCustomer(id: string, payload: UpdateCustomerPayload, token?: string | null) {
+  return apiRequest<Customer>(`/sales-receivables/customers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateCustomer(id: string, token?: string | null) {
+  return apiRequest<Customer>(`/sales-receivables/customers/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getCustomerBalance(customerId: string, token?: string | null) {
+  return apiRequest<CustomerBalance>(`/sales-receivables/customers/${customerId}/balance`, { token });
+}
+
+export async function getCustomerTransactions(customerId: string, token?: string | null) {
+  return apiRequest<CustomerTransaction[]>(`/sales-receivables/customers/${customerId}/transactions`, { token });
+}
+
+export async function getSalesInvoices(params: SalesDocumentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.customerId) searchParams.set("customerId", params.customerId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<SalesInvoice[]>(`/sales-receivables/invoices${suffix}`, { token });
+}
+
+export async function createSalesInvoice(payload: CreateSalesInvoicePayload, token?: string | null) {
+  return apiRequest<SalesInvoice>("/sales-receivables/invoices", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSalesInvoice(id: string, payload: UpdateSalesInvoicePayload, token?: string | null) {
+  return apiRequest<SalesInvoice>(`/sales-receivables/invoices/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postSalesInvoice(id: string, token?: string | null) {
+  return apiRequest<SalesInvoice>(`/sales-receivables/invoices/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getCreditNotes(params: SalesDocumentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.customerId) searchParams.set("customerId", params.customerId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<CreditNote[]>(`/sales-receivables/credit-notes${suffix}`, { token });
+}
+
+export async function createCreditNote(payload: CreateCreditNotePayload, token?: string | null) {
+  return apiRequest<CreditNote>("/sales-receivables/credit-notes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateCreditNote(id: string, payload: UpdateCreditNotePayload, token?: string | null) {
+  return apiRequest<CreditNote>(`/sales-receivables/credit-notes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postCreditNote(id: string, token?: string | null) {
+  return apiRequest<CreditNote>(`/sales-receivables/credit-notes/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function allocateReceipt(payload: AllocateReceiptPayload, token?: string | null) {
+  return apiRequest<ReceiptAllocationResult>("/sales-receivables/receipt-allocations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getAgingReport(asOfDate?: string, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (asOfDate) searchParams.set("asOfDate", asOfDate);
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<AgingReport>(`/sales-receivables/reports/aging${suffix}`, { token });
 }
 
 // ─── Segments ─────────────────────────────────────────────────────────────────

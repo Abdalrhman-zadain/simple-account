@@ -53,6 +53,17 @@ enum BankStatementLineStatus {
   RECONCILED
 }
 
+enum SalesDocumentStatus {
+  DRAFT
+  POSTED
+}
+
+enum AllocationStatus {
+  UNALLOCATED
+  PARTIAL
+  FULLY_ALLOCATED
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -93,6 +104,9 @@ model Account {
   ledgerLines                     LedgerTransaction[]
   bankCashAccount                 BankCashAccount?
   bankCashCounterpartTransactions BankCashTransaction[] @relation("BankCashCounterAccount")
+  customerReceivables             Customer[]            @relation("CustomerReceivableAccount")
+  salesInvoiceRevenueLines        SalesInvoiceLine[]    @relation("SalesInvoiceRevenueAccount")
+  creditNoteRevenueLines          CreditNoteLine[]      @relation("CreditNoteRevenueAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -145,6 +159,7 @@ model BankCashTransaction {
   counterAccount               Account?                  @relation("BankCashCounterAccount", fields: [counterAccountId], references: [id], onDelete: Restrict)
   journalEntryId               String?                   @unique
   journalEntry                 JournalEntry?             @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  receiptAllocations           ReceiptAllocation[]       @relation("ReceiptTransactionAllocations")
   postedAt                     DateTime?
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
@@ -260,6 +275,8 @@ model JournalEntry {
   postingBatchId      String?              @unique
   postingBatch        PostingBatch?        @relation(fields: [postingBatchId], references: [id])
   bankCashTransaction BankCashTransaction?
+  salesInvoice        SalesInvoice?        @relation("SalesInvoiceToJournalEntry")
+  creditNote          CreditNote?          @relation("CreditNoteToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -270,6 +287,120 @@ model JournalEntry {
   @@index([status, entryDate])
   @@index([fiscalPeriodId])
   @@index([journalEntryTypeId])
+}
+
+model Customer {
+  id                  String        @id @default(cuid())
+  code                String        @unique
+  name                String
+  contactInfo         String?
+  paymentTerms        String?
+  creditLimit         Decimal       @default(0) @db.Decimal(18, 2)
+  currentBalance      Decimal       @default(0) @db.Decimal(18, 2)
+  isActive            Boolean       @default(true)
+  receivableAccountId String
+  receivableAccount   Account       @relation("CustomerReceivableAccount", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+  invoices            SalesInvoice[]
+  creditNotes         CreditNote[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([isActive, name])
+}
+
+model SalesInvoice {
+  id               String              @id @default(cuid())
+  reference        String              @unique
+  status           SalesDocumentStatus @default(DRAFT)
+  invoiceDate      DateTime
+  customerId       String
+  customer         Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  description      String?
+  totalAmount      Decimal             @default(0) @db.Decimal(18, 2)
+  allocatedAmount  Decimal             @default(0) @db.Decimal(18, 2)
+  outstandingAmount Decimal            @default(0) @db.Decimal(18, 2)
+  allocationStatus AllocationStatus    @default(UNALLOCATED)
+  journalEntryId   String?             @unique
+  journalEntry     JournalEntry?       @relation("SalesInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines            SalesInvoiceLine[]
+  creditNotes      CreditNote[]
+  receiptAllocations ReceiptAllocation[]
+  postedAt         DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([customerId, status, invoiceDate])
+  @@index([allocationStatus])
+}
+
+model SalesInvoiceLine {
+  id               String       @id @default(cuid())
+  salesInvoiceId   String
+  salesInvoice     SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  lineNumber       Int
+  description      String?
+  quantity         Decimal      @default(1) @db.Decimal(18, 4)
+  unitPrice        Decimal      @db.Decimal(18, 2)
+  lineAmount       Decimal      @db.Decimal(18, 2)
+  revenueAccountId String
+  revenueAccount   Account      @relation("SalesInvoiceRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  createdAt        DateTime     @default(now())
+
+  @@unique([salesInvoiceId, lineNumber])
+  @@index([revenueAccountId])
+}
+
+model CreditNote {
+  id               String              @id @default(cuid())
+  reference        String              @unique
+  status           SalesDocumentStatus @default(DRAFT)
+  noteDate         DateTime
+  customerId       String
+  customer         Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  salesInvoiceId   String?
+  salesInvoice     SalesInvoice?       @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  description      String?
+  totalAmount      Decimal             @default(0) @db.Decimal(18, 2)
+  journalEntryId   String?             @unique
+  journalEntry     JournalEntry?       @relation("CreditNoteToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines            CreditNoteLine[]
+  postedAt         DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([customerId, status, noteDate])
+  @@index([salesInvoiceId])
+}
+
+model CreditNoteLine {
+  id               String     @id @default(cuid())
+  creditNoteId     String
+  creditNote       CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  lineNumber       Int
+  description      String?
+  quantity         Decimal    @default(1) @db.Decimal(18, 4)
+  unitPrice        Decimal    @db.Decimal(18, 2)
+  lineAmount       Decimal    @db.Decimal(18, 2)
+  revenueAccountId String
+  revenueAccount   Account    @relation("CreditNoteRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  createdAt        DateTime   @default(now())
+
+  @@unique([creditNoteId, lineNumber])
+  @@index([revenueAccountId])
+}
+
+model ReceiptAllocation {
+  id                    String              @id @default(cuid())
+  salesInvoiceId        String
+  salesInvoice          SalesInvoice        @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  bankCashTransactionId String
+  bankCashTransaction   BankCashTransaction @relation("ReceiptTransactionAllocations", fields: [bankCashTransactionId], references: [id], onDelete: Restrict)
+  amount                Decimal             @db.Decimal(18, 2)
+  allocatedAt           DateTime            @default(now())
+  createdAt             DateTime            @default(now())
+
+  @@unique([salesInvoiceId, bankCashTransactionId])
+  @@index([bankCashTransactionId])
 }
 
 model JournalEntryLine {

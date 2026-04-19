@@ -437,6 +437,235 @@ export type UpdateBankCashTransactionPayload = Partial<{
   description: string | null;
 }>;
 
+export type SalesDocumentStatus = "DRAFT" | "POSTED";
+export type AllocationStatus = "UNALLOCATED" | "PARTIAL" | "FULLY_ALLOCATED";
+
+export type Customer = {
+  id: string;
+  code: string;
+  name: string;
+  contactInfo?: string | null;
+  paymentTerms?: string | null;
+  creditLimit: string;
+  currentBalance: string;
+  isActive: boolean;
+  receivableAccount: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SalesLine = {
+  id: string;
+  lineNumber: number;
+  description?: string | null;
+  quantity: string;
+  unitPrice: string;
+  lineAmount: string;
+  revenueAccount: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  };
+};
+
+export type SalesInvoice = {
+  id: string;
+  reference: string;
+  status: SalesDocumentStatus;
+  invoiceDate: string;
+  description?: string | null;
+  totalAmount: string;
+  allocatedAmount: string;
+  outstandingAmount: string;
+  allocationStatus: AllocationStatus;
+  postedAt?: string | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  customer: {
+    id: string;
+    code: string;
+    name: string;
+    isActive: boolean;
+    paymentTerms?: string | null;
+    creditLimit: string;
+    currentBalance: string;
+    receivableAccount: Customer["receivableAccount"];
+  };
+  lines: SalesLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreditNote = {
+  id: string;
+  reference: string;
+  status: SalesDocumentStatus;
+  noteDate: string;
+  description?: string | null;
+  totalAmount: string;
+  postedAt?: string | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  linkedInvoice?: { id: string; reference: string } | null;
+  customer: SalesInvoice["customer"];
+  lines: SalesLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CustomerBalance = {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  currentBalance: string;
+  outstandingBalance: string;
+  creditLimit: string;
+  availableCredit: string;
+};
+
+export type CustomerTransaction =
+  | {
+      type: "INVOICE";
+      id: string;
+      reference: string;
+      date: string;
+      amount: string;
+      allocatedAmount: string;
+      outstandingAmount: string;
+      description?: string | null;
+    }
+  | {
+      type: "CREDIT_NOTE";
+      id: string;
+      reference: string;
+      date: string;
+      amount: string;
+      linkedInvoiceId?: string | null;
+      description?: string | null;
+    }
+  | {
+      type: "RECEIPT_ALLOCATION";
+      id: string;
+      reference: string;
+      date: string;
+      amount: string;
+      salesInvoiceId: string;
+      salesInvoiceReference: string;
+    };
+
+export type ReceiptAllocationResult = {
+  allocation: {
+    id: string;
+    salesInvoiceId: string;
+    receiptTransactionId: string;
+    amount: string;
+    allocatedAt: string;
+  };
+  invoice: {
+    id: string;
+    reference: string;
+    totalAmount: string;
+    allocatedAmount: string;
+    outstandingAmount: string;
+    allocationStatus: AllocationStatus;
+  };
+};
+
+export type AgingReportRow = {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  current: string;
+  bucket31To60: string;
+  bucket61To90: string;
+  over90: string;
+  total: string;
+};
+
+export type AgingReport = {
+  asOfDate: string;
+  rows: AgingReportRow[];
+  totals: Omit<AgingReportRow, "customerId" | "customerCode" | "customerName">;
+};
+
+export type CustomersQuery = {
+  isActive?: "true" | "false" | "";
+  search?: string;
+};
+
+export type SalesDocumentsQuery = {
+  status?: SalesDocumentStatus | "";
+  customerId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type CreateCustomerPayload = {
+  code?: string;
+  name: string;
+  contactInfo?: string;
+  paymentTerms?: string;
+  creditLimit: number;
+  receivableAccountId: string;
+};
+
+export type UpdateCustomerPayload = Partial<{
+  name: string;
+  contactInfo: string;
+  paymentTerms: string;
+  creditLimit: number;
+  isActive: boolean;
+  receivableAccountId: string;
+}>;
+
+export type SalesLinePayload = {
+  quantity?: number;
+  unitPrice?: number;
+  lineAmount?: number;
+  description?: string;
+  revenueAccountId: string;
+};
+
+export type CreateSalesInvoicePayload = {
+  reference?: string;
+  invoiceDate: string;
+  customerId: string;
+  description?: string;
+  lines: SalesLinePayload[];
+};
+
+export type UpdateSalesInvoicePayload = Partial<CreateSalesInvoicePayload>;
+
+export type CreateCreditNotePayload = {
+  reference?: string;
+  noteDate: string;
+  customerId: string;
+  salesInvoiceId?: string;
+  description?: string;
+  lines: SalesLinePayload[];
+};
+
+export type UpdateCreditNotePayload = Partial<CreateCreditNotePayload>;
+
+export type AllocateReceiptPayload = {
+  salesInvoiceId: string;
+  receiptTransactionId: string;
+  amount: number;
+};
+
 export type CreateBankCashAccountPayload = {
   type: BankCashAccountType;
   name: string;

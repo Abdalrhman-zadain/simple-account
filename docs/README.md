@@ -29,6 +29,7 @@ These docs describe the currently implemented accounting modules.
 - `phase-2-bank-cash-management/bank-cash-accounts` is implemented.
 - `phase-2-bank-cash-management/bank-cash-transactions` is implemented for receipt, payment, and transfer drafts/posting.
 - `phase-2-bank-cash-management/bank-reconciliations` is implemented for statement-line entry/import, matching, and reconciliation status tracking.
+- `phase-3-sales-receivables` is implemented for customer masters, sales invoices, credit notes, receipt allocation, customer balances, and aging reports.
 - other later ERP phases are **not implemented yet** and should not be described as existing behavior
 
 ## How To Use These Docs
