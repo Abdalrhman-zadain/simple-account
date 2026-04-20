@@ -546,6 +546,7 @@ export type PurchaseInvoiceStatus =
   | "PARTIALLY_PAID"
   | "FULLY_PAID"
   | "CANCELLED";
+export type SupplierPaymentStatus = "DRAFT" | "POSTED" | "CANCELLED";
 
 export type PurchaseRequestLine = {
   id: string;
@@ -754,6 +755,9 @@ export type PurchaseInvoice = {
   discountAmount: string;
   taxAmount: string;
   totalAmount: string;
+  allocatedAmount: string;
+  outstandingAmount: string;
+  allocationStatus: AllocationStatus;
   canEdit: boolean;
   supplier: {
     id: string;
@@ -802,6 +806,89 @@ export type CreatePurchaseInvoicePayload = {
 };
 
 export type UpdatePurchaseInvoicePayload = Partial<CreatePurchaseInvoicePayload>;
+
+export type SupplierPaymentAllocation = {
+  id: string;
+  amount: string;
+  purchaseInvoice: {
+    id: string;
+    reference: string;
+    status: PurchaseInvoiceStatus;
+    invoiceDate: string;
+    totalAmount: string;
+    allocatedAmount: string;
+    outstandingAmount: string;
+  };
+};
+
+export type SupplierPayment = {
+  id: string;
+  reference: string;
+  status: SupplierPaymentStatus;
+  paymentDate: string;
+  amount: string;
+  allocatedAmount: string;
+  unappliedAmount: string;
+  description?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+    defaultCurrency: string;
+    isActive: boolean;
+  };
+  bankCashAccount: {
+    id: string;
+    name: string;
+    type: string;
+    currencyCode: string;
+    account: {
+      id: string;
+      code: string;
+      name: string;
+      currencyCode: string;
+    };
+  };
+  bankCashTransaction?: {
+    id: string;
+    reference: string;
+    status: BankCashTransactionStatus;
+    transactionDate: string;
+    postedAt?: string | null;
+  } | null;
+  allocations: SupplierPaymentAllocation[];
+  postedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SupplierPaymentsQuery = {
+  status?: SupplierPaymentStatus | "";
+  supplierId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type SupplierPaymentAllocationPayload = {
+  purchaseInvoiceId: string;
+  amount: number;
+};
+
+export type CreateSupplierPaymentPayload = {
+  reference?: string;
+  paymentDate: string;
+  supplierId: string;
+  amount: number;
+  bankCashAccountId: string;
+  description?: string;
+  allocations?: SupplierPaymentAllocationPayload[];
+};
+
+export type UpdateSupplierPaymentPayload = Partial<CreateSupplierPaymentPayload>;
 
 export type SalesLine = {
   id: string;

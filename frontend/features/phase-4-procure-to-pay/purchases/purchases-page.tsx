@@ -8,12 +8,15 @@ import {
   closePurchaseRequest,
   closePurchaseOrder,
   cancelPurchaseOrder,
+  cancelSupplierPayment,
   convertPurchaseRequestToOrder,
   createPurchaseInvoice,
   createPurchaseOrder,
   createPurchaseRequest,
+  createSupplierPayment,
   createSupplier,
   deactivateSupplier,
+  getBankCashAccounts,
   getAccountOptions,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
@@ -25,24 +28,28 @@ import {
   markPurchaseOrderFullyReceived,
   markPurchaseOrderPartiallyReceived,
   getSupplierBalance,
+  getSupplierPaymentById,
+  getSupplierPayments,
   getSupplierTransactions,
   getSuppliers,
   rejectPurchaseRequest,
   submitPurchaseRequest,
+  postSupplierPayment,
   updatePurchaseInvoice,
   updatePurchaseOrder,
   updatePurchaseRequest,
+  updateSupplierPayment,
   updateSupplier,
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier } from "@/types/api";
+import type { PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-type Workspace = "suppliers" | "requests" | "orders" | "invoices";
+type Workspace = "suppliers" | "requests" | "orders" | "invoices" | "payments";
 
 type SupplierEditorState = {
   id?: string;
@@ -123,6 +130,23 @@ type PurchaseInvoiceEditorState = {
   lines: PurchaseInvoiceLineEditorState[];
 };
 
+type SupplierPaymentAllocationEditorState = {
+  key: string;
+  purchaseInvoiceId: string;
+  amount: string;
+};
+
+type SupplierPaymentEditorState = {
+  id?: string;
+  reference: string;
+  paymentDate: string;
+  supplierId: string;
+  amount: string;
+  bankCashAccountId: string;
+  description: string;
+  allocations: SupplierPaymentAllocationEditorState[];
+};
+
 const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   code: "",
   name: "",
@@ -168,6 +192,16 @@ const EMPTY_INVOICE_EDITOR = (): PurchaseInvoiceEditorState => ({
   lines: [createEmptyInvoiceLine()],
 });
 
+const EMPTY_PAYMENT_EDITOR = (): SupplierPaymentEditorState => ({
+  reference: "",
+  paymentDate: todayValue(),
+  supplierId: "",
+  amount: "",
+  bankCashAccountId: "",
+  description: "",
+  allocations: [createEmptyPaymentAllocation()],
+});
+
 export function PurchasesPage() {
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -202,6 +236,11 @@ export function PurchasesPage() {
   const [selectedPurchaseInvoiceId, setSelectedPurchaseInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
   const [invoiceEditor, setInvoiceEditor] = useState<PurchaseInvoiceEditorState>(EMPTY_INVOICE_EDITOR);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "CANCELLED">("");
+  const [selectedSupplierPaymentId, setSelectedSupplierPaymentId] = useState<string | null>(null);
+  const [isPaymentEditorOpen, setIsPaymentEditorOpen] = useState(false);
+  const [paymentEditor, setPaymentEditor] = useState<SupplierPaymentEditorState>(EMPTY_PAYMENT_EDITOR);
 
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
@@ -217,6 +256,12 @@ export function PurchasesPage() {
   const invoiceAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const bankCashAccountsQuery = useQuery({
+    queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
+    queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -293,6 +338,27 @@ export function PurchasesPage() {
     queryKey: queryKeys.purchaseInvoiceById(token, selectedPurchaseInvoiceId),
     queryFn: () => getPurchaseInvoiceById(selectedPurchaseInvoiceId!, token),
     enabled: Boolean(selectedPurchaseInvoiceId),
+  });
+
+  const supplierPaymentsQuery = useQuery({
+    queryKey: queryKeys.supplierPayments(token, {
+      search: paymentSearch,
+      status: paymentStatusFilter,
+    }),
+    queryFn: () =>
+      getSupplierPayments(
+        {
+          search: paymentSearch,
+          status: paymentStatusFilter,
+        },
+        token,
+      ),
+  });
+
+  const supplierPaymentDetailQuery = useQuery({
+    queryKey: queryKeys.supplierPaymentById(token, selectedSupplierPaymentId),
+    queryFn: () => getSupplierPaymentById(selectedSupplierPaymentId!, token),
+    enabled: Boolean(selectedSupplierPaymentId),
   });
 
   const createSupplierMutation = useMutation({
@@ -559,6 +625,65 @@ export function PurchasesPage() {
     },
   });
 
+  const createSupplierPaymentMutation = useMutation({
+    mutationFn: () =>
+      createSupplierPayment(
+        {
+          reference: paymentEditor.reference || undefined,
+          paymentDate: paymentEditor.paymentDate,
+          supplierId: paymentEditor.supplierId,
+          amount: Number(paymentEditor.amount || 0),
+          bankCashAccountId: paymentEditor.bankCashAccountId,
+          description: paymentEditor.description || undefined,
+          allocations: mapPaymentEditorAllocations(paymentEditor.allocations),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidatePurchases(queryClient);
+      setSelectedSupplierPaymentId(created.id);
+      closePaymentEditor();
+    },
+  });
+
+  const updateSupplierPaymentMutation = useMutation({
+    mutationFn: () =>
+      updateSupplierPayment(
+        paymentEditor.id!,
+        {
+          reference: paymentEditor.reference || undefined,
+          paymentDate: paymentEditor.paymentDate,
+          supplierId: paymentEditor.supplierId,
+          amount: Number(paymentEditor.amount || 0),
+          bankCashAccountId: paymentEditor.bankCashAccountId,
+          description: paymentEditor.description || undefined,
+          allocations: mapPaymentEditorAllocations(paymentEditor.allocations),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedSupplierPaymentId(updated.id);
+      closePaymentEditor();
+    },
+  });
+
+  const postSupplierPaymentMutation = useMutation({
+    mutationFn: (id: string) => postSupplierPayment(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedSupplierPaymentId(updated.id);
+    },
+  });
+
+  const cancelSupplierPaymentMutation = useMutation({
+    mutationFn: (id: string) => cancelSupplierPayment(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedSupplierPaymentId(updated.id);
+    },
+  });
+
   const suppliers = suppliersQuery.data ?? [];
   const selectedSupplier = useMemo(
     () => suppliers.find((row) => row.id === selectedSupplierId) ?? null,
@@ -580,6 +705,11 @@ export function PurchasesPage() {
     purchaseInvoiceDetailQuery.data ??
     purchaseInvoices.find((row) => row.id === selectedPurchaseInvoiceId) ??
     null;
+  const supplierPayments = supplierPaymentsQuery.data ?? [];
+  const selectedSupplierPayment =
+    supplierPaymentDetailQuery.data ??
+    supplierPayments.find((row) => row.id === selectedSupplierPaymentId) ??
+    null;
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
@@ -595,6 +725,9 @@ export function PurchasesPage() {
   const totalInvoices = purchaseInvoices.length;
   const draftInvoices = purchaseInvoices.filter((row) => row.status === "DRAFT").length;
   const linkedOrderInvoices = purchaseInvoices.filter((row) => row.sourcePurchaseOrder).length;
+  const totalPayments = supplierPayments.length;
+  const draftPayments = supplierPayments.filter((row) => row.status === "DRAFT").length;
+  const postedPayments = supplierPayments.filter((row) => row.status === "POSTED").length;
 
   const supplierSaveError = getMutationErrorMessage(createSupplierMutation.error ?? updateSupplierMutation.error);
   const supplierFormError = getSupplierFormError(supplierEditor);
@@ -619,6 +752,9 @@ export function PurchasesPage() {
   );
   const invoiceSaveError = getMutationErrorMessage(createPurchaseInvoiceMutation.error ?? updatePurchaseInvoiceMutation.error);
   const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor);
+  const paymentSaveError = getMutationErrorMessage(createSupplierPaymentMutation.error ?? updateSupplierPaymentMutation.error);
+  const paymentFormError = getSupplierPaymentFormError(paymentEditor);
+  const paymentActionError = getMutationErrorMessage(postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error);
 
   const activeActionMutationPending =
     submitPurchaseRequestMutation.isPending ||
@@ -631,6 +767,8 @@ export function PurchasesPage() {
     markFullyReceivedMutation.isPending ||
     cancelPurchaseOrderMutation.isPending ||
     closePurchaseOrderMutation.isPending;
+  const activePaymentActionMutationPending =
+    postSupplierPaymentMutation.isPending || cancelSupplierPaymentMutation.isPending;
 
   return (
     <PageShell>
@@ -644,7 +782,9 @@ export function PurchasesPage() {
                 ? t("purchases.requests.description")
                 : workspace === "orders"
                   ? t("purchases.orders.description")
-                  : t("purchases.invoices.description")
+                  : workspace === "invoices"
+                    ? t("purchases.invoices.description")
+                    : t("purchases.payments.description")
           }
           action={
             workspace === "suppliers" ? (
@@ -653,8 +793,10 @@ export function PurchasesPage() {
               <Button onClick={openNewPurchaseRequestEditor}>{t("purchases.action.newRequest")}</Button>
             ) : workspace === "orders" ? (
               <Button onClick={openNewPurchaseOrderEditor}>{t("purchases.action.newOrder")}</Button>
-            ) : (
+            ) : workspace === "invoices" ? (
               <Button onClick={openNewPurchaseInvoiceEditor}>{t("purchases.action.newInvoice")}</Button>
+            ) : (
+              <Button onClick={openNewSupplierPaymentEditor}>{t("purchases.action.newPayment")}</Button>
             )
           }
         />
@@ -671,6 +813,9 @@ export function PurchasesPage() {
           </Button>
           <Button variant={workspace === "invoices" ? "primary" : "secondary"} onClick={() => setWorkspace("invoices")}>
             {t("purchases.workspace.invoices")}
+          </Button>
+          <Button variant={workspace === "payments" ? "primary" : "secondary"} onClick={() => setWorkspace("payments")}>
+            {t("purchases.workspace.payments")}
           </Button>
         </Card>
 
@@ -1217,7 +1362,7 @@ export function PurchasesPage() {
               )}
             </Card>
           </>
-        ) : (
+        ) : workspace === "invoices" ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
               <SummaryCard label={t("purchases.invoices.summary.total")} value={String(totalInvoices)} hint={t("purchases.invoices.summary.totalHint")} />
@@ -1356,6 +1501,177 @@ export function PurchasesPage() {
                           </div>
                         ))}
                       </div>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <SummaryCard label={t("purchases.payments.summary.total")} value={String(totalPayments)} hint={t("purchases.payments.summary.totalHint")} />
+              <SummaryCard label={t("purchases.payments.summary.draft")} value={String(draftPayments)} hint={t("purchases.payments.summary.draftHint")} />
+              <SummaryCard label={t("purchases.payments.summary.posted")} value={String(postedPayments)} hint={t("purchases.payments.summary.postedHint")} />
+            </div>
+
+            <Card className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label={t("purchases.payments.filters.search")}>
+                  <Input value={paymentSearch} onChange={(event) => setPaymentSearch(event.target.value)} placeholder={t("purchases.payments.filters.searchPlaceholder")} />
+                </Field>
+                <Field label={t("purchases.payments.filters.status")}>
+                  <Select value={paymentStatusFilter} onChange={(event) => setPaymentStatusFilter(event.target.value as typeof paymentStatusFilter)}>
+                    <option value="">{t("purchases.filters.allStatuses")}</option>
+                    <option value="DRAFT">{t("purchases.status.draft")}</option>
+                    <option value="POSTED">{t("purchases.invoices.status.posted")}</option>
+                    <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                  </Select>
+                </Field>
+                <div className="flex items-end">
+                  <Button variant="secondary" onClick={() => { setPaymentSearch(""); setPaymentStatusFilter(""); }}>
+                    {t("purchases.action.clearFilters")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("purchases.payments.table.reference")}</TableHead>
+                      <TableHead>{t("purchases.payments.table.supplier")}</TableHead>
+                      <TableHead>{t("purchases.payments.table.date")}</TableHead>
+                      <TableHead>{t("purchases.payments.table.amount")}</TableHead>
+                      <TableHead>{t("purchases.payments.table.status")}</TableHead>
+                      <TableHead>{t("purchases.table.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplierPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                          {t("purchases.payments.empty.list")}
+                        </td>
+                      </tr>
+                    ) : (
+                      supplierPayments.map((row) => (
+                        <tr key={row.id} className={cn("border-t border-gray-100", selectedSupplierPaymentId === row.id && "bg-gray-50/70")}>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.reference}</div>
+                            <div className="text-xs text-gray-500">{row.bankCashAccount.name}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.supplier.code} · {row.supplier.name}</div>
+                            <div className="text-xs text-gray-500">{row.allocations.length} {t("purchases.payments.metric.allocations").toLowerCase()}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">{formatDate(row.paymentDate)}</td>
+                          <td className="px-6 py-4 align-top">{formatCurrency(row.amount)}</td>
+                          <td className="px-6 py-4 align-top">
+                            <StatusPill label={translateSupplierPaymentStatus(row.status, t)} tone={supplierPaymentStatusTone(row.status)} />
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="secondary" size="sm" onClick={() => setSelectedSupplierPaymentId(row.id)}>
+                                {t("purchases.action.view")}
+                              </Button>
+                              {row.canEdit ? (
+                                <Button variant="secondary" size="sm" onClick={() => openEditSupplierPaymentEditor(row)}>
+                                  {t("purchases.action.edit")}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.payments.section.details")}</div>
+                {selectedSupplierPayment ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSupplierPayment.canPost ? (
+                      <Button size="sm" disabled={activePaymentActionMutationPending} onClick={() => confirmAndRun(t("purchases.payments.confirm.post"), () => postSupplierPaymentMutation.mutate(selectedSupplierPayment.id))}>
+                        {t("purchases.action.postPayment")}
+                      </Button>
+                    ) : null}
+                    {selectedSupplierPayment.canCancel ? (
+                      <Button variant="danger" size="sm" disabled={activePaymentActionMutationPending} onClick={() => confirmAndRun(t("purchases.payments.confirm.cancel"), () => cancelSupplierPaymentMutation.mutate(selectedSupplierPayment.id))}>
+                        {t("purchases.action.cancelPayment")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {paymentActionError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                  {paymentActionError}
+                </div>
+              ) : null}
+
+              {!selectedSupplierPayment ? (
+                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
+                  {t("purchases.payments.empty.selectPayment")}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <MiniMetric label={t("purchases.payments.metric.date")} value={formatDate(selectedSupplierPayment.paymentDate)} />
+                    <MiniMetric label={t("purchases.payments.metric.status")} value={translateSupplierPaymentStatus(selectedSupplierPayment.status, t)} />
+                    <MiniMetric label={t("purchases.payments.metric.allocated")} value={formatCurrency(selectedSupplierPayment.allocatedAmount)} />
+                    <MiniMetric label={t("purchases.payments.metric.unapplied")} value={formatCurrency(selectedSupplierPayment.unappliedAmount)} />
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.payments.section.summary")}</div>
+                      <div className="space-y-3 text-sm text-gray-700">
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div className="font-bold text-gray-900">{selectedSupplierPayment.supplier.code} · {selectedSupplierPayment.supplier.name}</div>
+                          <div className="mt-1 text-xs text-gray-500">{selectedSupplierPayment.bankCashAccount.name} · {selectedSupplierPayment.bankCashAccount.type}</div>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div>{t("purchases.payments.field.description")}: {selectedSupplierPayment.description || t("purchases.requests.empty.noDescription")}</div>
+                          <div className="mt-2">{t("purchases.payments.field.bankCash")}: {selectedSupplierPayment.bankCashAccount.account.code} · {selectedSupplierPayment.bankCashAccount.account.name}</div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <MiniMetric label={t("purchases.payments.metric.amount")} value={formatCurrency(selectedSupplierPayment.amount)} />
+                          <MiniMetric label={t("purchases.payments.metric.allocated")} value={formatCurrency(selectedSupplierPayment.allocatedAmount)} />
+                          <MiniMetric label={t("purchases.payments.metric.unapplied")} value={formatCurrency(selectedSupplierPayment.unappliedAmount)} />
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.payments.section.allocations")}</div>
+                      {selectedSupplierPayment.allocations.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+                          {t("purchases.payments.empty.allocations")}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedSupplierPayment.allocations.map((allocation) => (
+                            <div key={allocation.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="font-bold text-gray-900">{allocation.purchaseInvoice.reference}</div>
+                                <div className="text-sm text-gray-500">{formatCurrency(allocation.amount)}</div>
+                              </div>
+                              <div className="mt-2 text-xs text-gray-500">
+                                {translatePurchaseInvoiceStatus(allocation.purchaseInvoice.status, t)} · {formatDate(allocation.purchaseInvoice.invoiceDate)}
+                              </div>
+                              <div className="mt-2 text-xs text-gray-500">
+                                {t("purchases.payments.metric.remainingOnInvoice")}: {formatCurrency(allocation.purchaseInvoice.outstandingAmount)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </Card>
                   </div>
                 </div>
@@ -1856,6 +2172,126 @@ export function PurchasesPage() {
             </div>
           </div>
         </SidePanel>
+
+        <SidePanel
+          isOpen={isPaymentEditorOpen}
+          onClose={closePaymentEditor}
+          title={paymentEditor.id ? t("purchases.dialog.editPayment") : t("purchases.dialog.newPayment")}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.payments.field.reference")} hint={t("purchases.payments.field.referenceHint")}>
+                <Input value={paymentEditor.reference} onChange={(event) => setPaymentEditor((current) => ({ ...current, reference: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.payments.field.paymentDate")}>
+                <Input type="date" value={paymentEditor.paymentDate} onChange={(event) => setPaymentEditor((current) => ({ ...current, paymentDate: event.target.value }))} />
+              </Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.payments.field.supplier")}>
+                <Select value={paymentEditor.supplierId} onChange={(event) => setPaymentEditor((current) => ({ ...current, supplierId: event.target.value }))}>
+                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                  {activeSuppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.code} · {supplier.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("purchases.payments.field.amount")}>
+                <Input type="number" min="0.01" step="0.01" value={paymentEditor.amount} onChange={(event) => setPaymentEditor((current) => ({ ...current, amount: event.target.value }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.payments.field.bankCash")}>
+              <Select value={paymentEditor.bankCashAccountId} onChange={(event) => setPaymentEditor((current) => ({ ...current, bankCashAccountId: event.target.value }))}>
+                <option value="">{t("purchases.payments.empty.selectBankCash")}</option>
+                {(bankCashAccountsQuery.data ?? []).map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name} · {row.type}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label={t("purchases.payments.field.description")}>
+              <Textarea rows={3} value={paymentEditor.description} onChange={(event) => setPaymentEditor((current) => ({ ...current, description: event.target.value }))} />
+            </Field>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.payments.section.editorAllocations")}</div>
+                <Button variant="secondary" size="sm" onClick={addPaymentAllocation}>
+                  {t("purchases.action.addAllocation")}
+                </Button>
+              </div>
+
+              {paymentEditor.allocations.map((allocation, index) => {
+                const supplierInvoices = purchaseInvoices.filter(
+                  (invoice) =>
+                    (!paymentEditor.supplierId || invoice.supplier.id === paymentEditor.supplierId) &&
+                    invoice.status !== "CANCELLED",
+                );
+                const selectedInvoice = supplierInvoices.find((invoice) => invoice.id === allocation.purchaseInvoiceId);
+
+                return (
+                  <div key={allocation.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-bold text-gray-900">{t("purchases.payments.allocation.label", { index: index + 1 })}</div>
+                      {paymentEditor.allocations.length > 1 ? (
+                        <Button variant="danger" size="sm" onClick={() => removePaymentAllocation(allocation.key)}>
+                          {t("purchases.action.remove")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label={t("purchases.payments.field.purchaseInvoice")}>
+                        <Select value={allocation.purchaseInvoiceId} onChange={(event) => updatePaymentAllocation(allocation.key, "purchaseInvoiceId", event.target.value)}>
+                          <option value="">{t("purchases.payments.empty.selectInvoice")}</option>
+                          {supplierInvoices.map((invoice) => (
+                            <option key={invoice.id} value={invoice.id}>
+                              {invoice.reference}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field label={t("purchases.payments.field.allocationAmount")}>
+                        <Input type="number" min="0.01" step="0.01" value={allocation.amount} onChange={(event) => updatePaymentAllocation(allocation.key, "amount", event.target.value)} />
+                      </Field>
+                    </div>
+                    {selectedInvoice ? (
+                      <div className="text-xs text-gray-500">
+                        {t("purchases.payments.metric.remainingOnInvoice")}: {formatCurrency(selectedInvoice.outstandingAmount)}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {paymentFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {paymentFormError}
+              </div>
+            ) : null}
+
+            {paymentSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {paymentSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closePaymentEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => (paymentEditor.id ? updateSupplierPaymentMutation.mutate() : createSupplierPaymentMutation.mutate())} disabled={Boolean(paymentFormError) || createSupplierPaymentMutation.isPending || updateSupplierPaymentMutation.isPending}>
+                {paymentEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
       </div>
     </PageShell>
   );
@@ -2104,6 +2540,69 @@ export function PurchasesPage() {
       lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
     }));
   }
+
+  function openNewSupplierPaymentEditor() {
+    createSupplierPaymentMutation.reset();
+    updateSupplierPaymentMutation.reset();
+    setPaymentEditor(EMPTY_PAYMENT_EDITOR());
+    setIsPaymentEditorOpen(true);
+  }
+
+  function openEditSupplierPaymentEditor(payment: SupplierPayment) {
+    createSupplierPaymentMutation.reset();
+    updateSupplierPaymentMutation.reset();
+    setPaymentEditor({
+      id: payment.id,
+      reference: payment.reference,
+      paymentDate: payment.paymentDate.slice(0, 10),
+      supplierId: payment.supplier.id,
+      amount: payment.amount,
+      bankCashAccountId: payment.bankCashAccount.id,
+      description: payment.description ?? "",
+      allocations: payment.allocations.length
+        ? payment.allocations.map((allocation) => ({
+            key: allocation.id,
+            purchaseInvoiceId: allocation.purchaseInvoice.id,
+            amount: allocation.amount,
+          }))
+        : [createEmptyPaymentAllocation()],
+    });
+    setIsPaymentEditorOpen(true);
+  }
+
+  function closePaymentEditor() {
+    createSupplierPaymentMutation.reset();
+    updateSupplierPaymentMutation.reset();
+    setPaymentEditor(EMPTY_PAYMENT_EDITOR());
+    setIsPaymentEditorOpen(false);
+  }
+
+  function addPaymentAllocation() {
+    setPaymentEditor((current) => ({
+      ...current,
+      allocations: [...current.allocations, createEmptyPaymentAllocation()],
+    }));
+  }
+
+  function removePaymentAllocation(key: string) {
+    setPaymentEditor((current) => ({
+      ...current,
+      allocations: current.allocations.filter((allocation) => allocation.key !== key),
+    }));
+  }
+
+  function updatePaymentAllocation(
+    key: string,
+    field: keyof Omit<SupplierPaymentAllocationEditorState, "key">,
+    value: string,
+  ) {
+    setPaymentEditor((current) => ({
+      ...current,
+      allocations: current.allocations.map((allocation) =>
+        allocation.key === key ? { ...allocation, [field]: value } : allocation,
+      ),
+    }));
+  }
 }
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -2140,6 +2639,9 @@ async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: ["purchase-order"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-invoice"] }),
+    queryClient.invalidateQueries({ queryKey: ["supplier-payments"] }),
+    queryClient.invalidateQueries({ queryKey: ["supplier-payment"] }),
+    queryClient.invalidateQueries({ queryKey: ["bank-cash-accounts"] }),
   ]);
 }
 
@@ -2253,6 +2755,43 @@ function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState) {
   return null;
 }
 
+function getSupplierPaymentFormError(editor: SupplierPaymentEditorState) {
+  if (!editor.supplierId) {
+    return "Supplier selection is required. اختيار المورد مطلوب.";
+  }
+  if (!editor.paymentDate) {
+    return "Payment date is required. تاريخ الدفعة مطلوب.";
+  }
+  if (!editor.amount || Number(editor.amount) <= 0) {
+    return "Payment amount must be greater than zero. مبلغ الدفعة يجب أن يكون أكبر من صفر.";
+  }
+  if (!editor.bankCashAccountId) {
+    return "Bank or cash account is required. حساب البنك أو الصندوق مطلوب.";
+  }
+  const seen = new Set<string>();
+  let allocated = 0;
+  for (const allocation of editor.allocations) {
+    if (!allocation.purchaseInvoiceId && !allocation.amount) {
+      continue;
+    }
+    if (!allocation.purchaseInvoiceId) {
+      return "Each allocation needs a purchase invoice. كل تخصيص يحتاج إلى فاتورة شراء.";
+    }
+    if (seen.has(allocation.purchaseInvoiceId)) {
+      return "The same purchase invoice cannot be allocated twice in one payment. لا يمكن تخصيص نفس فاتورة الشراء مرتين في نفس الدفعة.";
+    }
+    seen.add(allocation.purchaseInvoiceId);
+    if (!allocation.amount || Number(allocation.amount) <= 0) {
+      return "Each allocation amount must be greater than zero. مبلغ كل تخصيص يجب أن يكون أكبر من صفر.";
+    }
+    allocated += Number(allocation.amount);
+  }
+  if (allocated - Number(editor.amount) > 0.0001) {
+    return "Allocated amount cannot exceed payment amount. لا يمكن أن يتجاوز المبلغ المخصص مبلغ الدفعة.";
+  }
+  return null;
+}
+
 function getMutationErrorMessage(error: unknown) {
   if (!error) {
     return null;
@@ -2299,6 +2838,14 @@ function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
   };
 }
 
+function createEmptyPaymentAllocation(): SupplierPaymentAllocationEditorState {
+  return {
+    key: randomKey(),
+    purchaseInvoiceId: "",
+    amount: "",
+  };
+}
+
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
   return lines.map((line) => ({
     itemName: line.itemName || undefined,
@@ -2330,6 +2877,15 @@ function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
     taxAmount: Number(line.taxAmount),
     accountId: line.accountId,
   }));
+}
+
+function mapPaymentEditorAllocations(lines: SupplierPaymentAllocationEditorState[]) {
+  return lines
+    .filter((line) => line.purchaseInvoiceId && line.amount)
+    .map((line) => ({
+      purchaseInvoiceId: line.purchaseInvoiceId,
+      amount: Number(line.amount),
+    }));
 }
 
 function translatePurchaseRequestStatus(status: PurchaseRequest["status"], t: (key: string, vars?: Record<string, string | number>) => string) {
@@ -2385,6 +2941,19 @@ function translatePurchaseInvoiceStatus(status: string, t: (key: string, vars?: 
   }
 }
 
+function translateSupplierPaymentStatus(status: string, t: (key: string, vars?: Record<string, string | number>) => string) {
+  switch (status) {
+    case "DRAFT":
+      return t("purchases.status.draft");
+    case "POSTED":
+      return t("purchases.invoices.status.posted");
+    case "CANCELLED":
+      return t("purchases.status.cancelled");
+    default:
+      return status;
+  }
+}
+
 function statusTone(status: PurchaseRequest["status"]) {
   if (status === "APPROVED") return "positive" as const;
   if (status === "REJECTED") return "warning" as const;
@@ -2403,6 +2972,12 @@ function purchaseOrderStatusTone(status: PurchaseOrder["status"]) {
 function purchaseInvoiceStatusTone(status: PurchaseInvoice["status"]) {
   if (status === "FULLY_PAID") return "positive" as const;
   if (status === "PARTIALLY_PAID") return "warning" as const;
+  if (status === "CANCELLED") return "warning" as const;
+  return "neutral" as const;
+}
+
+function supplierPaymentStatusTone(status: SupplierPayment["status"]) {
+  if (status === "POSTED") return "positive" as const;
   if (status === "CANCELLED") return "warning" as const;
   return "neutral" as const;
 }

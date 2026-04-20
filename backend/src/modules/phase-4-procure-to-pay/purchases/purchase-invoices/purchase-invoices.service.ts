@@ -135,6 +135,9 @@ export class PurchaseInvoicesService {
           discountAmount: this.toAmount(totals.discountAmount),
           taxAmount: this.toAmount(totals.taxAmount),
           totalAmount: this.toAmount(totals.totalAmount),
+          allocatedAmount: this.toAmount(0),
+          outstandingAmount: this.toAmount(totals.totalAmount),
+          allocationStatus: 'UNALLOCATED',
           lines: {
             create: lines.map((line, index) => this.buildPurchaseInvoiceLineCreateInput(line, index + 1)),
           },
@@ -191,6 +194,7 @@ export class PurchaseInvoicesService {
             discountAmount: totals ? this.toAmount(totals.discountAmount) : undefined,
             taxAmount: totals ? this.toAmount(totals.taxAmount) : undefined,
             totalAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
+            outstandingAmount: totals ? this.toAmount(Math.max(0, totals.totalAmount - Number(current.allocatedAmount))) : undefined,
             lines: lines
               ? {
                   create: lines.map((line, index) => this.buildPurchaseInvoiceLineCreateInput(line, index + 1)),
@@ -355,6 +359,9 @@ export class PurchaseInvoicesService {
       discountAmount: row.discountAmount.toString(),
       taxAmount: row.taxAmount.toString(),
       totalAmount: row.totalAmount.toString(),
+      allocatedAmount: row.allocatedAmount.toString(),
+      outstandingAmount: row.outstandingAmount.toString(),
+      allocationStatus: row.allocationStatus,
       canEdit: row.status === PurchaseInvoiceStatus.DRAFT,
       supplier: row.supplier,
       sourcePurchaseOrder: row.sourcePurchaseOrder

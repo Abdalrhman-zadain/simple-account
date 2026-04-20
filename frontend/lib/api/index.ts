@@ -34,6 +34,7 @@ import {
     CreatePurchaseRequestPayload,
     CreatePurchaseOrderPayload,
     CreatePurchaseInvoicePayload,
+    CreateSupplierPaymentPayload,
     CreateSupplierPayload,
     CreateBankCashAccountPayload,
     CreateBankReconciliationMatchPayload,
@@ -73,9 +74,11 @@ import {
     PurchaseRequestConversionResult,
     PurchaseOrder,
     PurchaseInvoice,
+    SupplierPayment,
     PurchaseOrdersQuery,
     PurchaseInvoicesQuery,
     PurchaseRequestsQuery,
+    SupplierPaymentsQuery,
     Supplier,
     SupplierBalance,
     PurchaseRequestStatusNotePayload,
@@ -97,6 +100,7 @@ import {
     UpdatePurchaseRequestPayload,
     UpdatePurchaseOrderPayload,
     UpdatePurchaseInvoicePayload,
+    UpdateSupplierPaymentPayload,
     UpdateSupplierPayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
@@ -659,6 +663,51 @@ export async function updatePurchaseInvoice(id: string, payload: UpdatePurchaseI
   return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getSupplierPayments(params: SupplierPaymentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.supplierId) searchParams.set("supplierId", params.supplierId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<SupplierPayment[]>(`/purchases/supplier-payments${suffix}`, { token });
+}
+
+export async function getSupplierPaymentById(id: string, token?: string | null) {
+  return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}`, { token });
+}
+
+export async function createSupplierPayment(payload: CreateSupplierPaymentPayload, token?: string | null) {
+  return apiRequest<SupplierPayment>("/purchases/supplier-payments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSupplierPayment(id: string, payload: UpdateSupplierPaymentPayload, token?: string | null) {
+  return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postSupplierPayment(id: string, token?: string | null) {
+  return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelSupplierPayment(id: string, token?: string | null) {
+  return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}/cancel`, {
+    method: "POST",
     token,
   });
 }

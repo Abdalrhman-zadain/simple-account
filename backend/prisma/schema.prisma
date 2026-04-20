@@ -116,6 +116,12 @@ enum PurchaseInvoiceStatus {
   CANCELLED
 }
 
+enum SupplierPaymentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -191,6 +197,7 @@ model BankCashAccount {
   sourceTransfers      BankCashTransaction[] @relation("BankCashSourceAccount")
   destinationTransfers BankCashTransaction[] @relation("BankCashDestinationAccount")
   reconciliations      BankReconciliation[]
+  supplierPayments     SupplierPayment[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -219,6 +226,7 @@ model BankCashTransaction {
   journalEntryId               String?                   @unique
   journalEntry                 JournalEntry?             @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
   receiptAllocations           ReceiptAllocation[]       @relation("ReceiptTransactionAllocations")
+  supplierPayment              SupplierPayment?
   postedAt                     DateTime?
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
@@ -388,6 +396,7 @@ model Supplier {
   payableAccount    Account  @relation("SupplierPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
   purchaseOrders    PurchaseOrder[]
   purchaseInvoices  PurchaseInvoice[]
+  supplierPayments  SupplierPayment[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -495,14 +504,19 @@ model PurchaseInvoice {
   discountAmount        Decimal               @default(0) @db.Decimal(18, 2)
   taxAmount             Decimal               @default(0) @db.Decimal(18, 2)
   totalAmount           Decimal               @default(0) @db.Decimal(18, 2)
+  allocatedAmount       Decimal               @default(0) @db.Decimal(18, 2)
+  outstandingAmount     Decimal               @default(0) @db.Decimal(18, 2)
+  allocationStatus      AllocationStatus      @default(UNALLOCATED)
   journalEntryId        String?               @unique
   journalEntry          JournalEntry?         @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines                 PurchaseInvoiceLine[]
+  supplierAllocations   SupplierPaymentAllocation[]
   postedAt              DateTime?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 
   @@index([supplierId, status, invoiceDate])
+  @@index([allocationStatus])
   @@index([sourcePurchaseOrderId])
 }
 
@@ -525,6 +539,44 @@ model PurchaseInvoiceLine {
 
   @@unique([purchaseInvoiceId, lineNumber])
   @@index([accountId])
+}
+
+model SupplierPayment {
+  id                 String                  @id @default(cuid())
+  reference          String                  @unique
+  status             SupplierPaymentStatus   @default(DRAFT)
+  paymentDate        DateTime
+  supplierId         String
+  supplier           Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  amount             Decimal                 @db.Decimal(18, 2)
+  allocatedAmount    Decimal                 @default(0) @db.Decimal(18, 2)
+  unappliedAmount    Decimal                 @default(0) @db.Decimal(18, 2)
+  bankCashAccountId  String
+  bankCashAccount    BankCashAccount         @relation(fields: [bankCashAccountId], references: [id], onDelete: Restrict)
+  description        String?
+  bankCashTransactionId String?              @unique
+  bankCashTransaction BankCashTransaction?   @relation(fields: [bankCashTransactionId], references: [id], onDelete: Restrict)
+  allocations        SupplierPaymentAllocation[]
+  postedAt           DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  @@index([supplierId, status, paymentDate])
+  @@index([bankCashAccountId])
+}
+
+model SupplierPaymentAllocation {
+  id                String           @id @default(cuid())
+  supplierPaymentId String
+  supplierPayment   SupplierPayment  @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  purchaseInvoiceId String
+  purchaseInvoice   PurchaseInvoice  @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
+  amount            Decimal          @db.Decimal(18, 2)
+  allocatedAt       DateTime         @default(now())
+  createdAt         DateTime         @default(now())
+
+  @@unique([supplierPaymentId, purchaseInvoiceId])
+  @@index([purchaseInvoiceId])
 }
 
 model SalesQuotation {
