@@ -167,7 +167,7 @@ export class SalesReceivablesService {
   }
 
   async createQuotation(dto: CreateSalesQuotationDto) {
-    await this.ensureActiveCustomer(dto.customerId);
+    const customer = await this.ensureActiveCustomer(dto.customerId);
     const lines = await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: false });
     const totals = this.computeTotals(lines);
     const reference = dto.reference?.trim() || this.generateReference('QUO');
@@ -387,7 +387,7 @@ export class SalesReceivablesService {
   }
 
   async createSalesOrder(dto: CreateSalesOrderDto) {
-    await this.ensureActiveCustomer(dto.customerId);
+    const customer = await this.ensureActiveCustomer(dto.customerId);
     if (dto.sourceQuotationId) {
       await this.ensureQuotationBelongsToCustomer(dto.sourceQuotationId, dto.customerId);
     }

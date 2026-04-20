@@ -19,6 +19,7 @@ import {
   LuWalletMinimal as WalletMinimal,
   LuReceiptText as ReceiptText,
   LuBadgeCheck as BadgeCheck,
+  LuShoppingCart as ShoppingCart,
   LuUsers as Users,
 } from "react-icons/lu";
 
@@ -40,6 +41,7 @@ import {
   getFiscalYears,
   getJournalEntryTypes,
   getSalesInvoices,
+  getSuppliers,
   getSegmentDefinitions,
 } from "@/lib/api";
 
@@ -61,6 +63,7 @@ const navGroups: NavGroup[] = [
       { href: "/bank-cash-transactions/receipts", labelKey: "nav.item.bankCashTransactions", icon: ReceiptText },
       { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
       { href: "/sales-receivables", labelKey: "nav.item.salesReceivables", icon: Users },
+      { href: "/purchases", labelKey: "nav.item.purchases", icon: ShoppingCart },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -206,6 +209,20 @@ export function SiteHeader({
         queryKey: queryKeys.salesAging(token),
         queryFn: () => getAgingReport(undefined, token),
         staleTime: 30_000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/purchases")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.purchaseSuppliers(token, {}),
+        queryFn: () => getSuppliers({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "LIABILITY", view: "selector" }),
+        queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "LIABILITY" }, token),
+        staleTime: 5 * 60 * 1000,
       });
       return;
     }

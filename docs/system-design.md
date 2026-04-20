@@ -12,6 +12,7 @@ The current business scope is:
 - bank/cash receipt, payment, and transfer drafts that post through generated journal entries
 - bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
 - sales and receivables workflows for customers, quotations, sales orders, invoices, customer receipts, credit notes, receipt allocation, balance tracking, and aging
+- Phase 4 purchases includes supplier master management plus internal purchase requests with approval/status history and conversion into draft purchase orders, while the broader purchase-order, invoice, payment, debit-note, and posting flows are still pending
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -50,6 +51,7 @@ The backend root module wires three major concerns:
 - `modules/phase-2-bank-cash-management/bank-cash-transactions`
 - `modules/phase-2-bank-cash-management/bank-reconciliations`
 - `modules/phase-3-sales-receivables`
+- `modules/phase-4-procure-to-pay/purchases`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -124,6 +126,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/bank-cash-transactions/transfers`
 - `/bank-reconciliations`
 - `/sales-receivables`
+- `/purchases`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`

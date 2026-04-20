@@ -217,6 +217,18 @@ Current root:
 
 `sales-receivables` owns customers, sales invoices, credit notes, receipt allocations, customer transaction history, and aging report endpoints while reusing Phase 1 journal/posting services for accounting impact.
 
+### `backend/src/modules/phase-4-procure-to-pay`
+
+Purpose:
+
+- ownership root for purchases and payable-side operational workflows in Phase 4
+
+Current root:
+
+- `purchases`
+
+`purchases` currently implements the `suppliers` and `purchase-requests` submodules, including approved-request conversion into draft purchase orders, and keeps dedicated ownership boundaries for fuller purchase-order management, purchase invoices, supplier payments, debit notes, posting/accounting integration, and validation/control rules.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -239,6 +251,16 @@ Current feature area:
 
 - `sales-receivables`
 
+### `frontend/features/phase-4-procure-to-pay`
+
+Purpose:
+
+- feature-owned UI for Phase 4 purchases workflows
+
+Current feature area:
+
+- `purchases`
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -255,6 +277,8 @@ Use these rules before editing:
   - put it in `frontend/features/phase-2-bank-cash-management/bank-reconciliations`
 - sales/receivables screens:
   - put them in `frontend/features/phase-3-sales-receivables`
+- purchases screens:
+  - put them in `frontend/features/phase-4-procure-to-pay`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -271,6 +295,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-2-bank-cash-management/bank-reconciliations`
 - sales/receivables customer, invoice, credit-note, allocation, and aging workflows:
   - put them in `backend/src/modules/phase-3-sales-receivables/sales-receivables`
+- purchases, supplier, payable, and purchase document workflows:
+  - put them in `backend/src/modules/phase-4-procure-to-pay/purchases`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

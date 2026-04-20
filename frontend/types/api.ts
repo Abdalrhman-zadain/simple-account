@@ -467,6 +467,180 @@ export type Customer = {
   updatedAt: string;
 };
 
+export type Supplier = {
+  id: string;
+  code: string;
+  name: string;
+  contactInfo?: string | null;
+  paymentTerms?: string | null;
+  taxInfo?: string | null;
+  defaultCurrency: string;
+  currentBalance: string;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  payableAccount: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SuppliersQuery = {
+  isActive?: "true" | "false" | "";
+  search?: string;
+};
+
+export type CreateSupplierPayload = {
+  code?: string;
+  name: string;
+  contactInfo?: string;
+  paymentTerms?: string;
+  taxInfo?: string;
+  defaultCurrency: string;
+  payableAccountId: string;
+};
+
+export type UpdateSupplierPayload = Partial<CreateSupplierPayload>;
+
+export type SupplierBalance = {
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  currentBalance: string;
+  outstandingBalance: string;
+};
+
+export type SupplierTransaction = {
+  type: string;
+  id: string;
+  reference: string;
+  date: string;
+  amount: string;
+  status: string;
+};
+
+export type SupplierTransactionsResponse = {
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  transactions: SupplierTransaction[];
+};
+
+export type PurchaseRequestStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
+export type PurchaseOrderStatus =
+  | "DRAFT"
+  | "ISSUED"
+  | "PARTIALLY_RECEIVED"
+  | "FULLY_RECEIVED"
+  | "CANCELLED"
+  | "CLOSED";
+
+export type PurchaseRequestLine = {
+  id: string;
+  lineNumber: number;
+  itemName?: string | null;
+  description: string;
+  quantity: string;
+  requestedDeliveryDate?: string | null;
+  justification?: string | null;
+};
+
+export type PurchaseRequestStatusHistoryEntry = {
+  id: string;
+  status: PurchaseRequestStatus;
+  note?: string | null;
+  changedAt: string;
+};
+
+export type PurchaseRequestLinkedOrder = {
+  id: string;
+  reference: string;
+  status: PurchaseOrderStatus;
+  orderDate: string;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+  };
+};
+
+export type PurchaseRequest = {
+  id: string;
+  reference: string;
+  status: PurchaseRequestStatus;
+  requestDate: string;
+  description?: string | null;
+  canEdit: boolean;
+  canSubmit: boolean;
+  canApprove: boolean;
+  canReject: boolean;
+  canClose: boolean;
+  canConvertToOrder: boolean;
+  lines: PurchaseRequestLine[];
+  statusHistory: PurchaseRequestStatusHistoryEntry[];
+  linkedPurchaseOrders: PurchaseRequestLinkedOrder[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PurchaseRequestsQuery = {
+  status?: PurchaseRequestStatus | "";
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type PurchaseRequestLinePayload = {
+  itemName?: string;
+  description: string;
+  quantity: number;
+  requestedDeliveryDate?: string;
+  justification?: string;
+};
+
+export type CreatePurchaseRequestPayload = {
+  reference?: string;
+  requestDate: string;
+  description?: string;
+  lines: PurchaseRequestLinePayload[];
+};
+
+export type UpdatePurchaseRequestPayload = Partial<CreatePurchaseRequestPayload>;
+
+export type PurchaseRequestStatusNotePayload = {
+  note?: string;
+};
+
+export type ConvertPurchaseRequestToOrderPayload = {
+  reference?: string;
+  supplierId: string;
+  orderDate: string;
+  currencyCode?: string;
+  description?: string;
+};
+
+export type PurchaseRequestConversionResult = {
+  purchaseRequest: PurchaseRequest;
+  purchaseOrder: {
+    id: string;
+    reference: string;
+    status: PurchaseOrderStatus;
+    orderDate: string;
+    currencyCode: string;
+    supplier: {
+      id: string;
+      code: string;
+      name: string;
+    };
+  };
+};
+
 export type SalesLine = {
   id: string;
   lineNumber: number;

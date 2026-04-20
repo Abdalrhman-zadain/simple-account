@@ -59,3 +59,17 @@ What this means for future edits:
 
 - keep new Phase 3 changes inside `frontend/features/phase-3-sales-receivables` and preserve Arabic/English translation coverage when adding more document actions.
 - add print/export and statement-generation workflows only when their backend routes and output formats are intentionally designed.
+
+## Phase 4 Purchases Status
+
+Current limitation:
+
+- supplier masters and purchase requests are now implemented, and approved requests can open draft purchase orders, but full purchase-order maintenance, purchase invoices, supplier payments, debit notes, and payable posting flows are still not implemented.
+- supplier transaction history still returns an empty list until posted purchase-side financial documents are added in later slices.
+- draft purchase orders created from approved requests are traceability scaffolding only at this stage; issue/receipt/invoice lifecycle management is not exposed yet.
+
+What this means for future edits:
+
+- keep new purchases code inside `backend/src/modules/phase-4-procure-to-pay/purchases` and `frontend/features/phase-4-procure-to-pay`
+- preserve Arabic/English translation coverage when adding purchase statuses, document labels, and workflow actions
+- do not document non-implemented purchase workflows as implemented until the actual routes, data model, and posting behavior exist

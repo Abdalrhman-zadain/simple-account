@@ -25,11 +25,14 @@ import {
     CustomerBalance,
     CustomerReceipt,
     CustomerTransaction,
+    ConvertPurchaseRequestToOrderPayload,
     CustomersQuery,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
     CreateCreditNotePayload,
     CreateCustomerPayload,
+    CreatePurchaseRequestPayload,
+    CreateSupplierPayload,
     CreateBankCashAccountPayload,
     CreateBankReconciliationMatchPayload,
     CreateBankReconciliationPayload,
@@ -64,6 +67,14 @@ import {
     SalesOrder,
     SalesQuotation,
     SalesInvoice,
+    PurchaseRequest,
+    PurchaseRequestConversionResult,
+    PurchaseRequestsQuery,
+    Supplier,
+    SupplierBalance,
+    PurchaseRequestStatusNotePayload,
+    SupplierTransactionsResponse,
+    SuppliersQuery,
     CreditNote,
     SalesDocumentsQuery,
     UpdateAccountPayload,
@@ -77,6 +88,8 @@ import {
     UpdateSalesOrderPayload,
     UpdateSalesQuotationPayload,
     UpdateSalesInvoicePayload,
+    UpdatePurchaseRequestPayload,
+    UpdateSupplierPayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
 
@@ -431,6 +444,119 @@ export async function completeBankReconciliation(reconciliationId: string, token
 }
 
 // ─── Sales & Receivables ──────────────────────────────────────────────────────
+
+export async function getSuppliers(params: SuppliersQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<Supplier[]>(`/purchases/suppliers${suffix}`, { token });
+}
+
+export async function createSupplier(payload: CreateSupplierPayload, token?: string | null) {
+  return apiRequest<Supplier>("/purchases/suppliers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSupplier(id: string, payload: UpdateSupplierPayload, token?: string | null) {
+  return apiRequest<Supplier>(`/purchases/suppliers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateSupplier(id: string, token?: string | null) {
+  return apiRequest<Supplier>(`/purchases/suppliers/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getSupplierBalance(supplierId: string, token?: string | null) {
+  return apiRequest<SupplierBalance>(`/purchases/suppliers/${supplierId}/balance`, { token });
+}
+
+export async function getSupplierTransactions(supplierId: string, token?: string | null) {
+  return apiRequest<SupplierTransactionsResponse>(`/purchases/suppliers/${supplierId}/transactions`, { token });
+}
+
+export async function getPurchaseRequests(params: PurchaseRequestsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PurchaseRequest[]>(`/purchases/purchase-requests${suffix}`, { token });
+}
+
+export async function getPurchaseRequestById(id: string, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}`, { token });
+}
+
+export async function createPurchaseRequest(payload: CreatePurchaseRequestPayload, token?: string | null) {
+  return apiRequest<PurchaseRequest>("/purchases/purchase-requests", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePurchaseRequest(id: string, payload: UpdatePurchaseRequestPayload, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function submitPurchaseRequest(id: string, payload: PurchaseRequestStatusNotePayload = {}, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}/submit`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function approvePurchaseRequest(id: string, payload: PurchaseRequestStatusNotePayload = {}, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function rejectPurchaseRequest(id: string, payload: PurchaseRequestStatusNotePayload = {}, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}/reject`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function closePurchaseRequest(id: string, payload: PurchaseRequestStatusNotePayload = {}, token?: string | null) {
+  return apiRequest<PurchaseRequest>(`/purchases/purchase-requests/${id}/close`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function convertPurchaseRequestToOrder(
+  id: string,
+  payload: ConvertPurchaseRequestToOrderPayload,
+  token?: string | null,
+) {
+  return apiRequest<PurchaseRequestConversionResult>(`/purchases/purchase-requests/${id}/convert-to-order`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
 
 export async function getCustomers(params: CustomersQuery = {}, token?: string | null) {
   const searchParams = new URLSearchParams();

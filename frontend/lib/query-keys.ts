@@ -5,7 +5,9 @@ import type {
   BankReconciliationsQuery,
   CustomersQuery,
   JournalEntriesQuery,
+  PurchaseRequestsQuery,
   SalesDocumentsQuery,
+  SuppliersQuery,
 } from "@/types/api";
 
 type QueryKeyPart = string | number | boolean | null | undefined | Record<string, unknown>;
@@ -45,6 +47,21 @@ export const queryKeys = {
   },
   salesCustomers(token: string | null, params: CustomersQuery = {}) {
     return ["sales-customers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  purchaseSuppliers(token: string | null, params: SuppliersQuery = {}) {
+    return ["purchase-suppliers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  purchaseRequests(token: string | null, params: PurchaseRequestsQuery = {}) {
+    return ["purchase-requests", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  purchaseRequestById(token: string | null, id: string | null) {
+    return ["purchase-request", token, id] as const;
+  },
+  purchaseSupplierBalance(token: string | null, supplierId: string | null) {
+    return ["purchase-supplier-balance", token, supplierId] as const;
+  },
+  purchaseSupplierTransactions(token: string | null, supplierId: string | null) {
+    return ["purchase-supplier-transactions", token, supplierId] as const;
   },
   salesCustomerBalance(token: string | null, customerId: string | null) {
     return ["sales-customer-balance", token, customerId] as const;

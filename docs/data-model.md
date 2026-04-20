@@ -132,6 +132,34 @@ Accounting meaning:
 - receipt allocation updates invoice outstanding status while preventing over-allocation
 - aging is derived from posted invoice outstanding balances by age bucket using due date when present
 
+### Purchases
+
+Main models:
+
+- `Supplier`
+- `PurchaseRequest`
+- `PurchaseRequestLine`
+- `PurchaseRequestStatusHistory`
+- `PurchaseOrder`
+- `PurchaseOrderLine`
+
+Key fields:
+
+- supplier `code`, `name`, `contactInfo`, `paymentTerms`, `taxInfo`, `defaultCurrency`, `currentBalance`, and `isActive`
+- purchase request `reference`, `status`, `requestDate`, optional `description`, and linked request lines
+- request line `itemName`, `description`, `quantity`, `requestedDeliveryDate`, and `justification`
+- request status history `status`, `note`, and `changedAt`
+- purchase order `reference`, `status`, `orderDate`, `supplierId`, `currencyCode`, `sourcePurchaseRequestId`, and totals
+- purchase order line `itemName`, `description`, `quantity`, `unitPrice`, `taxAmount`, `lineTotalAmount`, and `requestedDeliveryDate`
+
+Accounting meaning:
+
+- supplier masters link each supplier to one posting payable account and preserve history after deactivation
+- purchase requests are internal pre-procurement documents with draft, submitted, approved, rejected, and closed states
+- request status transitions are stored separately so approval history remains auditable
+- approved purchase requests can open a draft purchase order while preserving source-request traceability
+- draft purchase orders created from requests are scaffolding for the later purchase-order workflow and do not yet carry posting behavior or receipt/invoice matching
+
 ### Fiscal Control
 
 Main models:
@@ -274,6 +302,14 @@ Ownership by module:
 - reads posted `BankCashTransaction` for receipt allocations
 - creates optional customer-linked posted `BankCashTransaction` rows for receipts recorded from the Sales module
   - creates linked `JournalEntry` rows through Phase 1 journal/posting services when invoices and credit notes are posted
+- Purchases:
+  - `Supplier`
+  - `PurchaseRequest`
+  - `PurchaseRequestLine`
+  - `PurchaseRequestStatusHistory`
+  - `PurchaseOrder`
+  - `PurchaseOrderLine`
+  - currently owns supplier masters, purchase-request lifecycle, request-status audit history, and request-to-draft-order traceability
 
 ## Balance Integrity Expectations
 

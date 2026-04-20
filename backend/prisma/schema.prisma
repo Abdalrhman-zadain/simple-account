@@ -91,6 +91,23 @@ enum AllocationStatus {
   FULLY_ALLOCATED
 }
 
+enum PurchaseRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CANCELLED
+  CLOSED
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -132,6 +149,8 @@ model Account {
   bankCashAccount                 BankCashAccount?
   bankCashCounterpartTransactions BankCashTransaction[] @relation("BankCashCounterAccount")
   customerReceivables             Customer[]            @relation("CustomerReceivableAccount")
+  supplierPayables               Supplier[]            @relation("SupplierPayableAccount")
+  purchaseRequestExpenseLines     PurchaseRequestLine[] @relation("PurchaseRequestExpenseAccount")
   salesQuotationRevenueLines      SalesQuotationLine[]  @relation("SalesQuotationRevenueAccount")
   salesOrderRevenueLines          SalesOrderLine[]      @relation("SalesOrderRevenueAccount")
   salesInvoiceRevenueLines        SalesInvoiceLine[]    @relation("SalesInvoiceRevenueAccount")
@@ -343,6 +362,110 @@ model Customer {
   updatedAt            DateTime              @updatedAt
 
   @@index([isActive, name])
+}
+
+model Supplier {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  contactInfo       String?
+  paymentTerms      String?
+  taxInfo           String?
+  defaultCurrency   String   @default("JOD")
+  currentBalance    Decimal  @default(0) @db.Decimal(18, 2)
+  isActive          Boolean  @default(true)
+  payableAccountId  String
+  payableAccount    Account  @relation("SupplierPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  purchaseOrders    PurchaseOrder[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive, name])
+}
+
+model PurchaseRequest {
+  id             String                       @id @default(cuid())
+  reference      String                       @unique
+  status         PurchaseRequestStatus        @default(DRAFT)
+  requestDate    DateTime
+  description    String?
+  lines          PurchaseRequestLine[]
+  statusHistory  PurchaseRequestStatusHistory[]
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  @@index([status, requestDate])
+}
+
+model PurchaseRequestLine {
+  id                    String           @id @default(cuid())
+  purchaseRequestId     String
+  purchaseRequest       PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  lineNumber            Int
+  itemName              String?
+  description           String
+  quantity              Decimal          @default(1) @db.Decimal(18, 4)
+  requestedDeliveryDate DateTime?
+  justification         String?
+  expenseAccountId      String?
+  expenseAccount        Account?         @relation("PurchaseRequestExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  createdAt             DateTime         @default(now())
+
+  @@unique([purchaseRequestId, lineNumber])
+  @@index([requestedDeliveryDate])
+  @@index([expenseAccountId])
+}
+
+model PurchaseRequestStatusHistory {
+  id                String                @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest       @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  status            PurchaseRequestStatus
+  note              String?
+  changedAt         DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+
+  @@index([purchaseRequestId, changedAt])
+}
+
+model PurchaseOrder {
+  id                      String              @id @default(cuid())
+  reference               String              @unique
+  status                  PurchaseOrderStatus @default(DRAFT)
+  orderDate               DateTime
+  supplierId              String
+  supplier                Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  currencyCode            String              @default("JOD")
+  description             String?
+  sourcePurchaseRequestId String?
+  sourcePurchaseRequest   PurchaseRequest?    @relation(fields: [sourcePurchaseRequestId], references: [id], onDelete: Restrict)
+  subtotalAmount          Decimal             @default(0) @db.Decimal(18, 2)
+  taxAmount               Decimal             @default(0) @db.Decimal(18, 2)
+  totalAmount             Decimal             @default(0) @db.Decimal(18, 2)
+  lines                   PurchaseOrderLine[]
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([supplierId, status, orderDate])
+  @@index([sourcePurchaseRequestId])
+}
+
+model PurchaseOrderLine {
+  id                    String        @id @default(cuid())
+  purchaseOrderId       String
+  purchaseOrder         PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  lineNumber            Int
+  itemName              String?
+  description           String
+  quantity              Decimal       @default(1) @db.Decimal(18, 4)
+  unitPrice             Decimal       @default(0) @db.Decimal(18, 2)
+  taxAmount             Decimal       @default(0) @db.Decimal(18, 2)
+  lineTotalAmount       Decimal       @default(0) @db.Decimal(18, 2)
+  requestedDeliveryDate DateTime?
+  createdAt             DateTime      @default(now())
+
+  @@unique([purchaseOrderId, lineNumber])
 }
 
 model SalesQuotation {
