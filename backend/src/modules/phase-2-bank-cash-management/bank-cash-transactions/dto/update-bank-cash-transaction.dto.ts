@@ -35,6 +35,10 @@ export class UpdateBankCashTransactionDto {
 
   @IsOptional()
   @IsString()
+  customerId?: string | null;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   counterpartyName?: string | null;
 

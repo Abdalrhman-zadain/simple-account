@@ -5,10 +5,15 @@ import {
   AllocateReceiptDto,
   CreateCreditNoteDto,
   CreateCustomerDto,
+  CreateCustomerReceiptDto,
   CreateSalesInvoiceDto,
+  CreateSalesOrderDto,
+  CreateSalesQuotationDto,
   UpdateCreditNoteDto,
   UpdateCustomerDto,
   UpdateSalesInvoiceDto,
+  UpdateSalesOrderDto,
+  UpdateSalesQuotationDto,
 } from './dto/sales-receivables.dto';
 import { SalesReceivablesService } from './sales-receivables.service';
 
@@ -18,10 +23,7 @@ export class SalesReceivablesController {
   constructor(private readonly service: SalesReceivablesService) {}
 
   @Get('customers')
-  listCustomers(
-    @Query('isActive') isActive?: string,
-    @Query('search') search?: string,
-  ) {
+  listCustomers(@Query('isActive') isActive?: string, @Query('search') search?: string) {
     return this.service.listCustomers({ isActive, search });
   }
 
@@ -50,9 +52,86 @@ export class SalesReceivablesController {
     return this.service.getCustomerTransactions(id);
   }
 
+  @Get('quotations')
+  listQuotations(
+    @Query('status') status?: string,
+    @Query('customerId') customerId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.listQuotations({ status, customerId, dateFrom, dateTo, search });
+  }
+
+  @Post('quotations')
+  createQuotation(@Body() dto: CreateSalesQuotationDto) {
+    return this.service.createQuotation(dto);
+  }
+
+  @Patch('quotations/:id')
+  updateQuotation(@Param('id') id: string, @Body() dto: UpdateSalesQuotationDto) {
+    return this.service.updateQuotation(id, dto);
+  }
+
+  @Post('quotations/:id/approve')
+  approveQuotation(@Param('id') id: string) {
+    return this.service.approveQuotation(id);
+  }
+
+  @Post('quotations/:id/cancel')
+  cancelQuotation(@Param('id') id: string) {
+    return this.service.cancelQuotation(id);
+  }
+
+  @Post('quotations/:id/convert-to-order')
+  convertQuotationToOrder(@Param('id') id: string, @Body() dto: CreateSalesOrderDto) {
+    return this.service.convertQuotationToOrder(id, dto);
+  }
+
+  @Post('quotations/:id/convert-to-invoice')
+  convertQuotationToInvoice(@Param('id') id: string, @Body() dto: CreateSalesInvoiceDto) {
+    return this.service.convertQuotationToInvoice(id, dto);
+  }
+
+  @Get('sales-orders')
+  listSalesOrders(
+    @Query('status') status?: string,
+    @Query('customerId') customerId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.listSalesOrders({ status, customerId, dateFrom, dateTo, search });
+  }
+
+  @Post('sales-orders')
+  createSalesOrder(@Body() dto: CreateSalesOrderDto) {
+    return this.service.createSalesOrder(dto);
+  }
+
+  @Patch('sales-orders/:id')
+  updateSalesOrder(@Param('id') id: string, @Body() dto: UpdateSalesOrderDto) {
+    return this.service.updateSalesOrder(id, dto);
+  }
+
+  @Post('sales-orders/:id/confirm')
+  confirmSalesOrder(@Param('id') id: string) {
+    return this.service.confirmSalesOrder(id);
+  }
+
+  @Post('sales-orders/:id/cancel')
+  cancelSalesOrder(@Param('id') id: string) {
+    return this.service.cancelSalesOrder(id);
+  }
+
+  @Post('sales-orders/:id/convert-to-invoice')
+  convertSalesOrderToInvoice(@Param('id') id: string, @Body() dto: CreateSalesInvoiceDto) {
+    return this.service.convertSalesOrderToInvoice(id, dto);
+  }
+
   @Get('invoices')
   listInvoices(
-    @Query('status') status?: 'DRAFT' | 'POSTED',
+    @Query('status') status?: string,
     @Query('customerId') customerId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
@@ -78,7 +157,7 @@ export class SalesReceivablesController {
 
   @Get('credit-notes')
   listCreditNotes(
-    @Query('status') status?: 'DRAFT' | 'POSTED',
+    @Query('status') status?: string,
     @Query('customerId') customerId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
@@ -102,6 +181,16 @@ export class SalesReceivablesController {
     return this.service.postCreditNote(id);
   }
 
+  @Get('receipts')
+  listCustomerReceipts(@Query('customerId') customerId?: string, @Query('search') search?: string) {
+    return this.service.listCustomerReceipts({ customerId, search });
+  }
+
+  @Post('receipts')
+  createCustomerReceipt(@Body() dto: CreateCustomerReceiptDto) {
+    return this.service.createCustomerReceipt(dto);
+  }
+
   @Post('receipt-allocations')
   allocateReceipt(@Body() dto: AllocateReceiptDto) {
     return this.service.allocateReceipt(dto);
@@ -112,4 +201,3 @@ export class SalesReceivablesController {
     return this.service.getAgingReport(asOfDate);
   }
 }
-

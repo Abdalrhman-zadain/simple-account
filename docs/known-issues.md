@@ -40,10 +40,22 @@ If code and docs drift:
 
 Current limitation:
 
-- customer and supplier master records are not implemented in the current system, so receipt/payment transactions currently store an optional `counterpartyName` instead of a relational customer/supplier link.
+- supplier master records are not implemented yet, so payment transactions still rely on `counterpartyName` rather than a relational supplier link.
+- customer-linked receipt transactions are now supported for Sales & Receivables flows, but the generic Phase 2 payment/receipt UI still primarily exposes `counterpartyName`.
 - reconciliation statement import currently uses structured line entry and bulk line import inside the app/API; bank-specific file parser formats are not implemented yet.
 
 What this means for future edits:
 
-- add customer/supplier relations only after the owning customer/supplier modules or master records exist
+- add supplier relations only after the owning supplier module or master records exist
 - keep reconciliation as a separate Phase 2 submodule instead of mixing statement matching into the receipt/payment/transfer transaction service
+
+## Phase 3 Sales UI Coverage
+
+Current limitation:
+
+- the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace, but document export/printing and customer statement output are still not implemented.
+
+What this means for future edits:
+
+- keep new Phase 3 changes inside `frontend/features/phase-3-sales-receivables` and preserve Arabic/English translation coverage when adding more document actions.
+- add print/export and statement-generation workflows only when their backend routes and output formats are intentionally designed.

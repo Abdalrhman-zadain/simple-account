@@ -437,7 +437,10 @@ export type UpdateBankCashTransactionPayload = Partial<{
   description: string | null;
 }>;
 
-export type SalesDocumentStatus = "DRAFT" | "POSTED";
+export type QuotationStatus = "DRAFT" | "APPROVED" | "EXPIRED" | "CONVERTED" | "CANCELLED";
+export type SalesOrderStatus = "DRAFT" | "CONFIRMED" | "PARTIALLY_INVOICED" | "FULLY_INVOICED" | "CANCELLED";
+export type SalesInvoiceStatus = "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "FULLY_PAID" | "OVERDUE" | "CANCELLED";
+export type CreditNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED";
 export type AllocationStatus = "UNALLOCATED" | "PARTIAL" | "FULLY_ALLOCATED";
 
 export type Customer = {
@@ -445,6 +448,8 @@ export type Customer = {
   code: string;
   name: string;
   contactInfo?: string | null;
+  taxInfo?: string | null;
+  salesRepresentative?: string | null;
   paymentTerms?: string | null;
   creditLimit: string;
   currentBalance: string;
@@ -465,9 +470,13 @@ export type Customer = {
 export type SalesLine = {
   id: string;
   lineNumber: number;
+  itemName?: string | null;
   description?: string | null;
   quantity: string;
   unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
+  lineSubtotalAmount: string;
   lineAmount: string;
   revenueAccount: {
     id: string;
@@ -477,15 +486,69 @@ export type SalesLine = {
     currencyCode: string;
     isActive: boolean;
     isPosting: boolean;
+  } | null;
+};
+
+export type SalesQuotation = {
+  id: string;
+  reference: string;
+  status: QuotationStatus;
+  quotationDate: string;
+  validityDate: string;
+  currencyCode: string;
+  description?: string | null;
+  subtotalAmount: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  convertedAt?: string | null;
+  customer: {
+    id: string;
+    code: string;
+    name: string;
+    isActive: boolean;
+    paymentTerms?: string | null;
+    creditLimit: string;
+    currentBalance: string;
+    receivableAccount: Customer["receivableAccount"];
   };
+  lines: SalesLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SalesOrder = {
+  id: string;
+  reference: string;
+  status: SalesOrderStatus;
+  orderDate: string;
+  promisedDate?: string | null;
+  currencyCode: string;
+  shippingDetails?: string | null;
+  description?: string | null;
+  subtotalAmount: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  sourceQuotation?: { id: string; reference: string } | null;
+  customer: SalesQuotation["customer"];
+  salesInvoices: Array<{ id: string; reference: string; totalAmount: string; status: SalesInvoiceStatus }>;
+  lines: SalesLine[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type SalesInvoice = {
   id: string;
   reference: string;
-  status: SalesDocumentStatus;
+  status: SalesInvoiceStatus;
   invoiceDate: string;
+  dueDate?: string | null;
+  currencyCode: string;
   description?: string | null;
+  subtotalAmount: string;
+  discountAmount: string;
+  taxAmount: string;
   totalAmount: string;
   allocatedAmount: string;
   outstandingAmount: string;
@@ -493,6 +556,8 @@ export type SalesInvoice = {
   postedAt?: string | null;
   journalEntryId?: string | null;
   journalReference?: string | null;
+  sourceQuotation?: { id: string; reference: string } | null;
+  sourceSalesOrder?: { id: string; reference: string } | null;
   customer: {
     id: string;
     code: string;
@@ -511,9 +576,13 @@ export type SalesInvoice = {
 export type CreditNote = {
   id: string;
   reference: string;
-  status: SalesDocumentStatus;
+  status: CreditNoteStatus;
   noteDate: string;
+  currencyCode: string;
   description?: string | null;
+  subtotalAmount: string;
+  discountAmount: string;
+  taxAmount: string;
   totalAmount: string;
   postedAt?: string | null;
   journalEntryId?: string | null;
@@ -556,6 +625,14 @@ export type CustomerTransaction =
       description?: string | null;
     }
   | {
+      type: "RECEIPT";
+      id: string;
+      reference: string;
+      date: string;
+      amount: string;
+      description?: string | null;
+    }
+  | {
       type: "RECEIPT_ALLOCATION";
       id: string;
       reference: string;
@@ -580,7 +657,30 @@ export type ReceiptAllocationResult = {
     allocatedAmount: string;
     outstandingAmount: string;
     allocationStatus: AllocationStatus;
+    status: SalesInvoiceStatus;
   };
+};
+
+export type CustomerReceipt = {
+  id: string;
+  reference: string;
+  status: BankCashTransactionStatus;
+  receiptDate: string;
+  amount: string;
+  allocatedAmount: string;
+  unappliedAmount: string;
+  settlementReference?: string | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  customer?: { id: string; code: string; name: string } | null;
+  bankCashAccount?: {
+    id: string;
+    name: string;
+    type: BankCashAccountType;
+    currencyCode: string;
+    account: Customer["receivableAccount"];
+  } | null;
 };
 
 export type AgingReportRow = {
@@ -606,7 +706,7 @@ export type CustomersQuery = {
 };
 
 export type SalesDocumentsQuery = {
-  status?: SalesDocumentStatus | "";
+  status?: string;
   customerId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -617,6 +717,8 @@ export type CreateCustomerPayload = {
   code?: string;
   name: string;
   contactInfo?: string;
+  taxInfo?: string;
+  salesRepresentative?: string;
   paymentTerms?: string;
   creditLimit: number;
   receivableAccountId: string;
@@ -625,6 +727,8 @@ export type CreateCustomerPayload = {
 export type UpdateCustomerPayload = Partial<{
   name: string;
   contactInfo: string;
+  taxInfo: string;
+  salesRepresentative: string;
   paymentTerms: string;
   creditLimit: number;
   isActive: boolean;
@@ -632,17 +736,50 @@ export type UpdateCustomerPayload = Partial<{
 }>;
 
 export type SalesLinePayload = {
+  itemName?: string;
   quantity?: number;
   unitPrice?: number;
+  discountAmount?: number;
+  taxAmount?: number;
   lineAmount?: number;
   description?: string;
-  revenueAccountId: string;
+  revenueAccountId?: string;
 };
+
+export type CreateSalesQuotationPayload = {
+  reference?: string;
+  quotationDate: string;
+  validityDate: string;
+  customerId: string;
+  currencyCode?: string;
+  description?: string;
+  lines: SalesLinePayload[];
+};
+
+export type UpdateSalesQuotationPayload = Partial<CreateSalesQuotationPayload>;
+
+export type CreateSalesOrderPayload = {
+  reference?: string;
+  orderDate: string;
+  promisedDate?: string;
+  customerId: string;
+  currencyCode?: string;
+  sourceQuotationId?: string;
+  shippingDetails?: string;
+  description?: string;
+  lines: SalesLinePayload[];
+};
+
+export type UpdateSalesOrderPayload = Partial<CreateSalesOrderPayload>;
 
 export type CreateSalesInvoicePayload = {
   reference?: string;
   invoiceDate: string;
+  dueDate?: string;
   customerId: string;
+  currencyCode?: string;
+  sourceQuotationId?: string;
+  sourceSalesOrderId?: string;
   description?: string;
   lines: SalesLinePayload[];
 };
@@ -653,6 +790,7 @@ export type CreateCreditNotePayload = {
   reference?: string;
   noteDate: string;
   customerId: string;
+  currencyCode?: string;
   salesInvoiceId?: string;
   description?: string;
   lines: SalesLinePayload[];
@@ -664,6 +802,16 @@ export type AllocateReceiptPayload = {
   salesInvoiceId: string;
   receiptTransactionId: string;
   amount: number;
+};
+
+export type CreateCustomerReceiptPayload = {
+  reference?: string;
+  receiptDate: string;
+  customerId: string;
+  amount: number;
+  bankCashAccountId: string;
+  settlementReference?: string;
+  description?: string;
 };
 
 export type CreateBankCashAccountPayload = {

@@ -11,7 +11,7 @@ The current business scope is:
 - bank and cash account registry linked to posting accounts for operational balances and history
 - bank/cash receipt, payment, and transfer drafts that post through generated journal entries
 - bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
-- sales and receivables workflows for customers, invoices, credit notes, receipt allocation, balance tracking, and aging
+- sales and receivables workflows for customers, quotations, sales orders, invoices, customer receipts, credit notes, receipt allocation, balance tracking, and aging
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -259,20 +259,25 @@ The sales/receivables flow is:
 
 ```text
 Browser or API client
-  -> /sales-receivables/customers|invoices|credit-notes|receipt-allocations|reports/aging
+  -> /sales-receivables/customers|quotations|sales-orders|invoices|receipts|credit-notes|receipt-allocations|reports/aging
   -> SalesReceivablesController
   -> SalesReceivablesService
-  -> Prisma Customer + SalesInvoice + CreditNote + ReceiptAllocation queries
-  -> for posting: create JournalEntry via Phase 1 services, then post through PostingService
+  -> Prisma Customer + SalesQuotation + SalesOrder + SalesInvoice + CreditNote + ReceiptAllocation queries
+  -> customer receipts call Phase 2 bank/cash transaction services and persist as posted receipt transactions linked back to the customer
+  -> invoice and credit-note posting: create JournalEntry via Phase 1 services, then post through PostingService
 ```
 
 Resulting accounting meaning:
 
-- customer master records store payment terms, credit limits, and receivable account linkage
+- customer master records store payment terms, credit limits, tax information, sales representative assignment, and receivable account linkage
+- sales quotations move through draft, approval, expiry, conversion, and cancellation states
+- sales orders move through draft, confirmation, and invoicing traceability states before full invoicing
 - sales invoices and credit notes can be drafted, then posted with generated journal entries
+- invoices carry currency, due date, source quotation/order references, subtotal, discount, tax, and allocation-derived settlement status
+- customer receipts can be initiated from Sales while still using the Phase 2 bank/cash transaction posting flow underneath
 - posting updates customer running balance and links operational documents to journal references
 - receipt allocation updates invoice outstanding/allocated status and prevents over-allocation
-- aging report buckets outstanding posted invoice balances into current, 31-60, 61-90, and over-90 days
+- aging report buckets outstanding posted invoice balances into current, 31-60, 61-90, and over-90 day buckets using due date when present
 
 ## Module Interaction Rules
 

@@ -99,28 +99,38 @@ Accounting meaning:
 Main models:
 
 - `Customer`
+- `SalesQuotation`
+- `SalesQuotationLine`
+- `SalesOrder`
+- `SalesOrderLine`
 - `SalesInvoice`
 - `SalesInvoiceLine`
 - `CreditNote`
 - `CreditNoteLine`
 - `ReceiptAllocation`
+- `BankCashTransaction` (for customer receipts linked to customer masters)
 
 Key fields:
 
-- customer `code`, `name`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
-- invoice/credit-note `reference`, `status`, `invoiceDate`/`noteDate`, `totalAmount`, and `journalEntryId`
+- customer `code`, `name`, `contactInfo`, `taxInfo`, `salesRepresentative`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
+- quotation/order/invoice/credit-note `reference`, `status`, date fields, `currencyCode`, totals, and source-document references where applicable
+- invoice `dueDate`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, and `journalEntryId`
 - invoice `allocatedAmount`, `outstandingAmount`, and `allocationStatus`
-- line `quantity`, `unitPrice`, `lineAmount`, and `revenueAccountId`
+- line `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`/`lineTotalAmount`, and `revenueAccountId`
+- customer receipt transactions `customerId`, settlement text, and links to posted receipt transactions
 - allocation `amount`, `allocatedAt`, and links to posted receipt transactions
 
 Accounting meaning:
 
 - customer receivable control links each customer to one posting receivable account
+- quotations and sales orders preserve commercial traceability before accounting is created
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
+- invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
+- customer receipts are stored as Phase 2 posted receipt transactions and can be created from either the Sales module or the Bank & Cash module
 - posting creates journal/ledger history and links each document to its generated journal reference
 - customer balance is incremented on posted invoices and decremented on posted credit notes
 - receipt allocation updates invoice outstanding status while preventing over-allocation
-- aging is derived from posted invoice outstanding balances by age bucket
+- aging is derived from posted invoice outstanding balances by age bucket using due date when present
 
 ### Fiscal Control
 
@@ -251,13 +261,18 @@ Ownership by module:
 - Platform Auth:
   - `User`
 - Sales & Receivables:
-  - `Customer`
-  - `SalesInvoice`
-  - `SalesInvoiceLine`
-  - `CreditNote`
-  - `CreditNoteLine`
-  - `ReceiptAllocation`
-  - reads posted `BankCashTransaction` for receipt allocations
+- `Customer`
+- `SalesQuotation`
+- `SalesQuotationLine`
+- `SalesOrder`
+- `SalesOrderLine`
+- `SalesInvoice`
+- `SalesInvoiceLine`
+- `CreditNote`
+- `CreditNoteLine`
+- `ReceiptAllocation`
+- reads posted `BankCashTransaction` for receipt allocations
+- creates optional customer-linked posted `BankCashTransaction` rows for receipts recorded from the Sales module
   - creates linked `JournalEntry` rows through Phase 1 journal/posting services when invoices and credit notes are posted
 
 ## Balance Integrity Expectations

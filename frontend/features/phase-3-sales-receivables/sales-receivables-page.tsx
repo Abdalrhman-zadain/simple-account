@@ -7,31 +7,49 @@ import {
   LuBookText as BookText,
   LuCirclePlus as CirclePlus,
   LuFileMinus as FileMinus,
+  LuFilePlus2 as FilePlus,
   LuFileText as FileText,
   LuHandshake as Handshake,
   LuReceiptText as ReceiptText,
+  LuScrollText as ScrollText,
   LuUsers as Users,
 } from "react-icons/lu";
 
 import {
   allocateReceipt,
+  approveSalesQuotation,
+  cancelSalesOrder,
+  cancelSalesQuotation,
+  convertQuotationToInvoice,
+  convertQuotationToOrder,
+  convertSalesOrderToInvoice,
   createCreditNote,
   createCustomer,
+  createCustomerReceipt,
   createSalesInvoice,
+  createSalesOrder,
+  createSalesQuotation,
+  confirmSalesOrder,
+  getCustomerReceipts,
   deactivateCustomer,
   getAccountOptions,
   getAgingReport,
+  getBankCashAccounts,
   getBankCashTransactions,
   getCreditNotes,
   getCustomerBalance,
   getCustomerTransactions,
   getCustomers,
+  getSalesOrders,
+  getSalesQuotations,
   getSalesInvoices,
   postCreditNote,
   postSalesInvoice,
   updateCreditNote,
   updateCustomer,
   updateSalesInvoice,
+  updateSalesOrder,
+  updateSalesQuotation,
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
@@ -40,18 +58,24 @@ import { useAuth } from "@/providers/auth-provider";
 import type {
   AllocationStatus,
   Customer,
+  CustomerReceipt,
+  SalesInvoiceStatus,
+  SalesOrder,
+  SalesQuotation,
   SalesLinePayload,
 } from "@/types/api";
 import { Button, Card, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-type SalesTab = "customers" | "invoices" | "credit-notes" | "allocations" | "aging";
+type SalesTab = "customers" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
 
 type CustomerEditorState = {
   id?: string;
   code: string;
   name: string;
   contactInfo: string;
+  taxInfo: string;
+  salesRepresentative: string;
   paymentTerms: string;
   creditLimit: string;
   receivableAccountId: string;
@@ -59,9 +83,12 @@ type CustomerEditorState = {
 
 type SalesLineEditorState = {
   key: string;
+  itemName: string;
   description: string;
   quantity: string;
   unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
   lineAmount: string;
   revenueAccountId: string;
 };
@@ -70,7 +97,33 @@ type InvoiceEditorState = {
   id?: string;
   reference: string;
   invoiceDate: string;
+  dueDate: string;
+  currencyCode: string;
   customerId: string;
+  description: string;
+  lines: SalesLineEditorState[];
+};
+
+type QuotationEditorState = {
+  id?: string;
+  reference: string;
+  quotationDate: string;
+  validityDate: string;
+  currencyCode: string;
+  customerId: string;
+  description: string;
+  lines: SalesLineEditorState[];
+};
+
+type SalesOrderEditorState = {
+  id?: string;
+  reference: string;
+  orderDate: string;
+  promisedDate: string;
+  currencyCode: string;
+  customerId: string;
+  sourceQuotationId: string;
+  shippingDetails: string;
   description: string;
   lines: SalesLineEditorState[];
 };
@@ -79,24 +132,61 @@ type CreditNoteEditorState = {
   id?: string;
   reference: string;
   noteDate: string;
+  currencyCode: string;
   customerId: string;
   salesInvoiceId: string;
   description: string;
   lines: SalesLineEditorState[];
 };
 
+type ReceiptEditorState = {
+  reference: string;
+  receiptDate: string;
+  customerId: string;
+  amount: string;
+  bankCashAccountId: string;
+  settlementReference: string;
+  description: string;
+};
+
 const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
   code: "",
   name: "",
   contactInfo: "",
+  taxInfo: "",
+  salesRepresentative: "",
   paymentTerms: "",
   creditLimit: "0",
   receivableAccountId: "",
 };
 
+const EMPTY_QUOTATION_EDITOR = (): QuotationEditorState => ({
+  reference: "",
+  quotationDate: new Date().toISOString().slice(0, 10),
+  validityDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  currencyCode: "JOD",
+  customerId: "",
+  description: "",
+  lines: [createEmptyLine()],
+});
+
+const EMPTY_ORDER_EDITOR = (): SalesOrderEditorState => ({
+  reference: "",
+  orderDate: new Date().toISOString().slice(0, 10),
+  promisedDate: "",
+  currencyCode: "JOD",
+  customerId: "",
+  sourceQuotationId: "",
+  shippingDetails: "",
+  description: "",
+  lines: [createEmptyLine()],
+});
+
 const EMPTY_INVOICE_EDITOR = (): InvoiceEditorState => ({
   reference: "",
   invoiceDate: new Date().toISOString().slice(0, 10),
+  dueDate: "",
+  currencyCode: "JOD",
   customerId: "",
   description: "",
   lines: [createEmptyLine()],
@@ -105,10 +195,21 @@ const EMPTY_INVOICE_EDITOR = (): InvoiceEditorState => ({
 const EMPTY_CREDIT_NOTE_EDITOR = (): CreditNoteEditorState => ({
   reference: "",
   noteDate: new Date().toISOString().slice(0, 10),
+  currencyCode: "JOD",
   customerId: "",
   salesInvoiceId: "",
   description: "",
   lines: [createEmptyLine()],
+});
+
+const EMPTY_RECEIPT_EDITOR = (): ReceiptEditorState => ({
+  reference: "",
+  receiptDate: new Date().toISOString().slice(0, 10),
+  customerId: "",
+  amount: "",
+  bankCashAccountId: "",
+  settlementReference: "",
+  description: "",
 });
 
 export function SalesReceivablesPage() {
@@ -124,8 +225,20 @@ export function SalesReceivablesPage() {
   const [isCustomerEditorOpen, setIsCustomerEditorOpen] = useState(false);
   const [customerEditor, setCustomerEditor] = useState<CustomerEditorState>(EMPTY_CUSTOMER_EDITOR);
 
+  const [quotationSearch, setQuotationSearch] = useState("");
+  const [quotationStatusFilter, setQuotationStatusFilter] = useState("");
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
+  const [isQuotationEditorOpen, setIsQuotationEditorOpen] = useState(false);
+  const [quotationEditor, setQuotationEditor] = useState<QuotationEditorState>(EMPTY_QUOTATION_EDITOR);
+
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isOrderEditorOpen, setIsOrderEditorOpen] = useState(false);
+  const [orderEditor, setOrderEditor] = useState<SalesOrderEditorState>(EMPTY_ORDER_EDITOR);
+
   const [invoiceSearch, setInvoiceSearch] = useState("");
-  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<"DRAFT" | "POSTED" | "">("");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<SalesInvoiceStatus | "">("");
   const [invoiceCustomerFilter, setInvoiceCustomerFilter] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
@@ -137,6 +250,11 @@ export function SalesReceivablesPage() {
   const [selectedCreditNoteId, setSelectedCreditNoteId] = useState<string | null>(null);
   const [isCreditNoteEditorOpen, setIsCreditNoteEditorOpen] = useState(false);
   const [creditNoteEditor, setCreditNoteEditor] = useState<CreditNoteEditorState>(EMPTY_CREDIT_NOTE_EDITOR);
+
+  const [receiptSearch, setReceiptSearch] = useState("");
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  const [isReceiptEditorOpen, setIsReceiptEditorOpen] = useState(false);
+  const [receiptEditor, setReceiptEditor] = useState<ReceiptEditorState>(EMPTY_RECEIPT_EDITOR);
 
   const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
   const [allocationReceiptId, setAllocationReceiptId] = useState("");
@@ -176,6 +294,16 @@ export function SalesReceivablesPage() {
     queryKey: queryKeys.salesCustomerTransactions(token, selectedCustomerId),
     queryFn: () => getCustomerTransactions(selectedCustomerId!, token),
     enabled: Boolean(selectedCustomerId),
+  });
+
+  const quotationsQuery = useQuery({
+    queryKey: queryKeys.salesQuotations(token, { search: quotationSearch, status: quotationStatusFilter || undefined }),
+    queryFn: () => getSalesQuotations({ search: quotationSearch, status: quotationStatusFilter || undefined }, token),
+  });
+
+  const salesOrdersQuery = useQuery({
+    queryKey: queryKeys.salesOrders(token, { search: orderSearch, status: orderStatusFilter || undefined }),
+    queryFn: () => getSalesOrders({ search: orderSearch, status: orderStatusFilter || undefined }, token),
   });
 
   const invoicesQuery = useQuery({
@@ -224,6 +352,18 @@ export function SalesReceivablesPage() {
     staleTime: 30_000,
   });
 
+  const customerReceiptsQuery = useQuery({
+    queryKey: queryKeys.salesReceipts(token, { search: receiptSearch }),
+    queryFn: () => getCustomerReceipts({ search: receiptSearch }, token),
+    staleTime: 30_000,
+  });
+
+  const bankCashAccountsQuery = useQuery({
+    queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
+    queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const agingQuery = useQuery({
     queryKey: queryKeys.salesAging(token, agingDate),
     queryFn: () => getAgingReport(agingDate, token),
@@ -236,6 +376,8 @@ export function SalesReceivablesPage() {
           code: customerEditor.code || undefined,
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || undefined,
+          taxInfo: customerEditor.taxInfo || undefined,
+          salesRepresentative: customerEditor.salesRepresentative || undefined,
           paymentTerms: customerEditor.paymentTerms || undefined,
           creditLimit: Number(customerEditor.creditLimit || 0),
           receivableAccountId: customerEditor.receivableAccountId,
@@ -257,6 +399,8 @@ export function SalesReceivablesPage() {
         {
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || "",
+          taxInfo: customerEditor.taxInfo || "",
+          salesRepresentative: customerEditor.salesRepresentative || "",
           paymentTerms: customerEditor.paymentTerms || "",
           creditLimit: Number(customerEditor.creditLimit || 0),
           receivableAccountId: customerEditor.receivableAccountId,
@@ -278,12 +422,212 @@ export function SalesReceivablesPage() {
     },
   });
 
+  const createQuotationMutation = useMutation({
+    mutationFn: () =>
+      createSalesQuotation(
+        {
+          reference: quotationEditor.reference || undefined,
+          quotationDate: quotationEditor.quotationDate,
+          validityDate: quotationEditor.validityDate,
+          currencyCode: quotationEditor.currencyCode || undefined,
+          customerId: quotationEditor.customerId,
+          description: quotationEditor.description || undefined,
+          lines: mapSalesLines(quotationEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedQuotationId(created.id);
+      setIsQuotationEditorOpen(false);
+      setQuotationEditor(EMPTY_QUOTATION_EDITOR());
+    },
+  });
+
+  const updateQuotationMutation = useMutation({
+    mutationFn: () =>
+      updateSalesQuotation(
+        quotationEditor.id!,
+        {
+          reference: quotationEditor.reference || undefined,
+          quotationDate: quotationEditor.quotationDate,
+          validityDate: quotationEditor.validityDate,
+          currencyCode: quotationEditor.currencyCode || undefined,
+          customerId: quotationEditor.customerId,
+          description: quotationEditor.description || undefined,
+          lines: mapSalesLines(quotationEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedQuotationId(updated.id);
+      setIsQuotationEditorOpen(false);
+    },
+  });
+
+  const approveQuotationMutation = useMutation({
+    mutationFn: (id: string) => approveSalesQuotation(id, token),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedQuotationId(updated.id);
+    },
+  });
+
+  const cancelQuotationMutation = useMutation({
+    mutationFn: (id: string) => cancelSalesQuotation(id, token),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedQuotationId(updated.id);
+    },
+  });
+
+  const convertQuotationToOrderMutation = useMutation({
+    mutationFn: (quotationId: string) => {
+      const quotation = quotations.find((row) => row.id === quotationId);
+      return convertQuotationToOrder(
+        quotationId,
+        {
+          orderDate: new Date().toISOString().slice(0, 10),
+          promisedDate: "",
+          customerId: quotation?.customer.id ?? "",
+          currencyCode: quotation?.currencyCode ?? "JOD",
+          sourceQuotationId: quotationId,
+          shippingDetails: "",
+          description: quotation?.description ?? "",
+          lines: (quotation?.lines ?? []).map(mapLineForConversion),
+        },
+        token,
+      );
+    },
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedOrderId(created.id);
+      setActiveTab("orders");
+    },
+  });
+
+  const convertQuotationToInvoiceMutation = useMutation({
+    mutationFn: (quotationId: string) => {
+      const quotation = quotations.find((row) => row.id === quotationId);
+      return convertQuotationToInvoice(
+        quotationId,
+        {
+          invoiceDate: new Date().toISOString().slice(0, 10),
+          dueDate: "",
+          customerId: quotation?.customer.id ?? "",
+          currencyCode: quotation?.currencyCode ?? "JOD",
+          sourceQuotationId: quotationId,
+          description: quotation?.description ?? "",
+          lines: (quotation?.lines ?? []).map(mapLineForConversion),
+        },
+        token,
+      );
+    },
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedInvoiceId(created.id);
+      setActiveTab("invoices");
+    },
+  });
+
+  const createOrderMutation = useMutation({
+    mutationFn: () =>
+      createSalesOrder(
+        {
+          reference: orderEditor.reference || undefined,
+          orderDate: orderEditor.orderDate,
+          promisedDate: orderEditor.promisedDate || undefined,
+          currencyCode: orderEditor.currencyCode || undefined,
+          customerId: orderEditor.customerId,
+          sourceQuotationId: orderEditor.sourceQuotationId || undefined,
+          shippingDetails: orderEditor.shippingDetails || undefined,
+          description: orderEditor.description || undefined,
+          lines: mapSalesLines(orderEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedOrderId(created.id);
+      setIsOrderEditorOpen(false);
+      setOrderEditor(EMPTY_ORDER_EDITOR());
+    },
+  });
+
+  const updateOrderMutation = useMutation({
+    mutationFn: () =>
+      updateSalesOrder(
+        orderEditor.id!,
+        {
+          reference: orderEditor.reference || undefined,
+          orderDate: orderEditor.orderDate,
+          promisedDate: orderEditor.promisedDate || undefined,
+          currencyCode: orderEditor.currencyCode || undefined,
+          customerId: orderEditor.customerId,
+          sourceQuotationId: orderEditor.sourceQuotationId || undefined,
+          shippingDetails: orderEditor.shippingDetails || undefined,
+          description: orderEditor.description || undefined,
+          lines: mapSalesLines(orderEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedOrderId(updated.id);
+      setIsOrderEditorOpen(false);
+    },
+  });
+
+  const confirmOrderMutation = useMutation({
+    mutationFn: (id: string) => confirmSalesOrder(id, token),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedOrderId(updated.id);
+    },
+  });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: (id: string) => cancelSalesOrder(id, token),
+    onSuccess: async (updated) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedOrderId(updated.id);
+    },
+  });
+
+  const convertOrderToInvoiceMutation = useMutation({
+    mutationFn: (orderId: string) => {
+      const order = salesOrders.find((row) => row.id === orderId);
+      return convertSalesOrderToInvoice(
+        orderId,
+        {
+          invoiceDate: new Date().toISOString().slice(0, 10),
+          dueDate: "",
+          customerId: order?.customer.id ?? "",
+          currencyCode: order?.currencyCode ?? "JOD",
+          sourceQuotationId: order?.sourceQuotation?.id,
+          sourceSalesOrderId: orderId,
+          description: order?.description ?? "",
+          lines: (order?.lines ?? []).map(mapLineForConversion),
+        },
+        token,
+      );
+    },
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedInvoiceId(created.id);
+      setActiveTab("invoices");
+    },
+  });
+
   const createInvoiceMutation = useMutation({
     mutationFn: () =>
       createSalesInvoice(
         {
           reference: invoiceEditor.reference || undefined,
           invoiceDate: invoiceEditor.invoiceDate,
+          dueDate: invoiceEditor.dueDate || undefined,
+          currencyCode: invoiceEditor.currencyCode || undefined,
           customerId: invoiceEditor.customerId,
           description: invoiceEditor.description || undefined,
           lines: mapSalesLines(invoiceEditor.lines),
@@ -305,6 +649,8 @@ export function SalesReceivablesPage() {
         {
           reference: invoiceEditor.reference || undefined,
           invoiceDate: invoiceEditor.invoiceDate,
+          dueDate: invoiceEditor.dueDate || undefined,
+          currencyCode: invoiceEditor.currencyCode || undefined,
           customerId: invoiceEditor.customerId,
           description: invoiceEditor.description || undefined,
           lines: mapSalesLines(invoiceEditor.lines),
@@ -333,6 +679,7 @@ export function SalesReceivablesPage() {
         {
           reference: creditNoteEditor.reference || undefined,
           noteDate: creditNoteEditor.noteDate,
+          currencyCode: creditNoteEditor.currencyCode || undefined,
           customerId: creditNoteEditor.customerId,
           salesInvoiceId: creditNoteEditor.salesInvoiceId || undefined,
           description: creditNoteEditor.description || undefined,
@@ -355,6 +702,7 @@ export function SalesReceivablesPage() {
         {
           reference: creditNoteEditor.reference || undefined,
           noteDate: creditNoteEditor.noteDate,
+          currencyCode: creditNoteEditor.currencyCode || undefined,
           customerId: creditNoteEditor.customerId,
           salesInvoiceId: creditNoteEditor.salesInvoiceId || undefined,
           description: creditNoteEditor.description || undefined,
@@ -378,6 +726,28 @@ export function SalesReceivablesPage() {
     },
   });
 
+  const createReceiptMutation = useMutation({
+    mutationFn: () =>
+      createCustomerReceipt(
+        {
+          reference: receiptEditor.reference || undefined,
+          receiptDate: receiptEditor.receiptDate,
+          customerId: receiptEditor.customerId,
+          amount: Number(receiptEditor.amount || 0),
+          bankCashAccountId: receiptEditor.bankCashAccountId,
+          settlementReference: receiptEditor.settlementReference || undefined,
+          description: receiptEditor.description || undefined,
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidateSalesReceivables(queryClient);
+      setSelectedReceiptId(created.id);
+      setIsReceiptEditorOpen(false);
+      setReceiptEditor(EMPTY_RECEIPT_EDITOR());
+    },
+  });
+
   const allocateReceiptMutation = useMutation({
     mutationFn: () =>
       allocateReceipt(
@@ -396,15 +766,21 @@ export function SalesReceivablesPage() {
 
   const customers = customersQuery.data ?? [];
   const activeCustomers = activeCustomersQuery.data ?? [];
+  const quotations = quotationsQuery.data ?? [];
+  const salesOrders = salesOrdersQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
   const postedInvoices = postedInvoicesQuery.data ?? [];
   const openInvoices = postedInvoices.filter((invoice) => Number(invoice.outstandingAmount) > 0);
   const creditNotes = creditNotesQuery.data ?? [];
   const postedReceipts = (postedReceiptsQuery.data ?? []).filter((row) => row.kind === "RECEIPT");
+  const customerReceipts = customerReceiptsQuery.data ?? [];
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? activeCustomers.find((row) => row.id === selectedCustomerId) ?? null;
+  const selectedQuotation = quotations.find((row) => row.id === selectedQuotationId) ?? null;
+  const selectedOrder = salesOrders.find((row) => row.id === selectedOrderId) ?? null;
   const selectedInvoice = invoices.find((row) => row.id === selectedInvoiceId) ?? postedInvoices.find((row) => row.id === selectedInvoiceId) ?? null;
   const selectedCreditNote = creditNotes.find((row) => row.id === selectedCreditNoteId) ?? null;
+  const selectedReceipt = customerReceipts.find((row) => row.id === selectedReceiptId) ?? null;
   const selectedInvoiceForAllocation = openInvoices.find((row) => row.id === allocationInvoiceId) ?? null;
 
   const matchingCustomerInvoices = useMemo(
@@ -412,22 +788,39 @@ export function SalesReceivablesPage() {
     [creditNoteEditor.customerId, postedInvoices],
   );
 
+  const matchingCustomerQuotations = useMemo(
+    () => quotations.filter((quotation) => quotation.customer.id === orderEditor.customerId && quotation.status === "APPROVED"),
+    [orderEditor.customerId, quotations],
+  );
+
   const currentError =
     createCustomerMutation.error ??
     updateCustomerMutation.error ??
     deactivateCustomerMutation.error ??
+    createQuotationMutation.error ??
+    updateQuotationMutation.error ??
+    approveQuotationMutation.error ??
+    cancelQuotationMutation.error ??
+    createOrderMutation.error ??
+    updateOrderMutation.error ??
+    confirmOrderMutation.error ??
+    cancelOrderMutation.error ??
     createInvoiceMutation.error ??
     updateInvoiceMutation.error ??
     postInvoiceMutation.error ??
     createCreditNoteMutation.error ??
     updateCreditNoteMutation.error ??
     postCreditNoteMutation.error ??
+    createReceiptMutation.error ??
     allocateReceiptMutation.error;
 
   const errorMessage = currentError instanceof Error ? currentError.message : null;
   const tabs: Array<{ id: SalesTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "customers", label: t("salesReceivables.tab.customers"), icon: Users },
+    { id: "quotations", label: t("salesReceivables.tab.quotations"), icon: FilePlus },
+    { id: "orders", label: t("salesReceivables.tab.orders"), icon: ScrollText },
     { id: "invoices", label: t("salesReceivables.tab.invoices"), icon: FileText },
+    { id: "receipts", label: t("salesReceivables.tab.receipts"), icon: ReceiptText },
     { id: "credit-notes", label: t("salesReceivables.tab.creditNotes"), icon: FileMinus },
     { id: "allocations", label: t("salesReceivables.tab.allocations"), icon: Handshake },
     { id: "aging", label: t("salesReceivables.tab.aging"), icon: BookText },
@@ -548,6 +941,8 @@ export function SalesReceivablesPage() {
                                         code: row.code,
                                         name: row.name,
                                         contactInfo: row.contactInfo ?? "",
+                                        taxInfo: row.taxInfo ?? "",
+                                        salesRepresentative: row.salesRepresentative ?? "",
                                         paymentTerms: row.paymentTerms ?? "",
                                         creditLimit: row.creditLimit,
                                         receivableAccountId: row.receivableAccount.id,
@@ -649,6 +1044,231 @@ export function SalesReceivablesPage() {
         </div>
       ) : null}
 
+      {activeTab === "quotations" ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <SummaryCard label={t("salesReceivables.summary.quotations")} value={quotations.length} hint={t("salesReceivables.hint.currentFilteredList")} />
+            <SummaryCard label={t("salesReceivables.summary.approved")} value={quotations.filter((row) => row.status === "APPROVED").length} hint={t("salesReceivables.hint.readyForConversion")} />
+            <SummaryCard label={t("salesReceivables.summary.quotedValue")} value={formatCurrency(quotations.reduce((sum, row) => sum + Number(row.totalAmount), 0))} hint={t("salesReceivables.hint.totalQuotedAmount")} />
+          </div>
+
+          <Card className="p-5">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.5fr_auto]">
+              <Input value={quotationSearch} onChange={(event) => setQuotationSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchQuotations")} />
+              <Select value={quotationStatusFilter} onChange={(event) => setQuotationStatusFilter(event.target.value)}>
+                <option value="">{t("salesReceivables.filters.allStatuses")}</option>
+                <option value="DRAFT">{t("salesReceivables.status.draft")}</option>
+                <option value="APPROVED">{t("salesReceivables.status.approved")}</option>
+                <option value="EXPIRED">{t("salesReceivables.status.expired")}</option>
+                <option value="CONVERTED">{t("salesReceivables.status.converted")}</option>
+                <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
+              </Select>
+              <Button onClick={() => { setQuotationEditor(EMPTY_QUOTATION_EDITOR()); setIsQuotationEditorOpen(true); }}>
+                <CirclePlus className="mr-2 h-4 w-4" />
+                {t("salesReceivables.action.newQuotation")}
+              </Button>
+            </div>
+          </Card>
+
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.quotations")}</div>
+                <div className="text-xs text-gray-500">{t("salesReceivables.section.quotationsDescription")}</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("salesReceivables.field.reference")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.customer")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.quotationDate")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.validUntil")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.total")}</TableHead>
+                      <TableHead className="text-center">{t("salesReceivables.field.status")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quotations.length === 0 ? (
+                      <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">{t("salesReceivables.empty.quotations")}</td></tr>
+                    ) : quotations.map((row) => (
+                      <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", selectedQuotation?.id === row.id && "bg-gray-50")}>
+                        <td className="px-6 py-4"><button type="button" className="text-left font-bold text-gray-900" onClick={() => setSelectedQuotationId(row.id)}>{row.reference}</button></td>
+                        <td className="px-6 py-4"><div className="font-semibold text-gray-900">{row.customer.name}</div><div className="text-xs text-gray-500">{row.customer.code}</div></td>
+                        <td className="px-6 py-4">{formatDate(row.quotationDate)}</td>
+                        <td className="px-6 py-4">{formatDate(row.validityDate)}</td>
+                        <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.totalAmount)}</td>
+                        <td className="px-6 py-4 text-center"><StatusPill label={row.status} tone={row.status === "APPROVED" ? "positive" : row.status === "DRAFT" ? "warning" : "neutral"} /></td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-2">
+                            {row.status === "DRAFT" ? (
+                              <>
+                                <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => {
+                                  setQuotationEditor({ id: row.id, reference: row.reference, quotationDate: row.quotationDate.slice(0, 10), validityDate: row.validityDate.slice(0, 10), currencyCode: row.currencyCode, customerId: row.customer.id, description: row.description ?? "", lines: row.lines.map(mapLineToEditor) });
+                                  setIsQuotationEditorOpen(true);
+                                }}>{t("salesReceivables.action.edit")}</button>
+                                <button type="button" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100" onClick={() => approveQuotationMutation.mutate(row.id)}>{t("salesReceivables.action.approve")}</button>
+                                <button type="button" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" onClick={() => cancelQuotationMutation.mutate(row.id)}>{t("salesReceivables.action.cancelDocument")}</button>
+                                <button type="button" className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100" onClick={() => convertQuotationToOrderMutation.mutate(row.id)}>{t("salesReceivables.action.toOrder")}</button>
+                                <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertQuotationToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
+                              </>
+                            ) : row.status === "APPROVED" ? (
+                              <>
+                                <button type="button" className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100" onClick={() => convertQuotationToOrderMutation.mutate(row.id)}>{t("salesReceivables.action.toOrder")}</button>
+                                <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertQuotationToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
+                              </>
+                            ) : <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => setSelectedQuotationId(row.id)}>{t("salesReceivables.action.view")}</button>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="space-y-5">
+              <div>
+                <div className="text-lg font-bold text-gray-900">{selectedQuotation?.reference ?? t("salesReceivables.section.quotationDetails")}</div>
+                <div className="text-sm text-gray-500">{selectedQuotation ? `${selectedQuotation.customer.code} · ${selectedQuotation.customer.name}` : t("salesReceivables.section.quotationDetailsEmpty")}</div>
+              </div>
+              {selectedQuotation ? (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <MiniMetric label={t("salesReceivables.field.total")} value={formatCurrency(selectedQuotation.totalAmount)} />
+                    <MiniMetric label={t("salesReceivables.field.status")} value={selectedQuotation.status} />
+                    <MiniMetric label={t("salesReceivables.field.validUntil")} value={formatDate(selectedQuotation.validityDate)} />
+                    <MiniMetric label={t("salesReceivables.field.lines")} value={String(selectedQuotation.lines.length)} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{t("salesReceivables.section.quotationLines")}</div>
+                    {selectedQuotation.lines.map((line) => (
+                      <div key={line.id} className="rounded-xl border border-gray-200 px-4 py-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-sm font-bold text-gray-900">{line.description || line.itemName || `Line ${line.lineNumber}`}</div>
+                            <div className="text-xs text-gray-500">{line.revenueAccount ? `${line.revenueAccount.code} · ${line.revenueAccount.name}` : t("salesReceivables.empty.revenueAccountOptional")}</div>
+                          </div>
+                          <div className="text-right font-mono text-sm font-bold text-gray-900">{formatCurrency(line.lineAmount)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : <div className="text-sm text-gray-500">{t("salesReceivables.section.quotationDetailsEmpty")}</div>}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "orders" ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <SummaryCard label={t("salesReceivables.summary.orders")} value={salesOrders.length} hint={t("salesReceivables.hint.currentFilteredList")} />
+            <SummaryCard label={t("salesReceivables.summary.confirmed")} value={salesOrders.filter((row) => row.status === "CONFIRMED").length} hint={t("salesReceivables.hint.readyToInvoice")} />
+            <SummaryCard label={t("salesReceivables.summary.orderValue")} value={formatCurrency(salesOrders.reduce((sum, row) => sum + Number(row.totalAmount), 0))} hint={t("salesReceivables.hint.totalOrderAmount")} />
+          </div>
+          <Card className="p-5">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.5fr_auto]">
+              <Input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchOrders")} />
+              <Select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value)}>
+                <option value="">{t("salesReceivables.filters.allStatuses")}</option>
+                <option value="DRAFT">{t("salesReceivables.status.draft")}</option>
+                <option value="CONFIRMED">{t("salesReceivables.status.confirmed")}</option>
+                <option value="PARTIALLY_INVOICED">{t("salesReceivables.status.partiallyInvoiced")}</option>
+                <option value="FULLY_INVOICED">{t("salesReceivables.status.fullyInvoiced")}</option>
+                <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
+              </Select>
+              <Button onClick={() => { setOrderEditor(EMPTY_ORDER_EDITOR()); setIsOrderEditorOpen(true); }}>
+                <CirclePlus className="mr-2 h-4 w-4" />
+                {t("salesReceivables.action.newOrder")}
+              </Button>
+            </div>
+          </Card>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.orders")}</div>
+                <div className="text-xs text-gray-500">{t("salesReceivables.section.ordersDescription")}</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("salesReceivables.field.reference")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.customer")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.orderDate")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.quotation")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.total")}</TableHead>
+                      <TableHead className="text-center">{t("salesReceivables.field.status")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salesOrders.length === 0 ? (
+                      <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">{t("salesReceivables.empty.orders")}</td></tr>
+                    ) : salesOrders.map((row) => (
+                      <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", selectedOrder?.id === row.id && "bg-gray-50")}>
+                        <td className="px-6 py-4"><button type="button" className="text-left font-bold text-gray-900" onClick={() => setSelectedOrderId(row.id)}>{row.reference}</button></td>
+                        <td className="px-6 py-4"><div className="font-semibold text-gray-900">{row.customer.name}</div><div className="text-xs text-gray-500">{row.customer.code}</div></td>
+                        <td className="px-6 py-4">{formatDate(row.orderDate)}</td>
+                        <td className="px-6 py-4 text-gray-700">{row.sourceQuotation?.reference ?? t("salesReceivables.empty.manual")}</td>
+                        <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.totalAmount)}</td>
+                        <td className="px-6 py-4 text-center"><StatusPill label={row.status} tone={row.status === "CONFIRMED" || row.status === "FULLY_INVOICED" ? "positive" : row.status === "DRAFT" ? "warning" : "neutral"} /></td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-2">
+                            {row.status === "DRAFT" ? (
+                              <>
+                                <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => {
+                                  setOrderEditor({ id: row.id, reference: row.reference, orderDate: row.orderDate.slice(0, 10), promisedDate: row.promisedDate?.slice(0, 10) ?? "", currencyCode: row.currencyCode, customerId: row.customer.id, sourceQuotationId: row.sourceQuotation?.id ?? "", shippingDetails: row.shippingDetails ?? "", description: row.description ?? "", lines: row.lines.map(mapLineToEditor) });
+                                  setIsOrderEditorOpen(true);
+                                }}>{t("salesReceivables.action.edit")}</button>
+                                <button type="button" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100" onClick={() => confirmOrderMutation.mutate(row.id)}>{t("salesReceivables.action.confirm")}</button>
+                                <button type="button" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" onClick={() => cancelOrderMutation.mutate(row.id)}>{t("salesReceivables.action.cancelDocument")}</button>
+                              </>
+                            ) : row.status === "CONFIRMED" || row.status === "PARTIALLY_INVOICED" ? (
+                              <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertOrderToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
+                            ) : <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => setSelectedOrderId(row.id)}>{t("salesReceivables.action.view")}</button>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            <Card className="space-y-5">
+              <div>
+                <div className="text-lg font-bold text-gray-900">{selectedOrder?.reference ?? t("salesReceivables.section.orderDetails")}</div>
+                <div className="text-sm text-gray-500">{selectedOrder ? `${selectedOrder.customer.code} · ${selectedOrder.customer.name}` : t("salesReceivables.section.orderDetailsEmpty")}</div>
+              </div>
+              {selectedOrder ? (
+                <>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <MiniMetric label={t("salesReceivables.field.total")} value={formatCurrency(selectedOrder.totalAmount)} />
+                    <MiniMetric label={t("salesReceivables.field.status")} value={selectedOrder.status} />
+                    <MiniMetric label={t("salesReceivables.field.quotation")} value={selectedOrder.sourceQuotation?.reference ?? t("salesReceivables.empty.manual")} />
+                    <MiniMetric label={t("salesReceivables.field.invoices")} value={String(selectedOrder.salesInvoices.length)} />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{t("salesReceivables.section.orderLines")}</div>
+                    {selectedOrder.lines.map((line) => (
+                      <div key={line.id} className="rounded-xl border border-gray-200 px-4 py-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="text-sm font-bold text-gray-900">{line.description || line.itemName || `Line ${line.lineNumber}`}</div>
+                          <div className="text-right font-mono text-sm font-bold text-gray-900">{formatCurrency(line.lineAmount)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : <div className="text-sm text-gray-500">{t("salesReceivables.section.orderDetailsEmpty")}</div>}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+
       {activeTab === "invoices" ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
@@ -664,10 +1284,14 @@ export function SalesReceivablesPage() {
           <Card className="p-5">
             <div className="grid gap-4 lg:grid-cols-[1.1fr_0.5fr_0.7fr_auto]">
               <Input value={invoiceSearch} onChange={(event) => setInvoiceSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchInvoices")} />
-              <Select value={invoiceStatusFilter} onChange={(event) => setInvoiceStatusFilter(event.target.value as "DRAFT" | "POSTED" | "")}>
+              <Select value={invoiceStatusFilter} onChange={(event) => setInvoiceStatusFilter(event.target.value as SalesInvoiceStatus | "")}>
                 <option value="">{t("salesReceivables.filters.allStatuses")}</option>
-                <option value="DRAFT">Draft</option>
-                <option value="POSTED">Posted</option>
+                <option value="DRAFT">{t("salesReceivables.status.draft")}</option>
+                <option value="POSTED">{t("salesReceivables.status.posted")}</option>
+                <option value="PARTIALLY_PAID">{t("salesReceivables.status.partiallyPaid")}</option>
+                <option value="FULLY_PAID">{t("salesReceivables.status.fullyPaid")}</option>
+                <option value="OVERDUE">{t("salesReceivables.status.overdue")}</option>
+                <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
               </Select>
               <Select value={invoiceCustomerFilter} onChange={(event) => setInvoiceCustomerFilter(event.target.value)}>
                 <option value="">{t("salesReceivables.filters.allCustomers")}</option>
@@ -747,16 +1371,11 @@ export function SalesReceivablesPage() {
                                         id: row.id,
                                         reference: row.reference,
                                         invoiceDate: row.invoiceDate.slice(0, 10),
+                                        dueDate: row.dueDate?.slice(0, 10) ?? "",
+                                        currencyCode: row.currencyCode,
                                         customerId: row.customer.id,
                                         description: row.description ?? "",
-                                        lines: row.lines.map((line) => ({
-                                          key: line.id,
-                                          description: line.description ?? "",
-                                          quantity: line.quantity,
-                                          unitPrice: line.unitPrice,
-                                          lineAmount: line.lineAmount,
-                                          revenueAccountId: line.revenueAccount.id,
-                                        })),
+                                        lines: row.lines.map(mapLineToEditor),
                                       });
                                       setIsInvoiceEditorOpen(true);
                                     }}
@@ -816,7 +1435,7 @@ export function SalesReceivablesPage() {
                           <div>
                             <div className="text-sm font-bold text-gray-900">{line.description || `Line ${line.lineNumber}`}</div>
                             <div className="text-xs text-gray-500">
-                              {line.revenueAccount.code} · {line.revenueAccount.name}
+                              {line.revenueAccount ? `${line.revenueAccount.code} · ${line.revenueAccount.name}` : "No revenue account"}
                             </div>
                           </div>
                           <div className="text-right">
@@ -838,6 +1457,77 @@ export function SalesReceivablesPage() {
         </div>
       ) : null}
 
+      {activeTab === "receipts" ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <SummaryCard label={t("salesReceivables.summary.receipts")} value={customerReceipts.length} hint={t("salesReceivables.hint.postedCustomerReceipts")} />
+            <SummaryCard label={t("salesReceivables.summary.unapplied")} value={formatCurrency(customerReceipts.reduce((sum, row) => sum + Number(row.unappliedAmount), 0))} hint={t("salesReceivables.hint.availableToAllocate")} />
+            <SummaryCard label={t("salesReceivables.summary.allocated")} value={formatCurrency(customerReceipts.reduce((sum, row) => sum + Number(row.allocatedAmount), 0))} hint={t("salesReceivables.hint.matchedToInvoices")} />
+          </div>
+          <Card className="p-5">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_auto]">
+              <Input value={receiptSearch} onChange={(event) => setReceiptSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchReceipts")} />
+              <Button onClick={() => { setReceiptEditor(EMPTY_RECEIPT_EDITOR()); setIsReceiptEditorOpen(true); }}>
+                <CirclePlus className="mr-2 h-4 w-4" />
+                {t("salesReceivables.action.newReceipt")}
+              </Button>
+            </div>
+          </Card>
+          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+            <Card className="overflow-hidden p-0">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.receipts")}</div>
+                <div className="text-xs text-gray-500">{t("salesReceivables.section.receiptsDescription")}</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("salesReceivables.field.reference")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.customer")}</TableHead>
+                      <TableHead>{t("salesReceivables.field.date")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.amount")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.unapplied")}</TableHead>
+                      <TableHead className="text-right">{t("salesReceivables.field.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerReceipts.length === 0 ? (
+                      <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">{t("salesReceivables.empty.receipts")}</td></tr>
+                    ) : customerReceipts.map((row) => (
+                      <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", selectedReceipt?.id === row.id && "bg-gray-50")}>
+                        <td className="px-6 py-4"><button type="button" className="text-left font-bold text-gray-900" onClick={() => setSelectedReceiptId(row.id)}>{row.reference}</button></td>
+                        <td className="px-6 py-4">{row.customer ? `${row.customer.code} · ${row.customer.name}` : t("salesReceivables.empty.unlinked")}</td>
+                        <td className="px-6 py-4">{formatDate(row.receiptDate)}</td>
+                        <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.amount)}</td>
+                        <td className="px-6 py-4 text-right font-mono text-gray-700">{formatCurrency(row.unappliedAmount)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => setSelectedReceiptId(row.id)}>{t("salesReceivables.action.view")}</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            <Card className="space-y-5">
+              <div>
+                <div className="text-lg font-bold text-gray-900">{selectedReceipt?.reference ?? t("salesReceivables.section.receiptDetails")}</div>
+                <div className="text-sm text-gray-500">{selectedReceipt?.customer ? `${selectedReceipt.customer.code} · ${selectedReceipt.customer.name}` : t("salesReceivables.section.receiptDetailsEmpty")}</div>
+              </div>
+              {selectedReceipt ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <MiniMetric label={t("salesReceivables.field.amount")} value={formatCurrency(selectedReceipt.amount)} />
+                  <MiniMetric label={t("salesReceivables.field.allocated")} value={formatCurrency(selectedReceipt.allocatedAmount)} />
+                  <MiniMetric label={t("salesReceivables.field.unapplied")} value={formatCurrency(selectedReceipt.unappliedAmount)} />
+                  <MiniMetric label={t("salesReceivables.field.bankCash")} value={selectedReceipt.bankCashAccount?.name ?? t("salesReceivables.empty.notSet")} />
+                </div>
+              ) : <div className="text-sm text-gray-500">{t("salesReceivables.section.receiptDetailsEmpty")}</div>}
+            </Card>
+          </div>
+        </div>
+      ) : null}
+
       {activeTab === "credit-notes" ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
@@ -852,14 +1542,14 @@ export function SalesReceivablesPage() {
 
           <Card className="p-5">
             <div className="grid gap-4 lg:grid-cols-[1.1fr_0.5fr_0.7fr_auto]">
-              <Input value={creditNoteSearch} onChange={(event) => setCreditNoteSearch(event.target.value)} placeholder={t("salesReceivables.filter.creditNotesSearch")} />
+              <Input value={creditNoteSearch} onChange={(event) => setCreditNoteSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchCreditNotes")} />
               <Select value={creditNoteStatusFilter} onChange={(event) => setCreditNoteStatusFilter(event.target.value as "DRAFT" | "POSTED" | "")}>
-                <option value="">{t("salesReceivables.filter.allStatuses")}</option>
+                <option value="">{t("salesReceivables.filters.allStatuses")}</option>
                 <option value="DRAFT">{t("salesReceivables.status.draft")}</option>
                 <option value="POSTED">{t("salesReceivables.status.posted")}</option>
               </Select>
               <Select value={creditNoteCustomerFilter} onChange={(event) => setCreditNoteCustomerFilter(event.target.value)}>
-                <option value="">{t("salesReceivables.filter.allCustomers")}</option>
+                <option value="">{t("salesReceivables.filters.allCustomers")}</option>
                 {activeCustomers.map((row) => (
                   <option key={row.id} value={row.id}>
                     {row.code} · {row.name}
@@ -933,17 +1623,11 @@ export function SalesReceivablesPage() {
                                         id: row.id,
                                         reference: row.reference,
                                         noteDate: row.noteDate.slice(0, 10),
+                                        currencyCode: row.currencyCode,
                                         customerId: row.customer.id,
                                         salesInvoiceId: row.linkedInvoice?.id ?? "",
                                         description: row.description ?? "",
-                                        lines: row.lines.map((line) => ({
-                                          key: line.id,
-                                          description: line.description ?? "",
-                                          quantity: line.quantity,
-                                          unitPrice: line.unitPrice,
-                                          lineAmount: line.lineAmount,
-                                          revenueAccountId: line.revenueAccount.id,
-                                        })),
+                                        lines: row.lines.map(mapLineToEditor),
                                       });
                                       setIsCreditNoteEditorOpen(true);
                                     }}
@@ -1003,7 +1687,7 @@ export function SalesReceivablesPage() {
                           <div>
                             <div className="text-sm font-bold text-gray-900">{line.description || `Line ${line.lineNumber}`}</div>
                             <div className="text-xs text-gray-500">
-                              {line.revenueAccount.code} · {line.revenueAccount.name}
+                              {line.revenueAccount ? `${line.revenueAccount.code} · ${line.revenueAccount.name}` : "No revenue account"}
                             </div>
                           </div>
                           <div className="text-right">
@@ -1202,26 +1886,26 @@ export function SalesReceivablesPage() {
 
           <Card className="overflow-hidden p-0">
             <div className="border-b border-gray-200 px-6 py-4">
-              <div className="text-sm font-bold text-gray-900">Customer Aging Report</div>
-              <div className="text-xs text-gray-500">Outstanding balances are categorized into current, 31-60, 61-90, and over 90 day buckets.</div>
+              <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.customerAgingReport")}</div>
+              <div className="text-xs text-gray-500">{t("salesReceivables.section.customerAgingReportDescription")}</div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Current</TableHead>
-                    <TableHead className="text-right">31-60</TableHead>
-                    <TableHead className="text-right">61-90</TableHead>
-                    <TableHead className="text-right">Over 90</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead>{t("salesReceivables.field.customer")}</TableHead>
+                    <TableHead className="text-right">{t("salesReceivables.summary.current")}</TableHead>
+                    <TableHead className="text-right">{t("salesReceivables.summary.bucket31To60")}</TableHead>
+                    <TableHead className="text-right">{t("salesReceivables.summary.bucket61To90")}</TableHead>
+                    <TableHead className="text-right">{t("salesReceivables.summary.over90")}</TableHead>
+                    <TableHead className="text-right">{t("salesReceivables.summary.total")}</TableHead>
                   </tr>
                 </thead>
                 <tbody>
                   {(agingQuery.data?.rows ?? []).length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
-                        No aged balances were found for the selected date.
+                        {t("salesReceivables.empty.noAgingBalances")}
                       </td>
                     </tr>
                   ) : (
@@ -1284,6 +1968,15 @@ export function SalesReceivablesPage() {
             </Field>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.taxInformation")}>
+              <Input value={customerEditor.taxInfo} onChange={(event) => setCustomerEditor((current) => ({ ...current, taxInfo: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.salesRepresentative")}>
+              <Input value={customerEditor.salesRepresentative} onChange={(event) => setCustomerEditor((current) => ({ ...current, salesRepresentative: event.target.value }))} />
+            </Field>
+          </div>
+
           <Field label={t("salesReceivables.field.receivableAccount")}>
             <Select value={customerEditor.receivableAccountId} onChange={(event) => setCustomerEditor((current) => ({ ...current, receivableAccountId: event.target.value }))}>
               <option value="">{t("salesReceivables.empty.selectReceivableAccount")}</option>
@@ -1307,6 +2000,109 @@ export function SalesReceivablesPage() {
       </SidePanel>
 
       <SidePanel
+        isOpen={isQuotationEditorOpen}
+        onClose={() => setIsQuotationEditorOpen(false)}
+        title={quotationEditor.id ? t("salesReceivables.dialog.editQuotationDraft") : t("salesReceivables.dialog.newQuotation")}
+      >
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.reference")}>
+              <Input value={quotationEditor.reference} onChange={(event) => setQuotationEditor((current) => ({ ...current, reference: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.quotationDate")}>
+              <Input type="date" value={quotationEditor.quotationDate} onChange={(event) => setQuotationEditor((current) => ({ ...current, quotationDate: event.target.value }))} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.validUntil")}>
+              <Input type="date" value={quotationEditor.validityDate} onChange={(event) => setQuotationEditor((current) => ({ ...current, validityDate: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.currency")}>
+              <Input value={quotationEditor.currencyCode} onChange={(event) => setQuotationEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} maxLength={3} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.customer")}>
+              <Select value={quotationEditor.customerId} onChange={(event) => setQuotationEditor((current) => ({ ...current, customerId: event.target.value }))}>
+                <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
+                {activeCustomers.map((row) => (
+                  <option key={row.id} value={row.id}>{row.code} · {row.name}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label={t("salesReceivables.field.description")}>
+            <Textarea rows={3} value={quotationEditor.description} onChange={(event) => setQuotationEditor((current) => ({ ...current, description: event.target.value }))} />
+          </Field>
+          <DocumentLinesEditor lines={quotationEditor.lines} revenueAccounts={revenueAccountsQuery.data ?? []} onChange={(lines) => setQuotationEditor((current) => ({ ...current, lines }))} />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsQuotationEditorOpen(false)}>{t("salesReceivables.action.cancel")}</Button>
+            <Button onClick={() => (quotationEditor.id ? updateQuotationMutation.mutate() : createQuotationMutation.mutate())} disabled={createQuotationMutation.isPending || updateQuotationMutation.isPending}>
+              {quotationEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
+            </Button>
+          </div>
+        </div>
+      </SidePanel>
+
+      <SidePanel
+        isOpen={isOrderEditorOpen}
+        onClose={() => setIsOrderEditorOpen(false)}
+        title={orderEditor.id ? t("salesReceivables.dialog.editOrderDraft") : t("salesReceivables.dialog.newOrder")}
+      >
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.reference")}>
+              <Input value={orderEditor.reference} onChange={(event) => setOrderEditor((current) => ({ ...current, reference: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.orderDate")}>
+              <Input type="date" value={orderEditor.orderDate} onChange={(event) => setOrderEditor((current) => ({ ...current, orderDate: event.target.value }))} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.promisedDate")}>
+              <Input type="date" value={orderEditor.promisedDate} onChange={(event) => setOrderEditor((current) => ({ ...current, promisedDate: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.currency")}>
+              <Input value={orderEditor.currencyCode} onChange={(event) => setOrderEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} maxLength={3} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.customer")}>
+              <Select value={orderEditor.customerId} onChange={(event) => setOrderEditor((current) => ({ ...current, customerId: event.target.value, sourceQuotationId: "" }))}>
+                <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
+                {activeCustomers.map((row) => (
+                  <option key={row.id} value={row.id}>{row.code} · {row.name}</option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.sourceQuotation")}>
+              <Select value={orderEditor.sourceQuotationId} onChange={(event) => setOrderEditor((current) => ({ ...current, sourceQuotationId: event.target.value }))}>
+                <option value="">{t("salesReceivables.empty.manualOrder")}</option>
+                {matchingCustomerQuotations.map((row) => (
+                  <option key={row.id} value={row.id}>{row.reference}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("salesReceivables.field.shippingDetails")}>
+              <Input value={orderEditor.shippingDetails} onChange={(event) => setOrderEditor((current) => ({ ...current, shippingDetails: event.target.value }))} />
+            </Field>
+          </div>
+          <Field label={t("salesReceivables.field.description")}>
+            <Textarea rows={3} value={orderEditor.description} onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))} />
+          </Field>
+          <DocumentLinesEditor lines={orderEditor.lines} revenueAccounts={revenueAccountsQuery.data ?? []} onChange={(lines) => setOrderEditor((current) => ({ ...current, lines }))} />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsOrderEditorOpen(false)}>{t("salesReceivables.action.cancel")}</Button>
+            <Button onClick={() => (orderEditor.id ? updateOrderMutation.mutate() : createOrderMutation.mutate())} disabled={createOrderMutation.isPending || updateOrderMutation.isPending}>
+              {orderEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
+            </Button>
+          </div>
+        </div>
+      </SidePanel>
+
+      <SidePanel
         isOpen={isInvoiceEditorOpen}
         onClose={() => setIsInvoiceEditorOpen(false)}
         title={invoiceEditor.id ? t("salesReceivables.dialog.editInvoiceDraft") : t("salesReceivables.dialog.newSalesInvoice")}
@@ -1315,6 +2111,9 @@ export function SalesReceivablesPage() {
           reference={invoiceEditor.reference}
           dateLabel={t("salesReceivables.field.invoiceDate")}
           dateValue={invoiceEditor.invoiceDate}
+          secondaryDateLabel={t("salesReceivables.field.dueDate")}
+          secondaryDateValue={invoiceEditor.dueDate}
+          currencyCode={invoiceEditor.currencyCode}
           customerId={invoiceEditor.customerId}
           description={invoiceEditor.description}
           lines={invoiceEditor.lines}
@@ -1322,6 +2121,8 @@ export function SalesReceivablesPage() {
           revenueAccounts={revenueAccountsQuery.data ?? []}
           onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
           onDateChange={(value) => setInvoiceEditor((current) => ({ ...current, invoiceDate: value }))}
+          onSecondaryDateChange={(value) => setInvoiceEditor((current) => ({ ...current, dueDate: value }))}
+          onCurrencyChange={(value) => setInvoiceEditor((current) => ({ ...current, currencyCode: value.toUpperCase() }))}
           onCustomerChange={(value) => setInvoiceEditor((current) => ({ ...current, customerId: value }))}
           onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
           onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
@@ -1348,6 +2149,9 @@ export function SalesReceivablesPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.currency")}>
+              <Input value={creditNoteEditor.currencyCode} onChange={(event) => setCreditNoteEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} maxLength={3} />
+            </Field>
             <Field label={t("salesReceivables.field.customer")}>
                 <Select
                   value={creditNoteEditor.customerId}
@@ -1395,6 +2199,56 @@ export function SalesReceivablesPage() {
           </div>
         </div>
       </SidePanel>
+
+      <SidePanel
+        isOpen={isReceiptEditorOpen}
+        onClose={() => setIsReceiptEditorOpen(false)}
+        title={t("salesReceivables.dialog.newReceipt")}
+      >
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.reference")}>
+              <Input value={receiptEditor.reference} onChange={(event) => setReceiptEditor((current) => ({ ...current, reference: event.target.value }))} />
+            </Field>
+            <Field label={t("salesReceivables.field.receiptDate")}>
+              <Input type="date" value={receiptEditor.receiptDate} onChange={(event) => setReceiptEditor((current) => ({ ...current, receiptDate: event.target.value }))} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.customer")}>
+              <Select value={receiptEditor.customerId} onChange={(event) => setReceiptEditor((current) => ({ ...current, customerId: event.target.value }))}>
+                <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
+                {activeCustomers.map((row) => (
+                  <option key={row.id} value={row.id}>{row.code} · {row.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("salesReceivables.field.amount")}>
+              <Input type="number" min="0.01" step="0.01" value={receiptEditor.amount} onChange={(event) => setReceiptEditor((current) => ({ ...current, amount: event.target.value }))} />
+            </Field>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.bankCashAccount")}>
+              <Select value={receiptEditor.bankCashAccountId} onChange={(event) => setReceiptEditor((current) => ({ ...current, bankCashAccountId: event.target.value }))}>
+                <option value="">{t("salesReceivables.empty.selectBankCashAccount")}</option>
+                {(bankCashAccountsQuery.data ?? []).map((row) => (
+                  <option key={row.id} value={row.id}>{row.name} · {row.type}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("salesReceivables.field.settlementReference")}>
+              <Input value={receiptEditor.settlementReference} onChange={(event) => setReceiptEditor((current) => ({ ...current, settlementReference: event.target.value }))} />
+            </Field>
+          </div>
+          <Field label={t("salesReceivables.field.description")}>
+            <Textarea rows={3} value={receiptEditor.description} onChange={(event) => setReceiptEditor((current) => ({ ...current, description: event.target.value }))} />
+          </Field>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsReceiptEditorOpen(false)}>{t("salesReceivables.action.cancel")}</Button>
+            <Button onClick={() => createReceiptMutation.mutate()} disabled={createReceiptMutation.isPending}>{t("salesReceivables.action.createReceipt")}</Button>
+          </div>
+        </div>
+      </SidePanel>
     </div>
   );
 }
@@ -1403,6 +2257,9 @@ function SalesDocumentEditor({
   reference,
   dateLabel,
   dateValue,
+  secondaryDateLabel,
+  secondaryDateValue,
+  currencyCode,
   customerId,
   description,
   lines,
@@ -1412,6 +2269,8 @@ function SalesDocumentEditor({
   isSubmitting,
   onReferenceChange,
   onDateChange,
+  onSecondaryDateChange,
+  onCurrencyChange,
   onCustomerChange,
   onDescriptionChange,
   onLinesChange,
@@ -1421,6 +2280,9 @@ function SalesDocumentEditor({
   reference: string;
   dateLabel: string;
   dateValue: string;
+  secondaryDateLabel?: string;
+  secondaryDateValue?: string;
+  currencyCode: string;
   customerId: string;
   description: string;
   lines: SalesLineEditorState[];
@@ -1430,6 +2292,8 @@ function SalesDocumentEditor({
   isSubmitting: boolean;
   onReferenceChange: (value: string) => void;
   onDateChange: (value: string) => void;
+  onSecondaryDateChange?: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
   onCustomerChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onLinesChange: (lines: SalesLineEditorState[]) => void;
@@ -1446,6 +2310,19 @@ function SalesDocumentEditor({
         <Field label={dateLabel}>
           <Input type="date" value={dateValue} onChange={(event) => onDateChange(event.target.value)} />
         </Field>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field label={t("salesReceivables.field.currency")}>
+          <Input value={currencyCode} onChange={(event) => onCurrencyChange(event.target.value.toUpperCase())} maxLength={3} />
+        </Field>
+        {secondaryDateLabel && onSecondaryDateChange ? (
+          <Field label={secondaryDateLabel}>
+            <Input type="date" value={secondaryDateValue ?? ""} onChange={(event) => onSecondaryDateChange(event.target.value)} />
+          </Field>
+        ) : (
+          <div />
+        )}
       </div>
 
       <Field label={t("salesReceivables.field.customer")}>
@@ -1514,6 +2391,12 @@ function DocumentLinesEditor({
               </button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("salesReceivables.field.itemOrService")}>
+                <Input
+                  value={line.itemName}
+                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, itemName: event.target.value } : item)))}
+                />
+              </Field>
               <Field label={t("salesReceivables.field.revenueAccount")}>
                 <Select
                   value={line.revenueAccountId}
@@ -1531,6 +2414,26 @@ function DocumentLinesEditor({
                 <Input
                   value={line.description}
                   onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, description: event.target.value } : item)))}
+                />
+              </Field>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label={t("salesReceivables.field.discountAmount")}>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={line.discountAmount}
+                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, discountAmount: event.target.value } : item)))}
+                />
+              </Field>
+              <Field label={t("salesReceivables.field.taxAmount")}>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={line.taxAmount}
+                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, taxAmount: event.target.value } : item)))}
                 />
               </Field>
             </div>
@@ -1602,9 +2505,12 @@ function TableHead({
 function createEmptyLine(): SalesLineEditorState {
   return {
     key: Math.random().toString(36).slice(2, 10),
+    itemName: "",
     description: "",
     quantity: "1",
     unitPrice: "",
+    discountAmount: "",
+    taxAmount: "",
     lineAmount: "",
     revenueAccountId: "",
   };
@@ -1612,12 +2518,61 @@ function createEmptyLine(): SalesLineEditorState {
 
 function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
   return lines.map((line) => ({
+    itemName: line.itemName || undefined,
     description: line.description || undefined,
     quantity: line.quantity ? Number(line.quantity) : undefined,
     unitPrice: line.unitPrice ? Number(line.unitPrice) : undefined,
+    discountAmount: line.discountAmount ? Number(line.discountAmount) : undefined,
+    taxAmount: line.taxAmount ? Number(line.taxAmount) : undefined,
     lineAmount: line.lineAmount ? Number(line.lineAmount) : undefined,
     revenueAccountId: line.revenueAccountId,
   }));
+}
+
+function mapLineToEditor(line: {
+  id: string;
+  itemName?: string | null;
+  description?: string | null;
+  quantity: string;
+  unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
+  lineAmount: string;
+  revenueAccount: { id: string } | null;
+}): SalesLineEditorState {
+  return {
+    key: line.id,
+    itemName: line.itemName ?? "",
+    description: line.description ?? "",
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    discountAmount: line.discountAmount,
+    taxAmount: line.taxAmount,
+    lineAmount: line.lineAmount,
+    revenueAccountId: line.revenueAccount?.id ?? "",
+  };
+}
+
+function mapLineForConversion(line: {
+  itemName?: string | null;
+  description?: string | null;
+  quantity: string;
+  unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
+  lineAmount: string;
+  revenueAccount: { id: string } | null;
+}): SalesLinePayload {
+  return {
+    itemName: line.itemName ?? undefined,
+    description: line.description ?? undefined,
+    quantity: Number(line.quantity),
+    unitPrice: Number(line.unitPrice),
+    discountAmount: Number(line.discountAmount),
+    taxAmount: Number(line.taxAmount),
+    lineAmount: Number(line.lineAmount),
+    revenueAccountId: line.revenueAccount?.id ?? undefined,
+  };
 }
 
 function friendlyAllocationStatus(status: AllocationStatus) {
@@ -1629,9 +2584,13 @@ async function invalidateSalesReceivables(queryClient: ReturnType<typeof useQuer
     queryClient.invalidateQueries({ queryKey: ["sales-customers"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-customer-balance"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-customer-transactions"] }),
+    queryClient.invalidateQueries({ queryKey: ["sales-quotations"] }),
+    queryClient.invalidateQueries({ queryKey: ["sales-orders"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-invoices"] }),
+    queryClient.invalidateQueries({ queryKey: ["sales-receipts"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-credit-notes"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-aging"] }),
     queryClient.invalidateQueries({ queryKey: ["bank-cash-transactions"] }),
+    queryClient.invalidateQueries({ queryKey: ["bank-cash-accounts"] }),
   ]);
 }

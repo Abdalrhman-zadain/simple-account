@@ -23,6 +23,10 @@ export class CreateReceiptDto {
 
   @IsOptional()
   @IsString()
+  customerId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   counterpartyName?: string;
 

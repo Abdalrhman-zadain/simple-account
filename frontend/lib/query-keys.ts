@@ -52,11 +52,20 @@ export const queryKeys = {
   salesCustomerTransactions(token: string | null, customerId: string | null) {
     return ["sales-customer-transactions", token, customerId] as const;
   },
+  salesQuotations(token: string | null, params: SalesDocumentsQuery = {}) {
+    return ["sales-quotations", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  salesOrders(token: string | null, params: SalesDocumentsQuery = {}) {
+    return ["sales-orders", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
   salesInvoices(token: string | null, params: SalesDocumentsQuery = {}) {
     return ["sales-invoices", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },
   salesCreditNotes(token: string | null, params: SalesDocumentsQuery = {}) {
     return ["sales-credit-notes", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  salesReceipts(token: string | null, params: { customerId?: string; search?: string } = {}) {
+    return ["sales-receipts", token, normalizeObject(params as Record<string, unknown>)] as const;
   },
   salesAging(token: string | null, asOfDate?: string) {
     return ["sales-aging", token, asOfDate ?? null] as const;

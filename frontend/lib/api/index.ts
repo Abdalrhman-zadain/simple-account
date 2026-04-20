@@ -23,6 +23,7 @@ import {
     BankReconciliationListItem,
     Customer,
     CustomerBalance,
+    CustomerReceipt,
     CustomerTransaction,
     CustomersQuery,
     CreateAccountPayload,
@@ -35,7 +36,10 @@ import {
     CreateBankStatementLinePayload,
     CreatePaymentPayload,
     CreateReceiptPayload,
+    CreateCustomerReceiptPayload,
     CreateSalesInvoicePayload,
+    CreateSalesOrderPayload,
+    CreateSalesQuotationPayload,
     CreateTransferPayload,
     CreateJournalEntryPayload,
     CreateJournalEntryTypePayload,
@@ -57,6 +61,8 @@ import {
     ImportBankStatementLinesPayload,
     SegmentDefinition,
     SegmentValue,
+    SalesOrder,
+    SalesQuotation,
     SalesInvoice,
     CreditNote,
     SalesDocumentsQuery,
@@ -68,6 +74,8 @@ import {
     UpdateCustomerPayload,
     UpdateJournalEntryTypePayload,
     UpdatePaymentMethodTypePayload,
+    UpdateSalesOrderPayload,
+    UpdateSalesQuotationPayload,
     UpdateSalesInvoicePayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
@@ -463,6 +471,124 @@ export async function getCustomerTransactions(customerId: string, token?: string
   return apiRequest<CustomerTransaction[]>(`/sales-receivables/customers/${customerId}/transactions`, { token });
 }
 
+export async function getSalesQuotations(params: SalesDocumentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.customerId) searchParams.set("customerId", params.customerId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<SalesQuotation[]>(`/sales-receivables/quotations${suffix}`, { token });
+}
+
+export async function createSalesQuotation(payload: CreateSalesQuotationPayload, token?: string | null) {
+  return apiRequest<SalesQuotation>("/sales-receivables/quotations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSalesQuotation(id: string, payload: UpdateSalesQuotationPayload, token?: string | null) {
+  return apiRequest<SalesQuotation>(`/sales-receivables/quotations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function approveSalesQuotation(id: string, token?: string | null) {
+  return apiRequest<SalesQuotation>(`/sales-receivables/quotations/${id}/approve`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelSalesQuotation(id: string, token?: string | null) {
+  return apiRequest<SalesQuotation>(`/sales-receivables/quotations/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function convertQuotationToOrder(
+  id: string,
+  payload: CreateSalesOrderPayload,
+  token?: string | null,
+) {
+  return apiRequest<SalesOrder>(`/sales-receivables/quotations/${id}/convert-to-order`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function convertQuotationToInvoice(
+  id: string,
+  payload: CreateSalesInvoicePayload,
+  token?: string | null,
+) {
+  return apiRequest<SalesInvoice>(`/sales-receivables/quotations/${id}/convert-to-invoice`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getSalesOrders(params: SalesDocumentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.customerId) searchParams.set("customerId", params.customerId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<SalesOrder[]>(`/sales-receivables/sales-orders${suffix}`, { token });
+}
+
+export async function createSalesOrder(payload: CreateSalesOrderPayload, token?: string | null) {
+  return apiRequest<SalesOrder>("/sales-receivables/sales-orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSalesOrder(id: string, payload: UpdateSalesOrderPayload, token?: string | null) {
+  return apiRequest<SalesOrder>(`/sales-receivables/sales-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function confirmSalesOrder(id: string, token?: string | null) {
+  return apiRequest<SalesOrder>(`/sales-receivables/sales-orders/${id}/confirm`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelSalesOrder(id: string, token?: string | null) {
+  return apiRequest<SalesOrder>(`/sales-receivables/sales-orders/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function convertSalesOrderToInvoice(
+  id: string,
+  payload: CreateSalesInvoicePayload,
+  token?: string | null,
+) {
+  return apiRequest<SalesInvoice>(`/sales-receivables/sales-orders/${id}/convert-to-invoice`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
 export async function getSalesInvoices(params: SalesDocumentsQuery = {}, token?: string | null) {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set("status", params.status);
@@ -527,6 +653,22 @@ export async function updateCreditNote(id: string, payload: UpdateCreditNotePayl
 export async function postCreditNote(id: string, token?: string | null) {
   return apiRequest<CreditNote>(`/sales-receivables/credit-notes/${id}/post`, {
     method: "POST",
+    token,
+  });
+}
+
+export async function getCustomerReceipts(params: { customerId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.customerId) searchParams.set("customerId", params.customerId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<CustomerReceipt[]>(`/sales-receivables/receipts${suffix}`, { token });
+}
+
+export async function createCustomerReceipt(payload: CreateCustomerReceiptPayload, token?: string | null) {
+  return apiRequest<CustomerReceipt>("/sales-receivables/receipts", {
+    method: "POST",
+    body: JSON.stringify(payload),
     token,
   });
 }

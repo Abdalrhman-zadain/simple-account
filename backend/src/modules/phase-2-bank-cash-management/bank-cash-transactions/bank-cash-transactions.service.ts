@@ -87,6 +87,7 @@ export class BankCashTransactionsService {
       reference: this.normalizeReference(dto.reference, 'RCPT'),
       transactionDate: new Date(dto.transactionDate),
       amount: this.toAmount(dto.amount),
+      customerId: dto.customerId ?? null,
       bankCashAccountId: dto.bankCashAccountId,
       counterAccountId: dto.counterAccountId,
       counterpartyName: dto.counterpartyName?.trim() || null,
@@ -141,6 +142,7 @@ export class BankCashTransactionsService {
       sourceBankCashAccountId: dto.sourceBankCashAccountId ?? existing.sourceBankCashAccountId ?? undefined,
       destinationBankCashAccountId:
         dto.destinationBankCashAccountId ?? existing.destinationBankCashAccountId ?? undefined,
+      customerId: dto.customerId === undefined ? existing.customerId ?? undefined : dto.customerId ?? undefined,
       counterpartyName: dto.counterpartyName === undefined ? existing.counterpartyName ?? undefined : dto.counterpartyName ?? undefined,
       description: dto.description === undefined ? existing.description ?? undefined : dto.description ?? undefined,
     };
@@ -176,6 +178,7 @@ export class BankCashTransactionsService {
           reference: next.reference.trim(),
           transactionDate: new Date(next.transactionDate),
           amount: this.toAmount(next.amount),
+          customerId: existing.kind === BankCashTransactionKind.TRANSFER ? null : next.customerId ?? null,
           bankCashAccountId: existing.kind === BankCashTransactionKind.TRANSFER ? null : next.bankCashAccountId,
           counterAccountId: existing.kind === BankCashTransactionKind.TRANSFER ? null : next.counterAccountId,
           sourceBankCashAccountId:
@@ -398,6 +401,7 @@ export class BankCashTransactionsService {
       amount: row.amount.toString(),
       description: row.description,
       counterpartyName: row.counterpartyName,
+      customer: row.customer ? { id: row.customer.id, code: row.customer.code, name: row.customer.name } : null,
       bankCashAccount: row.bankCashAccount ? this.mapBankCashAccount(row.bankCashAccount) : null,
       sourceBankCashAccount: row.sourceBankCashAccount ? this.mapBankCashAccount(row.sourceBankCashAccount) : null,
       destinationBankCashAccount: row.destinationBankCashAccount
@@ -448,6 +452,7 @@ export class BankCashTransactionsService {
       sourceBankCashAccount: { include: { account: { select: this.accountSummarySelect() } } },
       destinationBankCashAccount: { include: { account: { select: this.accountSummarySelect() } } },
       counterAccount: { select: this.accountSummarySelect() },
+      customer: { select: { id: true, code: true, name: true } },
       journalEntry: { select: { id: true, reference: true } },
     } satisfies Prisma.BankCashTransactionInclude;
   }

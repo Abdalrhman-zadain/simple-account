@@ -131,7 +131,7 @@ Checks to run:
 Where to edit:
 
 - backend `phase-3-sales-receivables/sales-receivables`
-- `backend/prisma/schema.prisma` and Prisma migration files if customer/invoice/note/allocation shape changes
+- `backend/prisma/schema.prisma` and Prisma migration files if customer/quotation/order/invoice/receipt/note/allocation shape changes
 - frontend `features/phase-3-sales-receivables`
 - route files under `frontend/app/(erp)/sales-receivables`
 - frontend API wrappers/types in `frontend/lib/api` and `frontend/types/api` when UI or integration code is added
@@ -139,13 +139,18 @@ Where to edit:
 What else to check:
 
 - customer records must remain deactivatable without deleting history
-- deactivated customers must not be selectable for new invoices or credit notes
+- deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
+- quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
+- sales-order drafts must stay editable until confirmed, and confirmed orders must preserve quotation/invoice traceability
 - invoice and credit-note drafts must stay editable, but posted documents must be locked
 - posting must create a journal entry and use Phase 1 posting logic so ledger rows and balances remain consistent
+- sales invoices must derive due date from the supplied due date or the customer payment terms
+- sales document references must remain unique across quotations, sales orders, invoices, receipts, and credit notes
 - customer balance must increase on posted invoices and decrease on posted credit notes
+- customer receipts created from Sales must still use the Phase 2 bank/cash posting behavior and remain allocatable to one or more invoices
 - receipt allocations must allow partial and multi-receipt behavior while preventing over-allocation
 - invoice outstanding/allocation status must stay consistent after postings and allocations
-- aging buckets must be derived from posted outstanding balances as of the report date
+- aging buckets must be derived from posted outstanding balances as of the report date, using due date when available
 
 Must remain compatible:
 
