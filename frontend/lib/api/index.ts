@@ -32,6 +32,7 @@ import {
     CreateCreditNotePayload,
     CreateCustomerPayload,
     CreatePurchaseRequestPayload,
+    CreatePurchaseOrderPayload,
     CreateSupplierPayload,
     CreateBankCashAccountPayload,
     CreateBankReconciliationMatchPayload,
@@ -69,6 +70,8 @@ import {
     SalesInvoice,
     PurchaseRequest,
     PurchaseRequestConversionResult,
+    PurchaseOrder,
+    PurchaseOrdersQuery,
     PurchaseRequestsQuery,
     Supplier,
     SupplierBalance,
@@ -89,6 +92,7 @@ import {
     UpdateSalesQuotationPayload,
     UpdateSalesInvoicePayload,
     UpdatePurchaseRequestPayload,
+    UpdatePurchaseOrderPayload,
     UpdateSupplierPayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
@@ -554,6 +558,72 @@ export async function convertPurchaseRequestToOrder(
   return apiRequest<PurchaseRequestConversionResult>(`/purchases/purchase-requests/${id}/convert-to-order`, {
     method: "POST",
     body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getPurchaseOrders(params: PurchaseOrdersQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.supplierId) searchParams.set("supplierId", params.supplierId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PurchaseOrder[]>(`/purchases/purchase-orders${suffix}`, { token });
+}
+
+export async function getPurchaseOrderById(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}`, { token });
+}
+
+export async function createPurchaseOrder(payload: CreatePurchaseOrderPayload, token?: string | null) {
+  return apiRequest<PurchaseOrder>("/purchases/purchase-orders", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePurchaseOrder(id: string, payload: UpdatePurchaseOrderPayload, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function issuePurchaseOrder(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/issue`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function markPurchaseOrderPartiallyReceived(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/mark-partially-received`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function markPurchaseOrderFullyReceived(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/mark-fully-received`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelPurchaseOrder(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function closePurchaseOrder(id: string, token?: string | null) {
+  return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/close`, {
+    method: "POST",
     token,
   });
 }

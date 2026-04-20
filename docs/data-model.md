@@ -158,7 +158,7 @@ Accounting meaning:
 - purchase requests are internal pre-procurement documents with draft, submitted, approved, rejected, and closed states
 - request status transitions are stored separately so approval history remains auditable
 - approved purchase requests can open a draft purchase order while preserving source-request traceability
-- draft purchase orders created from requests are scaffolding for the later purchase-order workflow and do not yet carry posting behavior or receipt/invoice matching
+- purchase orders now persist their own header and line lifecycle, including direct creation, request-linked creation, and operational statuses (`DRAFT`, `ISSUED`, `PARTIALLY_RECEIVED`, `FULLY_RECEIVED`, `CANCELLED`, `CLOSED`), but they still do not carry posting behavior or receipt/invoice matching
 
 ### Fiscal Control
 

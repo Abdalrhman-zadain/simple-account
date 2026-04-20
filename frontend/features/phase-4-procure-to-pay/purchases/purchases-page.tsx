@@ -6,18 +6,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approvePurchaseRequest,
   closePurchaseRequest,
+  closePurchaseOrder,
+  cancelPurchaseOrder,
   convertPurchaseRequestToOrder,
+  createPurchaseOrder,
   createPurchaseRequest,
   createSupplier,
   deactivateSupplier,
   getAccountOptions,
+  getPurchaseOrderById,
+  getPurchaseOrders,
   getPurchaseRequestById,
   getPurchaseRequests,
+  issuePurchaseOrder,
+  markPurchaseOrderFullyReceived,
+  markPurchaseOrderPartiallyReceived,
   getSupplierBalance,
   getSupplierTransactions,
   getSuppliers,
   rejectPurchaseRequest,
   submitPurchaseRequest,
+  updatePurchaseOrder,
   updatePurchaseRequest,
   updateSupplier,
 } from "@/lib/api";
@@ -25,11 +34,11 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { PurchaseRequest, Supplier } from "@/types/api";
+import type { PurchaseOrder, PurchaseRequest, Supplier } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-type Workspace = "suppliers" | "requests";
+type Workspace = "suppliers" | "requests" | "orders";
 
 type SupplierEditorState = {
   id?: string;
@@ -67,6 +76,27 @@ type PurchaseRequestConversionState = {
   description: string;
 };
 
+type PurchaseOrderLineEditorState = {
+  key: string;
+  itemName: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxAmount: string;
+  requestedDeliveryDate: string;
+};
+
+type PurchaseOrderEditorState = {
+  id?: string;
+  reference: string;
+  orderDate: string;
+  supplierId: string;
+  currencyCode: string;
+  description: string;
+  sourcePurchaseRequestId: string;
+  lines: PurchaseOrderLineEditorState[];
+};
+
 const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   code: "",
   name: "",
@@ -92,6 +122,16 @@ const EMPTY_CONVERSION_EDITOR = (): PurchaseRequestConversionState => ({
   description: "",
 });
 
+const EMPTY_ORDER_EDITOR = (): PurchaseOrderEditorState => ({
+  reference: "",
+  orderDate: todayValue(),
+  supplierId: "",
+  currencyCode: "JOD",
+  description: "",
+  sourcePurchaseRequestId: "",
+  lines: [createEmptyOrderLine()],
+});
+
 export function PurchasesPage() {
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -112,6 +152,13 @@ export function PurchasesPage() {
   const [requestEditor, setRequestEditor] = useState<PurchaseRequestEditorState>(EMPTY_REQUEST_EDITOR);
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [conversionEditor, setConversionEditor] = useState<PurchaseRequestConversionState>(EMPTY_CONVERSION_EDITOR);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<
+    "" | "DRAFT" | "ISSUED" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED" | "CANCELLED" | "CLOSED"
+  >("");
+  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
+  const [isOrderEditorOpen, setIsOrderEditorOpen] = useState(false);
+  const [orderEditor, setOrderEditor] = useState<PurchaseOrderEditorState>(EMPTY_ORDER_EDITOR);
 
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
@@ -155,6 +202,27 @@ export function PurchasesPage() {
     queryKey: queryKeys.purchaseRequestById(token, selectedPurchaseRequestId),
     queryFn: () => getPurchaseRequestById(selectedPurchaseRequestId!, token),
     enabled: Boolean(selectedPurchaseRequestId),
+  });
+
+  const purchaseOrdersQuery = useQuery({
+    queryKey: queryKeys.purchaseOrders(token, {
+      search: orderSearch,
+      status: orderStatusFilter,
+    }),
+    queryFn: () =>
+      getPurchaseOrders(
+        {
+          search: orderSearch,
+          status: orderStatusFilter,
+        },
+        token,
+      ),
+  });
+
+  const purchaseOrderDetailQuery = useQuery({
+    queryKey: queryKeys.purchaseOrderById(token, selectedPurchaseOrderId),
+    queryFn: () => getPurchaseOrderById(selectedPurchaseOrderId!, token),
+    enabled: Boolean(selectedPurchaseOrderId),
   });
 
   const createSupplierMutation = useMutation({
@@ -296,6 +364,88 @@ export function PurchasesPage() {
     },
   });
 
+  const createPurchaseOrderMutation = useMutation({
+    mutationFn: () =>
+      createPurchaseOrder(
+        {
+          reference: orderEditor.reference || undefined,
+          orderDate: orderEditor.orderDate,
+          supplierId: orderEditor.supplierId,
+          currencyCode: orderEditor.currencyCode || undefined,
+          description: orderEditor.description || undefined,
+          sourcePurchaseRequestId: orderEditor.sourcePurchaseRequestId || undefined,
+          lines: mapOrderEditorLines(orderEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(created.id);
+      closeOrderEditor();
+    },
+  });
+
+  const updatePurchaseOrderMutation = useMutation({
+    mutationFn: () =>
+      updatePurchaseOrder(
+        orderEditor.id!,
+        {
+          reference: orderEditor.reference || undefined,
+          orderDate: orderEditor.orderDate,
+          supplierId: orderEditor.supplierId,
+          currencyCode: orderEditor.currencyCode || undefined,
+          description: orderEditor.description || undefined,
+          lines: mapOrderEditorLines(orderEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+      closeOrderEditor();
+    },
+  });
+
+  const issuePurchaseOrderMutation = useMutation({
+    mutationFn: (id: string) => issuePurchaseOrder(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+    },
+  });
+
+  const markPartiallyReceivedMutation = useMutation({
+    mutationFn: (id: string) => markPurchaseOrderPartiallyReceived(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+    },
+  });
+
+  const markFullyReceivedMutation = useMutation({
+    mutationFn: (id: string) => markPurchaseOrderFullyReceived(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+    },
+  });
+
+  const cancelPurchaseOrderMutation = useMutation({
+    mutationFn: (id: string) => cancelPurchaseOrder(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+    },
+  });
+
+  const closePurchaseOrderMutation = useMutation({
+    mutationFn: (id: string) => closePurchaseOrder(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(updated.id);
+    },
+  });
+
   const suppliers = suppliersQuery.data ?? [];
   const selectedSupplier = useMemo(
     () => suppliers.find((row) => row.id === selectedSupplierId) ?? null,
@@ -307,6 +457,11 @@ export function PurchasesPage() {
     purchaseRequestDetailQuery.data ??
     purchaseRequests.find((row) => row.id === selectedPurchaseRequestId) ??
     null;
+  const purchaseOrders = purchaseOrdersQuery.data ?? [];
+  const selectedPurchaseOrder =
+    purchaseOrderDetailQuery.data ??
+    purchaseOrders.find((row) => row.id === selectedPurchaseOrderId) ??
+    null;
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
@@ -314,6 +469,11 @@ export function PurchasesPage() {
   const totalRequests = purchaseRequests.length;
   const submittedRequests = purchaseRequests.filter((row) => row.status === "SUBMITTED").length;
   const approvedRequests = purchaseRequests.filter((row) => row.status === "APPROVED").length;
+  const totalOrders = purchaseOrders.length;
+  const issuedOrders = purchaseOrders.filter((row) => row.status === "ISSUED").length;
+  const openReceiptOrders = purchaseOrders.filter(
+    (row) => row.status === "ISSUED" || row.status === "PARTIALLY_RECEIVED",
+  ).length;
 
   const supplierSaveError = getMutationErrorMessage(createSupplierMutation.error ?? updateSupplierMutation.error);
   const supplierFormError = getSupplierFormError(supplierEditor);
@@ -327,12 +487,27 @@ export function PurchasesPage() {
   );
   const conversionError = getMutationErrorMessage(convertPurchaseRequestMutation.error);
   const conversionFormError = getPurchaseRequestConversionError(conversionEditor);
+  const orderSaveError = getMutationErrorMessage(createPurchaseOrderMutation.error ?? updatePurchaseOrderMutation.error);
+  const orderFormError = getPurchaseOrderFormError(orderEditor);
+  const orderActionError = getMutationErrorMessage(
+    issuePurchaseOrderMutation.error ??
+      markPartiallyReceivedMutation.error ??
+      markFullyReceivedMutation.error ??
+      cancelPurchaseOrderMutation.error ??
+      closePurchaseOrderMutation.error,
+  );
 
   const activeActionMutationPending =
     submitPurchaseRequestMutation.isPending ||
     approvePurchaseRequestMutation.isPending ||
     rejectPurchaseRequestMutation.isPending ||
     closePurchaseRequestMutation.isPending;
+  const activeOrderActionMutationPending =
+    issuePurchaseOrderMutation.isPending ||
+    markPartiallyReceivedMutation.isPending ||
+    markFullyReceivedMutation.isPending ||
+    cancelPurchaseOrderMutation.isPending ||
+    closePurchaseOrderMutation.isPending;
 
   return (
     <PageShell>
@@ -340,13 +515,19 @@ export function PurchasesPage() {
         <SectionHeading
           title={t("purchases.title")}
           description={
-            workspace === "suppliers" ? t("purchases.description") : t("purchases.requests.description")
+            workspace === "suppliers"
+              ? t("purchases.description")
+              : workspace === "requests"
+                ? t("purchases.requests.description")
+                : t("purchases.orders.description")
           }
           action={
             workspace === "suppliers" ? (
               <Button onClick={openNewSupplierEditor}>{t("purchases.action.newSupplier")}</Button>
-            ) : (
+            ) : workspace === "requests" ? (
               <Button onClick={openNewPurchaseRequestEditor}>{t("purchases.action.newRequest")}</Button>
+            ) : (
+              <Button onClick={openNewPurchaseOrderEditor}>{t("purchases.action.newOrder")}</Button>
             )
           }
         />
@@ -357,6 +538,9 @@ export function PurchasesPage() {
           </Button>
           <Button variant={workspace === "requests" ? "primary" : "secondary"} onClick={() => setWorkspace("requests")}>
             {t("purchases.workspace.requests")}
+          </Button>
+          <Button variant={workspace === "orders" ? "primary" : "secondary"} onClick={() => setWorkspace("orders")}>
+            {t("purchases.workspace.orders")}
           </Button>
         </Card>
 
@@ -498,7 +682,7 @@ export function PurchasesPage() {
               )}
             </Card>
           </>
-        ) : (
+        ) : workspace === "requests" ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
               <SummaryCard label={t("purchases.requests.summary.total")} value={String(totalRequests)} hint={t("purchases.requests.summary.totalHint")} />
@@ -720,6 +904,189 @@ export function PurchasesPage() {
               )}
             </Card>
           </>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <SummaryCard label={t("purchases.orders.summary.total")} value={String(totalOrders)} hint={t("purchases.orders.summary.totalHint")} />
+              <SummaryCard label={t("purchases.orders.summary.issued")} value={String(issuedOrders)} hint={t("purchases.orders.summary.issuedHint")} />
+              <SummaryCard label={t("purchases.orders.summary.openReceipt")} value={String(openReceiptOrders)} hint={t("purchases.orders.summary.openReceiptHint")} />
+            </div>
+
+            <Card className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label={t("purchases.orders.filters.search")}>
+                  <Input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder={t("purchases.orders.filters.searchPlaceholder")} />
+                </Field>
+                <Field label={t("purchases.orders.filters.status")}>
+                  <Select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as typeof orderStatusFilter)}>
+                    <option value="">{t("purchases.filters.allStatuses")}</option>
+                    <option value="DRAFT">{t("purchases.status.orderDraft")}</option>
+                    <option value="ISSUED">{t("purchases.status.orderIssued")}</option>
+                    <option value="PARTIALLY_RECEIVED">{t("purchases.status.orderPartiallyReceived")}</option>
+                    <option value="FULLY_RECEIVED">{t("purchases.status.orderFullyReceived")}</option>
+                    <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                    <option value="CLOSED">{t("purchases.status.closed")}</option>
+                  </Select>
+                </Field>
+                <div className="flex items-end">
+                  <Button variant="secondary" onClick={() => { setOrderSearch(""); setOrderStatusFilter(""); }}>
+                    {t("purchases.action.clearFilters")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("purchases.orders.table.reference")}</TableHead>
+                      <TableHead>{t("purchases.orders.table.supplier")}</TableHead>
+                      <TableHead>{t("purchases.orders.table.date")}</TableHead>
+                      <TableHead>{t("purchases.orders.table.total")}</TableHead>
+                      <TableHead>{t("purchases.orders.table.status")}</TableHead>
+                      <TableHead>{t("purchases.table.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                          {t("purchases.orders.empty.list")}
+                        </td>
+                      </tr>
+                    ) : (
+                      purchaseOrders.map((row) => (
+                        <tr key={row.id} className={cn("border-t border-gray-100", selectedPurchaseOrderId === row.id && "bg-gray-50/70")}>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.reference}</div>
+                            <div className="text-xs text-gray-500">{row.sourcePurchaseRequest?.reference || t("purchases.orders.empty.manual")}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.supplier.code} · {row.supplier.name}</div>
+                            <div className="text-xs text-gray-500">{row.currencyCode}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">{formatDate(row.orderDate)}</td>
+                          <td className="px-6 py-4 align-top">{formatCurrency(row.totalAmount)}</td>
+                          <td className="px-6 py-4 align-top">
+                            <StatusPill label={translatePurchaseOrderStatus(row.status, t)} tone={purchaseOrderStatusTone(row.status)} />
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="secondary" size="sm" onClick={() => setSelectedPurchaseOrderId(row.id)}>
+                                {t("purchases.action.view")}
+                              </Button>
+                              {row.canEdit ? (
+                                <Button variant="secondary" size="sm" onClick={() => openEditPurchaseOrderEditor(row)}>
+                                  {t("purchases.action.edit")}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.orders.section.details")}</div>
+                {selectedPurchaseOrder ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPurchaseOrder.canIssue ? (
+                      <Button size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.issue"), () => issuePurchaseOrderMutation.mutate(selectedPurchaseOrder.id))}>
+                        {t("purchases.action.issueOrder")}
+                      </Button>
+                    ) : null}
+                    {selectedPurchaseOrder.canMarkPartiallyReceived ? (
+                      <Button variant="secondary" size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.markPartiallyReceived"), () => markPartiallyReceivedMutation.mutate(selectedPurchaseOrder.id))}>
+                        {t("purchases.action.markPartiallyReceived")}
+                      </Button>
+                    ) : null}
+                    {selectedPurchaseOrder.canMarkFullyReceived ? (
+                      <Button variant="secondary" size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.markFullyReceived"), () => markFullyReceivedMutation.mutate(selectedPurchaseOrder.id))}>
+                        {t("purchases.action.markFullyReceived")}
+                      </Button>
+                    ) : null}
+                    {selectedPurchaseOrder.canCancel ? (
+                      <Button variant="danger" size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.cancel"), () => cancelPurchaseOrderMutation.mutate(selectedPurchaseOrder.id))}>
+                        {t("purchases.action.cancelOrder")}
+                      </Button>
+                    ) : null}
+                    {selectedPurchaseOrder.canClose ? (
+                      <Button variant="secondary" size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.close"), () => closePurchaseOrderMutation.mutate(selectedPurchaseOrder.id))}>
+                        {t("purchases.action.closeOrder")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {orderActionError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                  {orderActionError}
+                </div>
+              ) : null}
+
+              {!selectedPurchaseOrder ? (
+                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
+                  {t("purchases.orders.empty.selectOrder")}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <MiniMetric label={t("purchases.orders.metric.date")} value={formatDate(selectedPurchaseOrder.orderDate)} />
+                    <MiniMetric label={t("purchases.orders.metric.status")} value={translatePurchaseOrderStatus(selectedPurchaseOrder.status, t)} />
+                    <MiniMetric label={t("purchases.orders.metric.lines")} value={String(selectedPurchaseOrder.lines.length)} />
+                    <MiniMetric label={t("purchases.orders.metric.total")} value={formatCurrency(selectedPurchaseOrder.totalAmount)} />
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.orders.section.summary")}</div>
+                      <div className="space-y-3 text-sm text-gray-700">
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div className="font-bold text-gray-900">{selectedPurchaseOrder.supplier.code} · {selectedPurchaseOrder.supplier.name}</div>
+                          <div className="mt-1 text-xs text-gray-500">{selectedPurchaseOrder.currencyCode}</div>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div>{t("purchases.orders.field.sourceRequest")}: {selectedPurchaseOrder.sourcePurchaseRequest?.reference || t("purchases.orders.empty.manual")}</div>
+                          <div className="mt-2">{t("purchases.orders.field.description")}: {selectedPurchaseOrder.description || t("purchases.requests.empty.noDescription")}</div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <MiniMetric label={t("purchases.orders.metric.subtotal")} value={formatCurrency(selectedPurchaseOrder.subtotalAmount)} />
+                          <MiniMetric label={t("purchases.orders.metric.tax")} value={formatCurrency(selectedPurchaseOrder.taxAmount)} />
+                          <MiniMetric label={t("purchases.orders.metric.total")} value={formatCurrency(selectedPurchaseOrder.totalAmount)} />
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.orders.section.lines")}</div>
+                      <div className="space-y-3">
+                        {selectedPurchaseOrder.lines.map((line) => (
+                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="font-bold text-gray-900">{line.itemName || line.description}</div>
+                              <div className="text-sm text-gray-500">{t("purchases.orders.line.qtyPrice", { quantity: line.quantity, price: formatCurrency(line.unitPrice) })}</div>
+                            </div>
+                            <div className="mt-2 text-sm text-gray-600">{line.description}</div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                              <span>{t("purchases.orders.field.taxAmount")}: {formatCurrency(line.taxAmount)}</span>
+                              <span>{t("purchases.orders.field.lineTotal")}: {formatCurrency(line.lineTotalAmount)}</span>
+                              <span>{t("purchases.orders.field.deliveryDate")}: {line.requestedDeliveryDate ? formatDate(line.requestedDeliveryDate) : t("purchases.requests.empty.notSet")}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
         )}
 
         <SidePanel
@@ -928,6 +1295,142 @@ export function PurchasesPage() {
             </div>
           </div>
         </SidePanel>
+
+        <SidePanel
+          isOpen={isOrderEditorOpen}
+          onClose={closeOrderEditor}
+          title={orderEditor.id ? t("purchases.dialog.editOrder") : t("purchases.dialog.newOrder")}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.orders.field.reference")} hint={t("purchases.orders.field.referenceHint")}>
+                <Input value={orderEditor.reference} onChange={(event) => setOrderEditor((current) => ({ ...current, reference: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.orders.field.orderDate")}>
+                <Input type="date" value={orderEditor.orderDate} onChange={(event) => setOrderEditor((current) => ({ ...current, orderDate: event.target.value }))} />
+              </Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.orders.field.supplier")}>
+                <Select
+                  value={orderEditor.supplierId}
+                  onChange={(event) => {
+                    const supplierId = event.target.value;
+                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                    setOrderEditor((current) => ({
+                      ...current,
+                      supplierId,
+                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                    }));
+                  }}
+                >
+                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                  {activeSuppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.code} · {supplier.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("purchases.orders.field.currency")}>
+                <Input value={orderEditor.currencyCode} maxLength={8} onChange={(event) => setOrderEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.orders.field.sourceRequest")}>
+              <Select value={orderEditor.sourcePurchaseRequestId} onChange={(event) => setOrderEditor((current) => ({ ...current, sourcePurchaseRequestId: event.target.value }))} disabled={Boolean(orderEditor.id)}>
+                <option value="">{t("purchases.orders.empty.manual")}</option>
+                {purchaseRequests
+                  .filter((request) => request.status === "APPROVED" || request.status === "CLOSED")
+                  .map((request) => (
+                    <option key={request.id} value={request.id}>
+                      {request.reference}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+
+            <Field label={t("purchases.orders.field.description")}>
+              <Textarea rows={3} value={orderEditor.description} onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))} />
+            </Field>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.orders.section.editorLines")}</div>
+                <Button variant="secondary" size="sm" onClick={addOrderLine}>
+                  {t("purchases.action.addLine")}
+                </Button>
+              </div>
+
+              {orderEditor.lines.map((line, index) => {
+                const quantity = Number(line.quantity || 0);
+                const unitPrice = Number(line.unitPrice || 0);
+                const taxAmount = Number(line.taxAmount || 0);
+                const lineTotal = quantity * unitPrice + taxAmount;
+
+                return (
+                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-bold text-gray-900">{t("purchases.orders.line.label", { index: index + 1 })}</div>
+                      {orderEditor.lines.length > 1 ? (
+                        <Button variant="danger" size="sm" onClick={() => removeOrderLine(line.key)}>
+                          {t("purchases.action.remove")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label={t("purchases.orders.field.itemOrService")}>
+                        <Input value={line.itemName} onChange={(event) => updateOrderLine(line.key, "itemName", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.orders.field.deliveryDate")}>
+                        <Input type="date" value={line.requestedDeliveryDate} onChange={(event) => updateOrderLine(line.key, "requestedDeliveryDate", event.target.value)} />
+                      </Field>
+                    </div>
+                    <Field label={t("purchases.orders.field.lineDescription")}>
+                      <Textarea rows={2} value={line.description} onChange={(event) => updateOrderLine(line.key, "description", event.target.value)} />
+                    </Field>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Field label={t("purchases.orders.field.quantity")}>
+                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateOrderLine(line.key, "quantity", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.orders.field.unitPrice")}>
+                        <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateOrderLine(line.key, "unitPrice", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.orders.field.taxAmount")}>
+                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateOrderLine(line.key, "taxAmount", event.target.value)} />
+                      </Field>
+                    </div>
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                      {t("purchases.orders.field.lineTotal")}: {formatCurrency(lineTotal)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {orderFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {orderFormError}
+              </div>
+            ) : null}
+
+            {orderSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {orderSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeOrderEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => (orderEditor.id ? updatePurchaseOrderMutation.mutate() : createPurchaseOrderMutation.mutate())} disabled={Boolean(orderFormError) || createPurchaseOrderMutation.isPending || updatePurchaseOrderMutation.isPending}>
+                {orderEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
       </div>
     </PageShell>
   );
@@ -1039,6 +1542,74 @@ export function PurchasesPage() {
     setConversionEditor(EMPTY_CONVERSION_EDITOR());
     setIsConversionOpen(false);
   }
+
+  function openNewPurchaseOrderEditor() {
+    createPurchaseOrderMutation.reset();
+    updatePurchaseOrderMutation.reset();
+    const defaultSupplier = activeSuppliers[0];
+    setOrderEditor({
+      ...EMPTY_ORDER_EDITOR(),
+      supplierId: defaultSupplier?.id ?? "",
+      currencyCode: defaultSupplier?.defaultCurrency ?? "JOD",
+    });
+    setIsOrderEditorOpen(true);
+  }
+
+  function openEditPurchaseOrderEditor(order: PurchaseOrder) {
+    createPurchaseOrderMutation.reset();
+    updatePurchaseOrderMutation.reset();
+    setOrderEditor({
+      id: order.id,
+      reference: order.reference,
+      orderDate: order.orderDate.slice(0, 10),
+      supplierId: order.supplier.id,
+      currencyCode: order.currencyCode,
+      description: order.description ?? "",
+      sourcePurchaseRequestId: order.sourcePurchaseRequest?.id ?? "",
+      lines: order.lines.map((line) => ({
+        key: line.id,
+        itemName: line.itemName ?? "",
+        description: line.description,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        taxAmount: line.taxAmount,
+        requestedDeliveryDate: line.requestedDeliveryDate?.slice(0, 10) ?? "",
+      })),
+    });
+    setIsOrderEditorOpen(true);
+  }
+
+  function closeOrderEditor() {
+    createPurchaseOrderMutation.reset();
+    updatePurchaseOrderMutation.reset();
+    setOrderEditor(EMPTY_ORDER_EDITOR());
+    setIsOrderEditorOpen(false);
+  }
+
+  function addOrderLine() {
+    setOrderEditor((current) => ({
+      ...current,
+      lines: [...current.lines, createEmptyOrderLine()],
+    }));
+  }
+
+  function removeOrderLine(key: string) {
+    setOrderEditor((current) => ({
+      ...current,
+      lines: current.lines.filter((line) => line.key !== key),
+    }));
+  }
+
+  function updateOrderLine(
+    key: string,
+    field: keyof Omit<PurchaseOrderLineEditorState, "key">,
+    value: string,
+  ) {
+    setOrderEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+    }));
+  }
 }
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -1071,6 +1642,8 @@ async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: ["purchase-supplier-transactions"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-requests"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-request"] }),
+    queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
+    queryClient.invalidateQueries({ queryKey: ["purchase-order"] }),
   ]);
 }
 
@@ -1115,6 +1688,36 @@ function getPurchaseRequestConversionError(editor: PurchaseRequestConversionStat
   return null;
 }
 
+function getPurchaseOrderFormError(editor: PurchaseOrderEditorState) {
+  if (!editor.supplierId) {
+    return "Supplier selection is required. اختيار المورد مطلوب.";
+  }
+  if (!editor.orderDate) {
+    return "Purchase order date is required. تاريخ أمر الشراء مطلوب.";
+  }
+  if (!editor.currencyCode.trim()) {
+    return "Currency is required. العملة مطلوبة.";
+  }
+  if (editor.lines.length === 0) {
+    return "At least one purchase order line is required. يجب إضافة سطر أمر شراء واحد على الأقل.";
+  }
+  for (const line of editor.lines) {
+    if (!line.description.trim()) {
+      return "Each order line needs a description. كل سطر أمر شراء يحتاج إلى وصف.";
+    }
+    if (!line.quantity || Number(line.quantity) <= 0) {
+      return "Each order line needs a quantity greater than zero. كل سطر أمر شراء يحتاج إلى كمية أكبر من صفر.";
+    }
+    if (line.unitPrice === "" || Number(line.unitPrice) < 0) {
+      return "Each order line needs a valid unit price. كل سطر أمر شراء يحتاج إلى سعر وحدة صحيح.";
+    }
+    if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
+      return "Each order line needs a valid tax amount. كل سطر أمر شراء يحتاج إلى قيمة ضريبة صحيحة.";
+    }
+  }
+  return null;
+}
+
 function getMutationErrorMessage(error: unknown) {
   if (!error) {
     return null;
@@ -1136,6 +1739,18 @@ function createEmptyRequestLine(): PurchaseRequestLineEditorState {
   };
 }
 
+function createEmptyOrderLine(): PurchaseOrderLineEditorState {
+  return {
+    key: randomKey(),
+    itemName: "",
+    description: "",
+    quantity: "1",
+    unitPrice: "0.00",
+    taxAmount: "0.00",
+    requestedDeliveryDate: "",
+  };
+}
+
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
   return lines.map((line) => ({
     itemName: line.itemName || undefined,
@@ -1143,6 +1758,17 @@ function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
     quantity: Number(line.quantity),
     requestedDeliveryDate: line.requestedDeliveryDate || undefined,
     justification: line.justification || undefined,
+  }));
+}
+
+function mapOrderEditorLines(lines: PurchaseOrderLineEditorState[]) {
+  return lines.map((line) => ({
+    itemName: line.itemName || undefined,
+    description: line.description,
+    quantity: Number(line.quantity),
+    unitPrice: Number(line.unitPrice),
+    taxAmount: Number(line.taxAmount),
+    requestedDeliveryDate: line.requestedDeliveryDate || undefined,
   }));
 }
 
@@ -1187,6 +1813,13 @@ function statusTone(status: PurchaseRequest["status"]) {
   if (status === "REJECTED") return "warning" as const;
   if (status === "CLOSED") return "neutral" as const;
   if (status === "SUBMITTED") return "warning" as const;
+  return "neutral" as const;
+}
+
+function purchaseOrderStatusTone(status: PurchaseOrder["status"]) {
+  if (status === "FULLY_RECEIVED") return "positive" as const;
+  if (status === "ISSUED" || status === "PARTIALLY_RECEIVED") return "warning" as const;
+  if (status === "CANCELLED") return "warning" as const;
   return "neutral" as const;
 }
 

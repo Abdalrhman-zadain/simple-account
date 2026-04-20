@@ -227,7 +227,7 @@ Current root:
 
 - `purchases`
 
-`purchases` currently implements the `suppliers` and `purchase-requests` submodules, including approved-request conversion into draft purchase orders, and keeps dedicated ownership boundaries for fuller purchase-order management, purchase invoices, supplier payments, debit notes, posting/accounting integration, and validation/control rules.
+`purchases` currently implements the `suppliers`, `purchase-requests`, and `purchase-orders` submodules, including approved-request conversion into draft purchase orders plus direct purchase-order maintenance and receipt-status transitions. Purchase invoices, supplier payments, debit notes, posting/accounting integration, and the remaining validation/control rules still stay inside their dedicated future submodules.
 
 ### `frontend/features/phase-2-bank-cash-management`
 

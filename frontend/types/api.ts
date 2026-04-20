@@ -641,6 +641,80 @@ export type PurchaseRequestConversionResult = {
   };
 };
 
+export type PurchaseOrderLine = {
+  id: string;
+  lineNumber: number;
+  itemName?: string | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxAmount: string;
+  lineTotalAmount: string;
+  requestedDeliveryDate?: string | null;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  reference: string;
+  status: PurchaseOrderStatus;
+  orderDate: string;
+  currencyCode: string;
+  description?: string | null;
+  subtotalAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  canEdit: boolean;
+  canIssue: boolean;
+  canCancel: boolean;
+  canMarkPartiallyReceived: boolean;
+  canMarkFullyReceived: boolean;
+  canClose: boolean;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+    defaultCurrency: string;
+    isActive: boolean;
+  };
+  sourcePurchaseRequest?: {
+    id: string;
+    reference: string;
+    status: PurchaseRequestStatus;
+  } | null;
+  lines: PurchaseOrderLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PurchaseOrdersQuery = {
+  status?: PurchaseOrderStatus | "";
+  supplierId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type PurchaseOrderLinePayload = {
+  itemName?: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxAmount: number;
+  requestedDeliveryDate?: string;
+};
+
+export type CreatePurchaseOrderPayload = {
+  reference?: string;
+  orderDate: string;
+  supplierId: string;
+  currencyCode?: string;
+  description?: string;
+  sourcePurchaseRequestId?: string;
+  lines: PurchaseOrderLinePayload[];
+};
+
+export type UpdatePurchaseOrderPayload = Partial<CreatePurchaseOrderPayload>;
+
 export type SalesLine = {
   id: string;
   lineNumber: number;

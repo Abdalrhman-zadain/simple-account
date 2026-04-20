@@ -7,7 +7,7 @@
 - Phase: Phase 4 - Procure-to-Pay
 - Total Requirements: 58
 
-This document captures the initial Phase 4 Purchases requirements baseline in the same modular ownership style used by the rest of the project. It remains the planning reference for the full module. Current implementation status: `suppliers` is implemented, `purchase-requests` is implemented, and approved purchase requests can now open draft purchase orders; the rest of the workflows below are still planning targets.
+This document captures the initial Phase 4 Purchases requirements baseline in the same modular ownership style used by the rest of the project. It remains the planning reference for the full module. Current implementation status: `suppliers` is implemented, `purchase-requests` is implemented, and `purchase-orders` is implemented for direct creation, approved-request conversion, draft maintenance, and lifecycle status changes through close; the remaining workflows below are still planning targets.
 
 ### Proposed module slices
 
