@@ -5,6 +5,7 @@ import type {
   BankReconciliationsQuery,
   CustomersQuery,
   PurchaseOrdersQuery,
+  PurchaseInvoicesQuery,
   JournalEntriesQuery,
   PurchaseRequestsQuery,
   SalesDocumentsQuery,
@@ -63,6 +64,12 @@ export const queryKeys = {
   },
   purchaseOrderById(token: string | null, id: string | null) {
     return ["purchase-order", token, id] as const;
+  },
+  purchaseInvoices(token: string | null, params: PurchaseInvoicesQuery = {}) {
+    return ["purchase-invoices", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  purchaseInvoiceById(token: string | null, id: string | null) {
+    return ["purchase-invoice", token, id] as const;
   },
   purchaseSupplierBalance(token: string | null, supplierId: string | null) {
     return ["purchase-supplier-balance", token, supplierId] as const;

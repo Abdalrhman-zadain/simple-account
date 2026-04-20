@@ -12,7 +12,7 @@ The current business scope is:
 - bank/cash receipt, payment, and transfer drafts that post through generated journal entries
 - bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
 - sales and receivables workflows for customers, quotations, sales orders, invoices, customer receipts, credit notes, receipt allocation, balance tracking, and aging
-- Phase 4 purchases includes supplier master management, internal purchase requests with approval/status history, and purchase orders with direct/request-linked creation plus draft-through-close operational statuses; invoice, supplier-payment, debit-note, and payable-posting flows are still pending
+- Phase 4 purchases includes supplier master management, internal purchase requests with approval/status history, purchase orders with direct/request-linked creation plus draft-through-close operational statuses, and purchase invoice drafts with source-order linkage and line-level account classification; supplier-payment, debit-note, and payable-posting flows are still pending
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 

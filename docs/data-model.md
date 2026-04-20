@@ -159,6 +159,7 @@ Accounting meaning:
 - request status transitions are stored separately so approval history remains auditable
 - approved purchase requests can open a draft purchase order while preserving source-request traceability
 - purchase orders now persist their own header and line lifecycle, including direct creation, request-linked creation, and operational statuses (`DRAFT`, `ISSUED`, `PARTIALLY_RECEIVED`, `FULLY_RECEIVED`, `CANCELLED`, `CLOSED`), but they still do not carry posting behavior or receipt/invoice matching
+- purchase invoices now persist supplier-linked draft headers and lines, including optional source purchase-order linkage, line-level posting-account classification, subtotal/discount/tax/total amounts, and future-ready statuses, but they do not yet generate journals, affect supplier balances, or integrate with payments
 
 ### Fiscal Control
 

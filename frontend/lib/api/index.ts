@@ -33,6 +33,7 @@ import {
     CreateCustomerPayload,
     CreatePurchaseRequestPayload,
     CreatePurchaseOrderPayload,
+    CreatePurchaseInvoicePayload,
     CreateSupplierPayload,
     CreateBankCashAccountPayload,
     CreateBankReconciliationMatchPayload,
@@ -71,7 +72,9 @@ import {
     PurchaseRequest,
     PurchaseRequestConversionResult,
     PurchaseOrder,
+    PurchaseInvoice,
     PurchaseOrdersQuery,
+    PurchaseInvoicesQuery,
     PurchaseRequestsQuery,
     Supplier,
     SupplierBalance,
@@ -93,6 +96,7 @@ import {
     UpdateSalesInvoicePayload,
     UpdatePurchaseRequestPayload,
     UpdatePurchaseOrderPayload,
+    UpdatePurchaseInvoicePayload,
     UpdateSupplierPayload,
     UpdateSegmentValuePayload
 } from "@/types/api";
@@ -624,6 +628,37 @@ export async function cancelPurchaseOrder(id: string, token?: string | null) {
 export async function closePurchaseOrder(id: string, token?: string | null) {
   return apiRequest<PurchaseOrder>(`/purchases/purchase-orders/${id}/close`, {
     method: "POST",
+    token,
+  });
+}
+
+export async function getPurchaseInvoices(params: PurchaseInvoicesQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.supplierId) searchParams.set("supplierId", params.supplierId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PurchaseInvoice[]>(`/purchases/purchase-invoices${suffix}`, { token });
+}
+
+export async function getPurchaseInvoiceById(id: string, token?: string | null) {
+  return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}`, { token });
+}
+
+export async function createPurchaseInvoice(payload: CreatePurchaseInvoicePayload, token?: string | null) {
+  return apiRequest<PurchaseInvoice>("/purchases/purchase-invoices", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePurchaseInvoice(id: string, payload: UpdatePurchaseInvoicePayload, token?: string | null) {
+  return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
     token,
   });
 }

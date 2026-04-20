@@ -9,11 +9,14 @@ import {
   closePurchaseOrder,
   cancelPurchaseOrder,
   convertPurchaseRequestToOrder,
+  createPurchaseInvoice,
   createPurchaseOrder,
   createPurchaseRequest,
   createSupplier,
   deactivateSupplier,
   getAccountOptions,
+  getPurchaseInvoiceById,
+  getPurchaseInvoices,
   getPurchaseOrderById,
   getPurchaseOrders,
   getPurchaseRequestById,
@@ -26,6 +29,7 @@ import {
   getSuppliers,
   rejectPurchaseRequest,
   submitPurchaseRequest,
+  updatePurchaseInvoice,
   updatePurchaseOrder,
   updatePurchaseRequest,
   updateSupplier,
@@ -34,11 +38,11 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { PurchaseOrder, PurchaseRequest, Supplier } from "@/types/api";
+import type { PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-type Workspace = "suppliers" | "requests" | "orders";
+type Workspace = "suppliers" | "requests" | "orders" | "invoices";
 
 type SupplierEditorState = {
   id?: string;
@@ -97,6 +101,28 @@ type PurchaseOrderEditorState = {
   lines: PurchaseOrderLineEditorState[];
 };
 
+type PurchaseInvoiceLineEditorState = {
+  key: string;
+  itemName: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
+  accountId: string;
+};
+
+type PurchaseInvoiceEditorState = {
+  id?: string;
+  reference: string;
+  invoiceDate: string;
+  supplierId: string;
+  currencyCode: string;
+  description: string;
+  sourcePurchaseOrderId: string;
+  lines: PurchaseInvoiceLineEditorState[];
+};
+
 const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   code: "",
   name: "",
@@ -132,6 +158,16 @@ const EMPTY_ORDER_EDITOR = (): PurchaseOrderEditorState => ({
   lines: [createEmptyOrderLine()],
 });
 
+const EMPTY_INVOICE_EDITOR = (): PurchaseInvoiceEditorState => ({
+  reference: "",
+  invoiceDate: todayValue(),
+  supplierId: "",
+  currencyCode: "JOD",
+  description: "",
+  sourcePurchaseOrderId: "",
+  lines: [createEmptyInvoiceLine()],
+});
+
 export function PurchasesPage() {
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -159,6 +195,13 @@ export function PurchasesPage() {
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [isOrderEditorOpen, setIsOrderEditorOpen] = useState(false);
   const [orderEditor, setOrderEditor] = useState<PurchaseOrderEditorState>(EMPTY_ORDER_EDITOR);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<
+    "" | "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "FULLY_PAID" | "CANCELLED"
+  >("");
+  const [selectedPurchaseInvoiceId, setSelectedPurchaseInvoiceId] = useState<string | null>(null);
+  const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
+  const [invoiceEditor, setInvoiceEditor] = useState<PurchaseInvoiceEditorState>(EMPTY_INVOICE_EDITOR);
 
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
@@ -168,6 +211,12 @@ export function PurchasesPage() {
   const payableAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "LIABILITY", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "LIABILITY" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const invoiceAccountsQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
+    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -223,6 +272,27 @@ export function PurchasesPage() {
     queryKey: queryKeys.purchaseOrderById(token, selectedPurchaseOrderId),
     queryFn: () => getPurchaseOrderById(selectedPurchaseOrderId!, token),
     enabled: Boolean(selectedPurchaseOrderId),
+  });
+
+  const purchaseInvoicesQuery = useQuery({
+    queryKey: queryKeys.purchaseInvoices(token, {
+      search: invoiceSearch,
+      status: invoiceStatusFilter,
+    }),
+    queryFn: () =>
+      getPurchaseInvoices(
+        {
+          search: invoiceSearch,
+          status: invoiceStatusFilter,
+        },
+        token,
+      ),
+  });
+
+  const purchaseInvoiceDetailQuery = useQuery({
+    queryKey: queryKeys.purchaseInvoiceById(token, selectedPurchaseInvoiceId),
+    queryFn: () => getPurchaseInvoiceById(selectedPurchaseInvoiceId!, token),
+    enabled: Boolean(selectedPurchaseInvoiceId),
   });
 
   const createSupplierMutation = useMutation({
@@ -446,6 +516,49 @@ export function PurchasesPage() {
     },
   });
 
+  const createPurchaseInvoiceMutation = useMutation({
+    mutationFn: () =>
+      createPurchaseInvoice(
+        {
+          reference: invoiceEditor.reference || undefined,
+          invoiceDate: invoiceEditor.invoiceDate,
+          supplierId: invoiceEditor.supplierId,
+          currencyCode: invoiceEditor.currencyCode || undefined,
+          description: invoiceEditor.description || undefined,
+          sourcePurchaseOrderId: invoiceEditor.sourcePurchaseOrderId || undefined,
+          lines: mapInvoiceEditorLines(invoiceEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseInvoiceId(created.id);
+      closeInvoiceEditor();
+    },
+  });
+
+  const updatePurchaseInvoiceMutation = useMutation({
+    mutationFn: () =>
+      updatePurchaseInvoice(
+        invoiceEditor.id!,
+        {
+          reference: invoiceEditor.reference || undefined,
+          invoiceDate: invoiceEditor.invoiceDate,
+          supplierId: invoiceEditor.supplierId,
+          currencyCode: invoiceEditor.currencyCode || undefined,
+          description: invoiceEditor.description || undefined,
+          sourcePurchaseOrderId: invoiceEditor.sourcePurchaseOrderId || undefined,
+          lines: mapInvoiceEditorLines(invoiceEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseInvoiceId(updated.id);
+      closeInvoiceEditor();
+    },
+  });
+
   const suppliers = suppliersQuery.data ?? [];
   const selectedSupplier = useMemo(
     () => suppliers.find((row) => row.id === selectedSupplierId) ?? null,
@@ -462,6 +575,11 @@ export function PurchasesPage() {
     purchaseOrderDetailQuery.data ??
     purchaseOrders.find((row) => row.id === selectedPurchaseOrderId) ??
     null;
+  const purchaseInvoices = purchaseInvoicesQuery.data ?? [];
+  const selectedPurchaseInvoice =
+    purchaseInvoiceDetailQuery.data ??
+    purchaseInvoices.find((row) => row.id === selectedPurchaseInvoiceId) ??
+    null;
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
@@ -474,6 +592,9 @@ export function PurchasesPage() {
   const openReceiptOrders = purchaseOrders.filter(
     (row) => row.status === "ISSUED" || row.status === "PARTIALLY_RECEIVED",
   ).length;
+  const totalInvoices = purchaseInvoices.length;
+  const draftInvoices = purchaseInvoices.filter((row) => row.status === "DRAFT").length;
+  const linkedOrderInvoices = purchaseInvoices.filter((row) => row.sourcePurchaseOrder).length;
 
   const supplierSaveError = getMutationErrorMessage(createSupplierMutation.error ?? updateSupplierMutation.error);
   const supplierFormError = getSupplierFormError(supplierEditor);
@@ -496,6 +617,8 @@ export function PurchasesPage() {
       cancelPurchaseOrderMutation.error ??
       closePurchaseOrderMutation.error,
   );
+  const invoiceSaveError = getMutationErrorMessage(createPurchaseInvoiceMutation.error ?? updatePurchaseInvoiceMutation.error);
+  const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor);
 
   const activeActionMutationPending =
     submitPurchaseRequestMutation.isPending ||
@@ -519,15 +642,19 @@ export function PurchasesPage() {
               ? t("purchases.description")
               : workspace === "requests"
                 ? t("purchases.requests.description")
-                : t("purchases.orders.description")
+                : workspace === "orders"
+                  ? t("purchases.orders.description")
+                  : t("purchases.invoices.description")
           }
           action={
             workspace === "suppliers" ? (
               <Button onClick={openNewSupplierEditor}>{t("purchases.action.newSupplier")}</Button>
             ) : workspace === "requests" ? (
               <Button onClick={openNewPurchaseRequestEditor}>{t("purchases.action.newRequest")}</Button>
-            ) : (
+            ) : workspace === "orders" ? (
               <Button onClick={openNewPurchaseOrderEditor}>{t("purchases.action.newOrder")}</Button>
+            ) : (
+              <Button onClick={openNewPurchaseInvoiceEditor}>{t("purchases.action.newInvoice")}</Button>
             )
           }
         />
@@ -541,6 +668,9 @@ export function PurchasesPage() {
           </Button>
           <Button variant={workspace === "orders" ? "primary" : "secondary"} onClick={() => setWorkspace("orders")}>
             {t("purchases.workspace.orders")}
+          </Button>
+          <Button variant={workspace === "invoices" ? "primary" : "secondary"} onClick={() => setWorkspace("invoices")}>
+            {t("purchases.workspace.invoices")}
           </Button>
         </Card>
 
@@ -904,7 +1034,7 @@ export function PurchasesPage() {
               )}
             </Card>
           </>
-        ) : (
+        ) : workspace === "orders" ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
               <SummaryCard label={t("purchases.orders.summary.total")} value={String(totalOrders)} hint={t("purchases.orders.summary.totalHint")} />
@@ -1077,6 +1207,151 @@ export function PurchasesPage() {
                               <span>{t("purchases.orders.field.taxAmount")}: {formatCurrency(line.taxAmount)}</span>
                               <span>{t("purchases.orders.field.lineTotal")}: {formatCurrency(line.lineTotalAmount)}</span>
                               <span>{t("purchases.orders.field.deliveryDate")}: {line.requestedDeliveryDate ? formatDate(line.requestedDeliveryDate) : t("purchases.requests.empty.notSet")}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <SummaryCard label={t("purchases.invoices.summary.total")} value={String(totalInvoices)} hint={t("purchases.invoices.summary.totalHint")} />
+              <SummaryCard label={t("purchases.invoices.summary.draft")} value={String(draftInvoices)} hint={t("purchases.invoices.summary.draftHint")} />
+              <SummaryCard label={t("purchases.invoices.summary.linkedOrders")} value={String(linkedOrderInvoices)} hint={t("purchases.invoices.summary.linkedOrdersHint")} />
+            </div>
+
+            <Card className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label={t("purchases.invoices.filters.search")}>
+                  <Input value={invoiceSearch} onChange={(event) => setInvoiceSearch(event.target.value)} placeholder={t("purchases.invoices.filters.searchPlaceholder")} />
+                </Field>
+                <Field label={t("purchases.invoices.filters.status")}>
+                  <Select value={invoiceStatusFilter} onChange={(event) => setInvoiceStatusFilter(event.target.value as typeof invoiceStatusFilter)}>
+                    <option value="">{t("purchases.filters.allStatuses")}</option>
+                    <option value="DRAFT">{t("purchases.status.draft")}</option>
+                    <option value="POSTED">{t("purchases.invoices.status.posted")}</option>
+                    <option value="PARTIALLY_PAID">{t("purchases.invoices.status.partiallyPaid")}</option>
+                    <option value="FULLY_PAID">{t("purchases.invoices.status.fullyPaid")}</option>
+                    <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                  </Select>
+                </Field>
+                <div className="flex items-end">
+                  <Button variant="secondary" onClick={() => { setInvoiceSearch(""); setInvoiceStatusFilter(""); }}>
+                    {t("purchases.action.clearFilters")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("purchases.invoices.table.reference")}</TableHead>
+                      <TableHead>{t("purchases.invoices.table.supplier")}</TableHead>
+                      <TableHead>{t("purchases.invoices.table.date")}</TableHead>
+                      <TableHead>{t("purchases.invoices.table.total")}</TableHead>
+                      <TableHead>{t("purchases.invoices.table.status")}</TableHead>
+                      <TableHead>{t("purchases.table.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseInvoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                          {t("purchases.invoices.empty.list")}
+                        </td>
+                      </tr>
+                    ) : (
+                      purchaseInvoices.map((row) => (
+                        <tr key={row.id} className={cn("border-t border-gray-100", selectedPurchaseInvoiceId === row.id && "bg-gray-50/70")}>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.reference}</div>
+                            <div className="text-xs text-gray-500">{row.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.supplier.code} · {row.supplier.name}</div>
+                            <div className="text-xs text-gray-500">{row.currencyCode}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">{formatDate(row.invoiceDate)}</td>
+                          <td className="px-6 py-4 align-top">{formatCurrency(row.totalAmount)}</td>
+                          <td className="px-6 py-4 align-top">
+                            <StatusPill label={translatePurchaseInvoiceStatus(row.status, t)} tone={purchaseInvoiceStatusTone(row.status)} />
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="secondary" size="sm" onClick={() => setSelectedPurchaseInvoiceId(row.id)}>
+                                {t("purchases.action.view")}
+                              </Button>
+                              {row.canEdit ? (
+                                <Button variant="secondary" size="sm" onClick={() => openEditPurchaseInvoiceEditor(row)}>
+                                  {t("purchases.action.edit")}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="space-y-5">
+              <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.invoices.section.details")}</div>
+              {!selectedPurchaseInvoice ? (
+                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
+                  {t("purchases.invoices.empty.selectInvoice")}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <MiniMetric label={t("purchases.invoices.metric.date")} value={formatDate(selectedPurchaseInvoice.invoiceDate)} />
+                    <MiniMetric label={t("purchases.invoices.metric.status")} value={translatePurchaseInvoiceStatus(selectedPurchaseInvoice.status, t)} />
+                    <MiniMetric label={t("purchases.invoices.metric.lines")} value={String(selectedPurchaseInvoice.lines.length)} />
+                    <MiniMetric label={t("purchases.invoices.metric.total")} value={formatCurrency(selectedPurchaseInvoice.totalAmount)} />
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.summary")}</div>
+                      <div className="space-y-3 text-sm text-gray-700">
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div className="font-bold text-gray-900">{selectedPurchaseInvoice.supplier.code} · {selectedPurchaseInvoice.supplier.name}</div>
+                          <div className="mt-1 text-xs text-gray-500">{selectedPurchaseInvoice.currencyCode}</div>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div>{t("purchases.invoices.field.sourceOrder")}: {selectedPurchaseInvoice.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
+                          <div className="mt-2">{t("purchases.invoices.field.description")}: {selectedPurchaseInvoice.description || t("purchases.requests.empty.noDescription")}</div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <MiniMetric label={t("purchases.invoices.metric.subtotal")} value={formatCurrency(selectedPurchaseInvoice.subtotalAmount)} />
+                          <MiniMetric label={t("purchases.invoices.metric.discount")} value={formatCurrency(selectedPurchaseInvoice.discountAmount)} />
+                          <MiniMetric label={t("purchases.invoices.metric.tax")} value={formatCurrency(selectedPurchaseInvoice.taxAmount)} />
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.lines")}</div>
+                      <div className="space-y-3">
+                        {selectedPurchaseInvoice.lines.map((line) => (
+                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="font-bold text-gray-900">{line.itemName || line.description}</div>
+                              <div className="text-sm text-gray-500">{t("purchases.invoices.line.qtyPrice", { quantity: line.quantity, price: formatCurrency(line.unitPrice) })}</div>
+                            </div>
+                            <div className="mt-2 text-sm text-gray-600">{line.description}</div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                              <span>{t("purchases.invoices.field.account")}: {line.account.code} · {line.account.name}</span>
+                              <span>{t("purchases.invoices.field.discountAmount")}: {formatCurrency(line.discountAmount)}</span>
+                              <span>{t("purchases.invoices.field.taxAmount")}: {formatCurrency(line.taxAmount)}</span>
+                              <span>{t("purchases.invoices.field.lineTotal")}: {formatCurrency(line.lineTotalAmount)}</span>
                             </div>
                           </div>
                         ))}
@@ -1431,6 +1706,156 @@ export function PurchasesPage() {
             </div>
           </div>
         </SidePanel>
+
+        <SidePanel
+          isOpen={isInvoiceEditorOpen}
+          onClose={closeInvoiceEditor}
+          title={invoiceEditor.id ? t("purchases.dialog.editInvoice") : t("purchases.dialog.newInvoice")}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.invoices.field.reference")} hint={t("purchases.invoices.field.referenceHint")}>
+                <Input value={invoiceEditor.reference} onChange={(event) => setInvoiceEditor((current) => ({ ...current, reference: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.invoices.field.invoiceDate")}>
+                <Input type="date" value={invoiceEditor.invoiceDate} onChange={(event) => setInvoiceEditor((current) => ({ ...current, invoiceDate: event.target.value }))} />
+              </Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.invoices.field.supplier")}>
+                <Select
+                  value={invoiceEditor.supplierId}
+                  onChange={(event) => {
+                    const supplierId = event.target.value;
+                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                    setInvoiceEditor((current) => ({
+                      ...current,
+                      supplierId,
+                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                    }));
+                  }}
+                >
+                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                  {activeSuppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.code} · {supplier.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("purchases.invoices.field.currency")}>
+                <Input value={invoiceEditor.currencyCode} maxLength={8} onChange={(event) => setInvoiceEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.invoices.field.sourceOrder")}>
+              <Select value={invoiceEditor.sourcePurchaseOrderId} onChange={(event) => setInvoiceEditor((current) => ({ ...current, sourcePurchaseOrderId: event.target.value }))}>
+                <option value="">{t("purchases.invoices.empty.manual")}</option>
+                {purchaseOrders
+                  .filter((order) =>
+                    ["ISSUED", "PARTIALLY_RECEIVED", "FULLY_RECEIVED", "CLOSED"].includes(order.status),
+                  )
+                  .map((order) => (
+                    <option key={order.id} value={order.id}>
+                      {order.reference}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+
+            <Field label={t("purchases.invoices.field.description")}>
+              <Textarea rows={3} value={invoiceEditor.description} onChange={(event) => setInvoiceEditor((current) => ({ ...current, description: event.target.value }))} />
+            </Field>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.editorLines")}</div>
+                <Button variant="secondary" size="sm" onClick={addInvoiceLine}>
+                  {t("purchases.action.addLine")}
+                </Button>
+              </div>
+
+              {invoiceEditor.lines.map((line, index) => {
+                const quantity = Number(line.quantity || 0);
+                const unitPrice = Number(line.unitPrice || 0);
+                const discountAmount = Number(line.discountAmount || 0);
+                const taxAmount = Number(line.taxAmount || 0);
+                const lineSubtotal = quantity * unitPrice;
+                const lineTotal = lineSubtotal - discountAmount + taxAmount;
+
+                return (
+                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-bold text-gray-900">{t("purchases.invoices.line.label", { index: index + 1 })}</div>
+                      {invoiceEditor.lines.length > 1 ? (
+                        <Button variant="danger" size="sm" onClick={() => removeInvoiceLine(line.key)}>
+                          {t("purchases.action.remove")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label={t("purchases.invoices.field.itemOrService")}>
+                        <Input value={line.itemName} onChange={(event) => updateInvoiceLine(line.key, "itemName", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.invoices.field.account")}>
+                        <Select value={line.accountId} onChange={(event) => updateInvoiceLine(line.key, "accountId", event.target.value)}>
+                          <option value="">{t("purchases.invoices.empty.selectAccount")}</option>
+                          {(invoiceAccountsQuery.data ?? []).map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.code} · {account.name} ({account.currencyCode})
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label={t("purchases.invoices.field.lineDescription")}>
+                      <Textarea rows={2} value={line.description} onChange={(event) => updateInvoiceLine(line.key, "description", event.target.value)} />
+                    </Field>
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <Field label={t("purchases.invoices.field.quantity")}>
+                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateInvoiceLine(line.key, "quantity", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.invoices.field.unitPrice")}>
+                        <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateInvoiceLine(line.key, "unitPrice", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.invoices.field.discountAmount")}>
+                        <Input type="number" min="0" step="0.01" value={line.discountAmount} onChange={(event) => updateInvoiceLine(line.key, "discountAmount", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.invoices.field.taxAmount")}>
+                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateInvoiceLine(line.key, "taxAmount", event.target.value)} />
+                      </Field>
+                    </div>
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                      {t("purchases.invoices.field.lineTotal")}: {formatCurrency(lineTotal)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {invoiceFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {invoiceFormError}
+              </div>
+            ) : null}
+
+            {invoiceSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {invoiceSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeInvoiceEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => (invoiceEditor.id ? updatePurchaseInvoiceMutation.mutate() : createPurchaseInvoiceMutation.mutate())} disabled={Boolean(invoiceFormError) || createPurchaseInvoiceMutation.isPending || updatePurchaseInvoiceMutation.isPending}>
+                {invoiceEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
       </div>
     </PageShell>
   );
@@ -1610,6 +2035,75 @@ export function PurchasesPage() {
       lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
     }));
   }
+
+  function openNewPurchaseInvoiceEditor() {
+    createPurchaseInvoiceMutation.reset();
+    updatePurchaseInvoiceMutation.reset();
+    const defaultSupplier = activeSuppliers[0];
+    setInvoiceEditor({
+      ...EMPTY_INVOICE_EDITOR(),
+      supplierId: defaultSupplier?.id ?? "",
+      currencyCode: defaultSupplier?.defaultCurrency ?? "JOD",
+    });
+    setIsInvoiceEditorOpen(true);
+  }
+
+  function openEditPurchaseInvoiceEditor(invoice: PurchaseInvoice) {
+    createPurchaseInvoiceMutation.reset();
+    updatePurchaseInvoiceMutation.reset();
+    setInvoiceEditor({
+      id: invoice.id,
+      reference: invoice.reference,
+      invoiceDate: invoice.invoiceDate.slice(0, 10),
+      supplierId: invoice.supplier.id,
+      currencyCode: invoice.currencyCode,
+      description: invoice.description ?? "",
+      sourcePurchaseOrderId: invoice.sourcePurchaseOrder?.id ?? "",
+      lines: invoice.lines.map((line) => ({
+        key: line.id,
+        itemName: line.itemName ?? "",
+        description: line.description,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        discountAmount: line.discountAmount,
+        taxAmount: line.taxAmount,
+        accountId: line.account.id,
+      })),
+    });
+    setIsInvoiceEditorOpen(true);
+  }
+
+  function closeInvoiceEditor() {
+    createPurchaseInvoiceMutation.reset();
+    updatePurchaseInvoiceMutation.reset();
+    setInvoiceEditor(EMPTY_INVOICE_EDITOR());
+    setIsInvoiceEditorOpen(false);
+  }
+
+  function addInvoiceLine() {
+    setInvoiceEditor((current) => ({
+      ...current,
+      lines: [...current.lines, createEmptyInvoiceLine()],
+    }));
+  }
+
+  function removeInvoiceLine(key: string) {
+    setInvoiceEditor((current) => ({
+      ...current,
+      lines: current.lines.filter((line) => line.key !== key),
+    }));
+  }
+
+  function updateInvoiceLine(
+    key: string,
+    field: keyof Omit<PurchaseInvoiceLineEditorState, "key">,
+    value: string,
+  ) {
+    setInvoiceEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+    }));
+  }
 }
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -1644,6 +2138,8 @@ async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: ["purchase-request"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
     queryClient.invalidateQueries({ queryKey: ["purchase-order"] }),
+    queryClient.invalidateQueries({ queryKey: ["purchase-invoices"] }),
+    queryClient.invalidateQueries({ queryKey: ["purchase-invoice"] }),
   ]);
 }
 
@@ -1718,6 +2214,45 @@ function getPurchaseOrderFormError(editor: PurchaseOrderEditorState) {
   return null;
 }
 
+function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState) {
+  if (!editor.supplierId) {
+    return "Supplier selection is required. اختيار المورد مطلوب.";
+  }
+  if (!editor.invoiceDate) {
+    return "Purchase invoice date is required. تاريخ فاتورة الشراء مطلوب.";
+  }
+  if (!editor.currencyCode.trim()) {
+    return "Currency is required. العملة مطلوبة.";
+  }
+  if (editor.lines.length === 0) {
+    return "At least one purchase invoice line is required. يجب إضافة سطر فاتورة شراء واحد على الأقل.";
+  }
+  for (const line of editor.lines) {
+    if (!line.description.trim()) {
+      return "Each invoice line needs a description. كل سطر فاتورة شراء يحتاج إلى وصف.";
+    }
+    if (!line.accountId) {
+      return "Each invoice line needs an account classification. كل سطر فاتورة شراء يحتاج إلى تصنيف حساب.";
+    }
+    if (!line.quantity || Number(line.quantity) <= 0) {
+      return "Each invoice line needs a quantity greater than zero. كل سطر فاتورة شراء يحتاج إلى كمية أكبر من صفر.";
+    }
+    if (line.unitPrice === "" || Number(line.unitPrice) < 0) {
+      return "Each invoice line needs a valid unit price. كل سطر فاتورة شراء يحتاج إلى سعر وحدة صحيح.";
+    }
+    if (line.discountAmount === "" || Number(line.discountAmount) < 0) {
+      return "Each invoice line needs a valid discount amount. كل سطر فاتورة شراء يحتاج إلى قيمة خصم صحيحة.";
+    }
+    if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
+      return "Each invoice line needs a valid tax amount. كل سطر فاتورة شراء يحتاج إلى قيمة ضريبة صحيحة.";
+    }
+    if (Number(line.discountAmount) > Number(line.quantity) * Number(line.unitPrice)) {
+      return "Discount cannot exceed the line subtotal. لا يمكن أن يتجاوز الخصم إجمالي السطر قبل الضريبة.";
+    }
+  }
+  return null;
+}
+
 function getMutationErrorMessage(error: unknown) {
   if (!error) {
     return null;
@@ -1751,6 +2286,19 @@ function createEmptyOrderLine(): PurchaseOrderLineEditorState {
   };
 }
 
+function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
+  return {
+    key: randomKey(),
+    itemName: "",
+    description: "",
+    quantity: "1",
+    unitPrice: "0.00",
+    discountAmount: "0.00",
+    taxAmount: "0.00",
+    accountId: "",
+  };
+}
+
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
   return lines.map((line) => ({
     itemName: line.itemName || undefined,
@@ -1769,6 +2317,18 @@ function mapOrderEditorLines(lines: PurchaseOrderLineEditorState[]) {
     unitPrice: Number(line.unitPrice),
     taxAmount: Number(line.taxAmount),
     requestedDeliveryDate: line.requestedDeliveryDate || undefined,
+  }));
+}
+
+function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
+  return lines.map((line) => ({
+    itemName: line.itemName || undefined,
+    description: line.description,
+    quantity: Number(line.quantity),
+    unitPrice: Number(line.unitPrice),
+    discountAmount: Number(line.discountAmount),
+    taxAmount: Number(line.taxAmount),
+    accountId: line.accountId,
   }));
 }
 
@@ -1808,6 +2368,23 @@ function translatePurchaseOrderStatus(status: string, t: (key: string, vars?: Re
   }
 }
 
+function translatePurchaseInvoiceStatus(status: string, t: (key: string, vars?: Record<string, string | number>) => string) {
+  switch (status) {
+    case "DRAFT":
+      return t("purchases.status.draft");
+    case "POSTED":
+      return t("purchases.invoices.status.posted");
+    case "PARTIALLY_PAID":
+      return t("purchases.invoices.status.partiallyPaid");
+    case "FULLY_PAID":
+      return t("purchases.invoices.status.fullyPaid");
+    case "CANCELLED":
+      return t("purchases.status.cancelled");
+    default:
+      return status;
+  }
+}
+
 function statusTone(status: PurchaseRequest["status"]) {
   if (status === "APPROVED") return "positive" as const;
   if (status === "REJECTED") return "warning" as const;
@@ -1819,6 +2396,13 @@ function statusTone(status: PurchaseRequest["status"]) {
 function purchaseOrderStatusTone(status: PurchaseOrder["status"]) {
   if (status === "FULLY_RECEIVED") return "positive" as const;
   if (status === "ISSUED" || status === "PARTIALLY_RECEIVED") return "warning" as const;
+  if (status === "CANCELLED") return "warning" as const;
+  return "neutral" as const;
+}
+
+function purchaseInvoiceStatusTone(status: PurchaseInvoice["status"]) {
+  if (status === "FULLY_PAID") return "positive" as const;
+  if (status === "PARTIALLY_PAID") return "warning" as const;
   if (status === "CANCELLED") return "warning" as const;
   return "neutral" as const;
 }

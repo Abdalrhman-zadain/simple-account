@@ -540,6 +540,12 @@ export type PurchaseOrderStatus =
   | "FULLY_RECEIVED"
   | "CANCELLED"
   | "CLOSED";
+export type PurchaseInvoiceStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "PARTIALLY_PAID"
+  | "FULLY_PAID"
+  | "CANCELLED";
 
 export type PurchaseRequestLine = {
   id: string;
@@ -714,6 +720,88 @@ export type CreatePurchaseOrderPayload = {
 };
 
 export type UpdatePurchaseOrderPayload = Partial<CreatePurchaseOrderPayload>;
+
+export type PurchaseInvoiceLine = {
+  id: string;
+  lineNumber: number;
+  itemName?: string | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  discountAmount: string;
+  taxAmount: string;
+  lineSubtotalAmount: string;
+  lineTotalAmount: string;
+  account: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  };
+};
+
+export type PurchaseInvoice = {
+  id: string;
+  reference: string;
+  status: PurchaseInvoiceStatus;
+  invoiceDate: string;
+  currencyCode: string;
+  description?: string | null;
+  subtotalAmount: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  canEdit: boolean;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+    defaultCurrency: string;
+    isActive: boolean;
+  };
+  sourcePurchaseOrder?: {
+    id: string;
+    reference: string;
+    status: PurchaseOrderStatus;
+    orderDate: string;
+  } | null;
+  lines: PurchaseInvoiceLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PurchaseInvoicesQuery = {
+  status?: PurchaseInvoiceStatus | "";
+  supplierId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type PurchaseInvoiceLinePayload = {
+  itemName?: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  taxAmount: number;
+  accountId: string;
+};
+
+export type CreatePurchaseInvoicePayload = {
+  reference?: string;
+  invoiceDate: string;
+  supplierId: string;
+  currencyCode?: string;
+  description?: string;
+  sourcePurchaseOrderId?: string;
+  lines: PurchaseInvoiceLinePayload[];
+};
+
+export type UpdatePurchaseInvoicePayload = Partial<CreatePurchaseInvoicePayload>;
 
 export type SalesLine = {
   id: string;
