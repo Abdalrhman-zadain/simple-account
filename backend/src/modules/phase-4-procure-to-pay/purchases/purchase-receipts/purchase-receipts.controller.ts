@@ -1,24 +1,24 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../../../platform/auth/guards/jwt-auth.guard';
-import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
-import { CreateSupplierPaymentDto, UpdateSupplierPaymentDto } from './dto/supplier-payments.dto';
-import { SupplierPaymentsService } from './supplier-payments.service';
+import { CreatePurchaseReceiptDto, UpdatePurchaseReceiptDto } from './dto/purchase-receipts.dto';
+import { PurchaseReceiptsService } from './purchase-receipts.service';
 
 @UseGuards(JwtAuthGuard)
-@Controller('purchases/supplier-payments')
-export class SupplierPaymentsController {
-  constructor(private readonly service: SupplierPaymentsService) {}
+@Controller('purchases/purchase-receipts')
+export class PurchaseReceiptsController {
+  constructor(private readonly service: PurchaseReceiptsService) {}
 
   @Get()
   list(
     @Query('status') status?: string,
+    @Query('purchaseOrderId') purchaseOrderId?: string,
     @Query('supplierId') supplierId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('search') search?: string,
   ) {
-    return this.service.list({ status, supplierId, dateFrom, dateTo, search });
+    return this.service.list({ status, purchaseOrderId, supplierId, dateFrom, dateTo, search });
   }
 
   @Get(':id')
@@ -27,12 +27,12 @@ export class SupplierPaymentsController {
   }
 
   @Post()
-  create(@Body() dto: CreateSupplierPaymentDto) {
+  create(@Body() dto: CreatePurchaseReceiptDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSupplierPaymentDto) {
+  update(@Param('id') id: string, @Body() dto: UpdatePurchaseReceiptDto) {
     return this.service.update(id, dto);
   }
 
@@ -44,10 +44,5 @@ export class SupplierPaymentsController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.service.cancel(id);
-  }
-
-  @Post(':id/reverse')
-  reverse(@Param('id') id: string, @Body() dto: ReverseJournalEntryDto) {
-    return this.service.reverse(id, dto);
   }
 }

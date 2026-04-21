@@ -1,7 +1,12 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Prisma, PurchaseInvoiceStatus, PurchaseOrderStatus } from '../../../../generated/prisma';
+import { AuditAction, Prisma, PurchaseInvoiceStatus, PurchaseOrderStatus } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
+import { JournalEntriesService } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service';
+import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
+import { PostingService } from '../../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
+import { ReversalService } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { CreatePurchaseInvoiceDto, PurchaseInvoiceLineDto, UpdatePurchaseInvoiceDto } from './dto/purchase-invoices.dto';
 
@@ -44,6 +49,12 @@ type PurchaseInvoiceWithRelations = Prisma.PurchaseInvoiceGetPayload<{
         orderDate: true;
       };
     };
+    journalEntry: {
+      select: {
+        id: true;
+        reference: true;
+      };
+    };
     lines: {
       include: {
         account: {
@@ -67,6 +78,10 @@ export class PurchaseInvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly suppliersService: SuppliersService,
+    private readonly journalEntriesService: JournalEntriesService,
+    private readonly postingService: PostingService,
+    private readonly reversalService: ReversalService,
+    private readonly auditService: AuditService,
   ) {}
 
   async list(query: PurchaseInvoiceListQuery = {}) {
@@ -145,6 +160,13 @@ export class PurchaseInvoicesService {
         include: this.purchaseInvoiceInclude(),
       });
 
+      await this.auditService.log({
+        entity: 'PurchaseInvoice',
+        entityId: created.id,
+        action: AuditAction.CREATE,
+        details: { status: created.status, reference: created.reference },
+      });
+
       return this.mapPurchaseInvoice(created);
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
@@ -205,6 +227,13 @@ export class PurchaseInvoicesService {
         });
       });
 
+      await this.auditService.log({
+        entity: 'PurchaseInvoice',
+        entityId: updated.id,
+        action: AuditAction.UPDATE,
+        details: { status: updated.status, reference: updated.reference },
+      });
+
       return this.mapPurchaseInvoice(updated);
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
@@ -212,6 +241,188 @@ export class PurchaseInvoicesService {
       }
       throw error;
     }
+  }
+
+  async post(id: string) {
+    const invoice = await this.prisma.purchaseInvoice.findUnique({
+      where: { id },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            isActive: true,
+            payableAccountId: true,
+          },
+        },
+        lines: {
+          orderBy: { lineNumber: 'asc' },
+          include: {
+            account: {
+              select: {
+                id: true,
+                isActive: true,
+                isPosting: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!invoice) {
+      throw new BadRequestException(`Purchase invoice ${id} was not found.`);
+    }
+    if (invoice.status !== PurchaseInvoiceStatus.DRAFT) {
+      throw new BadRequestException('Only draft purchase invoices can be posted.');
+    }
+    if (!invoice.supplier.isActive) {
+      throw new BadRequestException('Deactivated suppliers cannot be selected for new transactions.');
+    }
+
+    const description = invoice.description ? `${invoice.reference} - ${invoice.description}` : invoice.reference;
+    const taxAccountId = Number(invoice.taxAmount) > 0 ? await this.getPurchaseTaxAccountId() : null;
+
+    const journal = await this.journalEntriesService.create({
+      entryDate: invoice.invoiceDate.toISOString(),
+      description,
+      lines: [
+        ...invoice.lines
+          .map((line) => ({
+            accountId: line.accountId,
+            description: line.description || description,
+            debitAmount: Number((Number(line.lineSubtotalAmount) - Number(line.discountAmount)).toFixed(2)),
+            creditAmount: 0,
+          }))
+          .filter((line) => line.debitAmount > 0),
+        ...(taxAccountId
+          ? [
+              {
+                accountId: taxAccountId,
+                description: `${description} tax`,
+                debitAmount: Number(invoice.taxAmount),
+                creditAmount: 0,
+              },
+            ]
+          : []),
+        {
+          accountId: invoice.supplier.payableAccountId,
+          description,
+          debitAmount: 0,
+          creditAmount: Number(invoice.totalAmount),
+        },
+      ],
+    });
+
+    const posted = await this.postingService.post(journal.id);
+    const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.purchaseInvoice.update({
+        where: { id },
+        data: {
+          status: PurchaseInvoiceStatus.POSTED,
+          journalEntryId: posted.id,
+          postedAt,
+        },
+        include: this.purchaseInvoiceInclude(),
+      });
+
+      await tx.supplier.update({
+        where: { id: invoice.supplierId },
+        data: {
+          currentBalance: {
+            increment: this.toAmount(Number(invoice.totalAmount)),
+          },
+        },
+      });
+
+      return next;
+    });
+
+    await this.auditService.log({
+      entity: 'PurchaseInvoice',
+      entityId: updated.id,
+      action: AuditAction.POST,
+      details: { status: updated.status, reference: updated.reference, journalEntryId: posted.id },
+    });
+
+    return this.mapPurchaseInvoice(updated);
+  }
+
+  async reverse(id: string, dto: ReverseJournalEntryDto) {
+    const invoice = await this.prisma.purchaseInvoice.findUnique({
+      where: { id },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+    if (!invoice) {
+      throw new BadRequestException(`Purchase invoice ${id} was not found.`);
+    }
+    if (
+      invoice.status !== PurchaseInvoiceStatus.POSTED &&
+      invoice.status !== PurchaseInvoiceStatus.PARTIALLY_PAID &&
+      invoice.status !== PurchaseInvoiceStatus.FULLY_PAID
+    ) {
+      throw new BadRequestException('Only posted purchase invoices can be reversed.');
+    }
+    if (!invoice.journalEntryId) {
+      throw new BadRequestException('Purchase invoice does not have a posted journal entry to reverse.');
+    }
+    if (Number(invoice.allocatedAmount) > 0) {
+      throw new BadRequestException('Purchase invoices with supplier payment allocations cannot be reversed.');
+    }
+
+    const activeDebitNotes = await this.prisma.debitNote.count({
+      where: {
+        purchaseInvoiceId: id,
+        status: { in: ['POSTED', 'APPLIED'] as any },
+      },
+    });
+    if (activeDebitNotes > 0) {
+      throw new BadRequestException('Purchase invoices with posted debit notes cannot be reversed.');
+    }
+
+    await this.reversalService.reverse(invoice.journalEntryId, dto);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.purchaseInvoice.update({
+        where: { id },
+        data: {
+          status: PurchaseInvoiceStatus.REVERSED,
+          allocatedAmount: this.toAmount(0),
+          outstandingAmount: this.toAmount(0),
+          allocationStatus: 'UNALLOCATED',
+        },
+        include: this.purchaseInvoiceInclude(),
+      });
+
+      await tx.supplier.update({
+        where: { id: invoice.supplierId },
+        data: {
+          currentBalance: {
+            decrement: this.toAmount(Number(invoice.totalAmount)),
+          },
+        },
+      });
+
+      return next;
+    });
+
+    await this.auditService.log({
+      entity: 'PurchaseInvoice',
+      entityId: updated.id,
+      action: AuditAction.REVERSE,
+      details: { status: updated.status, reference: updated.reference, journalEntryId: invoice.journalEntryId },
+    });
+
+    return this.mapPurchaseInvoice(updated);
   }
 
   private async resolveLines(lines: PurchaseInvoiceLineDto[]) {
@@ -301,6 +512,12 @@ export class PurchaseInvoicesService {
           orderDate: true,
         },
       },
+      journalEntry: {
+        select: {
+          id: true,
+          reference: true,
+        },
+      },
       lines: {
         orderBy: { lineNumber: 'asc' },
         include: {
@@ -347,6 +564,31 @@ export class PurchaseInvoicesService {
     return order;
   }
 
+  private async getPurchaseTaxAccountId() {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        isActive: true,
+        isPosting: true,
+        allowManualPosting: true,
+        type: { in: ['ASSET', 'EXPENSE'] as any },
+        OR: [
+          { subtype: { contains: 'tax', mode: 'insensitive' } },
+          { subtype: { contains: 'vat', mode: 'insensitive' } },
+          { name: { contains: 'tax', mode: 'insensitive' } },
+          { name: { contains: 'vat', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!account) {
+      throw new BadRequestException('No active purchase tax/VAT account is configured for posting tax amounts.');
+    }
+
+    return account.id;
+  }
+
   private mapPurchaseInvoice(row: PurchaseInvoiceWithRelations) {
     return {
       id: row.id,
@@ -363,6 +605,14 @@ export class PurchaseInvoicesService {
       outstandingAmount: row.outstandingAmount.toString(),
       allocationStatus: row.allocationStatus,
       canEdit: row.status === PurchaseInvoiceStatus.DRAFT,
+      canPost: row.status === PurchaseInvoiceStatus.DRAFT,
+      canReverse:
+        row.status === PurchaseInvoiceStatus.POSTED ||
+        row.status === PurchaseInvoiceStatus.PARTIALLY_PAID ||
+        row.status === PurchaseInvoiceStatus.FULLY_PAID,
+      journalEntryId: row.journalEntryId ?? null,
+      journalReference: row.journalEntry?.reference ?? null,
+      postedAt: row.postedAt?.toISOString() ?? null,
       supplier: row.supplier,
       sourcePurchaseOrder: row.sourcePurchaseOrder
         ? {

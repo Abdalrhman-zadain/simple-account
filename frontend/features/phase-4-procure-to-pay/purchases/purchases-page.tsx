@@ -14,6 +14,7 @@ import {
   createDebitNote,
   createPurchaseInvoice,
   createPurchaseOrder,
+  createPurchaseReceipt,
   createPurchaseRequest,
   createSupplierPayment,
   createSupplier,
@@ -31,6 +32,11 @@ import {
   issuePurchaseOrder,
   markPurchaseOrderFullyReceived,
   markPurchaseOrderPartiallyReceived,
+  postPurchaseInvoice,
+  postPurchaseReceipt,
+  reverseDebitNote,
+  reversePurchaseInvoice,
+  reverseSupplierPayment,
   getSupplierBalance,
   getSupplierPaymentById,
   getSupplierPayments,
@@ -51,7 +57,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { DebitNote, PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
+import type { DebitNote, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
@@ -112,6 +118,27 @@ type PurchaseOrderEditorState = {
   description: string;
   sourcePurchaseRequestId: string;
   lines: PurchaseOrderLineEditorState[];
+};
+
+type PurchaseReceiptLineEditorState = {
+  key: string;
+  purchaseOrderLineId: string;
+  lineNumber: number;
+  itemName: string;
+  description: string;
+  orderedQuantity: string;
+  receivedQuantity: string;
+  remainingQuantity: string;
+  quantityReceivedNow: string;
+};
+
+type PurchaseReceiptEditorState = {
+  id?: string;
+  reference: string;
+  receiptDate: string;
+  purchaseOrderId: string;
+  description: string;
+  lines: PurchaseReceiptLineEditorState[];
 };
 
 type PurchaseInvoiceLineEditorState = {
@@ -207,6 +234,14 @@ const EMPTY_ORDER_EDITOR = (): PurchaseOrderEditorState => ({
   lines: [createEmptyOrderLine()],
 });
 
+const EMPTY_RECEIPT_EDITOR = (): PurchaseReceiptEditorState => ({
+  reference: "",
+  receiptDate: todayValue(),
+  purchaseOrderId: "",
+  description: "",
+  lines: [],
+});
+
 const EMPTY_INVOICE_EDITOR = (): PurchaseInvoiceEditorState => ({
   reference: "",
   invoiceDate: todayValue(),
@@ -264,20 +299,22 @@ export function PurchasesPage() {
   const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState<string | null>(null);
   const [isOrderEditorOpen, setIsOrderEditorOpen] = useState(false);
   const [orderEditor, setOrderEditor] = useState<PurchaseOrderEditorState>(EMPTY_ORDER_EDITOR);
+  const [isReceiptEditorOpen, setIsReceiptEditorOpen] = useState(false);
+  const [receiptEditor, setReceiptEditor] = useState<PurchaseReceiptEditorState>(EMPTY_RECEIPT_EDITOR);
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<
-    "" | "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "FULLY_PAID" | "CANCELLED"
+    "" | "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "FULLY_PAID" | "CANCELLED" | "REVERSED"
   >("");
   const [selectedPurchaseInvoiceId, setSelectedPurchaseInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
   const [invoiceEditor, setInvoiceEditor] = useState<PurchaseInvoiceEditorState>(EMPTY_INVOICE_EDITOR);
   const [paymentSearch, setPaymentSearch] = useState("");
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "CANCELLED">("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED">("");
   const [selectedSupplierPaymentId, setSelectedSupplierPaymentId] = useState<string | null>(null);
   const [isPaymentEditorOpen, setIsPaymentEditorOpen] = useState(false);
   const [paymentEditor, setPaymentEditor] = useState<SupplierPaymentEditorState>(EMPTY_PAYMENT_EDITOR);
   const [debitNoteSearch, setDebitNoteSearch] = useState("");
-  const [debitNoteStatusFilter, setDebitNoteStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED">("");
+  const [debitNoteStatusFilter, setDebitNoteStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED" | "REVERSED">("");
   const [selectedDebitNoteId, setSelectedDebitNoteId] = useState<string | null>(null);
   const [isDebitNoteEditorOpen, setIsDebitNoteEditorOpen] = useState(false);
   const [debitNoteEditor, setDebitNoteEditor] = useState<DebitNoteEditorState>(EMPTY_DEBIT_NOTE_EDITOR);
@@ -643,6 +680,33 @@ export function PurchasesPage() {
     },
   });
 
+  const receivePurchaseOrderMutation = useMutation({
+    mutationFn: async () => {
+      const created = await createPurchaseReceipt(
+        {
+          reference: receiptEditor.reference || undefined,
+          receiptDate: receiptEditor.receiptDate,
+          purchaseOrderId: receiptEditor.purchaseOrderId,
+          description: receiptEditor.description || undefined,
+          lines: receiptEditor.lines
+            .filter((line) => Number(line.quantityReceivedNow || 0) > 0)
+            .map((line) => ({
+              purchaseOrderLineId: line.purchaseOrderLineId,
+              quantityReceived: Number(line.quantityReceivedNow || 0),
+            })),
+        },
+        token,
+      );
+
+      return postPurchaseReceipt(created.id, token);
+    },
+    onSuccess: async (receipt) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseOrderId(receipt.purchaseOrder.id);
+      closeReceiptEditor();
+    },
+  });
+
   const createPurchaseInvoiceMutation = useMutation({
     mutationFn: () =>
       createPurchaseInvoice(
@@ -683,6 +747,22 @@ export function PurchasesPage() {
       await invalidatePurchases(queryClient);
       setSelectedPurchaseInvoiceId(updated.id);
       closeInvoiceEditor();
+    },
+  });
+
+  const postPurchaseInvoiceMutation = useMutation({
+    mutationFn: (id: string) => postPurchaseInvoice(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseInvoiceId(updated.id);
+    },
+  });
+
+  const reversePurchaseInvoiceMutation = useMutation({
+    mutationFn: (id: string) => reversePurchaseInvoice(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseInvoiceId(updated.id);
     },
   });
 
@@ -745,6 +825,14 @@ export function PurchasesPage() {
     },
   });
 
+  const reverseSupplierPaymentMutation = useMutation({
+    mutationFn: (id: string) => reverseSupplierPayment(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedSupplierPaymentId(updated.id);
+    },
+  });
+
   const createDebitNoteMutation = useMutation({
     mutationFn: () =>
       createDebitNote(
@@ -798,6 +886,14 @@ export function PurchasesPage() {
 
   const cancelDebitNoteMutation = useMutation({
     mutationFn: (id: string) => cancelDebitNote(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedDebitNoteId(updated.id);
+    },
+  });
+
+  const reverseDebitNoteMutation = useMutation({
+    mutationFn: (id: string) => reverseDebitNote(id, token),
     onSuccess: async (updated) => {
       await invalidatePurchases(queryClient);
       setSelectedDebitNoteId(updated.id);
@@ -871,8 +967,11 @@ export function PurchasesPage() {
   const conversionFormError = getPurchaseRequestConversionError(conversionEditor);
   const orderSaveError = getMutationErrorMessage(createPurchaseOrderMutation.error ?? updatePurchaseOrderMutation.error);
   const orderFormError = getPurchaseOrderFormError(orderEditor);
+  const receiptSaveError = getMutationErrorMessage(receivePurchaseOrderMutation.error);
+  const receiptFormError = getPurchaseReceiptFormError(receiptEditor);
   const orderActionError = getMutationErrorMessage(
     issuePurchaseOrderMutation.error ??
+      receivePurchaseOrderMutation.error ??
       markPartiallyReceivedMutation.error ??
       markFullyReceivedMutation.error ??
       cancelPurchaseOrderMutation.error ??
@@ -880,12 +979,17 @@ export function PurchasesPage() {
   );
   const invoiceSaveError = getMutationErrorMessage(createPurchaseInvoiceMutation.error ?? updatePurchaseInvoiceMutation.error);
   const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor);
+  const invoiceActionError = getMutationErrorMessage(postPurchaseInvoiceMutation.error ?? reversePurchaseInvoiceMutation.error);
   const paymentSaveError = getMutationErrorMessage(createSupplierPaymentMutation.error ?? updateSupplierPaymentMutation.error);
   const paymentFormError = getSupplierPaymentFormError(paymentEditor);
-  const paymentActionError = getMutationErrorMessage(postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error);
+  const paymentActionError = getMutationErrorMessage(
+    postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error ?? reverseSupplierPaymentMutation.error,
+  );
   const debitNoteSaveError = getMutationErrorMessage(createDebitNoteMutation.error ?? updateDebitNoteMutation.error);
   const debitNoteFormError = getDebitNoteFormError(debitNoteEditor);
-  const debitNoteActionError = getMutationErrorMessage(postDebitNoteMutation.error ?? cancelDebitNoteMutation.error);
+  const debitNoteActionError = getMutationErrorMessage(
+    postDebitNoteMutation.error ?? cancelDebitNoteMutation.error ?? reverseDebitNoteMutation.error,
+  );
 
   const activeActionMutationPending =
     submitPurchaseRequestMutation.isPending ||
@@ -894,14 +998,18 @@ export function PurchasesPage() {
     closePurchaseRequestMutation.isPending;
   const activeOrderActionMutationPending =
     issuePurchaseOrderMutation.isPending ||
+    receivePurchaseOrderMutation.isPending ||
     markPartiallyReceivedMutation.isPending ||
     markFullyReceivedMutation.isPending ||
     cancelPurchaseOrderMutation.isPending ||
     closePurchaseOrderMutation.isPending;
+  const activeInvoiceActionMutationPending = postPurchaseInvoiceMutation.isPending || reversePurchaseInvoiceMutation.isPending;
   const activePaymentActionMutationPending =
-    postSupplierPaymentMutation.isPending || cancelSupplierPaymentMutation.isPending;
+    postSupplierPaymentMutation.isPending ||
+    cancelSupplierPaymentMutation.isPending ||
+    reverseSupplierPaymentMutation.isPending;
   const activeDebitNoteActionMutationPending =
-    postDebitNoteMutation.isPending || cancelDebitNoteMutation.isPending;
+    postDebitNoteMutation.isPending || cancelDebitNoteMutation.isPending || reverseDebitNoteMutation.isPending;
 
   return (
     <PageShell>
@@ -1410,6 +1518,11 @@ export function PurchasesPage() {
                 <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.orders.section.details")}</div>
                 {selectedPurchaseOrder ? (
                   <div className="flex flex-wrap gap-2">
+                    {selectedPurchaseOrder.canReceive ? (
+                      <Button variant="secondary" size="sm" disabled={activeOrderActionMutationPending} onClick={() => openReceivePurchaseOrderEditor(selectedPurchaseOrder)}>
+                        {t("purchases.action.receiveOrder")}
+                      </Button>
+                    ) : null}
                     {selectedPurchaseOrder.canIssue ? (
                       <Button size="sm" disabled={activeOrderActionMutationPending} onClick={() => confirmAndRun(t("purchases.orders.confirm.issue"), () => issuePurchaseOrderMutation.mutate(selectedPurchaseOrder.id))}>
                         {t("purchases.action.issueOrder")}
@@ -1498,6 +1611,33 @@ export function PurchasesPage() {
                       </div>
                     </Card>
                   </div>
+
+                  <Card className="space-y-4">
+                    <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.orders.section.receipts")}</div>
+                    {selectedPurchaseOrder.receipts.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+                        {t("purchases.orders.empty.receipts")}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedPurchaseOrder.receipts.map((receipt) => (
+                          <div key={receipt.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <div className="font-bold text-gray-900">{receipt.reference}</div>
+                                <div className="mt-1 text-xs text-gray-500">{formatDate(receipt.receiptDate)}</div>
+                              </div>
+                              <StatusPill label={translatePurchaseReceiptStatus(receipt.status, t)} tone={purchaseReceiptStatusTone(receipt.status)} />
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                              <span>{t("purchases.orders.metric.receivedQuantity")}: {receipt.totalQuantity}</span>
+                              <span>{t("purchases.orders.field.postedAt")}: {receipt.postedAt ? formatDate(receipt.postedAt) : t("purchases.orders.empty.notPosted")}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
                 </div>
               )}
             </Card>
@@ -1523,6 +1663,7 @@ export function PurchasesPage() {
                     <option value="PARTIALLY_PAID">{t("purchases.invoices.status.partiallyPaid")}</option>
                     <option value="FULLY_PAID">{t("purchases.invoices.status.fullyPaid")}</option>
                     <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                    <option value="REVERSED">{t("purchases.status.reversed")}</option>
                   </Select>
                 </Field>
                 <div className="flex items-end">
@@ -1588,7 +1729,24 @@ export function PurchasesPage() {
             </Card>
 
             <Card className="space-y-5">
-              <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.invoices.section.details")}</div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.invoices.section.details")}</div>
+                {selectedPurchaseInvoice?.canPost ? (
+                  <Button size="sm" disabled={activeInvoiceActionMutationPending} onClick={() => confirmAndRun(t("purchases.invoices.confirm.post"), () => postPurchaseInvoiceMutation.mutate(selectedPurchaseInvoice.id))}>
+                    {t("purchases.action.postInvoice")}
+                  </Button>
+                ) : null}
+                {selectedPurchaseInvoice?.canReverse ? (
+                  <Button variant="danger" size="sm" disabled={activeInvoiceActionMutationPending} onClick={() => confirmAndRun(t("purchases.invoices.confirm.reverse"), () => reversePurchaseInvoiceMutation.mutate(selectedPurchaseInvoice.id))}>
+                    {t("purchases.action.reverseInvoice")}
+                  </Button>
+                ) : null}
+              </div>
+              {invoiceActionError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                  {invoiceActionError}
+                </div>
+              ) : null}
               {!selectedPurchaseInvoice ? (
                 <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
                   {t("purchases.invoices.empty.selectInvoice")}
@@ -1608,11 +1766,15 @@ export function PurchasesPage() {
                       <div className="space-y-3 text-sm text-gray-700">
                         <div className="rounded-2xl border border-gray-200 px-4 py-4">
                           <div className="font-bold text-gray-900">{selectedPurchaseInvoice.supplier.code} · {selectedPurchaseInvoice.supplier.name}</div>
-                          <div className="mt-1 text-xs text-gray-500">{selectedPurchaseInvoice.currencyCode}</div>
+                          <div className="mt-1 text-xs text-gray-500">
+                            {selectedPurchaseInvoice.currencyCode}
+                            {selectedPurchaseInvoice.journalReference ? ` · ${selectedPurchaseInvoice.journalReference}` : ""}
+                          </div>
                         </div>
                         <div className="rounded-2xl border border-gray-200 px-4 py-4">
                           <div>{t("purchases.invoices.field.sourceOrder")}: {selectedPurchaseInvoice.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
                           <div className="mt-2">{t("purchases.invoices.field.description")}: {selectedPurchaseInvoice.description || t("purchases.requests.empty.noDescription")}</div>
+                          <div className="mt-2">{t("purchases.invoices.field.postedAt")}: {selectedPurchaseInvoice.postedAt ? formatDate(selectedPurchaseInvoice.postedAt) : t("purchases.invoices.empty.notPosted")}</div>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
                           <MiniMetric label={t("purchases.invoices.metric.subtotal")} value={formatCurrency(selectedPurchaseInvoice.subtotalAmount)} />
@@ -1666,6 +1828,7 @@ export function PurchasesPage() {
                     <option value="DRAFT">{t("purchases.status.draft")}</option>
                     <option value="POSTED">{t("purchases.invoices.status.posted")}</option>
                     <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                    <option value="REVERSED">{t("purchases.status.reversed")}</option>
                   </Select>
                 </Field>
                 <div className="flex items-end">
@@ -1743,6 +1906,11 @@ export function PurchasesPage() {
                     {selectedSupplierPayment.canCancel ? (
                       <Button variant="danger" size="sm" disabled={activePaymentActionMutationPending} onClick={() => confirmAndRun(t("purchases.payments.confirm.cancel"), () => cancelSupplierPaymentMutation.mutate(selectedSupplierPayment.id))}>
                         {t("purchases.action.cancelPayment")}
+                      </Button>
+                    ) : null}
+                    {selectedSupplierPayment.canReverse ? (
+                      <Button variant="danger" size="sm" disabled={activePaymentActionMutationPending} onClick={() => confirmAndRun(t("purchases.payments.confirm.reverse"), () => reverseSupplierPaymentMutation.mutate(selectedSupplierPayment.id))}>
+                        {t("purchases.action.reversePayment")}
                       </Button>
                     ) : null}
                   </div>
@@ -1838,6 +2006,7 @@ export function PurchasesPage() {
                     <option value="POSTED">{t("purchases.invoices.status.posted")}</option>
                     <option value="APPLIED">{t("purchases.debitNotes.status.applied")}</option>
                     <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                    <option value="REVERSED">{t("purchases.status.reversed")}</option>
                   </Select>
                 </Field>
                 <div className="flex items-end">
@@ -1915,6 +2084,11 @@ export function PurchasesPage() {
                     {selectedDebitNote.canCancel ? (
                       <Button variant="danger" size="sm" disabled={activeDebitNoteActionMutationPending} onClick={() => confirmAndRun(t("purchases.debitNotes.confirm.cancel"), () => cancelDebitNoteMutation.mutate(selectedDebitNote.id))}>
                         {t("purchases.action.cancelDebitNote")}
+                      </Button>
+                    ) : null}
+                    {selectedDebitNote.canReverse ? (
+                      <Button variant="danger" size="sm" disabled={activeDebitNoteActionMutationPending} onClick={() => confirmAndRun(t("purchases.debitNotes.confirm.reverse"), () => reverseDebitNoteMutation.mutate(selectedDebitNote.id))}>
+                        {t("purchases.action.reverseDebitNote")}
                       </Button>
                     ) : null}
                   </div>
@@ -2330,6 +2504,69 @@ export function PurchasesPage() {
         </SidePanel>
 
         <SidePanel
+          isOpen={isReceiptEditorOpen}
+          onClose={closeReceiptEditor}
+          title={t("purchases.dialog.receiveOrder")}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.receipts.field.reference")} hint={t("purchases.receipts.field.referenceHint")}>
+                <Input value={receiptEditor.reference} onChange={(event) => setReceiptEditor((current) => ({ ...current, reference: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.receipts.field.receiptDate")}>
+                <Input type="date" value={receiptEditor.receiptDate} onChange={(event) => setReceiptEditor((current) => ({ ...current, receiptDate: event.target.value }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.receipts.field.description")}>
+              <Textarea rows={3} value={receiptEditor.description} onChange={(event) => setReceiptEditor((current) => ({ ...current, description: event.target.value }))} />
+            </Field>
+
+            <div className="space-y-4">
+              <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.receipts.section.lines")}</div>
+              {receiptEditor.lines.map((line) => (
+                <div key={line.key} className="space-y-3 rounded-2xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-bold text-gray-900">{line.itemName || line.description}</div>
+                    <div className="text-xs text-gray-500">{t("purchases.orders.line.label", { index: line.lineNumber })}</div>
+                  </div>
+                  <div className="text-sm text-gray-600">{line.description}</div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <MiniMetric label={t("purchases.receipts.field.orderedQuantity")} value={line.orderedQuantity} />
+                    <MiniMetric label={t("purchases.receipts.field.alreadyReceived")} value={line.receivedQuantity} />
+                    <MiniMetric label={t("purchases.receipts.field.remainingQuantity")} value={line.remainingQuantity} />
+                  </div>
+                  <Field label={t("purchases.receipts.field.quantityReceivedNow")}>
+                    <Input type="number" min="0" max={line.remainingQuantity} step="0.0001" value={line.quantityReceivedNow} onChange={(event) => updateReceiptLine(line.key, event.target.value)} />
+                  </Field>
+                </div>
+              ))}
+            </div>
+
+            {receiptFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {receiptFormError}
+              </div>
+            ) : null}
+
+            {receiptSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {receiptSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeReceiptEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => receivePurchaseOrderMutation.mutate()} disabled={Boolean(receiptFormError) || receivePurchaseOrderMutation.isPending}>
+                {t("purchases.action.receiveAndPost")}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
+
+        <SidePanel
           isOpen={isInvoiceEditorOpen}
           onClose={closeInvoiceEditor}
           title={invoiceEditor.id ? t("purchases.dialog.editInvoice") : t("purchases.dialog.newInvoice")}
@@ -2537,6 +2774,7 @@ export function PurchasesPage() {
                 const supplierInvoices = purchaseInvoices.filter(
                   (invoice) =>
                     (!paymentEditor.supplierId || invoice.supplier.id === paymentEditor.supplierId) &&
+                    invoice.status !== "DRAFT" &&
                     invoice.status !== "CANCELLED",
                 );
                 const selectedInvoice = supplierInvoices.find((invoice) => invoice.id === allocation.purchaseInvoiceId);
@@ -2647,7 +2885,7 @@ export function PurchasesPage() {
                 <option value="">{t("purchases.debitNotes.empty.standalone")}</option>
                 {purchaseInvoices
                   .filter((invoice) => !debitNoteEditor.supplierId || invoice.supplier.id === debitNoteEditor.supplierId)
-                  .filter((invoice) => invoice.status !== "CANCELLED")
+                  .filter((invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED")
                   .map((invoice) => (
                     <option key={invoice.id} value={invoice.id}>
                       {invoice.reference}
@@ -2878,6 +3116,44 @@ export function PurchasesPage() {
     updatePurchaseOrderMutation.reset();
     setOrderEditor(EMPTY_ORDER_EDITOR());
     setIsOrderEditorOpen(false);
+  }
+
+  function openReceivePurchaseOrderEditor(order: PurchaseOrder) {
+    receivePurchaseOrderMutation.reset();
+    setReceiptEditor({
+      ...EMPTY_RECEIPT_EDITOR(),
+      purchaseOrderId: order.id,
+      receiptDate: todayValue(),
+      description: order.description ?? "",
+      lines: order.lines.map((line) => {
+        const remainingQuantity = Math.max(0, Number(line.quantity) - Number(line.receivedQuantity));
+        return {
+          key: line.id,
+          purchaseOrderLineId: line.id,
+          lineNumber: line.lineNumber,
+          itemName: line.itemName ?? "",
+          description: line.description,
+          orderedQuantity: line.quantity,
+          receivedQuantity: line.receivedQuantity,
+          remainingQuantity: remainingQuantity.toFixed(4),
+          quantityReceivedNow: remainingQuantity > 0 ? remainingQuantity.toFixed(4) : "",
+        };
+      }),
+    });
+    setIsReceiptEditorOpen(true);
+  }
+
+  function closeReceiptEditor() {
+    receivePurchaseOrderMutation.reset();
+    setReceiptEditor(EMPTY_RECEIPT_EDITOR());
+    setIsReceiptEditorOpen(false);
+  }
+
+  function updateReceiptLine(key: string, value: string) {
+    setReceiptEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => (line.key === key ? { ...line, quantityReceivedNow: value } : line)),
+    }));
   }
 
   function addOrderLine() {
@@ -3214,6 +3490,28 @@ function getPurchaseOrderFormError(editor: PurchaseOrderEditorState) {
   return null;
 }
 
+function getPurchaseReceiptFormError(editor: PurchaseReceiptEditorState) {
+  if (!editor.purchaseOrderId) {
+    return "Purchase order is required. أمر الشراء مطلوب.";
+  }
+  if (!editor.receiptDate) {
+    return "Receipt date is required. تاريخ الاستلام مطلوب.";
+  }
+
+  const positiveLines = editor.lines.filter((line) => Number(line.quantityReceivedNow || 0) > 0);
+  if (positiveLines.length === 0) {
+    return "Enter a received quantity on at least one line. أدخل كمية مستلمة في سطر واحد على الأقل.";
+  }
+
+  for (const line of positiveLines) {
+    if (Number(line.quantityReceivedNow) - Number(line.remainingQuantity) > 0.0001) {
+      return "Received quantity cannot exceed the remaining order quantity. لا يمكن أن تتجاوز الكمية المستلمة الكمية المتبقية في أمر الشراء.";
+    }
+  }
+
+  return null;
+}
+
 function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState) {
   if (!editor.supplierId) {
     return "Supplier selection is required. اختيار المورد مطلوب.";
@@ -3483,6 +3781,21 @@ function translatePurchaseInvoiceStatus(status: string, t: (key: string, vars?: 
       return t("purchases.invoices.status.fullyPaid");
     case "CANCELLED":
       return t("purchases.status.cancelled");
+    case "REVERSED":
+      return t("purchases.status.reversed");
+    default:
+      return status;
+  }
+}
+
+function translatePurchaseReceiptStatus(status: string, t: (key: string, vars?: Record<string, string | number>) => string) {
+  switch (status) {
+    case "DRAFT":
+      return t("purchases.status.draft");
+    case "POSTED":
+      return t("purchases.invoices.status.posted");
+    case "CANCELLED":
+      return t("purchases.status.cancelled");
     default:
       return status;
   }
@@ -3496,6 +3809,8 @@ function translateSupplierPaymentStatus(status: string, t: (key: string, vars?: 
       return t("purchases.invoices.status.posted");
     case "CANCELLED":
       return t("purchases.status.cancelled");
+    case "REVERSED":
+      return t("purchases.status.reversed");
     default:
       return status;
   }
@@ -3511,6 +3826,8 @@ function translateDebitNoteStatus(status: string, t: (key: string, vars?: Record
       return t("purchases.debitNotes.status.applied");
     case "CANCELLED":
       return t("purchases.status.cancelled");
+    case "REVERSED":
+      return t("purchases.status.reversed");
     default:
       return status;
   }
@@ -3535,18 +3852,27 @@ function purchaseInvoiceStatusTone(status: PurchaseInvoice["status"]) {
   if (status === "FULLY_PAID") return "positive" as const;
   if (status === "PARTIALLY_PAID") return "warning" as const;
   if (status === "CANCELLED") return "warning" as const;
+  if (status === "REVERSED") return "warning" as const;
+  return "neutral" as const;
+}
+
+function purchaseReceiptStatusTone(status: PurchaseReceipt["status"]) {
+  if (status === "POSTED") return "positive" as const;
+  if (status === "CANCELLED") return "warning" as const;
   return "neutral" as const;
 }
 
 function supplierPaymentStatusTone(status: SupplierPayment["status"]) {
   if (status === "POSTED") return "positive" as const;
   if (status === "CANCELLED") return "warning" as const;
+  if (status === "REVERSED") return "warning" as const;
   return "neutral" as const;
 }
 
 function debitNoteStatusTone(status: DebitNote["status"]) {
   if (status === "POSTED" || status === "APPLIED") return "positive" as const;
   if (status === "CANCELLED") return "warning" as const;
+  if (status === "REVERSED") return "warning" as const;
   return "neutral" as const;
 }
 

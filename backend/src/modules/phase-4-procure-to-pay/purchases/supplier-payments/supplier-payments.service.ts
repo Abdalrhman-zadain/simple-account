@@ -1,7 +1,10 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AllocationStatus, BankCashTransactionStatus, DebitNoteStatus, Prisma, SupplierPaymentStatus } from '../../../../generated/prisma';
+import { AllocationStatus, AuditAction, BankCashTransactionStatus, DebitNoteStatus, Prisma, SupplierPaymentStatus } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
+import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
+import { ReversalService } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal.service';
 import { BankCashTransactionsService } from '../../../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import {
@@ -79,6 +82,8 @@ export class SupplierPaymentsService {
     private readonly prisma: PrismaService,
     private readonly suppliersService: SuppliersService,
     private readonly bankCashTransactionsService: BankCashTransactionsService,
+    private readonly reversalService: ReversalService,
+    private readonly auditService: AuditService,
   ) {}
 
   async list(query: SupplierPaymentListQuery = {}) {
@@ -323,6 +328,65 @@ export class SupplierPaymentsService {
     return this.mapSupplierPayment(updated);
   }
 
+  async reverse(id: string, dto: ReverseJournalEntryDto) {
+    const payment = await this.prisma.supplierPayment.findUnique({
+      where: { id },
+      include: {
+        allocations: { select: { purchaseInvoiceId: true } },
+        bankCashTransaction: {
+          select: {
+            id: true,
+            journalEntryId: true,
+          },
+        },
+      },
+    });
+    if (!payment) {
+      throw new BadRequestException(`Supplier payment ${id} was not found.`);
+    }
+    if (payment.status !== SupplierPaymentStatus.POSTED) {
+      throw new BadRequestException('Only posted supplier payments can be reversed.');
+    }
+    if (!payment.bankCashTransaction?.journalEntryId) {
+      throw new BadRequestException('Supplier payment does not have a posted journal entry to reverse.');
+    }
+
+    await this.reversalService.reverse(payment.bankCashTransaction.journalEntryId, dto);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.supplierPayment.update({
+        where: { id },
+        data: { status: SupplierPaymentStatus.REVERSED },
+        include: this.supplierPaymentInclude(),
+      });
+
+      await tx.supplier.update({
+        where: { id: payment.supplierId },
+        data: {
+          currentBalance: {
+            increment: this.toAmount(Number(payment.amount)),
+          },
+        },
+      });
+
+      await this.recomputePurchaseInvoices(tx, payment.allocations.map((item) => item.purchaseInvoiceId));
+      return next;
+    });
+
+    await this.auditService.log({
+      entity: 'SupplierPayment',
+      entityId: updated.id,
+      action: AuditAction.REVERSE,
+      details: {
+        status: updated.status,
+        reference: updated.reference,
+        journalEntryId: payment.bankCashTransaction.journalEntryId,
+      },
+    });
+
+    return this.mapSupplierPayment(updated);
+  }
+
   private async resolveAllocations(
     allocations: SupplierPaymentAllocationDto[],
     supplierId: string,
@@ -333,9 +397,9 @@ export class SupplierPaymentsService {
       where: {
         id: { in: uniqueInvoiceIds },
         supplierId,
-        status: { not: 'CANCELLED' as any },
+        status: { in: ['POSTED', 'PARTIALLY_PAID'] as any },
       },
-      select: { id: true, totalAmount: true },
+      select: { id: true, totalAmount: true, outstandingAmount: true },
     });
     const invoiceMap = new Map(invoices.map((invoice) => [invoice.id, invoice]));
 
@@ -349,8 +413,8 @@ export class SupplierPaymentsService {
         const allocatedElsewhere = await this.prisma.supplierPaymentAllocation.aggregate({
           where: {
             purchaseInvoiceId: allocation.purchaseInvoiceId,
-            supplierPayment: {
-              status: { not: SupplierPaymentStatus.CANCELLED },
+          supplierPayment: {
+              status: { in: [SupplierPaymentStatus.DRAFT, SupplierPaymentStatus.POSTED] as any },
             },
             supplierPaymentId: excludeSupplierPaymentId ? { not: excludeSupplierPaymentId } : undefined,
           },
@@ -358,7 +422,7 @@ export class SupplierPaymentsService {
         });
 
         const currentReserved = Number(allocatedElsewhere._sum.amount ?? 0);
-        const invoiceAvailable = Number(invoice.totalAmount) - currentReserved;
+        const invoiceAvailable = Number(invoice.outstandingAmount) - currentReserved;
         if (allocation.amount - Number(invoiceAvailable.toFixed(2)) > 0.0001) {
           throw new BadRequestException('Payment allocation amount exceeds the outstanding balance of the related purchase invoice.');
         }
@@ -400,7 +464,7 @@ export class SupplierPaymentsService {
       tx.supplierPaymentAllocation.aggregate({
         where: {
           purchaseInvoiceId: invoiceId,
-          supplierPayment: { status: { not: SupplierPaymentStatus.CANCELLED } },
+          supplierPayment: { status: { in: [SupplierPaymentStatus.DRAFT, SupplierPaymentStatus.POSTED] as any } },
         },
         _sum: { amount: true },
       }),
@@ -527,6 +591,7 @@ export class SupplierPaymentsService {
       canEdit: row.status === SupplierPaymentStatus.DRAFT,
       canPost: row.status === SupplierPaymentStatus.DRAFT,
       canCancel: row.status === SupplierPaymentStatus.DRAFT,
+      canReverse: row.status === SupplierPaymentStatus.POSTED,
       supplier: row.supplier,
       bankCashAccount: {
         id: row.bankCashAccount.id,

@@ -42,6 +42,19 @@ type PurchaseOrderWithRelations = Prisma.PurchaseOrderGetPayload<{
       };
     };
     lines: true;
+    receipts: {
+      select: {
+        id: true;
+        reference: true;
+        status: true;
+        receiptDate: true;
+        totalQuantity: true;
+        postedAt: true;
+      };
+      orderBy: {
+        receiptDate: 'desc';
+      };
+    };
   };
 }>;
 
@@ -308,6 +321,17 @@ export class PurchaseOrdersService {
       lines: {
         orderBy: { lineNumber: 'asc' },
       },
+      receipts: {
+        orderBy: [{ receiptDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          receiptDate: true,
+          totalQuantity: true,
+          postedAt: true,
+        },
+      },
     } satisfies Prisma.PurchaseOrderInclude;
   }
 
@@ -331,6 +355,8 @@ export class PurchaseOrdersService {
   }
 
   private mapPurchaseOrder(row: PurchaseOrderWithRelations) {
+    const hasRemainingQuantity = row.lines.some((line) => Number(line.receivedQuantity) + 0.0001 < Number(line.quantity));
+
     return {
       id: row.id,
       reference: row.reference,
@@ -343,6 +369,9 @@ export class PurchaseOrdersService {
       totalAmount: row.totalAmount.toString(),
       canEdit: row.status === PurchaseOrderStatus.DRAFT,
       canIssue: row.status === PurchaseOrderStatus.DRAFT,
+      canReceive:
+        (row.status === PurchaseOrderStatus.ISSUED || row.status === PurchaseOrderStatus.PARTIALLY_RECEIVED) &&
+        hasRemainingQuantity,
       canCancel: row.status === PurchaseOrderStatus.DRAFT || row.status === PurchaseOrderStatus.ISSUED,
       canMarkPartiallyReceived:
         row.status === PurchaseOrderStatus.ISSUED || row.status === PurchaseOrderStatus.PARTIALLY_RECEIVED,
@@ -357,10 +386,19 @@ export class PurchaseOrdersService {
         itemName: line.itemName,
         description: line.description,
         quantity: line.quantity.toString(),
+        receivedQuantity: line.receivedQuantity.toString(),
         unitPrice: line.unitPrice.toString(),
         taxAmount: line.taxAmount.toString(),
         lineTotalAmount: line.lineTotalAmount.toString(),
         requestedDeliveryDate: line.requestedDeliveryDate?.toISOString() ?? null,
+      })),
+      receipts: row.receipts.map((receipt) => ({
+        id: receipt.id,
+        reference: receipt.reference,
+        status: receipt.status,
+        receiptDate: receipt.receiptDate.toISOString(),
+        totalQuantity: receipt.totalQuantity.toString(),
+        postedAt: receipt.postedAt?.toISOString() ?? null,
       })),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

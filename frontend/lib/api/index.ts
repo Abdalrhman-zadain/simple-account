@@ -34,6 +34,7 @@ import {
     CreateCustomerPayload,
     CreatePurchaseRequestPayload,
     CreatePurchaseOrderPayload,
+    CreatePurchaseReceiptPayload,
     CreatePurchaseInvoicePayload,
     CreateSupplierPaymentPayload,
     CreateSupplierPayload,
@@ -76,6 +77,7 @@ import {
     PurchaseRequest,
     PurchaseRequestConversionResult,
     PurchaseOrder,
+    PurchaseReceipt,
     PurchaseInvoice,
     SupplierPayment,
     PurchaseOrdersQuery,
@@ -103,6 +105,7 @@ import {
     UpdateSalesInvoicePayload,
     UpdatePurchaseRequestPayload,
     UpdatePurchaseOrderPayload,
+    UpdatePurchaseReceiptPayload,
     UpdatePurchaseInvoicePayload,
     UpdateSupplierPaymentPayload,
     UpdateSupplierPayload,
@@ -640,6 +643,36 @@ export async function closePurchaseOrder(id: string, token?: string | null) {
   });
 }
 
+export async function createPurchaseReceipt(payload: CreatePurchaseReceiptPayload, token?: string | null) {
+  return apiRequest<PurchaseReceipt>("/purchases/purchase-receipts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePurchaseReceipt(id: string, payload: UpdatePurchaseReceiptPayload, token?: string | null) {
+  return apiRequest<PurchaseReceipt>(`/purchases/purchase-receipts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postPurchaseReceipt(id: string, token?: string | null) {
+  return apiRequest<PurchaseReceipt>(`/purchases/purchase-receipts/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelPurchaseReceipt(id: string, token?: string | null) {
+  return apiRequest<PurchaseReceipt>(`/purchases/purchase-receipts/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
 export async function getPurchaseInvoices(params: PurchaseInvoicesQuery = {}, token?: string | null) {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set("status", params.status);
@@ -667,6 +700,21 @@ export async function updatePurchaseInvoice(id: string, payload: UpdatePurchaseI
   return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postPurchaseInvoice(id: string, token?: string | null) {
+  return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reversePurchaseInvoice(id: string, token?: string | null) {
+  return apiRequest<PurchaseInvoice>(`/purchases/purchase-invoices/${id}/reverse`, {
+    method: "POST",
+    body: JSON.stringify({}),
     token,
   });
 }
@@ -705,6 +753,14 @@ export async function updateSupplierPayment(id: string, payload: UpdateSupplierP
 export async function postSupplierPayment(id: string, token?: string | null) {
   return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}/post`, {
     method: "POST",
+    token,
+  });
+}
+
+export async function reverseSupplierPayment(id: string, token?: string | null) {
+  return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}/reverse`, {
+    method: "POST",
+    body: JSON.stringify({}),
     token,
   });
 }
@@ -750,6 +806,14 @@ export async function updateDebitNote(id: string, payload: UpdateDebitNotePayloa
 export async function postDebitNote(id: string, token?: string | null) {
   return apiRequest<DebitNote>(`/purchases/debit-notes/${id}/post`, {
     method: "POST",
+    token,
+  });
+}
+
+export async function reverseDebitNote(id: string, token?: string | null) {
+  return apiRequest<DebitNote>(`/purchases/debit-notes/${id}/reverse`, {
+    method: "POST",
+    body: JSON.stringify({}),
     token,
   });
 }

@@ -7,18 +7,19 @@
 - Phase: Phase 4 - Procure-to-Pay
 - Total Requirements: 58
 
-This document captures the initial Phase 4 Purchases requirements baseline in the same modular ownership style used by the rest of the project. It remains the planning reference for the full module. Current implementation status: `suppliers` is implemented, `purchase-requests` is implemented, `purchase-orders` is implemented for direct creation, approved-request conversion, draft maintenance, and lifecycle status changes through close, and `purchase-invoices` is implemented for direct/order-linked draft capture, line account classification, and totals calculation; the remaining workflows below are still planning targets.
+This document captures the initial Phase 4 Purchases requirements baseline in the same modular ownership style used by the rest of the project. It remains the planning reference for the full module. Current implementation status: `suppliers`, `purchase-requests`, `purchase-orders`, `purchase-receipts`, `purchase-invoices`, `supplier-payments`, `debit-notes`, and the current `posting-accounting` / `validation-control` slice are implemented for the present workflow scope, including reversal workflows for posted purchase invoices, supplier payments, and debit notes. Remaining future targets are mainly deeper downstream automation such as receipt accounting/inventory impact and receipt reversal.
 
 ### Proposed module slices
 
 - `suppliers`
 - `purchase-requests`
 - `purchase-orders`
+- `purchase-receipts` (implemented)
 - `purchase-invoices`
 - `supplier-payments` (implemented)
 - `debit-notes` (implemented)
-- `posting-accounting`
-- `validation-control`
+- `posting-accounting` (implemented)
+- `validation-control` (implemented)
 
 ## العربية
 

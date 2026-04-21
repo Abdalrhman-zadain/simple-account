@@ -1109,4 +1109,41 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.confirm.cancel": "هل تريد إلغاء إشعار الخصم؟",
 });
 
+Object.assign(arTranslations, {
+  "purchases.action.postInvoice": "ترحيل الفاتورة",
+  "purchases.invoices.empty.notPosted": "لم يتم ترحيلها بعد",
+  "purchases.invoices.field.postedAt": "تاريخ الترحيل",
+  "purchases.invoices.confirm.post": "هل تريد ترحيل فاتورة الشراء الآن؟",
+});
+
+Object.assign(arTranslations, {
+  "purchases.action.receiveOrder": "استلام",
+  "purchases.action.receiveAndPost": "استلام وترحيل",
+  "purchases.dialog.receiveOrder": "استلام أمر الشراء",
+  "purchases.orders.section.receipts": "سجل الاستلام",
+  "purchases.orders.metric.receivedQuantity": "الكمية المستلمة",
+  "purchases.orders.empty.receipts": "لا توجد سجلات استلام مرحلة لهذا أمر الشراء بعد.",
+  "purchases.orders.empty.notPosted": "لم يتم ترحيلها بعد",
+  "purchases.orders.field.postedAt": "تاريخ الترحيل",
+  "purchases.receipts.section.lines": "سطور الاستلام",
+  "purchases.receipts.field.reference": "مرجع الاستلام",
+  "purchases.receipts.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.receipts.field.receiptDate": "تاريخ الاستلام",
+  "purchases.receipts.field.description": "الوصف",
+  "purchases.receipts.field.orderedQuantity": "الكمية المطلوبة",
+  "purchases.receipts.field.alreadyReceived": "الكمية المستلمة سابقاً",
+  "purchases.receipts.field.remainingQuantity": "الكمية المتبقية",
+  "purchases.receipts.field.quantityReceivedNow": "الكمية المستلمة الآن",
+});
+
+Object.assign(arTranslations, {
+  "purchases.action.reverseInvoice": "Ø¹ÙƒØ³ Ø§Ù„ÙØ§ØªÙˆØ±Ø©",
+  "purchases.action.reversePayment": "Ø¹ÙƒØ³ Ø§Ù„Ø¯ÙØ¹Ø©",
+  "purchases.action.reverseDebitNote": "Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ…",
+  "purchases.invoices.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡ Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.payments.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¯ÙØ¹Ø© Ø§Ù„Ù…ÙˆØ±Ø¯ Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.debitNotes.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ… Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.status.reversed": "Ù…Ø¹ÙƒÙˆØ³",
+});
+
 export default arTranslations;

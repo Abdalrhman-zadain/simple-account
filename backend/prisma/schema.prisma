@@ -114,12 +114,20 @@ enum PurchaseInvoiceStatus {
   PARTIALLY_PAID
   FULLY_PAID
   CANCELLED
+  REVERSED
+}
+
+enum PurchaseReceiptStatus {
+  DRAFT
+  POSTED
+  CANCELLED
 }
 
 enum SupplierPaymentStatus {
   DRAFT
   POSTED
   CANCELLED
+  REVERSED
 }
 
 enum DebitNoteStatus {
@@ -127,6 +135,7 @@ enum DebitNoteStatus {
   POSTED
   APPLIED
   CANCELLED
+  REVERSED
 }
 
 model Account {
@@ -403,6 +412,7 @@ model Supplier {
   payableAccountId  String
   payableAccount    Account  @relation("SupplierPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
   purchaseOrders    PurchaseOrder[]
+  purchaseReceipts  PurchaseReceipt[]
   purchaseInvoices  PurchaseInvoice[]
   supplierPayments  SupplierPayment[]
   debitNotes        DebitNote[]
@@ -473,6 +483,7 @@ model PurchaseOrder {
   taxAmount               Decimal             @default(0) @db.Decimal(18, 2)
   totalAmount             Decimal             @default(0) @db.Decimal(18, 2)
   lines                   PurchaseOrderLine[]
+  receipts                PurchaseReceipt[]
   purchaseInvoices        PurchaseInvoice[]
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
@@ -489,13 +500,51 @@ model PurchaseOrderLine {
   itemName              String?
   description           String
   quantity              Decimal       @default(1) @db.Decimal(18, 4)
+  receivedQuantity      Decimal       @default(0) @db.Decimal(18, 4)
   unitPrice             Decimal       @default(0) @db.Decimal(18, 2)
   taxAmount             Decimal       @default(0) @db.Decimal(18, 2)
   lineTotalAmount       Decimal       @default(0) @db.Decimal(18, 2)
   requestedDeliveryDate DateTime?
+  receiptLines          PurchaseReceiptLine[]
   createdAt             DateTime      @default(now())
 
   @@unique([purchaseOrderId, lineNumber])
+}
+
+model PurchaseReceipt {
+  id              String                @id @default(cuid())
+  reference       String                @unique
+  status          PurchaseReceiptStatus @default(DRAFT)
+  receiptDate     DateTime
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  supplierId      String
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  description     String?
+  totalQuantity   Decimal               @default(0) @db.Decimal(18, 4)
+  lines           PurchaseReceiptLine[]
+  postedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([purchaseOrderId, status, receiptDate])
+  @@index([supplierId, status, receiptDate])
+}
+
+model PurchaseReceiptLine {
+  id                  String          @id @default(cuid())
+  purchaseReceiptId   String
+  purchaseReceipt     PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId String
+  purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+  lineNumber          Int
+  itemName            String?
+  description         String
+  quantityReceived    Decimal         @default(0) @db.Decimal(18, 4)
+  createdAt           DateTime        @default(now())
+
+  @@unique([purchaseReceiptId, lineNumber])
+  @@index([purchaseOrderLineId])
 }
 
 model PurchaseInvoice {

@@ -884,6 +884,8 @@ Object.assign(enTranslations, {
 Object.assign(enTranslations, {
   "purchases.action.newOrder": "New Purchase Order",
   "purchases.action.issueOrder": "Issue",
+  "purchases.action.receiveOrder": "Receive",
+  "purchases.action.receiveAndPost": "Receive & Post",
   "purchases.action.markPartiallyReceived": "Mark Partially Received",
   "purchases.action.markFullyReceived": "Mark Fully Received",
   "purchases.action.cancelOrder": "Cancel Order",
@@ -891,6 +893,7 @@ Object.assign(enTranslations, {
   "purchases.workspace.orders": "Purchase Orders",
   "purchases.dialog.newOrder": "New Purchase Order",
   "purchases.dialog.editOrder": "Edit Purchase Order",
+  "purchases.dialog.receiveOrder": "Receive Purchase Order",
   "purchases.orders.description": "Create purchase orders directly or from approved requests, then track issue, receipt progress, and closure.",
   "purchases.orders.summary.total": "Purchase Orders",
   "purchases.orders.summary.totalHint": "Current filtered list",
@@ -909,16 +912,20 @@ Object.assign(enTranslations, {
   "purchases.orders.section.details": "Purchase Order Details",
   "purchases.orders.section.summary": "Order Summary",
   "purchases.orders.section.lines": "Order Lines",
+  "purchases.orders.section.receipts": "Receipt History",
   "purchases.orders.section.editorLines": "Order Lines",
   "purchases.orders.metric.date": "Order Date",
   "purchases.orders.metric.status": "Status",
   "purchases.orders.metric.lines": "Lines",
   "purchases.orders.metric.total": "Total",
+  "purchases.orders.metric.receivedQuantity": "Received Qty",
   "purchases.orders.metric.subtotal": "Subtotal",
   "purchases.orders.metric.tax": "Tax",
   "purchases.orders.empty.list": "No purchase orders match the current filters.",
   "purchases.orders.empty.selectOrder": "Select a purchase order to review its lines and receipt status.",
   "purchases.orders.empty.manual": "Manual order",
+  "purchases.orders.empty.receipts": "No receipt records were posted for this purchase order yet.",
+  "purchases.orders.empty.notPosted": "Not posted yet",
   "purchases.orders.field.reference": "Purchase Order Reference",
   "purchases.orders.field.referenceHint": "Leave blank to let the system generate a unique reference.",
   "purchases.orders.field.orderDate": "Purchase Order Date",
@@ -926,6 +933,7 @@ Object.assign(enTranslations, {
   "purchases.orders.field.currency": "Currency",
   "purchases.orders.field.sourceRequest": "Source Purchase Request",
   "purchases.orders.field.description": "Header Description",
+  "purchases.orders.field.postedAt": "Posted At",
   "purchases.orders.field.itemOrService": "Item / Service",
   "purchases.orders.field.lineDescription": "Line Description",
   "purchases.orders.field.quantity": "Quantity",
@@ -940,10 +948,20 @@ Object.assign(enTranslations, {
   "purchases.orders.confirm.markFullyReceived": "Mark this purchase order as fully received?",
   "purchases.orders.confirm.cancel": "Cancel this purchase order?",
   "purchases.orders.confirm.close": "Close this purchase order?",
+  "purchases.receipts.section.lines": "Receipt Lines",
+  "purchases.receipts.field.reference": "Receipt Reference",
+  "purchases.receipts.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.receipts.field.receiptDate": "Receipt Date",
+  "purchases.receipts.field.description": "Description",
+  "purchases.receipts.field.orderedQuantity": "Ordered Qty",
+  "purchases.receipts.field.alreadyReceived": "Already Received",
+  "purchases.receipts.field.remainingQuantity": "Remaining Qty",
+  "purchases.receipts.field.quantityReceivedNow": "Receive Now",
 });
 
 Object.assign(enTranslations, {
   "purchases.action.newInvoice": "New Purchase Invoice",
+  "purchases.action.postInvoice": "Post Invoice",
   "purchases.workspace.invoices": "Purchase Invoices",
   "purchases.dialog.newInvoice": "New Purchase Invoice",
   "purchases.dialog.editInvoice": "Edit Purchase Invoice",
@@ -979,6 +997,7 @@ Object.assign(enTranslations, {
   "purchases.invoices.empty.list": "No purchase invoices match the current filters.",
   "purchases.invoices.empty.selectInvoice": "Select a purchase invoice to review its lines and account classification.",
   "purchases.invoices.empty.manual": "Manual invoice",
+  "purchases.invoices.empty.notPosted": "Not posted yet",
   "purchases.invoices.empty.selectAccount": "Select a posting account",
   "purchases.invoices.field.reference": "Purchase Invoice Reference",
   "purchases.invoices.field.referenceHint": "Leave blank to let the system generate a unique reference.",
@@ -987,6 +1006,7 @@ Object.assign(enTranslations, {
   "purchases.invoices.field.currency": "Currency",
   "purchases.invoices.field.sourceOrder": "Source Purchase Order",
   "purchases.invoices.field.description": "Header Description",
+  "purchases.invoices.field.postedAt": "Posted At",
   "purchases.invoices.field.itemOrService": "Item / Service",
   "purchases.invoices.field.lineDescription": "Line Description",
   "purchases.invoices.field.quantity": "Quantity",
@@ -997,6 +1017,7 @@ Object.assign(enTranslations, {
   "purchases.invoices.field.account": "Expense / Inventory / Other Account",
   "purchases.invoices.line.label": "Line {index}",
   "purchases.invoices.line.qtyPrice": "Qty {quantity} × {price}",
+  "purchases.invoices.confirm.post": "Post this purchase invoice now?",
 });
 
 Object.assign(enTranslations, {
@@ -1104,6 +1125,16 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.status.applied": "Applied",
   "purchases.debitNotes.confirm.post": "Post this debit note now?",
   "purchases.debitNotes.confirm.cancel": "Cancel this debit note?",
+});
+
+Object.assign(enTranslations, {
+  "purchases.action.reverseInvoice": "Reverse Invoice",
+  "purchases.action.reversePayment": "Reverse Payment",
+  "purchases.action.reverseDebitNote": "Reverse Debit Note",
+  "purchases.invoices.confirm.reverse": "Reverse this purchase invoice now?",
+  "purchases.payments.confirm.reverse": "Reverse this supplier payment now?",
+  "purchases.debitNotes.confirm.reverse": "Reverse this debit note now?",
+  "purchases.status.reversed": "Reversed",
 });
 
 export type TranslationKey = string;

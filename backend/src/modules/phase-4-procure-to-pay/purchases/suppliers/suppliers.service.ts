@@ -187,18 +187,77 @@ export class SuppliersService {
 
   async getTransactions(id: string) {
     const supplier = await this.getSupplierOrThrow(id);
+    const [purchaseInvoices, supplierPayments, debitNotes] = await Promise.all([
+      this.prisma.purchaseInvoice.findMany({
+        where: { supplierId: id },
+        select: {
+          id: true,
+          reference: true,
+          invoiceDate: true,
+          totalAmount: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.supplierPayment.findMany({
+        where: { supplierId: id },
+        select: {
+          id: true,
+          reference: true,
+          paymentDate: true,
+          amount: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.debitNote.findMany({
+        where: { supplierId: id },
+        select: {
+          id: true,
+          reference: true,
+          noteDate: true,
+          totalAmount: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const transactions = [
+      ...purchaseInvoices.map((row) => ({
+        type: 'PURCHASE_INVOICE',
+        id: row.id,
+        reference: row.reference,
+        date: row.invoiceDate.toISOString(),
+        amount: row.totalAmount.toString(),
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      ...supplierPayments.map((row) => ({
+        type: 'SUPPLIER_PAYMENT',
+        id: row.id,
+        reference: row.reference,
+        date: row.paymentDate.toISOString(),
+        amount: row.amount.toString(),
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+      })),
+      ...debitNotes.map((row) => ({
+        type: 'DEBIT_NOTE',
+        id: row.id,
+        reference: row.reference,
+        date: row.noteDate.toISOString(),
+        amount: row.totalAmount.toString(),
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    ].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+
     return {
       supplierId: supplier.id,
       supplierCode: supplier.code,
       supplierName: supplier.name,
-      transactions: [] as Array<{
-        type: string;
-        id: string;
-        reference: string;
-        date: string;
-        amount: string;
-        status: string;
-      }>,
+      transactions: transactions.map(({ createdAt, ...row }) => row),
     };
   }
 

@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
 
 import { PrismaModule } from '../../../../common/prisma/prisma.module';
+import { AuditModule } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.module';
+import { JournalEntriesModule } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.module';
+import { PostingLogicModule } from '../../../phase-1-accounting-foundation/accounting-core/posting-logic/posting-logic.module';
+import { ReversalControlModule } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal-control.module';
 import { PurchaseInvoicesController } from './purchase-invoices.controller';
 import { PurchaseInvoicesService } from './purchase-invoices.service';
 import { SuppliersModule } from '../suppliers/suppliers.module';
 
 @Module({
-  imports: [PrismaModule, SuppliersModule],
+  imports: [PrismaModule, SuppliersModule, JournalEntriesModule, PostingLogicModule, ReversalControlModule, AuditModule],
   controllers: [PurchaseInvoicesController],
   providers: [PurchaseInvoicesService],
   exports: [PurchaseInvoicesService],

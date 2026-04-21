@@ -1,7 +1,12 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AllocationStatus, DebitNoteStatus, Prisma, PurchaseInvoiceStatus } from '../../../../generated/prisma';
+import { AllocationStatus, AuditAction, DebitNoteStatus, Prisma, PurchaseInvoiceStatus } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
+import { JournalEntriesService } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service';
+import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
+import { PostingService } from '../../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
+import { ReversalService } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { CreateDebitNoteDto, DebitNoteLineDto, UpdateDebitNoteDto } from './dto/debit-notes.dto';
 
@@ -26,6 +31,10 @@ export class DebitNotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly suppliersService: SuppliersService,
+    private readonly journalEntriesService: JournalEntriesService,
+    private readonly postingService: PostingService,
+    private readonly reversalService: ReversalService,
+    private readonly auditService: AuditService,
   ) {}
 
   async list(query: DebitNoteListQuery = {}) {
@@ -92,6 +101,13 @@ export class DebitNotesService {
         include: this.debitNoteInclude(),
       });
 
+      await this.auditService.log({
+        entity: 'DebitNote',
+        entityId: created.id,
+        action: AuditAction.CREATE,
+        details: { status: created.status, reference: created.reference },
+      });
+
       return this.mapDebitNote(created);
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
@@ -144,6 +160,13 @@ export class DebitNotesService {
         });
       });
 
+      await this.auditService.log({
+        entity: 'DebitNote',
+        entityId: updated.id,
+        action: AuditAction.UPDATE,
+        details: { status: updated.status, reference: updated.reference },
+      });
+
       return this.mapDebitNote(updated);
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
@@ -160,7 +183,10 @@ export class DebitNotesService {
         supplier: {
           select: {
             id: true,
+            code: true,
+            name: true,
             isActive: true,
+            payableAccountId: true,
           },
         },
         purchaseInvoice: {
@@ -168,8 +194,19 @@ export class DebitNotesService {
             id: true,
             reference: true,
             supplierId: true,
+            subtotalAmount: true,
+            discountAmount: true,
+            taxAmount: true,
             totalAmount: true,
             status: true,
+            lines: {
+              orderBy: { lineNumber: 'asc' },
+              select: {
+                accountId: true,
+                lineSubtotalAmount: true,
+                discountAmount: true,
+              },
+            },
           },
         },
       },
@@ -204,12 +241,30 @@ export class DebitNotesService {
       }
     }
 
+    const description = note.description ? `${note.reference} - ${note.description}` : note.reference;
+    const journal = await this.journalEntriesService.create({
+      entryDate: note.noteDate.toISOString(),
+      description,
+      lines: [
+        {
+          accountId: note.supplier.payableAccountId,
+          description,
+          debitAmount: Number(note.totalAmount),
+          creditAmount: 0,
+        },
+        ...(await this.buildOffsetJournalLines(note, description)),
+      ],
+    });
+    const posted = await this.postingService.post(journal.id);
+    const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.debitNote.update({
         where: { id },
         data: {
           status: note.purchaseInvoiceId ? DebitNoteStatus.APPLIED : DebitNoteStatus.POSTED,
-          postedAt: new Date(),
+          journalEntryId: posted.id,
+          postedAt,
         },
         include: this.debitNoteInclude(),
       });
@@ -228,6 +283,13 @@ export class DebitNotesService {
       }
 
       return next;
+    });
+
+    await this.auditService.log({
+      entity: 'DebitNote',
+      entityId: updated.id,
+      action: AuditAction.POST,
+      details: { status: updated.status, reference: updated.reference, journalEntryId: posted.id },
     });
 
     return this.mapDebitNote(updated);
@@ -249,6 +311,71 @@ export class DebitNotesService {
       where: { id },
       data: { status: DebitNoteStatus.CANCELLED },
       include: this.debitNoteInclude(),
+    });
+
+    await this.auditService.log({
+      entity: 'DebitNote',
+      entityId: updated.id,
+      action: AuditAction.DELETE,
+      details: { status: updated.status, reference: updated.reference },
+    });
+
+    return this.mapDebitNote(updated);
+  }
+
+  async reverse(id: string, dto: ReverseJournalEntryDto) {
+    const note = await this.prisma.debitNote.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        reference: true,
+        status: true,
+        supplierId: true,
+        purchaseInvoiceId: true,
+        totalAmount: true,
+        journalEntryId: true,
+      },
+    });
+    if (!note) {
+      throw new BadRequestException(`Debit note ${id} was not found.`);
+    }
+    if (note.status !== DebitNoteStatus.POSTED && note.status !== DebitNoteStatus.APPLIED) {
+      throw new BadRequestException('Only posted debit notes can be reversed.');
+    }
+    if (!note.journalEntryId) {
+      throw new BadRequestException('Debit note does not have a posted journal entry to reverse.');
+    }
+
+    await this.reversalService.reverse(note.journalEntryId, dto);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.debitNote.update({
+        where: { id },
+        data: { status: DebitNoteStatus.REVERSED },
+        include: this.debitNoteInclude(),
+      });
+
+      await tx.supplier.update({
+        where: { id: note.supplierId },
+        data: {
+          currentBalance: {
+            increment: this.toAmount(Number(note.totalAmount)),
+          },
+        },
+      });
+
+      if (note.purchaseInvoiceId) {
+        await this.recomputePurchaseInvoiceAmounts(tx, note.purchaseInvoiceId);
+      }
+
+      return next;
+    });
+
+    await this.auditService.log({
+      entity: 'DebitNote',
+      entityId: updated.id,
+      action: AuditAction.REVERSE,
+      details: { status: updated.status, reference: updated.reference, journalEntryId: note.journalEntryId },
     });
 
     return this.mapDebitNote(updated);
@@ -310,9 +437,132 @@ export class DebitNotesService {
     if (invoice.supplierId !== supplierId) {
       throw new BadRequestException('Debit notes and linked purchase invoices must use the same supplier.');
     }
-    if (invoice.status === PurchaseInvoiceStatus.CANCELLED) {
-      throw new BadRequestException('Cancelled purchase invoices cannot be linked to debit notes.');
+    if (invoice.status === PurchaseInvoiceStatus.DRAFT || invoice.status === PurchaseInvoiceStatus.CANCELLED) {
+      throw new BadRequestException('Only posted purchase invoices can be linked to debit notes.');
     }
+  }
+
+  private async buildOffsetJournalLines(
+    note: {
+      purchaseInvoice: {
+        id: string;
+        subtotalAmount: { toString(): string };
+        discountAmount: { toString(): string };
+        taxAmount: { toString(): string };
+        lines: Array<{
+          accountId: string;
+          lineSubtotalAmount: { toString(): string };
+          discountAmount: { toString(): string };
+        }>;
+      } | null;
+      subtotalAmount: { toString(): string };
+      taxAmount: { toString(): string };
+    },
+    description: string,
+  ) {
+    const subtotalAmount = Number(note.subtotalAmount);
+    const taxAmount = Number(note.taxAmount);
+    const lines: Array<{ accountId: string; description: string; debitAmount: number; creditAmount: number }> = [];
+
+    if (note.purchaseInvoice) {
+      const baseLines = note.purchaseInvoice.lines.map((line) => ({
+        accountId: line.accountId,
+        netAmount: Number((Number(line.lineSubtotalAmount) - Number(line.discountAmount)).toFixed(2)),
+      }));
+      const totalBase = baseLines.reduce((sum, line) => sum + line.netAmount, 0);
+
+      if (subtotalAmount > 0) {
+        if (totalBase <= 0) {
+          throw new BadRequestException('Linked purchase invoice does not provide a valid account distribution for the debit note.');
+        }
+        baseLines.forEach((line, index) => {
+          const amount =
+            index === baseLines.length - 1
+              ? Number((subtotalAmount - lines.reduce((sum, item) => sum + item.creditAmount, 0)).toFixed(2))
+              : Number(((subtotalAmount * line.netAmount) / totalBase).toFixed(2));
+          if (amount > 0) {
+            lines.push({
+              accountId: line.accountId,
+              description,
+              debitAmount: 0,
+              creditAmount: amount,
+            });
+          }
+        });
+      }
+    } else if (subtotalAmount > 0) {
+      lines.push({
+        accountId: await this.getStandaloneAdjustmentAccountId(),
+        description,
+        debitAmount: 0,
+        creditAmount: subtotalAmount,
+      });
+    }
+
+    if (taxAmount > 0) {
+      lines.push({
+        accountId: await this.getPurchaseTaxAccountId(),
+        description: `${description} tax`,
+        debitAmount: 0,
+        creditAmount: taxAmount,
+      });
+    }
+
+    return lines;
+  }
+
+  private async getPurchaseTaxAccountId() {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        isActive: true,
+        isPosting: true,
+        allowManualPosting: true,
+        type: { in: ['ASSET', 'EXPENSE'] as any },
+        OR: [
+          { subtype: { contains: 'tax', mode: 'insensitive' } },
+          { subtype: { contains: 'vat', mode: 'insensitive' } },
+          { name: { contains: 'tax', mode: 'insensitive' } },
+          { name: { contains: 'vat', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!account) {
+      throw new BadRequestException('No active purchase tax/VAT account is configured for posting tax amounts.');
+    }
+
+    return account.id;
+  }
+
+  private async getStandaloneAdjustmentAccountId() {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        isActive: true,
+        isPosting: true,
+        allowManualPosting: true,
+        type: { in: ['EXPENSE', 'ASSET'] as any },
+        OR: [
+          { subtype: { contains: 'purchase', mode: 'insensitive' } },
+          { subtype: { contains: 'adjust', mode: 'insensitive' } },
+          { subtype: { contains: 'return', mode: 'insensitive' } },
+          { name: { contains: 'purchase', mode: 'insensitive' } },
+          { name: { contains: 'adjust', mode: 'insensitive' } },
+          { name: { contains: 'return', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!account) {
+      throw new BadRequestException(
+        'Standalone debit note posting requires an active purchase adjustment account to be configured.',
+      );
+    }
+
+    return account.id;
   }
 
   private async recomputePurchaseInvoiceAmounts(tx: Prisma.TransactionClient | PrismaService, invoiceId: string) {
@@ -419,6 +669,7 @@ export class DebitNotesService {
       canEdit: row.status === DebitNoteStatus.DRAFT,
       canPost: row.status === DebitNoteStatus.DRAFT,
       canCancel: row.status === DebitNoteStatus.DRAFT,
+      canReverse: row.status === DebitNoteStatus.POSTED || row.status === DebitNoteStatus.APPLIED,
       supplier: row.supplier,
       purchaseInvoice: row.purchaseInvoice
         ? {

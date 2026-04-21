@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../../../platform/auth/guards/jwt-auth.guard';
+import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
 import { CreatePurchaseInvoiceDto, UpdatePurchaseInvoiceDto } from './dto/purchase-invoices.dto';
 import { PurchaseInvoicesService } from './purchase-invoices.service';
 
@@ -33,5 +34,15 @@ export class PurchaseInvoicesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdatePurchaseInvoiceDto) {
     return this.service.update(id, dto);
+  }
+
+  @Post(':id/post')
+  post(@Param('id') id: string) {
+    return this.service.post(id);
+  }
+
+  @Post(':id/reverse')
+  reverse(@Param('id') id: string, @Body() dto: ReverseJournalEntryDto) {
+    return this.service.reverse(id, dto);
   }
 }

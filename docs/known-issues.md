@@ -64,15 +64,14 @@ What this means for future edits:
 
 Current limitation:
 
-- supplier masters, purchase requests, purchase-order maintenance, purchase-invoice draft capture, supplier payments, and debit notes are now implemented, but purchase-invoice and debit-note journal posting flows are still not implemented.
-- supplier transaction history still returns an empty list until posted purchase-side financial documents are added in later slices.
-- purchase orders now support draft/issue/receipt/cancel/close lifecycle management, but they are still operational documents only and do not yet drive receipt records or journal posting.
-- purchase invoices now support draft creation, editing, source-order linkage, account classification, and supplier-payment allocation tracking, but they are still draft-only and do not yet create their own purchase journal entries.
-- supplier payments now post through the Bank & Cash payment flow and update supplier balances, but reversal workflows are still pending.
-- debit notes now reduce supplier balances and linked purchase-invoice payable amounts operationally, but they do not yet create journal entries or support reversal workflows.
+- supplier masters, purchase requests, purchase-order maintenance, purchase invoices, supplier payments, and debit notes are now implemented end-to-end for their current draft/post/cancel slices, including journal posting for purchase invoices and debit notes.
+- purchase orders now support draft/issue/receipt/cancel/close lifecycle management and now store operational purchase-receipt records, but they still do not create inventory or accounting journal entries from receipt posting.
+- purchase invoices, supplier payments, and debit notes now provide explicit reverse-document workflows that create reversal journal entries and mark the source documents as `REVERSED`.
+- purchase transaction audit history now includes reversed purchase invoices, supplier payments, and debit notes, but purchase receipts still do not yet have their own reversal flow.
 
 What this means for future edits:
 
 - keep new purchases code inside `backend/src/modules/phase-4-procure-to-pay/purchases` and `frontend/features/phase-4-procure-to-pay`
 - preserve Arabic/English translation coverage when adding purchase statuses, document labels, and workflow actions
 - do not document non-implemented purchase workflows as implemented until the actual routes, data model, and posting behavior exist
+- treat purchase receipt accounting/inventory impact and receipt reversal as separate future slices; they are not implemented yet

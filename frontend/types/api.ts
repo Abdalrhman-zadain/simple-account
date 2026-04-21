@@ -540,14 +540,16 @@ export type PurchaseOrderStatus =
   | "FULLY_RECEIVED"
   | "CANCELLED"
   | "CLOSED";
+export type PurchaseReceiptStatus = "DRAFT" | "POSTED" | "CANCELLED";
 export type PurchaseInvoiceStatus =
   | "DRAFT"
   | "POSTED"
   | "PARTIALLY_PAID"
   | "FULLY_PAID"
-  | "CANCELLED";
-export type SupplierPaymentStatus = "DRAFT" | "POSTED" | "CANCELLED";
-export type DebitNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED";
+  | "CANCELLED"
+  | "REVERSED";
+export type SupplierPaymentStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type DebitNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED" | "REVERSED";
 
 export type PurchaseRequestLine = {
   id: string;
@@ -655,10 +657,49 @@ export type PurchaseOrderLine = {
   itemName?: string | null;
   description: string;
   quantity: string;
+  receivedQuantity: string;
   unitPrice: string;
   taxAmount: string;
   lineTotalAmount: string;
   requestedDeliveryDate?: string | null;
+};
+
+export type PurchaseReceiptLine = {
+  id: string;
+  lineNumber: number;
+  purchaseOrderLineId: string;
+  purchaseOrderLineNumber: number;
+  itemName?: string | null;
+  description: string;
+  quantityReceived: string;
+};
+
+export type PurchaseReceipt = {
+  id: string;
+  reference: string;
+  status: PurchaseReceiptStatus;
+  receiptDate: string;
+  description?: string | null;
+  totalQuantity: string;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  canReverse: boolean;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+  };
+  purchaseOrder: {
+    id: string;
+    reference: string;
+    status: PurchaseOrderStatus;
+    orderDate: string;
+  };
+  lines: PurchaseReceiptLine[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PurchaseOrder = {
@@ -673,6 +714,7 @@ export type PurchaseOrder = {
   totalAmount: string;
   canEdit: boolean;
   canIssue: boolean;
+  canReceive: boolean;
   canCancel: boolean;
   canMarkPartiallyReceived: boolean;
   canMarkFullyReceived: boolean;
@@ -690,6 +732,14 @@ export type PurchaseOrder = {
     status: PurchaseRequestStatus;
   } | null;
   lines: PurchaseOrderLine[];
+  receipts: Array<{
+    id: string;
+    reference: string;
+    status: PurchaseReceiptStatus;
+    receiptDate: string;
+    totalQuantity: string;
+    postedAt?: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -722,6 +772,21 @@ export type CreatePurchaseOrderPayload = {
 };
 
 export type UpdatePurchaseOrderPayload = Partial<CreatePurchaseOrderPayload>;
+
+export type PurchaseReceiptLinePayload = {
+  purchaseOrderLineId: string;
+  quantityReceived: number;
+};
+
+export type CreatePurchaseReceiptPayload = {
+  reference?: string;
+  receiptDate: string;
+  purchaseOrderId: string;
+  description?: string;
+  lines: PurchaseReceiptLinePayload[];
+};
+
+export type UpdatePurchaseReceiptPayload = Partial<CreatePurchaseReceiptPayload>;
 
 export type PurchaseInvoiceLine = {
   id: string;
@@ -760,6 +825,11 @@ export type PurchaseInvoice = {
   outstandingAmount: string;
   allocationStatus: AllocationStatus;
   canEdit: boolean;
+  canPost?: boolean;
+  canReverse: boolean;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
   supplier: {
     id: string;
     code: string;
@@ -834,6 +904,7 @@ export type SupplierPayment = {
   canEdit: boolean;
   canPost: boolean;
   canCancel: boolean;
+  canReverse: boolean;
   supplier: {
     id: string;
     code: string;
@@ -917,6 +988,7 @@ export type DebitNote = {
   canEdit: boolean;
   canPost: boolean;
   canCancel: boolean;
+  canReverse: boolean;
   supplier: {
     id: string;
     code: string;

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../../../platform/auth/guards/jwt-auth.guard';
+import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
 import { CreateDebitNoteDto, UpdateDebitNoteDto } from './dto/debit-notes.dto';
 import { DebitNotesService } from './debit-notes.service';
 
@@ -43,5 +44,10 @@ export class DebitNotesController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.service.cancel(id);
+  }
+
+  @Post(':id/reverse')
+  reverse(@Param('id') id: string, @Body() dto: ReverseJournalEntryDto) {
+    return this.service.reverse(id, dto);
   }
 }
