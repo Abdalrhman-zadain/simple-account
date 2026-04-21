@@ -5,11 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   approvePurchaseRequest,
+  cancelDebitNote,
   closePurchaseRequest,
   closePurchaseOrder,
   cancelPurchaseOrder,
   cancelSupplierPayment,
   convertPurchaseRequestToOrder,
+  createDebitNote,
   createPurchaseInvoice,
   createPurchaseOrder,
   createPurchaseRequest,
@@ -18,6 +20,8 @@ import {
   deactivateSupplier,
   getBankCashAccounts,
   getAccountOptions,
+  getDebitNoteById,
+  getDebitNotes,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
   getPurchaseOrderById,
@@ -32,9 +36,11 @@ import {
   getSupplierPayments,
   getSupplierTransactions,
   getSuppliers,
+  postDebitNote,
   rejectPurchaseRequest,
   submitPurchaseRequest,
   postSupplierPayment,
+  updateDebitNote,
   updatePurchaseInvoice,
   updatePurchaseOrder,
   updatePurchaseRequest,
@@ -45,11 +51,11 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
+import type { DebitNote, PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-type Workspace = "suppliers" | "requests" | "orders" | "invoices" | "payments";
+type Workspace = "suppliers" | "requests" | "orders" | "invoices" | "payments" | "notes";
 
 type SupplierEditorState = {
   id?: string;
@@ -147,6 +153,25 @@ type SupplierPaymentEditorState = {
   allocations: SupplierPaymentAllocationEditorState[];
 };
 
+type DebitNoteLineEditorState = {
+  key: string;
+  quantity: string;
+  amount: string;
+  taxAmount: string;
+  reason: string;
+};
+
+type DebitNoteEditorState = {
+  id?: string;
+  reference: string;
+  noteDate: string;
+  supplierId: string;
+  purchaseInvoiceId: string;
+  currencyCode: string;
+  description: string;
+  lines: DebitNoteLineEditorState[];
+};
+
 const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   code: "",
   name: "",
@@ -202,6 +227,16 @@ const EMPTY_PAYMENT_EDITOR = (): SupplierPaymentEditorState => ({
   allocations: [createEmptyPaymentAllocation()],
 });
 
+const EMPTY_DEBIT_NOTE_EDITOR = (): DebitNoteEditorState => ({
+  reference: "",
+  noteDate: todayValue(),
+  supplierId: "",
+  purchaseInvoiceId: "",
+  currencyCode: "JOD",
+  description: "",
+  lines: [createEmptyDebitNoteLine()],
+});
+
 export function PurchasesPage() {
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -241,6 +276,11 @@ export function PurchasesPage() {
   const [selectedSupplierPaymentId, setSelectedSupplierPaymentId] = useState<string | null>(null);
   const [isPaymentEditorOpen, setIsPaymentEditorOpen] = useState(false);
   const [paymentEditor, setPaymentEditor] = useState<SupplierPaymentEditorState>(EMPTY_PAYMENT_EDITOR);
+  const [debitNoteSearch, setDebitNoteSearch] = useState("");
+  const [debitNoteStatusFilter, setDebitNoteStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED">("");
+  const [selectedDebitNoteId, setSelectedDebitNoteId] = useState<string | null>(null);
+  const [isDebitNoteEditorOpen, setIsDebitNoteEditorOpen] = useState(false);
+  const [debitNoteEditor, setDebitNoteEditor] = useState<DebitNoteEditorState>(EMPTY_DEBIT_NOTE_EDITOR);
 
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
@@ -359,6 +399,27 @@ export function PurchasesPage() {
     queryKey: queryKeys.supplierPaymentById(token, selectedSupplierPaymentId),
     queryFn: () => getSupplierPaymentById(selectedSupplierPaymentId!, token),
     enabled: Boolean(selectedSupplierPaymentId),
+  });
+
+  const debitNotesQuery = useQuery({
+    queryKey: queryKeys.debitNotes(token, {
+      search: debitNoteSearch,
+      status: debitNoteStatusFilter,
+    }),
+    queryFn: () =>
+      getDebitNotes(
+        {
+          search: debitNoteSearch,
+          status: debitNoteStatusFilter,
+        },
+        token,
+      ),
+  });
+
+  const debitNoteDetailQuery = useQuery({
+    queryKey: queryKeys.debitNoteById(token, selectedDebitNoteId),
+    queryFn: () => getDebitNoteById(selectedDebitNoteId!, token),
+    enabled: Boolean(selectedDebitNoteId),
   });
 
   const createSupplierMutation = useMutation({
@@ -684,6 +745,65 @@ export function PurchasesPage() {
     },
   });
 
+  const createDebitNoteMutation = useMutation({
+    mutationFn: () =>
+      createDebitNote(
+        {
+          reference: debitNoteEditor.reference || undefined,
+          noteDate: debitNoteEditor.noteDate,
+          supplierId: debitNoteEditor.supplierId,
+          purchaseInvoiceId: debitNoteEditor.purchaseInvoiceId || undefined,
+          currencyCode: debitNoteEditor.currencyCode || undefined,
+          description: debitNoteEditor.description || undefined,
+          lines: mapDebitNoteEditorLines(debitNoteEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      await invalidatePurchases(queryClient);
+      setSelectedDebitNoteId(created.id);
+      closeDebitNoteEditor();
+    },
+  });
+
+  const updateDebitNoteMutation = useMutation({
+    mutationFn: () =>
+      updateDebitNote(
+        debitNoteEditor.id!,
+        {
+          reference: debitNoteEditor.reference || undefined,
+          noteDate: debitNoteEditor.noteDate,
+          supplierId: debitNoteEditor.supplierId,
+          purchaseInvoiceId: debitNoteEditor.purchaseInvoiceId || undefined,
+          currencyCode: debitNoteEditor.currencyCode || undefined,
+          description: debitNoteEditor.description || undefined,
+          lines: mapDebitNoteEditorLines(debitNoteEditor.lines),
+        },
+        token,
+      ),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedDebitNoteId(updated.id);
+      closeDebitNoteEditor();
+    },
+  });
+
+  const postDebitNoteMutation = useMutation({
+    mutationFn: (id: string) => postDebitNote(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedDebitNoteId(updated.id);
+    },
+  });
+
+  const cancelDebitNoteMutation = useMutation({
+    mutationFn: (id: string) => cancelDebitNote(id, token),
+    onSuccess: async (updated) => {
+      await invalidatePurchases(queryClient);
+      setSelectedDebitNoteId(updated.id);
+    },
+  });
+
   const suppliers = suppliersQuery.data ?? [];
   const selectedSupplier = useMemo(
     () => suppliers.find((row) => row.id === selectedSupplierId) ?? null,
@@ -710,6 +830,11 @@ export function PurchasesPage() {
     supplierPaymentDetailQuery.data ??
     supplierPayments.find((row) => row.id === selectedSupplierPaymentId) ??
     null;
+  const debitNotes = debitNotesQuery.data ?? [];
+  const selectedDebitNote =
+    debitNoteDetailQuery.data ??
+    debitNotes.find((row) => row.id === selectedDebitNoteId) ??
+    null;
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
@@ -728,6 +853,9 @@ export function PurchasesPage() {
   const totalPayments = supplierPayments.length;
   const draftPayments = supplierPayments.filter((row) => row.status === "DRAFT").length;
   const postedPayments = supplierPayments.filter((row) => row.status === "POSTED").length;
+  const totalDebitNotes = debitNotes.length;
+  const draftDebitNotes = debitNotes.filter((row) => row.status === "DRAFT").length;
+  const appliedDebitNotes = debitNotes.filter((row) => row.status === "APPLIED").length;
 
   const supplierSaveError = getMutationErrorMessage(createSupplierMutation.error ?? updateSupplierMutation.error);
   const supplierFormError = getSupplierFormError(supplierEditor);
@@ -755,6 +883,9 @@ export function PurchasesPage() {
   const paymentSaveError = getMutationErrorMessage(createSupplierPaymentMutation.error ?? updateSupplierPaymentMutation.error);
   const paymentFormError = getSupplierPaymentFormError(paymentEditor);
   const paymentActionError = getMutationErrorMessage(postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error);
+  const debitNoteSaveError = getMutationErrorMessage(createDebitNoteMutation.error ?? updateDebitNoteMutation.error);
+  const debitNoteFormError = getDebitNoteFormError(debitNoteEditor);
+  const debitNoteActionError = getMutationErrorMessage(postDebitNoteMutation.error ?? cancelDebitNoteMutation.error);
 
   const activeActionMutationPending =
     submitPurchaseRequestMutation.isPending ||
@@ -769,6 +900,8 @@ export function PurchasesPage() {
     closePurchaseOrderMutation.isPending;
   const activePaymentActionMutationPending =
     postSupplierPaymentMutation.isPending || cancelSupplierPaymentMutation.isPending;
+  const activeDebitNoteActionMutationPending =
+    postDebitNoteMutation.isPending || cancelDebitNoteMutation.isPending;
 
   return (
     <PageShell>
@@ -784,7 +917,9 @@ export function PurchasesPage() {
                   ? t("purchases.orders.description")
                   : workspace === "invoices"
                     ? t("purchases.invoices.description")
-                    : t("purchases.payments.description")
+                    : workspace === "payments"
+                      ? t("purchases.payments.description")
+                      : t("purchases.debitNotes.description")
           }
           action={
             workspace === "suppliers" ? (
@@ -795,8 +930,10 @@ export function PurchasesPage() {
               <Button onClick={openNewPurchaseOrderEditor}>{t("purchases.action.newOrder")}</Button>
             ) : workspace === "invoices" ? (
               <Button onClick={openNewPurchaseInvoiceEditor}>{t("purchases.action.newInvoice")}</Button>
-            ) : (
+            ) : workspace === "payments" ? (
               <Button onClick={openNewSupplierPaymentEditor}>{t("purchases.action.newPayment")}</Button>
+            ) : (
+              <Button onClick={openNewDebitNoteEditor}>{t("purchases.action.newDebitNote")}</Button>
             )
           }
         />
@@ -816,6 +953,9 @@ export function PurchasesPage() {
           </Button>
           <Button variant={workspace === "payments" ? "primary" : "secondary"} onClick={() => setWorkspace("payments")}>
             {t("purchases.workspace.payments")}
+          </Button>
+          <Button variant={workspace === "notes" ? "primary" : "secondary"} onClick={() => setWorkspace("notes")}>
+            {t("purchases.workspace.debitNotes")}
           </Button>
         </Card>
 
@@ -1507,7 +1647,7 @@ export function PurchasesPage() {
               )}
             </Card>
           </>
-        ) : (
+        ) : workspace === "payments" ? (
           <>
             <div className="grid gap-4 md:grid-cols-3">
               <SummaryCard label={t("purchases.payments.summary.total")} value={String(totalPayments)} hint={t("purchases.payments.summary.totalHint")} />
@@ -1672,6 +1812,172 @@ export function PurchasesPage() {
                           ))}
                         </div>
                       )}
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <SummaryCard label={t("purchases.debitNotes.summary.total")} value={String(totalDebitNotes)} hint={t("purchases.debitNotes.summary.totalHint")} />
+              <SummaryCard label={t("purchases.debitNotes.summary.draft")} value={String(draftDebitNotes)} hint={t("purchases.debitNotes.summary.draftHint")} />
+              <SummaryCard label={t("purchases.debitNotes.summary.applied")} value={String(appliedDebitNotes)} hint={t("purchases.debitNotes.summary.appliedHint")} />
+            </div>
+
+            <Card className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label={t("purchases.debitNotes.filters.search")}>
+                  <Input value={debitNoteSearch} onChange={(event) => setDebitNoteSearch(event.target.value)} placeholder={t("purchases.debitNotes.filters.searchPlaceholder")} />
+                </Field>
+                <Field label={t("purchases.debitNotes.filters.status")}>
+                  <Select value={debitNoteStatusFilter} onChange={(event) => setDebitNoteStatusFilter(event.target.value as typeof debitNoteStatusFilter)}>
+                    <option value="">{t("purchases.filters.allStatuses")}</option>
+                    <option value="DRAFT">{t("purchases.status.draft")}</option>
+                    <option value="POSTED">{t("purchases.invoices.status.posted")}</option>
+                    <option value="APPLIED">{t("purchases.debitNotes.status.applied")}</option>
+                    <option value="CANCELLED">{t("purchases.status.cancelled")}</option>
+                  </Select>
+                </Field>
+                <div className="flex items-end">
+                  <Button variant="secondary" onClick={() => { setDebitNoteSearch(""); setDebitNoteStatusFilter(""); }}>
+                    {t("purchases.action.clearFilters")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <TableHead>{t("purchases.debitNotes.table.reference")}</TableHead>
+                      <TableHead>{t("purchases.debitNotes.table.supplier")}</TableHead>
+                      <TableHead>{t("purchases.debitNotes.table.date")}</TableHead>
+                      <TableHead>{t("purchases.debitNotes.table.amount")}</TableHead>
+                      <TableHead>{t("purchases.debitNotes.table.status")}</TableHead>
+                      <TableHead>{t("purchases.table.actions")}</TableHead>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {debitNotes.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                          {t("purchases.debitNotes.empty.list")}
+                        </td>
+                      </tr>
+                    ) : (
+                      debitNotes.map((row) => (
+                        <tr key={row.id} className={cn("border-t border-gray-100", selectedDebitNoteId === row.id && "bg-gray-50/70")}>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.reference}</div>
+                            <div className="text-xs text-gray-500">{row.purchaseInvoice?.reference || t("purchases.debitNotes.empty.standalone")}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="font-bold text-gray-900">{row.supplier.code} Â· {row.supplier.name}</div>
+                            <div className="text-xs text-gray-500">{row.lines.length} {t("purchases.debitNotes.metric.lines").toLowerCase()}</div>
+                          </td>
+                          <td className="px-6 py-4 align-top">{formatDate(row.noteDate)}</td>
+                          <td className="px-6 py-4 align-top">{formatCurrency(row.totalAmount)}</td>
+                          <td className="px-6 py-4 align-top">
+                            <StatusPill label={translateDebitNoteStatus(row.status, t)} tone={debitNoteStatusTone(row.status)} />
+                          </td>
+                          <td className="px-6 py-4 align-top">
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="secondary" size="sm" onClick={() => setSelectedDebitNoteId(row.id)}>
+                                {t("purchases.action.view")}
+                              </Button>
+                              {row.canEdit ? (
+                                <Button variant="secondary" size="sm" onClick={() => openEditDebitNoteEditor(row)}>
+                                  {t("purchases.action.edit")}
+                                </Button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.debitNotes.section.details")}</div>
+                {selectedDebitNote ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedDebitNote.canPost ? (
+                      <Button size="sm" disabled={activeDebitNoteActionMutationPending} onClick={() => confirmAndRun(t("purchases.debitNotes.confirm.post"), () => postDebitNoteMutation.mutate(selectedDebitNote.id))}>
+                        {t("purchases.action.postDebitNote")}
+                      </Button>
+                    ) : null}
+                    {selectedDebitNote.canCancel ? (
+                      <Button variant="danger" size="sm" disabled={activeDebitNoteActionMutationPending} onClick={() => confirmAndRun(t("purchases.debitNotes.confirm.cancel"), () => cancelDebitNoteMutation.mutate(selectedDebitNote.id))}>
+                        {t("purchases.action.cancelDebitNote")}
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {debitNoteActionError ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                  {debitNoteActionError}
+                </div>
+              ) : null}
+
+              {!selectedDebitNote ? (
+                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
+                  {t("purchases.debitNotes.empty.selectDebitNote")}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <MiniMetric label={t("purchases.debitNotes.metric.date")} value={formatDate(selectedDebitNote.noteDate)} />
+                    <MiniMetric label={t("purchases.debitNotes.metric.status")} value={translateDebitNoteStatus(selectedDebitNote.status, t)} />
+                    <MiniMetric label={t("purchases.debitNotes.metric.lines")} value={String(selectedDebitNote.lines.length)} />
+                    <MiniMetric label={t("purchases.debitNotes.metric.total")} value={formatCurrency(selectedDebitNote.totalAmount)} />
+                  </div>
+
+                  <div className="grid gap-6 xl:grid-cols-2">
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.summary")}</div>
+                      <div className="space-y-3 text-sm text-gray-700">
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div className="font-bold text-gray-900">{selectedDebitNote.supplier.code} Â· {selectedDebitNote.supplier.name}</div>
+                          <div className="mt-1 text-xs text-gray-500">{selectedDebitNote.currencyCode}</div>
+                        </div>
+                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div>{t("purchases.debitNotes.field.purchaseInvoice")}: {selectedDebitNote.purchaseInvoice?.reference || t("purchases.debitNotes.empty.standalone")}</div>
+                          <div className="mt-2">{t("purchases.debitNotes.field.description")}: {selectedDebitNote.description || t("purchases.requests.empty.noDescription")}</div>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <MiniMetric label={t("purchases.debitNotes.metric.subtotal")} value={formatCurrency(selectedDebitNote.subtotalAmount)} />
+                          <MiniMetric label={t("purchases.debitNotes.metric.tax")} value={formatCurrency(selectedDebitNote.taxAmount)} />
+                          <MiniMetric label={t("purchases.debitNotes.metric.total")} value={formatCurrency(selectedDebitNote.totalAmount)} />
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="space-y-4">
+                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.lines")}</div>
+                      <div className="space-y-3">
+                        {selectedDebitNote.lines.map((line) => (
+                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="font-bold text-gray-900">{line.reason}</div>
+                              <div className="text-sm text-gray-500">{formatCurrency(line.lineTotalAmount)}</div>
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              {t("purchases.debitNotes.line.qtyAmount", { quantity: line.quantity, amount: formatCurrency(line.amount) })}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              {t("purchases.debitNotes.field.taxAmount")}: {formatCurrency(line.taxAmount)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </Card>
                   </div>
                 </div>
@@ -2292,6 +2598,133 @@ export function PurchasesPage() {
             </div>
           </div>
         </SidePanel>
+
+        <SidePanel
+          isOpen={isDebitNoteEditorOpen}
+          onClose={closeDebitNoteEditor}
+          title={debitNoteEditor.id ? t("purchases.dialog.editDebitNote") : t("purchases.dialog.newDebitNote")}
+        >
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.debitNotes.field.reference")} hint={t("purchases.debitNotes.field.referenceHint")}>
+                <Input value={debitNoteEditor.reference} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, reference: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.debitNotes.field.noteDate")}>
+                <Input type="date" value={debitNoteEditor.noteDate} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, noteDate: event.target.value }))} />
+              </Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.debitNotes.field.supplier")}>
+                <Select
+                  value={debitNoteEditor.supplierId}
+                  onChange={(event) => {
+                    const supplierId = event.target.value;
+                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                    setDebitNoteEditor((current) => ({
+                      ...current,
+                      supplierId,
+                      purchaseInvoiceId: "",
+                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                    }));
+                  }}
+                >
+                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                  {activeSuppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.code} Â· {supplier.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label={t("purchases.debitNotes.field.currency")}>
+                <Input value={debitNoteEditor.currencyCode} maxLength={8} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.debitNotes.field.purchaseInvoice")}>
+              <Select value={debitNoteEditor.purchaseInvoiceId} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, purchaseInvoiceId: event.target.value }))}>
+                <option value="">{t("purchases.debitNotes.empty.standalone")}</option>
+                {purchaseInvoices
+                  .filter((invoice) => !debitNoteEditor.supplierId || invoice.supplier.id === debitNoteEditor.supplierId)
+                  .filter((invoice) => invoice.status !== "CANCELLED")
+                  .map((invoice) => (
+                    <option key={invoice.id} value={invoice.id}>
+                      {invoice.reference}
+                    </option>
+                  ))}
+              </Select>
+            </Field>
+
+            <Field label={t("purchases.debitNotes.field.description")}>
+              <Textarea rows={3} value={debitNoteEditor.description} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, description: event.target.value }))} />
+            </Field>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.editorLines")}</div>
+                <Button variant="secondary" size="sm" onClick={addDebitNoteLine}>
+                  {t("purchases.action.addLine")}
+                </Button>
+              </div>
+
+              {debitNoteEditor.lines.map((line, index) => {
+                const lineTotal = Number(line.amount || 0) + Number(line.taxAmount || 0);
+
+                return (
+                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-bold text-gray-900">{t("purchases.debitNotes.line.label", { index: index + 1 })}</div>
+                      {debitNoteEditor.lines.length > 1 ? (
+                        <Button variant="danger" size="sm" onClick={() => removeDebitNoteLine(line.key)}>
+                          {t("purchases.action.remove")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <Field label={t("purchases.debitNotes.field.reason")}>
+                      <Textarea rows={2} value={line.reason} onChange={(event) => updateDebitNoteLine(line.key, "reason", event.target.value)} />
+                    </Field>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Field label={t("purchases.debitNotes.field.quantity")}>
+                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateDebitNoteLine(line.key, "quantity", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.debitNotes.field.amount")}>
+                        <Input type="number" min="0" step="0.01" value={line.amount} onChange={(event) => updateDebitNoteLine(line.key, "amount", event.target.value)} />
+                      </Field>
+                      <Field label={t("purchases.debitNotes.field.taxAmount")}>
+                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateDebitNoteLine(line.key, "taxAmount", event.target.value)} />
+                      </Field>
+                    </div>
+                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                      {t("purchases.debitNotes.field.lineTotal")}: {formatCurrency(lineTotal)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {debitNoteFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {debitNoteFormError}
+              </div>
+            ) : null}
+
+            {debitNoteSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {debitNoteSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeDebitNoteEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => (debitNoteEditor.id ? updateDebitNoteMutation.mutate() : createDebitNoteMutation.mutate())} disabled={Boolean(debitNoteFormError) || createDebitNoteMutation.isPending || updateDebitNoteMutation.isPending}>
+                {debitNoteEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+              </Button>
+            </div>
+          </div>
+        </SidePanel>
       </div>
     </PageShell>
   );
@@ -2603,6 +3036,69 @@ export function PurchasesPage() {
       ),
     }));
   }
+
+  function openNewDebitNoteEditor() {
+    createDebitNoteMutation.reset();
+    updateDebitNoteMutation.reset();
+    setDebitNoteEditor(EMPTY_DEBIT_NOTE_EDITOR());
+    setIsDebitNoteEditorOpen(true);
+  }
+
+  function openEditDebitNoteEditor(note: DebitNote) {
+    createDebitNoteMutation.reset();
+    updateDebitNoteMutation.reset();
+    setDebitNoteEditor({
+      id: note.id,
+      reference: note.reference,
+      noteDate: note.noteDate.slice(0, 10),
+      supplierId: note.supplier.id,
+      purchaseInvoiceId: note.purchaseInvoice?.id ?? "",
+      currencyCode: note.currencyCode,
+      description: note.description ?? "",
+      lines: note.lines.length
+        ? note.lines.map((line) => ({
+            key: line.id,
+            quantity: line.quantity,
+            amount: line.amount,
+            taxAmount: line.taxAmount,
+            reason: line.reason,
+          }))
+        : [createEmptyDebitNoteLine()],
+    });
+    setIsDebitNoteEditorOpen(true);
+  }
+
+  function closeDebitNoteEditor() {
+    createDebitNoteMutation.reset();
+    updateDebitNoteMutation.reset();
+    setDebitNoteEditor(EMPTY_DEBIT_NOTE_EDITOR());
+    setIsDebitNoteEditorOpen(false);
+  }
+
+  function addDebitNoteLine() {
+    setDebitNoteEditor((current) => ({
+      ...current,
+      lines: [...current.lines, createEmptyDebitNoteLine()],
+    }));
+  }
+
+  function removeDebitNoteLine(key: string) {
+    setDebitNoteEditor((current) => ({
+      ...current,
+      lines: current.lines.filter((line) => line.key !== key),
+    }));
+  }
+
+  function updateDebitNoteLine(
+    key: string,
+    field: keyof Omit<DebitNoteLineEditorState, "key">,
+    value: string,
+  ) {
+    setDebitNoteEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+    }));
+  }
 }
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
@@ -2641,6 +3137,8 @@ async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient
     queryClient.invalidateQueries({ queryKey: ["purchase-invoice"] }),
     queryClient.invalidateQueries({ queryKey: ["supplier-payments"] }),
     queryClient.invalidateQueries({ queryKey: ["supplier-payment"] }),
+    queryClient.invalidateQueries({ queryKey: ["debit-notes"] }),
+    queryClient.invalidateQueries({ queryKey: ["debit-note"] }),
     queryClient.invalidateQueries({ queryKey: ["bank-cash-accounts"] }),
   ]);
 }
@@ -2792,6 +3290,36 @@ function getSupplierPaymentFormError(editor: SupplierPaymentEditorState) {
   return null;
 }
 
+function getDebitNoteFormError(editor: DebitNoteEditorState) {
+  if (!editor.supplierId) {
+    return "Supplier selection is required.";
+  }
+  if (!editor.noteDate) {
+    return "Debit note date is required.";
+  }
+  if (!editor.currencyCode.trim()) {
+    return "Currency is required.";
+  }
+  if (editor.lines.length === 0) {
+    return "At least one debit note line is required.";
+  }
+  for (const line of editor.lines) {
+    if (!line.reason.trim()) {
+      return "Each debit note line needs a reason.";
+    }
+    if (!line.quantity || Number(line.quantity) <= 0) {
+      return "Each debit note line needs a quantity greater than zero.";
+    }
+    if (line.amount === "" || Number(line.amount) < 0) {
+      return "Each debit note line needs a valid amount.";
+    }
+    if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
+      return "Each debit note line needs a valid tax amount.";
+    }
+  }
+  return null;
+}
+
 function getMutationErrorMessage(error: unknown) {
   if (!error) {
     return null;
@@ -2846,6 +3374,16 @@ function createEmptyPaymentAllocation(): SupplierPaymentAllocationEditorState {
   };
 }
 
+function createEmptyDebitNoteLine(): DebitNoteLineEditorState {
+  return {
+    key: randomKey(),
+    quantity: "1",
+    amount: "0.00",
+    taxAmount: "0.00",
+    reason: "",
+  };
+}
+
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
   return lines.map((line) => ({
     itemName: line.itemName || undefined,
@@ -2886,6 +3424,15 @@ function mapPaymentEditorAllocations(lines: SupplierPaymentAllocationEditorState
       purchaseInvoiceId: line.purchaseInvoiceId,
       amount: Number(line.amount),
     }));
+}
+
+function mapDebitNoteEditorLines(lines: DebitNoteLineEditorState[]) {
+  return lines.map((line) => ({
+    quantity: Number(line.quantity),
+    amount: Number(line.amount),
+    taxAmount: Number(line.taxAmount),
+    reason: line.reason,
+  }));
 }
 
 function translatePurchaseRequestStatus(status: PurchaseRequest["status"], t: (key: string, vars?: Record<string, string | number>) => string) {
@@ -2954,6 +3501,21 @@ function translateSupplierPaymentStatus(status: string, t: (key: string, vars?: 
   }
 }
 
+function translateDebitNoteStatus(status: string, t: (key: string, vars?: Record<string, string | number>) => string) {
+  switch (status) {
+    case "DRAFT":
+      return t("purchases.status.draft");
+    case "POSTED":
+      return t("purchases.invoices.status.posted");
+    case "APPLIED":
+      return t("purchases.debitNotes.status.applied");
+    case "CANCELLED":
+      return t("purchases.status.cancelled");
+    default:
+      return status;
+  }
+}
+
 function statusTone(status: PurchaseRequest["status"]) {
   if (status === "APPROVED") return "positive" as const;
   if (status === "REJECTED") return "warning" as const;
@@ -2978,6 +3540,12 @@ function purchaseInvoiceStatusTone(status: PurchaseInvoice["status"]) {
 
 function supplierPaymentStatusTone(status: SupplierPayment["status"]) {
   if (status === "POSTED") return "positive" as const;
+  if (status === "CANCELLED") return "warning" as const;
+  return "neutral" as const;
+}
+
+function debitNoteStatusTone(status: DebitNote["status"]) {
+  if (status === "POSTED" || status === "APPLIED") return "positive" as const;
   if (status === "CANCELLED") return "warning" as const;
   return "neutral" as const;
 }

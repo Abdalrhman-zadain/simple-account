@@ -15,8 +15,8 @@ This document captures the initial Phase 4 Purchases requirements baseline in th
 - `purchase-requests`
 - `purchase-orders`
 - `purchase-invoices`
-- `supplier-payments`
-- `debit-notes`
+- `supplier-payments` (implemented)
+- `debit-notes` (implemented)
 - `posting-accounting`
 - `validation-control`
 
@@ -35,8 +35,8 @@ This document captures the initial Phase 4 Purchases requirements baseline in th
 - `purchase-requests`
 - `purchase-orders`
 - `purchase-invoices`
-- `supplier-payments`
-- `debit-notes`
+- `supplier-payments` (implemented)
+- `debit-notes` (implemented)
 - `posting-accounting`
 - `validation-control`
 

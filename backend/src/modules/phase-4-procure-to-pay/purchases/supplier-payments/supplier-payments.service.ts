@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AllocationStatus, BankCashTransactionStatus, Prisma, SupplierPaymentStatus } from '../../../../generated/prisma';
+import { AllocationStatus, BankCashTransactionStatus, DebitNoteStatus, Prisma, SupplierPaymentStatus } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { BankCashTransactionsService } from '../../../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service';
@@ -396,16 +396,27 @@ export class SupplierPaymentsService {
       return;
     }
 
-    const allocations = await tx.supplierPaymentAllocation.aggregate({
-      where: {
-        purchaseInvoiceId: invoiceId,
-        supplierPayment: { status: { not: SupplierPaymentStatus.CANCELLED } },
-      },
-      _sum: { amount: true },
-    });
+    const [allocations, debitNotes] = await Promise.all([
+      tx.supplierPaymentAllocation.aggregate({
+        where: {
+          purchaseInvoiceId: invoiceId,
+          supplierPayment: { status: { not: SupplierPaymentStatus.CANCELLED } },
+        },
+        _sum: { amount: true },
+      }),
+      tx.debitNote.aggregate({
+        where: {
+          purchaseInvoiceId: invoiceId,
+          status: { in: [DebitNoteStatus.POSTED, DebitNoteStatus.APPLIED] },
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
 
+    const credited = Number(debitNotes._sum.totalAmount ?? 0);
+    const baseOutstanding = Math.max(0, Number((Number(invoice.totalAmount) - credited).toFixed(2)));
     const allocated = Number(allocations._sum.amount ?? 0);
-    const outstanding = Math.max(0, Number((Number(invoice.totalAmount) - allocated).toFixed(2)));
+    const outstanding = Math.max(0, Number((baseOutstanding - allocated).toFixed(2)));
     const allocationStatus: AllocationStatus =
       allocated <= 0 ? AllocationStatus.UNALLOCATED : outstanding <= 0 ? AllocationStatus.FULLY_ALLOCATED : AllocationStatus.PARTIAL;
 

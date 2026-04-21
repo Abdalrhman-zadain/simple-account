@@ -547,6 +547,7 @@ export type PurchaseInvoiceStatus =
   | "FULLY_PAID"
   | "CANCELLED";
 export type SupplierPaymentStatus = "DRAFT" | "POSTED" | "CANCELLED";
+export type DebitNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED";
 
 export type PurchaseRequestLine = {
   id: string;
@@ -889,6 +890,80 @@ export type CreateSupplierPaymentPayload = {
 };
 
 export type UpdateSupplierPaymentPayload = Partial<CreateSupplierPaymentPayload>;
+
+export type DebitNoteLine = {
+  id: string;
+  lineNumber: number;
+  quantity: string;
+  amount: string;
+  taxAmount: string;
+  reason: string;
+  lineTotalAmount: string;
+};
+
+export type DebitNote = {
+  id: string;
+  reference: string;
+  status: DebitNoteStatus;
+  noteDate: string;
+  currencyCode: string;
+  description?: string | null;
+  subtotalAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+    defaultCurrency: string;
+    isActive: boolean;
+  };
+  purchaseInvoice?: {
+    id: string;
+    reference: string;
+    status: PurchaseInvoiceStatus;
+    invoiceDate: string;
+    totalAmount: string;
+    allocatedAmount: string;
+    outstandingAmount: string;
+  } | null;
+  lines: DebitNoteLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DebitNotesQuery = {
+  status?: DebitNoteStatus | "";
+  supplierId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type DebitNoteLinePayload = {
+  quantity: number;
+  amount: number;
+  taxAmount: number;
+  reason: string;
+};
+
+export type CreateDebitNotePayload = {
+  reference?: string;
+  noteDate: string;
+  supplierId: string;
+  purchaseInvoiceId?: string;
+  currencyCode?: string;
+  description?: string;
+  lines: DebitNoteLinePayload[];
+};
+
+export type UpdateDebitNotePayload = Partial<CreateDebitNotePayload>;
 
 export type SalesLine = {
   id: string;

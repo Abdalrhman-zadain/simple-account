@@ -27,6 +27,7 @@ import {
     CustomerTransaction,
     ConvertPurchaseRequestToOrderPayload,
     CustomersQuery,
+    CreateDebitNotePayload,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
     CreateCreditNotePayload,
@@ -53,6 +54,8 @@ import {
     CreateSegmentValuePayload,
     FiscalPeriod,
     FiscalYear,
+    DebitNote,
+    DebitNotesQuery,
     JournalEntriesQuery,
     JournalEntry,
     JournalEntryType,
@@ -90,6 +93,7 @@ import {
     UpdateAccountSubtypePayload,
     UpdateBankCashAccountPayload,
     UpdateBankCashTransactionPayload,
+    UpdateDebitNotePayload,
     UpdateCreditNotePayload,
     UpdateCustomerPayload,
     UpdateJournalEntryTypePayload,
@@ -707,6 +711,51 @@ export async function postSupplierPayment(id: string, token?: string | null) {
 
 export async function cancelSupplierPayment(id: string, token?: string | null) {
   return apiRequest<SupplierPayment>(`/purchases/supplier-payments/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getDebitNotes(params: DebitNotesQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.supplierId) searchParams.set("supplierId", params.supplierId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<DebitNote[]>(`/purchases/debit-notes${suffix}`, { token });
+}
+
+export async function getDebitNoteById(id: string, token?: string | null) {
+  return apiRequest<DebitNote>(`/purchases/debit-notes/${id}`, { token });
+}
+
+export async function createDebitNote(payload: CreateDebitNotePayload, token?: string | null) {
+  return apiRequest<DebitNote>("/purchases/debit-notes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateDebitNote(id: string, payload: UpdateDebitNotePayload, token?: string | null) {
+  return apiRequest<DebitNote>(`/purchases/debit-notes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function postDebitNote(id: string, token?: string | null) {
+  return apiRequest<DebitNote>(`/purchases/debit-notes/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelDebitNote(id: string, token?: string | null) {
+  return apiRequest<DebitNote>(`/purchases/debit-notes/${id}/cancel`, {
     method: "POST",
     token,
   });

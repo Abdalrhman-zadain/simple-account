@@ -122,6 +122,13 @@ enum SupplierPaymentStatus {
   CANCELLED
 }
 
+enum DebitNoteStatus {
+  DRAFT
+  POSTED
+  APPLIED
+  CANCELLED
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -346,6 +353,7 @@ model JournalEntry {
   salesInvoice        SalesInvoice?        @relation("SalesInvoiceToJournalEntry")
   purchaseInvoice     PurchaseInvoice?     @relation("PurchaseInvoiceToJournalEntry")
   creditNote          CreditNote?          @relation("CreditNoteToJournalEntry")
+  debitNote           DebitNote?           @relation("DebitNoteToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -397,6 +405,7 @@ model Supplier {
   purchaseOrders    PurchaseOrder[]
   purchaseInvoices  PurchaseInvoice[]
   supplierPayments  SupplierPayment[]
+  debitNotes        DebitNote[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -511,6 +520,7 @@ model PurchaseInvoice {
   journalEntry          JournalEntry?         @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines                 PurchaseInvoiceLine[]
   supplierAllocations   SupplierPaymentAllocation[]
+  debitNotes            DebitNote[]
   postedAt              DateTime?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
@@ -577,6 +587,46 @@ model SupplierPaymentAllocation {
 
   @@unique([supplierPaymentId, purchaseInvoiceId])
   @@index([purchaseInvoiceId])
+}
+
+model DebitNote {
+  id                String          @id @default(cuid())
+  reference         String          @unique
+  status            DebitNoteStatus @default(DRAFT)
+  noteDate          DateTime
+  supplierId        String
+  supplier          Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseInvoiceId String?
+  purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
+  currencyCode      String          @default("JOD")
+  description       String?
+  subtotalAmount    Decimal         @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal         @default(0) @db.Decimal(18, 2)
+  totalAmount       Decimal         @default(0) @db.Decimal(18, 2)
+  journalEntryId    String?         @unique
+  journalEntry      JournalEntry?   @relation("DebitNoteToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines             DebitNoteLine[]
+  postedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([supplierId, status, noteDate])
+  @@index([purchaseInvoiceId])
+}
+
+model DebitNoteLine {
+  id              String    @id @default(cuid())
+  debitNoteId     String
+  debitNote       DebitNote @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+  lineNumber      Int
+  quantity        Decimal   @default(1) @db.Decimal(18, 4)
+  amount          Decimal   @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal   @default(0) @db.Decimal(18, 2)
+  reason          String
+  lineTotalAmount Decimal   @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime  @default(now())
+
+  @@unique([debitNoteId, lineNumber])
 }
 
 model SalesQuotation {

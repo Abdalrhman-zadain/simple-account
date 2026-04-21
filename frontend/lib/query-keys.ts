@@ -4,6 +4,7 @@ import type {
   BankCashTransactionsQuery,
   BankReconciliationsQuery,
   CustomersQuery,
+  DebitNotesQuery,
   PurchaseOrdersQuery,
   PurchaseInvoicesQuery,
   SupplierPaymentsQuery,
@@ -77,6 +78,12 @@ export const queryKeys = {
   },
   supplierPaymentById(token: string | null, id: string | null) {
     return ["supplier-payment", token, id] as const;
+  },
+  debitNotes(token: string | null, params: DebitNotesQuery = {}) {
+    return ["debit-notes", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  debitNoteById(token: string | null, id: string | null) {
+    return ["debit-note", token, id] as const;
   },
   purchaseSupplierBalance(token: string | null, supplierId: string | null) {
     return ["purchase-supplier-balance", token, supplierId] as const;

@@ -64,10 +64,12 @@ What this means for future edits:
 
 Current limitation:
 
-- supplier masters, purchase requests, purchase-order maintenance, and purchase-invoice draft capture are now implemented, but supplier payments, debit notes, and payable posting flows are still not implemented.
+- supplier masters, purchase requests, purchase-order maintenance, purchase-invoice draft capture, supplier payments, and debit notes are now implemented, but purchase-invoice and debit-note journal posting flows are still not implemented.
 - supplier transaction history still returns an empty list until posted purchase-side financial documents are added in later slices.
 - purchase orders now support draft/issue/receipt/cancel/close lifecycle management, but they are still operational documents only and do not yet drive receipt records or journal posting.
-- purchase invoices now support draft creation, editing, source-order linkage, and account classification, but they are still draft-only and do not yet create journal entries, update supplier balances, or integrate with supplier payments.
+- purchase invoices now support draft creation, editing, source-order linkage, account classification, and supplier-payment allocation tracking, but they are still draft-only and do not yet create their own purchase journal entries.
+- supplier payments now post through the Bank & Cash payment flow and update supplier balances, but reversal workflows are still pending.
+- debit notes now reduce supplier balances and linked purchase-invoice payable amounts operationally, but they do not yet create journal entries or support reversal workflows.
 
 What this means for future edits:
 
