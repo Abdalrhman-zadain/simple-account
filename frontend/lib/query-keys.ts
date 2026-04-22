@@ -1,5 +1,12 @@
 import type {
   AccountsQuery,
+  InventoryGoodsIssuesQuery,
+  InventoryItemsQuery,
+  InventoryGoodsReceiptsQuery,
+  InventoryStockLedgerQuery,
+  InventoryTransfersQuery,
+  InventoryAdjustmentsQuery,
+  InventoryWarehousesQuery,
   BankCashAccountsQuery,
   BankCashTransactionsQuery,
   BankReconciliationsQuery,
@@ -30,6 +37,48 @@ function normalizeObject(value: Record<string, unknown>) {
 export const queryKeys = {
   accounts(token: string | null, params: AccountsQuery = {}) {
     return ["accounts", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryItems(token: string | null, params: InventoryItemsQuery = {}) {
+    return ["inventory-items", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryWarehouses(token: string | null, params: InventoryWarehousesQuery = {}) {
+    return ["inventory-warehouses", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryWarehouseById(token: string | null, id: string | null) {
+    return ["inventory-warehouse", token, id] as const;
+  },
+  inventoryGoodsReceipts(token: string | null, params: InventoryGoodsReceiptsQuery = {}) {
+    return ["inventory-goods-receipts", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryGoodsReceiptById(token: string | null, id: string | null) {
+    return ["inventory-goods-receipt", token, id] as const;
+  },
+  inventoryGoodsIssues(token: string | null, params: InventoryGoodsIssuesQuery = {}) {
+    return ["inventory-goods-issues", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryGoodsIssueById(token: string | null, id: string | null) {
+    return ["inventory-goods-issue", token, id] as const;
+  },
+  inventoryTransfers(token: string | null, params: InventoryTransfersQuery = {}) {
+    return ["inventory-transfers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryTransferById(token: string | null, id: string | null) {
+    return ["inventory-transfer", token, id] as const;
+  },
+  inventoryAdjustments(token: string | null, params: InventoryAdjustmentsQuery = {}) {
+    return ["inventory-adjustments", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryAdjustmentById(token: string | null, id: string | null) {
+    return ["inventory-adjustment", token, id] as const;
+  },
+  inventoryStockLedger(token: string | null, params: InventoryStockLedgerQuery = {}) {
+    return ["inventory-stock-ledger", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryPolicy(token: string | null) {
+    return ["inventory-policy", token] as const;
+  },
+  inventoryItemById(token: string | null, id: string | null) {
+    return ["inventory-item", token, id] as const;
   },
   accountById(token: string | null, id: string | null) {
     return ["account", token, id] as const;

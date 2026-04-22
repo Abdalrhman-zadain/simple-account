@@ -194,6 +194,45 @@ Checks to run:
 - frontend typecheck
 - Prisma generate and migration review when schema changes are introduced
 
+## Start Or Extend Phase 5 Inventory
+
+Where to edit:
+
+- backend `phase-5-inventory-management/inventory` once the module is introduced
+- frontend `features/phase-5-inventory-management`
+- route files under `frontend/app/(erp)/inventory`
+- `backend/prisma/schema.prisma` and Prisma migration files when inventory, warehouse, costing, or stock-ledger structures are introduced
+- `docs/phase-5-inventory-requirements.md` when requirements are clarified, split, or translated
+
+What else to check:
+
+- keep the inventory module split by subdomain ownership such as item master, warehouses, goods receipts, issues, transfers, adjustments, costing, inquiry, posting/accounting, and validation/control
+- item records that point to a preferred warehouse should reference the Phase 5 warehouse master slice instead of introducing parallel free-text warehouse registries
+- route files must stay thin and compose the owning Phase 5 feature page
+- valuation method changes should flow through `GET/PATCH /inventory/policy`; use `INVENTORY_COSTING_METHOD` only as fallback bootstrap/default behavior
+- stock movement posting must reuse Phase 1 journal-entry and posting services whenever accounting integration is enabled instead of writing ledger effects directly
+- inventory receipts that depend on purchases should integrate with the existing Phase 4 purchases flow rather than duplicating purchase receipt ownership
+- goods receipts should stay draft-editable until posting or cancellation and should remain the primary inbound stock slice for purchase-linked intake
+- goods issues should stay draft-editable until posting or cancellation, and posting should block when the requested quantity exceeds available stock
+- transfers should stay draft-editable until posting or cancellation, and posting should validate active, different source/destination warehouses plus source-warehouse availability and warehouse-balance movement history
+- adjustments should stay draft-editable until posting or cancellation, and posting should support positive/negative variance while enforcing the configured prevent-negative-stock policy
+- posted inventory documents should use reverse status actions instead of direct edits so audit history keeps draft/post/cancel/reverse transitions
+- costing behavior should remain configurable between weighted-average and FIFO, and outbound valuation should write matching movement/value effects
+- receipt/issue/adjustment posting should create and post journal entries only when inventory accounting integration is enabled
+- Arabic and English terminology must stay aligned when adding inventory document labels, statuses, and movement types
+
+Must remain compatible:
+
+- current implemented phase boundaries
+- docs must continue to distinguish between planned Phase 5 inventory scope and implemented system behavior
+- stable route naming under `/inventory` once specific Phase 5 screens are introduced
+
+Checks to run:
+
+- backend build
+- frontend typecheck
+- Prisma generate and migration review when schema changes are introduced
+
 ## Change Account Creation Behavior
 
 Where to edit:

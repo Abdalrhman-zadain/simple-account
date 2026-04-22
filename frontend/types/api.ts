@@ -111,6 +111,456 @@ export type PaymentMethodType = {
   updatedAt: string;
 };
 
+export type InventoryItemType = "INVENTORY" | "NON_STOCK" | "SERVICE" | "RAW_MATERIAL";
+
+export type InventoryWarehouse = {
+  id: string;
+  code: string;
+  name: string;
+  address?: string | null;
+  responsiblePerson?: string | null;
+  isTransit: boolean;
+  isDefaultTransit?: boolean;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryReceiptStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type InventoryIssueStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type InventoryTransferStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type InventoryAdjustmentStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type InventoryStockMovementType =
+  | "GOODS_RECEIPT"
+  | "GOODS_ISSUE"
+  | "TRANSFER_OUT"
+  | "TRANSFER_IN"
+  | "ADJUSTMENT_IN"
+  | "ADJUSTMENT_OUT";
+
+export type InventoryCostingMethod = "WEIGHTED_AVERAGE" | "FIFO";
+
+export type InventoryPolicy = {
+  id: string;
+  costingMethod: InventoryCostingMethod;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateInventoryPolicyPayload = {
+  costingMethod: InventoryCostingMethod;
+};
+
+export type InventoryItem = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  unitOfMeasure: string;
+  category?: string | null;
+  type: InventoryItemType;
+  reorderLevel: string;
+  reorderQuantity: string;
+  preferredWarehouseId?: string | null;
+  preferredWarehouseCode?: string | null;
+  preferredWarehouse?: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit"> | null;
+  onHandQuantity: string;
+  valuationAmount: string;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  inventoryAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
+  cogsAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
+  salesAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
+  adjustmentAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryItemsQuery = {
+  isActive?: "true" | "false" | "";
+  search?: string;
+  type?: InventoryItemType | "";
+};
+
+export type InventoryWarehousesQuery = {
+  isActive?: "true" | "false" | "";
+  isTransit?: "true" | "false" | "";
+  search?: string;
+};
+
+export type InventoryGoodsReceiptsQuery = {
+  status?: InventoryReceiptStatus | "";
+  warehouseId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type InventoryGoodsIssuesQuery = {
+  status?: InventoryIssueStatus | "";
+  warehouseId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type InventoryTransfersQuery = {
+  status?: InventoryTransferStatus | "";
+  sourceWarehouseId?: string;
+  destinationWarehouseId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type InventoryAdjustmentsQuery = {
+  status?: InventoryAdjustmentStatus | "";
+  warehouseId?: string;
+  reason?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type InventoryStockLedgerQuery = {
+  itemId?: string;
+  warehouseId?: string;
+  movementType?: InventoryStockMovementType | "";
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export type CreateInventoryItemPayload = {
+  code?: string;
+  name: string;
+  description?: string;
+  unitOfMeasure: string;
+  category?: string;
+  type: InventoryItemType;
+  inventoryAccountId?: string;
+  cogsAccountId?: string;
+  salesAccountId?: string;
+  adjustmentAccountId?: string;
+  reorderLevel?: string;
+  reorderQuantity?: string;
+  preferredWarehouseId?: string;
+};
+
+export type UpdateInventoryItemPayload = Partial<CreateInventoryItemPayload> & {
+  isActive?: boolean;
+};
+
+export type CreateInventoryWarehousePayload = {
+  code?: string;
+  name: string;
+  address?: string;
+  responsiblePerson?: string;
+  isTransit?: boolean;
+  isDefaultTransit?: boolean;
+};
+
+export type UpdateInventoryWarehousePayload = Partial<CreateInventoryWarehousePayload> & {
+  isActive?: boolean;
+};
+
+export type InventoryGoodsReceiptLine = {
+  id: string;
+  lineNumber: number;
+  quantity: string;
+  unitCost: string;
+  unitOfMeasure: string;
+  description?: string | null;
+  lineTotalAmount: string;
+  item: {
+    id: string;
+    code: string;
+    name: string;
+    unitOfMeasure: string;
+    type: InventoryItemType;
+    isActive: boolean;
+  };
+};
+
+export type InventoryGoodsReceipt = {
+  id: string;
+  reference: string;
+  status: InventoryReceiptStatus;
+  receiptDate: string;
+  sourcePurchaseOrderRef?: string | null;
+  sourcePurchaseInvoiceRef?: string | null;
+  description?: string | null;
+  totalQuantity: string;
+  totalAmount: string;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  canReverse?: boolean;
+  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  lines: InventoryGoodsReceiptLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryGoodsIssueLine = {
+  id: string;
+  lineNumber: number;
+  quantity: string;
+  unitCost: string;
+  unitOfMeasure: string;
+  description?: string | null;
+  lineTotalAmount: string;
+  item: {
+    id: string;
+    code: string;
+    name: string;
+    unitOfMeasure: string;
+    type: InventoryItemType;
+    isActive: boolean;
+    onHandQuantity: string;
+    valuationAmount: string;
+  };
+};
+
+export type InventoryGoodsIssue = {
+  id: string;
+  reference: string;
+  status: InventoryIssueStatus;
+  issueDate: string;
+  sourceSalesOrderRef?: string | null;
+  sourceSalesInvoiceRef?: string | null;
+  sourceProductionRequestRef?: string | null;
+  sourceInternalRequestRef?: string | null;
+  description?: string | null;
+  totalQuantity: string;
+  totalAmount: string;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  canReverse?: boolean;
+  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  lines: InventoryGoodsIssueLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryTransferLine = {
+  id: string;
+  lineNumber: number;
+  quantity: string;
+  unitCost: string;
+  unitOfMeasure: string;
+  description?: string | null;
+  lineTotalAmount: string;
+  item: {
+    id: string;
+    code: string;
+    name: string;
+    unitOfMeasure: string;
+    type: InventoryItemType;
+    isActive: boolean;
+    onHandQuantity: string;
+    valuationAmount: string;
+  };
+};
+
+export type InventoryTransfer = {
+  id: string;
+  reference: string;
+  status: InventoryTransferStatus;
+  transferDate: string;
+  description?: string | null;
+  totalQuantity: string;
+  totalAmount: string;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  canReverse?: boolean;
+  sourceWarehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  destinationWarehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  lines: InventoryTransferLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryAdjustmentLine = {
+  id: string;
+  lineNumber: number;
+  systemQuantity: string;
+  countedQuantity: string;
+  varianceQuantity: string;
+  unitCost: string;
+  unitOfMeasure: string;
+  description?: string | null;
+  lineTotalAmount: string;
+  item: {
+    id: string;
+    code: string;
+    name: string;
+    unitOfMeasure: string;
+    type: InventoryItemType;
+    isActive: boolean;
+    onHandQuantity: string;
+    valuationAmount: string;
+  };
+};
+
+export type InventoryAdjustment = {
+  id: string;
+  reference: string;
+  status: InventoryAdjustmentStatus;
+  adjustmentDate: string;
+  reason: string;
+  description?: string | null;
+  totalVarianceQuantity: string;
+  totalAmount: string;
+  postedAt?: string | null;
+  canEdit: boolean;
+  canPost: boolean;
+  canCancel: boolean;
+  canReverse?: boolean;
+  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  lines: InventoryAdjustmentLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryStockMovement = {
+  id: string;
+  movementType: InventoryStockMovementType;
+  transactionType: string;
+  transactionId: string;
+  transactionLineId?: string | null;
+  transactionReference: string;
+  transactionDate: string;
+  quantityIn: string;
+  quantityOut: string;
+  unitCost: string;
+  valueIn: string;
+  valueOut: string;
+  runningQuantity: string;
+  runningValuation: string;
+  description?: string | null;
+  item: Pick<InventoryItem, "id" | "code" | "name" | "unitOfMeasure">;
+  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name">;
+  createdAt: string;
+};
+
+export type InventoryGoodsReceiptLinePayload = {
+  itemId: string;
+  quantity: string;
+  unitCost: string;
+  unitOfMeasure: string;
+  description?: string;
+};
+
+export type CreateInventoryGoodsReceiptPayload = {
+  reference?: string;
+  receiptDate: string;
+  warehouseId: string;
+  sourcePurchaseOrderRef?: string;
+  sourcePurchaseInvoiceRef?: string;
+  description?: string;
+  lines: InventoryGoodsReceiptLinePayload[];
+};
+
+export type UpdateInventoryGoodsReceiptPayload = Partial<CreateInventoryGoodsReceiptPayload>;
+
+export type InventoryGoodsIssueLinePayload = {
+  itemId: string;
+  quantity: string;
+  unitOfMeasure: string;
+  description?: string;
+};
+
+export type CreateInventoryGoodsIssuePayload = {
+  reference?: string;
+  issueDate: string;
+  warehouseId: string;
+  sourceSalesOrderRef?: string;
+  sourceSalesInvoiceRef?: string;
+  sourceProductionRequestRef?: string;
+  sourceInternalRequestRef?: string;
+  description?: string;
+  lines: InventoryGoodsIssueLinePayload[];
+};
+
+export type UpdateInventoryGoodsIssuePayload = Partial<CreateInventoryGoodsIssuePayload>;
+
+export type InventoryTransferLinePayload = {
+  itemId: string;
+  quantity: string;
+  unitOfMeasure: string;
+  description?: string;
+};
+
+export type CreateInventoryTransferPayload = {
+  reference?: string;
+  transferDate: string;
+  sourceWarehouseId: string;
+  destinationWarehouseId: string;
+  description?: string;
+  lines: InventoryTransferLinePayload[];
+};
+
+export type UpdateInventoryTransferPayload = Partial<CreateInventoryTransferPayload>;
+
+export type InventoryAdjustmentLinePayload = {
+  itemId: string;
+  systemQuantity: string;
+  countedQuantity: string;
+  unitOfMeasure: string;
+  description?: string;
+};
+
+export type CreateInventoryAdjustmentPayload = {
+  reference?: string;
+  adjustmentDate: string;
+  warehouseId: string;
+  reason: string;
+  description?: string;
+  lines: InventoryAdjustmentLinePayload[];
+};
+
+export type UpdateInventoryAdjustmentPayload = Partial<CreateInventoryAdjustmentPayload>;
+
 export type CreatePaymentMethodTypePayload = {
   name: string;
 };

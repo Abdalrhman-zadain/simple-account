@@ -123,6 +123,34 @@ enum PurchaseReceiptStatus {
   CANCELLED
 }
 
+enum InventoryReceiptStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum InventoryIssueStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum InventoryTransferStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum InventoryAdjustmentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
 enum SupplierPaymentStatus {
   DRAFT
   POSTED
@@ -136,6 +164,27 @@ enum DebitNoteStatus {
   APPLIED
   CANCELLED
   REVERSED
+}
+
+enum InventoryItemType {
+  INVENTORY
+  NON_STOCK
+  SERVICE
+  RAW_MATERIAL
+}
+
+enum InventoryCostingMethod {
+  WEIGHTED_AVERAGE
+  FIFO
+}
+
+enum InventoryStockMovementType {
+  GOODS_RECEIPT
+  GOODS_ISSUE
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
 }
 
 model Account {
@@ -186,6 +235,10 @@ model Account {
   salesOrderRevenueLines          SalesOrderLine[]      @relation("SalesOrderRevenueAccount")
   salesInvoiceRevenueLines        SalesInvoiceLine[]    @relation("SalesInvoiceRevenueAccount")
   creditNoteRevenueLines          CreditNoteLine[]      @relation("CreditNoteRevenueAccount")
+  inventoryDefaultItems           InventoryItem[]       @relation("InventoryItemInventoryAccount")
+  inventoryCogsItems              InventoryItem[]       @relation("InventoryItemCogsAccount")
+  inventorySalesItems             InventoryItem[]       @relation("InventoryItemSalesAccount")
+  inventoryAdjustmentItems        InventoryItem[]       @relation("InventoryItemAdjustmentAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -363,6 +416,9 @@ model JournalEntry {
   purchaseInvoice     PurchaseInvoice?     @relation("PurchaseInvoiceToJournalEntry")
   creditNote          CreditNote?          @relation("CreditNoteToJournalEntry")
   debitNote           DebitNote?           @relation("DebitNoteToJournalEntry")
+  inventoryGoodsReceipt InventoryGoodsReceipt? @relation("InventoryGoodsReceiptToJournalEntry")
+  inventoryGoodsIssue   InventoryGoodsIssue?   @relation("InventoryGoodsIssueToJournalEntry")
+  inventoryAdjustment   InventoryAdjustment?   @relation("InventoryAdjustmentToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -420,6 +476,312 @@ model Supplier {
   updatedAt         DateTime @updatedAt
 
   @@index([isActive, name])
+}
+
+model InventoryItem {
+  id                  String            @id @default(cuid())
+  code                String            @unique
+  name                String
+  description         String?
+  unitOfMeasure       String
+  category            String?
+  type                InventoryItemType @default(INVENTORY)
+  inventoryAccountId  String?
+  inventoryAccount    Account?          @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccountId       String?
+  cogsAccount         Account?          @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  salesAccountId      String?
+  salesAccount        Account?          @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  adjustmentAccountId String?
+  adjustmentAccount   Account?          @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  reorderLevel        Decimal           @default(0) @db.Decimal(18, 4)
+  reorderQuantity     Decimal           @default(0) @db.Decimal(18, 4)
+  preferredWarehouseId String?
+  preferredWarehouse   InventoryWarehouse? @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
+  preferredWarehouseCode String?
+  isActive            Boolean           @default(true)
+  onHandQuantity      Decimal           @default(0) @db.Decimal(18, 4)
+  valuationAmount     Decimal           @default(0) @db.Decimal(18, 2)
+  goodsReceiptLines   InventoryGoodsReceiptLine[]
+  goodsIssueLines     InventoryGoodsIssueLine[]
+  transferLines       InventoryTransferLine[]
+  adjustmentLines     InventoryAdjustmentLine[]
+  warehouseBalances   InventoryWarehouseBalance[]
+  costLayers          InventoryCostLayer[]
+  stockMovements      InventoryStockMovement[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([type, isActive])
+  @@index([name])
+  @@index([preferredWarehouseId])
+}
+
+model InventoryPolicy {
+  id            String               @id
+  costingMethod InventoryCostingMethod @default(WEIGHTED_AVERAGE)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model InventoryWarehouse {
+  id                String          @id @default(cuid())
+  code              String          @unique
+  name              String
+  address           String?
+  responsiblePerson String?
+  isTransit         Boolean         @default(false)
+  isDefaultTransit  Boolean         @default(false)
+  isActive          Boolean         @default(true)
+  items             InventoryItem[] @relation("InventoryItemPreferredWarehouse")
+  goodsReceipts     InventoryGoodsReceipt[]
+  goodsIssues       InventoryGoodsIssue[]
+  sourceTransfers   InventoryTransfer[] @relation("InventoryTransferSourceWarehouse")
+  destinationTransfers InventoryTransfer[] @relation("InventoryTransferDestinationWarehouse")
+  adjustments       InventoryAdjustment[]
+  itemBalances      InventoryWarehouseBalance[]
+  costLayers        InventoryCostLayer[]
+  stockMovements    InventoryStockMovement[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([isActive, name])
+}
+
+model InventoryGoodsReceipt {
+  id                    String                 @id @default(cuid())
+  reference             String                 @unique
+  status                InventoryReceiptStatus @default(DRAFT)
+  receiptDate           DateTime
+  warehouseId           String
+  warehouse             InventoryWarehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  sourcePurchaseOrderRef String?
+  sourcePurchaseInvoiceRef String?
+  description           String?
+  totalQuantity         Decimal                @default(0) @db.Decimal(18, 4)
+  totalAmount           Decimal                @default(0) @db.Decimal(18, 2)
+  journalEntryId        String?                @unique
+  journalEntry          JournalEntry?          @relation("InventoryGoodsReceiptToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines                 InventoryGoodsReceiptLine[]
+  postedAt              DateTime?
+  reversedAt            DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([warehouseId, status, receiptDate])
+  @@index([status, receiptDate])
+}
+
+model InventoryGoodsReceiptLine {
+  id               String                @id @default(cuid())
+  goodsReceiptId   String
+  goodsReceipt     InventoryGoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  itemId           String
+  item             InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  lineNumber       Int
+  quantity         Decimal               @default(0) @db.Decimal(18, 4)
+  unitCost         Decimal               @default(0) @db.Decimal(18, 2)
+  unitOfMeasure    String
+  description      String?
+  lineTotalAmount  Decimal               @default(0) @db.Decimal(18, 2)
+  createdAt        DateTime              @default(now())
+
+  @@unique([goodsReceiptId, lineNumber])
+  @@index([itemId])
+}
+
+model InventoryGoodsIssue {
+  id                         String               @id @default(cuid())
+  reference                  String               @unique
+  status                     InventoryIssueStatus @default(DRAFT)
+  issueDate                  DateTime
+  warehouseId                String
+  warehouse                  InventoryWarehouse   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  sourceSalesOrderRef        String?
+  sourceSalesInvoiceRef      String?
+  sourceProductionRequestRef String?
+  sourceInternalRequestRef   String?
+  description                String?
+  totalQuantity              Decimal              @default(0) @db.Decimal(18, 4)
+  totalAmount                Decimal              @default(0) @db.Decimal(18, 2)
+  journalEntryId             String?              @unique
+  journalEntry               JournalEntry?        @relation("InventoryGoodsIssueToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines                      InventoryGoodsIssueLine[]
+  postedAt                   DateTime?
+  reversedAt                 DateTime?
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+
+  @@index([warehouseId, status, issueDate])
+  @@index([status, issueDate])
+}
+
+model InventoryGoodsIssueLine {
+  id              String              @id @default(cuid())
+  goodsIssueId    String
+  goodsIssue      InventoryGoodsIssue @relation(fields: [goodsIssueId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            InventoryItem       @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  lineNumber      Int
+  quantity        Decimal             @default(0) @db.Decimal(18, 4)
+  unitCost        Decimal             @default(0) @db.Decimal(18, 2)
+  unitOfMeasure   String
+  description     String?
+  lineTotalAmount Decimal             @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime            @default(now())
+
+  @@unique([goodsIssueId, lineNumber])
+  @@index([itemId])
+}
+
+model InventoryTransfer {
+  id                     String                  @id @default(cuid())
+  reference              String                  @unique
+  status                 InventoryTransferStatus @default(DRAFT)
+  transferDate           DateTime
+  sourceWarehouseId      String
+  sourceWarehouse        InventoryWarehouse      @relation("InventoryTransferSourceWarehouse", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+  destinationWarehouseId String
+  destinationWarehouse   InventoryWarehouse      @relation("InventoryTransferDestinationWarehouse", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
+  description            String?
+  totalQuantity          Decimal                 @default(0) @db.Decimal(18, 4)
+  totalAmount            Decimal                 @default(0) @db.Decimal(18, 2)
+  lines                  InventoryTransferLine[]
+  postedAt               DateTime?
+  reversedAt             DateTime?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@index([sourceWarehouseId, status, transferDate])
+  @@index([destinationWarehouseId, status, transferDate])
+  @@index([status, transferDate])
+}
+
+model InventoryTransferLine {
+  id              String            @id @default(cuid())
+  transferId      String
+  transfer        InventoryTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  lineNumber      Int
+  quantity        Decimal           @default(0) @db.Decimal(18, 4)
+  unitCost        Decimal           @default(0) @db.Decimal(18, 2)
+  unitOfMeasure   String
+  description     String?
+  lineTotalAmount Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime          @default(now())
+
+  @@unique([transferId, lineNumber])
+  @@index([itemId])
+}
+
+model InventoryAdjustment {
+  id                    String                    @id @default(cuid())
+  reference             String                    @unique
+  status                InventoryAdjustmentStatus @default(DRAFT)
+  adjustmentDate        DateTime
+  warehouseId           String
+  warehouse             InventoryWarehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  reason                String
+  description           String?
+  totalVarianceQuantity Decimal                   @default(0) @db.Decimal(18, 4)
+  totalAmount           Decimal                   @default(0) @db.Decimal(18, 2)
+  journalEntryId        String?                   @unique
+  journalEntry          JournalEntry?             @relation("InventoryAdjustmentToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines                 InventoryAdjustmentLine[]
+  postedAt              DateTime?
+  reversedAt            DateTime?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([warehouseId, status, adjustmentDate])
+  @@index([status, adjustmentDate])
+}
+
+model InventoryAdjustmentLine {
+  id               String              @id @default(cuid())
+  adjustmentId     String
+  adjustment       InventoryAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  itemId           String
+  item             InventoryItem       @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  lineNumber       Int
+  systemQuantity   Decimal             @default(0) @db.Decimal(18, 4)
+  countedQuantity  Decimal             @default(0) @db.Decimal(18, 4)
+  varianceQuantity Decimal             @default(0) @db.Decimal(18, 4)
+  unitCost         Decimal             @default(0) @db.Decimal(18, 2)
+  unitOfMeasure    String
+  description      String?
+  lineTotalAmount  Decimal             @default(0) @db.Decimal(18, 2)
+  createdAt        DateTime            @default(now())
+
+  @@unique([adjustmentId, lineNumber])
+  @@index([itemId])
+}
+
+model InventoryWarehouseBalance {
+  id             String             @id @default(cuid())
+  itemId         String
+  item           InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId    String
+  warehouse      InventoryWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  onHandQuantity Decimal            @default(0) @db.Decimal(18, 4)
+  valuationAmount Decimal           @default(0) @db.Decimal(18, 2)
+  stockMovements  InventoryStockMovement[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([itemId, warehouseId])
+  @@index([warehouseId, itemId])
+}
+
+model InventoryCostLayer {
+  id                   String             @id @default(cuid())
+  itemId               String
+  item                 InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId          String
+  warehouse            InventoryWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  remainingQuantity    Decimal            @default(0) @db.Decimal(18, 4)
+  unitCost             Decimal            @default(0) @db.Decimal(18, 2)
+  sourceMovementType   InventoryStockMovementType
+  sourceTransactionType String
+  sourceTransactionId  String
+  sourceLineId         String?
+  sourceReference      String?
+  sourceDate           DateTime
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([itemId, warehouseId, sourceDate, createdAt])
+  @@index([itemId, remainingQuantity])
+}
+
+model InventoryStockMovement {
+  id                    String                    @id @default(cuid())
+  movementType          InventoryStockMovementType
+  transactionType       String
+  transactionId         String
+  transactionLineId     String?
+  transactionReference  String
+  transactionDate       DateTime
+  itemId                String
+  item                  InventoryItem             @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId           String
+  warehouse             InventoryWarehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  quantityIn            Decimal                   @default(0) @db.Decimal(18, 4)
+  quantityOut           Decimal                   @default(0) @db.Decimal(18, 4)
+  unitCost              Decimal                   @default(0) @db.Decimal(18, 2)
+  valueIn               Decimal                   @default(0) @db.Decimal(18, 2)
+  valueOut              Decimal                   @default(0) @db.Decimal(18, 2)
+  runningQuantity       Decimal                   @default(0) @db.Decimal(18, 4)
+  runningValuation      Decimal                   @default(0) @db.Decimal(18, 2)
+  balanceId             String?
+  balance               InventoryWarehouseBalance? @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+  description           String?
+  createdAt             DateTime                  @default(now())
+
+  @@index([itemId, warehouseId, transactionDate, createdAt])
+  @@index([warehouseId, movementType, transactionDate])
+  @@index([transactionType, transactionId])
 }
 
 model PurchaseRequest {

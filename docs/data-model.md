@@ -177,6 +177,64 @@ Accounting meaning:
 - debit notes can be drafted, optionally linked to purchase invoices, then posted to reduce supplier balances and reduce the remaining payable amount of linked purchase invoices
 - debit notes are operationally posted today, but they do not yet create their own purchase journal entries
 
+### Inventory
+
+Main models:
+
+- `InventoryItem`
+- `InventoryWarehouse`
+- `InventoryGoodsReceipt`
+- `InventoryGoodsReceiptLine`
+- `InventoryGoodsIssue`
+- `InventoryGoodsIssueLine`
+- `InventoryTransfer`
+- `InventoryTransferLine`
+- `InventoryAdjustment`
+- `InventoryAdjustmentLine`
+- `InventoryWarehouseBalance`
+- `InventoryStockMovement`
+- `InventoryCostLayer`
+- `InventoryPolicy`
+
+Key fields:
+
+- item `code`, `name`, `description`, `unitOfMeasure`, `category`, `type`, and `isActive`
+- default account references `inventoryAccountId`, `cogsAccountId`, `salesAccountId`, and `adjustmentAccountId`
+- replenishment fields `reorderLevel`, `reorderQuantity`, `preferredWarehouseId`, and `preferredWarehouseCode`
+- warehouse `code`, `name`, `address`, `responsiblePerson`, `isTransit`, and `isActive`
+- goods receipt `reference`, `status`, `receiptDate`, `warehouseId`, optional purchase references, summary quantities/amounts, and `postedAt`
+- goods receipt line `lineNumber`, `itemId`, `quantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
+- goods issue `reference`, `status`, `issueDate`, `warehouseId`, optional source references, summary quantities/amounts, and `postedAt`
+- goods issue line `lineNumber`, `itemId`, `quantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
+- inventory transfer `reference`, `status`, `transferDate`, `sourceWarehouseId`, `destinationWarehouseId`, summary quantities/amounts, and `postedAt`
+- inventory transfer line `lineNumber`, `itemId`, `quantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
+- inventory adjustment `reference`, `status`, `adjustmentDate`, `warehouseId`, `reason`, summary variance/amount, and `postedAt`
+- inventory adjustment line `lineNumber`, `itemId`, `systemQuantity`, `countedQuantity`, `varianceQuantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
+- warehouse balance `itemId`, `warehouseId`, `onHandQuantity`, and `valuationAmount`
+- stock movement history `movementType`, transaction references, quantity in/out, value in/out, and running warehouse balances
+- cost layer `remainingQuantity`, `unitCost`, source movement metadata, and source references
+- informational item-level balances `onHandQuantity` and `valuationAmount`
+- inventory policy `id` and `costingMethod`
+
+Accounting meaning:
+
+- inventory item master and warehouse master records now persist the foundational Phase 5 inventory setup slices
+- each item can store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments
+- warehouse masters support active/inactive control, transit/staging classification, and a single default transit location flag
+- goods receipts can be saved as drafts, updated while still in draft, cancelled before posting, and posted to increase both warehouse-level and item-level quantity/value balances
+- goods receipt lines preserve warehouse-linked intake history with item, quantity, unit-cost, and source-reference context
+- goods issues can be saved as drafts, updated while still in draft, cancelled before posting, and posted to decrease both warehouse-level and item-level quantity/value balances
+- goods issue posting validates source-warehouse availability, applies configurable costing (`WEIGHTED_AVERAGE` or `FIFO`), and writes stock movement history rows with running balances
+- inventory policy stores the organization-selected valuation method used by goods issue, transfer, and adjustment-out costing flows
+- inventory transfers can be saved as drafts, updated while still in draft, cancelled before posting, and posted as warehouse-to-warehouse operational documents with both transfer-out and transfer-in stock movement rows
+- transfer posting validates active source/destination warehouses, enforces source availability based on warehouse balance, and preserves item-level totals while moving warehouse-level balances and valuation
+- inventory adjustments can be saved as drafts, updated while still in draft, cancelled before posting, and posted as warehouse-linked variance documents
+- adjustment posting supports positive/negative variance lines, updates warehouse and item balances, and records adjustment-in/adjustment-out movement history with costing-aware values
+- posted inventory receipts/issues/transfers/adjustments can be marked `REVERSED` for audit history, with reverse action entries logged in `InventoryTransactionAuditLog`
+- optional inventory accounting integration creates and posts Journal Entries for goods receipts, goods issues, and inventory adjustments when `INVENTORY_ACCOUNTING_ENABLED` is enabled
+- stock movement history is stored in `InventoryStockMovement` for inquiry filters and source-document drill-down behavior
+- items can now point to a dedicated preferred warehouse record, while `preferredWarehouseCode` remains as a compatibility/reference mirror
+
 ### Fiscal Control
 
 Main models:
@@ -333,6 +391,22 @@ Ownership by module:
 - `DebitNote`
 - `DebitNoteLine`
 - currently owns supplier masters, purchase-request lifecycle, request-status audit history, request-to-draft-order traceability, purchase-invoice draft capture, supplier payment allocation/posting orchestration, and debit-note operational lifecycle
+- Inventory:
+  - `InventoryItem`
+  - `InventoryWarehouse`
+- `InventoryGoodsReceipt`
+- `InventoryGoodsReceiptLine`
+- `InventoryGoodsIssue`
+- `InventoryGoodsIssueLine`
+- `InventoryTransfer`
+- `InventoryTransferLine`
+- `InventoryAdjustment`
+- `InventoryAdjustmentLine`
+- `InventoryWarehouseBalance`
+- `InventoryStockMovement`
+- `InventoryCostLayer`
+- `InventoryPolicy`
+  - currently owns item-master setup, warehouse master setup, goods-receipt/issue/transfer/adjustment draft-post-cancel behavior, default account mapping, reorder metadata, active/inactive control, warehouse transit flags, configurable costing method behavior, warehouse-level and item-level balance updates, stock movement inquiry history, optional accounting integration, and stock availability controls
 
 ## Balance Integrity Expectations
 

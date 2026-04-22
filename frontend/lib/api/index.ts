@@ -6,6 +6,21 @@ import {
     Account,
     AccountOption,
     AccountsQuery,
+    InventoryItem,
+    InventoryGoodsIssue,
+    InventoryGoodsIssuesQuery,
+    InventoryAdjustment,
+    InventoryAdjustmentsQuery,
+    InventoryStockMovement,
+    InventoryStockLedgerQuery,
+    InventoryItemsQuery,
+    InventoryGoodsReceipt,
+    InventoryGoodsReceiptsQuery,
+    InventoryTransfer,
+    InventoryTransfersQuery,
+    InventoryWarehouse,
+    InventoryPolicy,
+    InventoryWarehousesQuery,
     AccountSubtype,
     AccountTableRow,
     AccountTreeNode,
@@ -28,6 +43,12 @@ import {
     ConvertPurchaseRequestToOrderPayload,
     CustomersQuery,
     CreateDebitNotePayload,
+    CreateInventoryItemPayload,
+    CreateInventoryGoodsIssuePayload,
+    CreateInventoryGoodsReceiptPayload,
+    CreateInventoryTransferPayload,
+    CreateInventoryAdjustmentPayload,
+    CreateInventoryWarehousePayload,
     CreateAccountPayload,
     CreateAccountSubtypePayload,
     CreateCreditNotePayload,
@@ -93,6 +114,13 @@ import {
     SalesDocumentsQuery,
     UpdateAccountPayload,
     UpdateAccountSubtypePayload,
+    UpdateInventoryItemPayload,
+    UpdateInventoryGoodsIssuePayload,
+    UpdateInventoryGoodsReceiptPayload,
+    UpdateInventoryTransferPayload,
+    UpdateInventoryAdjustmentPayload,
+    UpdateInventoryWarehousePayload,
+    UpdateInventoryPolicyPayload,
     UpdateBankCashAccountPayload,
     UpdateBankCashTransactionPayload,
     UpdateDebitNotePayload,
@@ -457,6 +485,332 @@ export async function reconcileBankReconciliationMatch(reconciliationId: string,
 
 export async function completeBankReconciliation(reconciliationId: string, token?: string | null) {
   return apiRequest<BankReconciliation>(`/bank-reconciliations/${reconciliationId}/complete`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getInventoryItems(params: InventoryItemsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.type) searchParams.set("type", params.type);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryItem[]>(`/inventory/items${suffix}`, { token });
+}
+
+export async function getInventoryWarehouses(params: InventoryWarehousesQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.isTransit) searchParams.set("isTransit", params.isTransit);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryWarehouse[]>(`/inventory/warehouses${suffix}`, { token });
+}
+
+export async function getInventoryGoodsReceipts(params: InventoryGoodsReceiptsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.warehouseId) searchParams.set("warehouseId", params.warehouseId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryGoodsReceipt[]>(`/inventory/goods-receipts${suffix}`, { token });
+}
+
+export async function getInventoryGoodsIssues(params: InventoryGoodsIssuesQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.warehouseId) searchParams.set("warehouseId", params.warehouseId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryGoodsIssue[]>(`/inventory/goods-issues${suffix}`, { token });
+}
+
+export async function getInventoryTransfers(params: InventoryTransfersQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.sourceWarehouseId) searchParams.set("sourceWarehouseId", params.sourceWarehouseId);
+  if (params.destinationWarehouseId) searchParams.set("destinationWarehouseId", params.destinationWarehouseId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryTransfer[]>(`/inventory/transfers${suffix}`, { token });
+}
+
+export async function getInventoryAdjustments(params: InventoryAdjustmentsQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.warehouseId) searchParams.set("warehouseId", params.warehouseId);
+  if (params.reason?.trim()) searchParams.set("reason", params.reason.trim());
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryAdjustment[]>(`/inventory/adjustments${suffix}`, { token });
+}
+
+export async function getInventoryStockLedger(params: InventoryStockLedgerQuery = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.itemId) searchParams.set("itemId", params.itemId);
+  if (params.warehouseId) searchParams.set("warehouseId", params.warehouseId);
+  if (params.movementType) searchParams.set("movementType", params.movementType);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryStockMovement[]>(`/inventory/stock-ledger${suffix}`, { token });
+}
+
+export async function getInventoryPolicy(token?: string | null) {
+  return apiRequest<InventoryPolicy>("/inventory/policy", { token });
+}
+
+export async function updateInventoryPolicy(payload: UpdateInventoryPolicyPayload, token?: string | null) {
+  return apiRequest<InventoryPolicy>("/inventory/policy", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getInventoryItemById(id: string, token?: string | null) {
+  return apiRequest<InventoryItem>(`/inventory/items/${id}`, { token });
+}
+
+export async function getInventoryWarehouseById(id: string, token?: string | null) {
+  return apiRequest<InventoryWarehouse>(`/inventory/warehouses/${id}`, { token });
+}
+
+export async function getInventoryGoodsReceiptById(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsReceipt>(`/inventory/goods-receipts/${id}`, { token });
+}
+
+export async function getInventoryGoodsIssueById(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsIssue>(`/inventory/goods-issues/${id}`, { token });
+}
+
+export async function getInventoryTransferById(id: string, token?: string | null) {
+  return apiRequest<InventoryTransfer>(`/inventory/transfers/${id}`, { token });
+}
+
+export async function getInventoryAdjustmentById(id: string, token?: string | null) {
+  return apiRequest<InventoryAdjustment>(`/inventory/adjustments/${id}`, { token });
+}
+
+export async function createInventoryItem(payload: CreateInventoryItemPayload, token?: string | null) {
+  return apiRequest<InventoryItem>("/inventory/items", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryWarehouse(payload: CreateInventoryWarehousePayload, token?: string | null) {
+  return apiRequest<InventoryWarehouse>("/inventory/warehouses", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryGoodsReceipt(payload: CreateInventoryGoodsReceiptPayload, token?: string | null) {
+  return apiRequest<InventoryGoodsReceipt>("/inventory/goods-receipts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryGoodsIssue(payload: CreateInventoryGoodsIssuePayload, token?: string | null) {
+  return apiRequest<InventoryGoodsIssue>("/inventory/goods-issues", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryTransfer(payload: CreateInventoryTransferPayload, token?: string | null) {
+  return apiRequest<InventoryTransfer>("/inventory/transfers", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryAdjustment(payload: CreateInventoryAdjustmentPayload, token?: string | null) {
+  return apiRequest<InventoryAdjustment>("/inventory/adjustments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryItem(id: string, payload: UpdateInventoryItemPayload, token?: string | null) {
+  return apiRequest<InventoryItem>(`/inventory/items/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryWarehouse(
+  id: string,
+  payload: UpdateInventoryWarehousePayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryWarehouse>(`/inventory/warehouses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryGoodsReceipt(
+  id: string,
+  payload: UpdateInventoryGoodsReceiptPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryGoodsReceipt>(`/inventory/goods-receipts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryGoodsIssue(
+  id: string,
+  payload: UpdateInventoryGoodsIssuePayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryGoodsIssue>(`/inventory/goods-issues/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryTransfer(
+  id: string,
+  payload: UpdateInventoryTransferPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryTransfer>(`/inventory/transfers/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryAdjustment(
+  id: string,
+  payload: UpdateInventoryAdjustmentPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryAdjustment>(`/inventory/adjustments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateInventoryItem(id: string, token?: string | null) {
+  return apiRequest<InventoryItem>(`/inventory/items/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function deactivateInventoryWarehouse(id: string, token?: string | null) {
+  return apiRequest<InventoryWarehouse>(`/inventory/warehouses/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function postInventoryGoodsReceipt(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsReceipt>(`/inventory/goods-receipts/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function postInventoryGoodsIssue(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsIssue>(`/inventory/goods-issues/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function postInventoryTransfer(id: string, token?: string | null) {
+  return apiRequest<InventoryTransfer>(`/inventory/transfers/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function postInventoryAdjustment(id: string, token?: string | null) {
+  return apiRequest<InventoryAdjustment>(`/inventory/adjustments/${id}/post`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelInventoryGoodsReceipt(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsReceipt>(`/inventory/goods-receipts/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelInventoryGoodsIssue(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsIssue>(`/inventory/goods-issues/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelInventoryTransfer(id: string, token?: string | null) {
+  return apiRequest<InventoryTransfer>(`/inventory/transfers/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function cancelInventoryAdjustment(id: string, token?: string | null) {
+  return apiRequest<InventoryAdjustment>(`/inventory/adjustments/${id}/cancel`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reverseInventoryGoodsReceipt(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsReceipt>(`/inventory/goods-receipts/${id}/reverse`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reverseInventoryGoodsIssue(id: string, token?: string | null) {
+  return apiRequest<InventoryGoodsIssue>(`/inventory/goods-issues/${id}/reverse`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reverseInventoryTransfer(id: string, token?: string | null) {
+  return apiRequest<InventoryTransfer>(`/inventory/transfers/${id}/reverse`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function reverseInventoryAdjustment(id: string, token?: string | null) {
+  return apiRequest<InventoryAdjustment>(`/inventory/adjustments/${id}/reverse`, {
     method: "POST",
     token,
   });

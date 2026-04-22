@@ -81,6 +81,8 @@ Current feature areas:
 - `features/phase-2-bank-cash-management/bank-cash-accounts`
 - `features/phase-2-bank-cash-management/bank-cash-transactions`
 - `features/phase-3-sales-receivables`
+- `features/phase-4-procure-to-pay`
+- `features/phase-5-inventory-management`
 
 Put code here when:
 
@@ -229,6 +231,18 @@ Current root:
 
 `purchases` currently implements the `suppliers`, `purchase-requests`, `purchase-orders`, `purchase-invoices`, `supplier-payments`, and `debit-notes` submodules, including approved-request conversion into draft purchase orders, direct purchase-order maintenance, receipt-status transitions, draft purchase invoice capture with account classification, supplier payment draft/post/cancel flows with invoice allocation and Bank & Cash integration, and debit note draft/post/cancel flows with optional invoice linkage and payable reduction. Purchase-invoice/debit-note journal posting and the remaining validation/control rules still stay inside their dedicated future submodules.
 
+### `backend/src/modules/phase-5-inventory-management`
+
+Purpose:
+
+- ownership root for future Phase 5 inventory and stock-control workflows
+
+Current root:
+
+- `inventory`
+
+`inventory` currently implements the `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, `policy`, and shared posting/costing support slices. Posting now maintains warehouse-level balances, movement history, organization-configured costing behavior (`/inventory/policy`), and optional accounting integration through Phase 1 posting services.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -261,6 +275,16 @@ Current feature area:
 
 - `purchases`
 
+### `frontend/features/phase-5-inventory-management`
+
+Purpose:
+
+- feature-owned UI for Phase 5 inventory workflows
+
+Current feature area:
+
+- `inventory` (Item Master, Warehouses, Goods Receipts, Goods Issues, Transfers, Adjustments, Stock Ledger inquiry, and valuation policy controls implemented with costing/accounting integration hooks)
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -279,6 +303,8 @@ Use these rules before editing:
   - put them in `frontend/features/phase-3-sales-receivables`
 - purchases screens:
   - put them in `frontend/features/phase-4-procure-to-pay`
+- inventory screens:
+  - put them in `frontend/features/phase-5-inventory-management`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -297,6 +323,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-3-sales-receivables/sales-receivables`
 - purchases, supplier, payable, and purchase document workflows:
   - put them in `backend/src/modules/phase-4-procure-to-pay/purchases`
+- inventory, warehouse, stock movement, costing, and inventory inquiry workflows:
+  - put them in `backend/src/modules/phase-5-inventory-management/inventory`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

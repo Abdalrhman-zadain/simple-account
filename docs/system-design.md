@@ -13,6 +13,7 @@ The current business scope is:
 - bank/cash reconciliation against imported or manually entered statement lines with match/reconcile audit status
 - sales and receivables workflows for customers, quotations, sales orders, invoices, customer receipts, credit notes, receipt allocation, balance tracking, and aging
 - Phase 4 purchases includes supplier master management, internal purchase requests with approval/status history, purchase orders with direct/request-linked creation plus draft-through-close operational statuses, purchase invoice drafts with source-order linkage and line-level account classification, supplier payments with invoice allocation plus Bank & Cash posting integration, and debit notes with optional purchase-invoice linkage plus supplier/payable balance reduction; purchase-invoice and debit-note journal posting flows are still pending
+- Phase 5 inventory currently implements `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, and `policy` slices with warehouse-level balances, stock movement history, source-document drill-down, organization-level costing method selection via `inventory/policy` (`WEIGHTED_AVERAGE` or `FIFO`), prevent-negative-stock policy toggles, optional accounting posting integration through Phase 1 journal/posting services, and reverse-status workflows for posted inventory documents
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -52,6 +53,7 @@ The backend root module wires three major concerns:
 - `modules/phase-2-bank-cash-management/bank-reconciliations`
 - `modules/phase-3-sales-receivables`
 - `modules/phase-4-procure-to-pay/purchases`
+- `modules/phase-5-inventory-management/inventory`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -127,6 +129,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/bank-reconciliations`
 - `/sales-receivables`
 - `/purchases`
+- `/inventory`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`

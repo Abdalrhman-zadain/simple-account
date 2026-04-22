@@ -20,6 +20,7 @@ import {
   LuReceiptText as ReceiptText,
   LuBadgeCheck as BadgeCheck,
   LuShoppingCart as ShoppingCart,
+  LuPackage as Package,
   LuUsers as Users,
 } from "react-icons/lu";
 
@@ -39,6 +40,13 @@ import {
   getCreditNotes,
   getCustomers,
   getFiscalYears,
+  getInventoryGoodsReceipts,
+  getInventoryGoodsIssues,
+  getInventoryItems,
+  getInventoryAdjustments,
+  getInventoryStockLedger,
+  getInventoryTransfers,
+  getInventoryWarehouses,
   getJournalEntryTypes,
   getSalesInvoices,
   getSuppliers,
@@ -64,6 +72,7 @@ const navGroups: NavGroup[] = [
       { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
       { href: "/sales-receivables", labelKey: "nav.item.salesReceivables", icon: Users },
       { href: "/purchases", labelKey: "nav.item.purchases", icon: ShoppingCart },
+      { href: "/inventory", labelKey: "nav.item.inventory", icon: Package },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],
@@ -222,6 +231,50 @@ export function SiteHeader({
       void queryClient.prefetchQuery({
         queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "LIABILITY", view: "selector" }),
         queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "LIABILITY" }, token),
+        staleTime: 5 * 60 * 1000,
+      });
+      return;
+    }
+
+    if (href.startsWith("/inventory")) {
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryItems(token, {}),
+        queryFn: () => getInventoryItems({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryWarehouses(token, {}),
+        queryFn: () => getInventoryWarehouses({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryGoodsReceipts(token, {}),
+        queryFn: () => getInventoryGoodsReceipts({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryGoodsIssues(token, {}),
+        queryFn: () => getInventoryGoodsIssues({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryTransfers(token, {}),
+        queryFn: () => getInventoryTransfers({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryAdjustments(token, {}),
+        queryFn: () => getInventoryAdjustments({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.inventoryStockLedger(token, {}),
+        queryFn: () => getInventoryStockLedger({}, token),
+        staleTime: 30_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "ASSET", view: "selector" }),
+        queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "ASSET" }, token),
         staleTime: 5 * 60 * 1000,
       });
       return;

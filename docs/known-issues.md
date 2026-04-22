@@ -36,6 +36,19 @@ If code and docs drift:
 - update docs immediately after confirming behavior
 - do not keep outdated architecture descriptions in `docs/`
 
+## Local Docker Port Reservation On Windows
+
+Current limitation:
+
+- some Windows environments reserve dynamic TCP ranges that can block Docker from binding specific localhost ports even when the compose file is correct.
+- the previous local PostgreSQL host port `55432` can fall inside an excluded Windows TCP range, which causes Docker startup failures such as `bind: An attempt was made to access a socket in a way forbidden by its access permissions.`
+- the project now uses local host port `54329` for PostgreSQL to avoid the reserved range seen on affected machines.
+
+What this means for future edits:
+
+- keep `docker-compose.yml`, `backend/.env`, and `backend/.env.example` aligned if the local PostgreSQL host port changes again.
+- if Docker reports a bind-permission error on startup, check `netsh int ipv4 show excludedportrange protocol=tcp` before assuming PostgreSQL or Prisma is misconfigured.
+
 ## Phase 2 Bank & Cash Scope
 
 Current limitation:
@@ -75,3 +88,20 @@ What this means for future edits:
 - preserve Arabic/English translation coverage when adding purchase statuses, document labels, and workflow actions
 - do not document non-implemented purchase workflows as implemented until the actual routes, data model, and posting behavior exist
 - treat purchase receipt accounting/inventory impact and receipt reversal as separate future slices; they are not implemented yet
+
+## Phase 5 Inventory Status
+
+Current limitation:
+
+- item master, warehouses, goods receipts, goods issues, transfers, adjustments, stock-ledger inquiry, warehouse balances, and costing/accounting integration are implemented; posted inventory documents now support reverse status workflows, but reverse currently marks status/audit history only and does not yet create stock-rollback or accounting-reversal entries.
+- `docs/phase-5-inventory-requirements.md` remains the planning/reference document for the full inventory roadmap and translation alignment.
+- inventory accounting entries are conditional and only run when `INVENTORY_ACCOUNTING_ENABLED` is enabled.
+- prevent-negative-stock behavior is policy-driven and follows `INVENTORY_PREVENT_NEGATIVE_STOCK` (defaults to enabled).
+- inventory valuation method is now organization-configurable via `GET/PATCH /inventory/policy` and falls back to `INVENTORY_COSTING_METHOD` only when no policy row exists.
+- on some Windows environments, `npm run prisma:generate` may still end with EPERM rename on `query_engine-windows.dll.node` after updating generated artifacts.
+
+What this means for future edits:
+
+- keep future inventory code inside the dedicated Phase 5 ownership roots rather than mixing it into purchases, sales, or Phase 1 accounting modules.
+- preserve Arabic/English translation coverage when adding inventory statuses, movement labels, warehouse terminology, and costing method names.
+- document inventory policy behavior (`/inventory/policy` plus `INVENTORY_COSTING_METHOD` fallback) and policy toggles (`INVENTORY_PREVENT_NEGATIVE_STOCK`, `INVENTORY_ACCOUNTING_ENABLED`) whenever behavior changes.
