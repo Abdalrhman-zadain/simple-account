@@ -16,7 +16,9 @@ export class StockLedgerController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.service.list({ itemId, warehouseId, movementType, dateFrom, dateTo, search });
+    return this.service.list({ itemId, warehouseId, movementType, dateFrom, dateTo, search, page, limit });
   }
 }

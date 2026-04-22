@@ -214,6 +214,16 @@ export type InventoryItemsQuery = {
   isActive?: "true" | "false" | "";
   search?: string;
   type?: InventoryItemType | "";
+  page?: number;
+  limit?: number;
+};
+
+export type InventoryItemsResponse = {
+  data: InventoryItem[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 };
 
 export type InventoryWarehousesQuery = {
@@ -228,6 +238,8 @@ export type InventoryGoodsReceiptsQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type InventoryGoodsIssuesQuery = {
@@ -236,6 +248,8 @@ export type InventoryGoodsIssuesQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type InventoryTransfersQuery = {
@@ -245,6 +259,8 @@ export type InventoryTransfersQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type InventoryAdjustmentsQuery = {
@@ -254,6 +270,8 @@ export type InventoryAdjustmentsQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type InventoryStockLedgerQuery = {
@@ -263,6 +281,8 @@ export type InventoryStockLedgerQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type CreateInventoryItemPayload = {
@@ -337,6 +357,14 @@ export type InventoryGoodsReceipt = {
   updatedAt: string;
 };
 
+export type InventoryGoodsReceiptsResponse = {
+  data: InventoryGoodsReceipt[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type InventoryGoodsIssueLine = {
   id: string;
   lineNumber: number;
@@ -380,6 +408,14 @@ export type InventoryGoodsIssue = {
   updatedAt: string;
 };
 
+export type InventoryGoodsIssuesResponse = {
+  data: InventoryGoodsIssue[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type InventoryTransferLine = {
   id: string;
   lineNumber: number;
@@ -418,6 +454,14 @@ export type InventoryTransfer = {
   lines: InventoryTransferLine[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type InventoryTransfersResponse = {
+  data: InventoryTransfer[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 };
 
 export type InventoryAdjustmentLine = {
@@ -462,6 +506,14 @@ export type InventoryAdjustment = {
   updatedAt: string;
 };
 
+export type InventoryAdjustmentsResponse = {
+  data: InventoryAdjustment[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type InventoryStockMovement = {
   id: string;
   movementType: InventoryStockMovementType;
@@ -481,6 +533,14 @@ export type InventoryStockMovement = {
   item: Pick<InventoryItem, "id" | "code" | "name" | "unitOfMeasure">;
   warehouse: Pick<InventoryWarehouse, "id" | "code" | "name">;
   createdAt: string;
+};
+
+export type InventoryStockLedgerResponse = {
+  data: InventoryStockMovement[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 };
 
 export type InventoryGoodsReceiptLinePayload = {

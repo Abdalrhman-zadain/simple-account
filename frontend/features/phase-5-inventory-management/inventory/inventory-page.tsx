@@ -81,6 +81,22 @@ const STOCK_MOVEMENT_TYPE_OPTIONS: InventoryStockMovementType[] = [
   "ADJUSTMENT_IN",
   "ADJUSTMENT_OUT",
 ];
+const INVENTORY_ITEMS_PAGE_SIZE = 20;
+const INVENTORY_RECEIPTS_PAGE_SIZE = 20;
+const INVENTORY_ISSUES_PAGE_SIZE = 20;
+const INVENTORY_TRANSFERS_PAGE_SIZE = 20;
+const INVENTORY_ADJUSTMENTS_PAGE_SIZE = 20;
+const INVENTORY_STOCK_LEDGER_PAGE_SIZE = 20;
+
+type InventoryWorkspace =
+  | "policy"
+  | "items"
+  | "warehouses"
+  | "receipts"
+  | "issues"
+  | "transfers"
+  | "adjustments"
+  | "stockLedger";
 
 type ItemEditorState = {
   id?: string;
@@ -302,10 +318,12 @@ export function InventoryPage() {
   const { t } = useTranslation();
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const [workspace, setWorkspace] = useState<InventoryWorkspace>("items");
 
   const [itemSearch, setItemSearch] = useState("");
   const [itemStatusFilter, setItemStatusFilter] = useState<"" | "true" | "false">("");
   const [itemTypeFilter, setItemTypeFilter] = useState<InventoryItemType | "">("");
+  const [itemPage, setItemPage] = useState(1);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [itemEditor, setItemEditor] = useState<ItemEditorState>(createEmptyItemEditor);
@@ -320,12 +338,14 @@ export function InventoryPage() {
   const [receiptSearch, setReceiptSearch] = useState("");
   const [receiptStatusFilter, setReceiptStatusFilter] = useState<InventoryReceiptStatus | "">("");
   const [receiptWarehouseFilter, setReceiptWarehouseFilter] = useState("");
+  const [receiptPage, setReceiptPage] = useState(1);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [isReceiptEditorOpen, setIsReceiptEditorOpen] = useState(false);
   const [receiptEditor, setReceiptEditor] = useState<ReceiptEditorState>(createEmptyReceiptEditor);
   const [issueSearch, setIssueSearch] = useState("");
   const [issueStatusFilter, setIssueStatusFilter] = useState<InventoryIssueStatus | "">("");
   const [issueWarehouseFilter, setIssueWarehouseFilter] = useState("");
+  const [issuePage, setIssuePage] = useState(1);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [isIssueEditorOpen, setIsIssueEditorOpen] = useState(false);
   const [issueEditor, setIssueEditor] = useState<IssueEditorState>(createEmptyIssueEditor);
@@ -333,6 +353,7 @@ export function InventoryPage() {
   const [transferStatusFilter, setTransferStatusFilter] = useState<InventoryTransferStatus | "">("");
   const [transferSourceWarehouseFilter, setTransferSourceWarehouseFilter] = useState("");
   const [transferDestinationWarehouseFilter, setTransferDestinationWarehouseFilter] = useState("");
+  const [transferPage, setTransferPage] = useState(1);
   const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
   const [isTransferEditorOpen, setIsTransferEditorOpen] = useState(false);
   const [transferEditor, setTransferEditor] = useState<TransferEditorState>(createEmptyTransferEditor);
@@ -340,6 +361,7 @@ export function InventoryPage() {
   const [adjustmentStatusFilter, setAdjustmentStatusFilter] = useState<InventoryAdjustmentStatus | "">("");
   const [adjustmentWarehouseFilter, setAdjustmentWarehouseFilter] = useState("");
   const [adjustmentReasonFilter, setAdjustmentReasonFilter] = useState("");
+  const [adjustmentPage, setAdjustmentPage] = useState(1);
   const [selectedAdjustmentId, setSelectedAdjustmentId] = useState<string | null>(null);
   const [isAdjustmentEditorOpen, setIsAdjustmentEditorOpen] = useState(false);
   const [adjustmentEditor, setAdjustmentEditor] = useState<AdjustmentEditorState>(createEmptyAdjustmentEditor);
@@ -347,11 +369,28 @@ export function InventoryPage() {
   const [stockLedgerItemFilter, setStockLedgerItemFilter] = useState("");
   const [stockLedgerWarehouseFilter, setStockLedgerWarehouseFilter] = useState("");
   const [stockLedgerMovementTypeFilter, setStockLedgerMovementTypeFilter] = useState<InventoryStockMovementType | "">("");
+  const [stockLedgerPage, setStockLedgerPage] = useState(1);
   const [costingMethodDraft, setCostingMethodDraft] = useState<InventoryCostingMethod>("WEIGHTED_AVERAGE");
 
   const inventoryItemsQuery = useQuery({
-    queryKey: queryKeys.inventoryItems(token, { search: itemSearch, isActive: itemStatusFilter, type: itemTypeFilter }),
-    queryFn: () => getInventoryItems({ search: itemSearch, isActive: itemStatusFilter, type: itemTypeFilter }, token),
+    queryKey: queryKeys.inventoryItems(token, {
+      search: itemSearch,
+      isActive: itemStatusFilter,
+      type: itemTypeFilter,
+      page: itemPage,
+      limit: INVENTORY_ITEMS_PAGE_SIZE,
+    }),
+    queryFn: () =>
+      getInventoryItems(
+        {
+          search: itemSearch,
+          isActive: itemStatusFilter,
+          type: itemTypeFilter,
+          page: itemPage,
+          limit: INVENTORY_ITEMS_PAGE_SIZE,
+        },
+        token,
+      ),
   });
 
   const inventoryWarehousesQuery = useQuery({
@@ -372,6 +411,8 @@ export function InventoryPage() {
       search: receiptSearch,
       status: receiptStatusFilter,
       warehouseId: receiptWarehouseFilter || undefined,
+      page: receiptPage,
+      limit: INVENTORY_RECEIPTS_PAGE_SIZE,
     }),
     queryFn: () =>
       getInventoryGoodsReceipts(
@@ -379,6 +420,8 @@ export function InventoryPage() {
           search: receiptSearch,
           status: receiptStatusFilter,
           warehouseId: receiptWarehouseFilter || undefined,
+          page: receiptPage,
+          limit: INVENTORY_RECEIPTS_PAGE_SIZE,
         },
         token,
       ),
@@ -389,6 +432,8 @@ export function InventoryPage() {
       search: issueSearch,
       status: issueStatusFilter,
       warehouseId: issueWarehouseFilter || undefined,
+      page: issuePage,
+      limit: INVENTORY_ISSUES_PAGE_SIZE,
     }),
     queryFn: () =>
       getInventoryGoodsIssues(
@@ -396,6 +441,8 @@ export function InventoryPage() {
           search: issueSearch,
           status: issueStatusFilter,
           warehouseId: issueWarehouseFilter || undefined,
+          page: issuePage,
+          limit: INVENTORY_ISSUES_PAGE_SIZE,
         },
         token,
       ),
@@ -407,6 +454,8 @@ export function InventoryPage() {
       status: transferStatusFilter,
       sourceWarehouseId: transferSourceWarehouseFilter || undefined,
       destinationWarehouseId: transferDestinationWarehouseFilter || undefined,
+      page: transferPage,
+      limit: INVENTORY_TRANSFERS_PAGE_SIZE,
     }),
     queryFn: () =>
       getInventoryTransfers(
@@ -415,6 +464,8 @@ export function InventoryPage() {
           status: transferStatusFilter,
           sourceWarehouseId: transferSourceWarehouseFilter || undefined,
           destinationWarehouseId: transferDestinationWarehouseFilter || undefined,
+          page: transferPage,
+          limit: INVENTORY_TRANSFERS_PAGE_SIZE,
         },
         token,
       ),
@@ -426,6 +477,8 @@ export function InventoryPage() {
       status: adjustmentStatusFilter,
       warehouseId: adjustmentWarehouseFilter || undefined,
       reason: adjustmentReasonFilter || undefined,
+      page: adjustmentPage,
+      limit: INVENTORY_ADJUSTMENTS_PAGE_SIZE,
     }),
     queryFn: () =>
       getInventoryAdjustments(
@@ -434,6 +487,8 @@ export function InventoryPage() {
           status: adjustmentStatusFilter,
           warehouseId: adjustmentWarehouseFilter || undefined,
           reason: adjustmentReasonFilter || undefined,
+          page: adjustmentPage,
+          limit: INVENTORY_ADJUSTMENTS_PAGE_SIZE,
         },
         token,
       ),
@@ -445,6 +500,8 @@ export function InventoryPage() {
       itemId: stockLedgerItemFilter || undefined,
       warehouseId: stockLedgerWarehouseFilter || undefined,
       movementType: stockLedgerMovementTypeFilter || undefined,
+      page: stockLedgerPage,
+      limit: INVENTORY_STOCK_LEDGER_PAGE_SIZE,
     }),
     queryFn: () =>
       getInventoryStockLedger(
@@ -453,6 +510,8 @@ export function InventoryPage() {
           itemId: stockLedgerItemFilter || undefined,
           warehouseId: stockLedgerWarehouseFilter || undefined,
           movementType: stockLedgerMovementTypeFilter || undefined,
+          page: stockLedgerPage,
+          limit: INVENTORY_STOCK_LEDGER_PAGE_SIZE,
         },
         token,
       ),
@@ -492,6 +551,30 @@ export function InventoryPage() {
       setCostingMethodDraft(inventoryPolicyQuery.data.costingMethod);
     }
   }, [inventoryPolicyQuery.data?.costingMethod]);
+
+  useEffect(() => {
+    setItemPage(1);
+  }, [itemSearch, itemStatusFilter, itemTypeFilter]);
+
+  useEffect(() => {
+    setReceiptPage(1);
+  }, [receiptSearch, receiptStatusFilter, receiptWarehouseFilter]);
+
+  useEffect(() => {
+    setIssuePage(1);
+  }, [issueSearch, issueStatusFilter, issueWarehouseFilter]);
+
+  useEffect(() => {
+    setTransferPage(1);
+  }, [transferSearch, transferStatusFilter, transferSourceWarehouseFilter, transferDestinationWarehouseFilter]);
+
+  useEffect(() => {
+    setAdjustmentPage(1);
+  }, [adjustmentSearch, adjustmentStatusFilter, adjustmentWarehouseFilter, adjustmentReasonFilter]);
+
+  useEffect(() => {
+    setStockLedgerPage(1);
+  }, [stockLedgerSearch, stockLedgerItemFilter, stockLedgerWarehouseFilter, stockLedgerMovementTypeFilter]);
 
   const updateInventoryPolicyMutation = useMutation({
     mutationFn: () => updateInventoryPolicy({ costingMethod: costingMethodDraft }, token),
@@ -737,13 +820,48 @@ export function InventoryPage() {
     },
   });
 
-  const items = inventoryItemsQuery.data ?? [];
+  const itemsResponse = inventoryItemsQuery.data;
+  const items = itemsResponse?.data ?? [];
+  const itemTotal = itemsResponse?.total ?? 0;
+  const itemTotalPages = itemsResponse?.totalPages ?? 1;
+  const itemRangeStart = itemTotal === 0 ? 0 : (itemPage - 1) * INVENTORY_ITEMS_PAGE_SIZE + 1;
+  const itemRangeEnd = itemTotal === 0 ? 0 : Math.min(itemPage * INVENTORY_ITEMS_PAGE_SIZE, itemTotal);
   const warehouses = inventoryWarehousesQuery.data ?? [];
-  const receipts = goodsReceiptsQuery.data ?? [];
-  const issues = goodsIssuesQuery.data ?? [];
-  const transfers = inventoryTransfersQuery.data ?? [];
-  const adjustments = inventoryAdjustmentsQuery.data ?? [];
-  const stockMovements = inventoryStockLedgerQuery.data ?? [];
+  const receiptsResponse = goodsReceiptsQuery.data;
+  const receipts = receiptsResponse?.data ?? [];
+  const receiptsTotal = receiptsResponse?.total ?? 0;
+  const receiptsTotalPages = receiptsResponse?.totalPages ?? 1;
+  const receiptsRangeStart = receiptsTotal === 0 ? 0 : (receiptPage - 1) * INVENTORY_RECEIPTS_PAGE_SIZE + 1;
+  const receiptsRangeEnd = receiptsTotal === 0 ? 0 : Math.min(receiptPage * INVENTORY_RECEIPTS_PAGE_SIZE, receiptsTotal);
+  const issuesResponse = goodsIssuesQuery.data;
+  const issues = issuesResponse?.data ?? [];
+  const issuesTotal = issuesResponse?.total ?? 0;
+  const issuesTotalPages = issuesResponse?.totalPages ?? 1;
+  const issuesRangeStart = issuesTotal === 0 ? 0 : (issuePage - 1) * INVENTORY_ISSUES_PAGE_SIZE + 1;
+  const issuesRangeEnd = issuesTotal === 0 ? 0 : Math.min(issuePage * INVENTORY_ISSUES_PAGE_SIZE, issuesTotal);
+  const transfersResponse = inventoryTransfersQuery.data;
+  const transfers = transfersResponse?.data ?? [];
+  const transfersTotal = transfersResponse?.total ?? 0;
+  const transfersTotalPages = transfersResponse?.totalPages ?? 1;
+  const transfersRangeStart = transfersTotal === 0 ? 0 : (transferPage - 1) * INVENTORY_TRANSFERS_PAGE_SIZE + 1;
+  const transfersRangeEnd = transfersTotal === 0 ? 0 : Math.min(transferPage * INVENTORY_TRANSFERS_PAGE_SIZE, transfersTotal);
+  const adjustmentsResponse = inventoryAdjustmentsQuery.data;
+  const adjustments = adjustmentsResponse?.data ?? [];
+  const adjustmentsTotal = adjustmentsResponse?.total ?? 0;
+  const adjustmentsTotalPages = adjustmentsResponse?.totalPages ?? 1;
+  const adjustmentsRangeStart = adjustmentsTotal === 0 ? 0 : (adjustmentPage - 1) * INVENTORY_ADJUSTMENTS_PAGE_SIZE + 1;
+  const adjustmentsRangeEnd =
+    adjustmentsTotal === 0 ? 0 : Math.min(adjustmentPage * INVENTORY_ADJUSTMENTS_PAGE_SIZE, adjustmentsTotal);
+  const stockMovementsResponse = inventoryStockLedgerQuery.data;
+  const stockMovements = stockMovementsResponse?.data ?? [];
+  const stockMovementsTotal = stockMovementsResponse?.total ?? 0;
+  const stockMovementsTotalPages = stockMovementsResponse?.totalPages ?? 1;
+  const stockMovementsRangeStart =
+    stockMovementsTotal === 0 ? 0 : (stockLedgerPage - 1) * INVENTORY_STOCK_LEDGER_PAGE_SIZE + 1;
+  const stockMovementsRangeEnd =
+    stockMovementsTotal === 0
+      ? 0
+      : Math.min(stockLedgerPage * INVENTORY_STOCK_LEDGER_PAGE_SIZE, stockMovementsTotal);
 
   const selectedItem = items.find((row) => row.id === (selectedItemId ?? items[0]?.id)) ?? items[0] ?? null;
   const selectedWarehouse =
@@ -811,22 +929,52 @@ export function InventoryPage() {
         <SectionHeading title={t("inventory.title")} description={t("inventory.description")} />
 
         <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-8">
-          <MetricCard label={t("inventory.metrics.total")} value={String(items.length)} />
+          <MetricCard label={t("inventory.metrics.total")} value={String(itemTotal)} />
           <MetricCard label={t("inventory.metrics.active")} value={String(activeItems)} />
           <MetricCard label={t("inventory.metrics.warehouses")} value={String(warehouses.length)} />
           <MetricCard label={t("inventory.metrics.activeWarehouses")} value={String(activeWarehouses)} />
-          <MetricCard label={t("inventory.metrics.receipts")} value={String(receipts.length)} />
+          <MetricCard label={t("inventory.metrics.receipts")} value={String(receiptsTotal)} />
           <MetricCard label={t("inventory.metrics.postedReceipts")} value={String(postedReceipts)} />
-          <MetricCard label={t("inventory.metrics.issues")} value={String(issues.length)} />
+          <MetricCard label={t("inventory.metrics.issues")} value={String(issuesTotal)} />
           <MetricCard label={t("inventory.metrics.postedIssues")} value={String(postedIssues)} />
-          <MetricCard label={t("inventory.metrics.transfers")} value={String(transfers.length)} />
+          <MetricCard label={t("inventory.metrics.transfers")} value={String(transfersTotal)} />
           <MetricCard label={t("inventory.metrics.postedTransfers")} value={String(postedTransfers)} />
-          <MetricCard label={t("inventory.metrics.adjustments")} value={String(adjustments.length)} />
+          <MetricCard label={t("inventory.metrics.adjustments")} value={String(adjustmentsTotal)} />
           <MetricCard label={t("inventory.metrics.postedAdjustments")} value={String(postedAdjustments)} />
-          <MetricCard label={t("inventory.metrics.stockMovements")} value={String(stockMovements.length)} />
+          <MetricCard label={t("inventory.metrics.stockMovements")} value={String(stockMovementsTotal)} />
         </div>
 
-        <section id="inventory-policy-section" className="space-y-5">
+        <section className="space-y-4">
+          <SectionHeading title={t("inventory.workspace.title")} description={t("inventory.workspace.description")} />
+          <Card className="flex flex-wrap gap-3">
+            <Button variant={workspace === "items" ? "primary" : "secondary"} onClick={() => setWorkspace("items")}>
+              {t("inventory.workspace.items")}
+            </Button>
+            <Button variant={workspace === "warehouses" ? "primary" : "secondary"} onClick={() => setWorkspace("warehouses")}>
+              {t("inventory.workspace.warehouses")}
+            </Button>
+            <Button variant={workspace === "receipts" ? "primary" : "secondary"} onClick={() => setWorkspace("receipts")}>
+              {t("inventory.workspace.receipts")}
+            </Button>
+            <Button variant={workspace === "issues" ? "primary" : "secondary"} onClick={() => setWorkspace("issues")}>
+              {t("inventory.workspace.issues")}
+            </Button>
+            <Button variant={workspace === "transfers" ? "primary" : "secondary"} onClick={() => setWorkspace("transfers")}>
+              {t("inventory.workspace.transfers")}
+            </Button>
+            <Button variant={workspace === "adjustments" ? "primary" : "secondary"} onClick={() => setWorkspace("adjustments")}>
+              {t("inventory.workspace.adjustments")}
+            </Button>
+            <Button variant={workspace === "stockLedger" ? "primary" : "secondary"} onClick={() => setWorkspace("stockLedger")}>
+              {t("inventory.workspace.stockLedger")}
+            </Button>
+            <Button variant={workspace === "policy" ? "primary" : "secondary"} onClick={() => setWorkspace("policy")}>
+              {t("inventory.workspace.policy")}
+            </Button>
+          </Card>
+        </section>
+
+        <section id="inventory-policy-section" className={`space-y-5 ${workspace === "policy" ? "" : "hidden"}`}>
           <SectionHeading title={t("inventory.policy.title")} description={t("inventory.policy.description")} />
           <Card className="space-y-4">
             <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -851,7 +999,7 @@ export function InventoryPage() {
           </Card>
         </section>
 
-        <section id="inventory-items-section" className="space-y-5">
+        <section id="inventory-items-section" className={`space-y-5 ${workspace === "items" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.items.title")}
             description={t("inventory.items.description")}
@@ -913,6 +1061,31 @@ export function InventoryPage() {
                   })
                 )}
               </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <div>
+                  {t("inventory.pagination.summary", {
+                    from: itemRangeStart,
+                    to: itemRangeEnd,
+                    total: itemTotal,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {t("inventory.pagination.page", { page: itemPage, totalPages: itemTotalPages })}
+                  </span>
+                  <Button variant="secondary" onClick={() => setItemPage((current) => current - 1)} disabled={itemPage <= 1}>
+                    {t("inventory.pagination.previous")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setItemPage((current) => current + 1)}
+                    disabled={itemPage >= itemTotalPages}
+                  >
+                    {t("inventory.pagination.next")}
+                  </Button>
+                </div>
+              </div>
             </Card>
 
             <Card className="space-y-4">
@@ -973,7 +1146,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section id="inventory-issues-section" className="space-y-5">
+        <section id="inventory-issues-section" className={`space-y-5 ${workspace === "issues" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.issues.title")}
             description={t("inventory.issues.description")}
@@ -1037,6 +1210,31 @@ export function InventoryPage() {
                     );
                   })
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <div>
+                  {t("inventory.pagination.summary", {
+                    from: issuesRangeStart,
+                    to: issuesRangeEnd,
+                    total: issuesTotal,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {t("inventory.pagination.page", { page: issuePage, totalPages: issuesTotalPages })}
+                  </span>
+                  <Button variant="secondary" onClick={() => setIssuePage((current) => current - 1)} disabled={issuePage <= 1}>
+                    {t("inventory.pagination.previous")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setIssuePage((current) => current + 1)}
+                    disabled={issuePage >= issuesTotalPages}
+                  >
+                    {t("inventory.pagination.next")}
+                  </Button>
+                </div>
               </div>
             </Card>
 
@@ -1140,7 +1338,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section id="inventory-transfers-section" className="space-y-5">
+        <section id="inventory-transfers-section" className={`space-y-5 ${workspace === "transfers" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.transfers.title")}
             description={t("inventory.transfers.description")}
@@ -1170,7 +1368,7 @@ export function InventoryPage() {
                   <option value="">{t("inventory.transfers.filters.allSourceWarehouses")}</option>
                   {warehouses.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.code} Â· {warehouse.name}
+                      {warehouse.code} · {warehouse.name}
                     </option>
                   ))}
                 </Select>
@@ -1181,7 +1379,7 @@ export function InventoryPage() {
                   <option value="">{t("inventory.transfers.filters.allDestinationWarehouses")}</option>
                   {warehouses.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.code} Â· {warehouse.name}
+                      {warehouse.code} · {warehouse.name}
                     </option>
                   ))}
                 </Select>
@@ -1208,10 +1406,10 @@ export function InventoryPage() {
                           <div className="space-y-1">
                             <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{transfer.reference}</div>
                             <div className="text-lg font-black tracking-tight text-gray-900">
-                              {transfer.sourceWarehouse.name} â†’ {transfer.destinationWarehouse.name}
+                              {transfer.sourceWarehouse.name} {"->"} {transfer.destinationWarehouse.name}
                             </div>
                             <div className="text-sm text-gray-600">
-                              {transfer.totalQuantity} Â· {transfer.totalAmount}
+                              {transfer.totalQuantity} · {transfer.totalAmount}
                             </div>
                           </div>
                           <StatusPill label={t(`inventory.transfers.status.${transfer.status}`)} tone={transferTone(transfer.status)} />
@@ -1220,6 +1418,31 @@ export function InventoryPage() {
                     );
                   })
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <div>
+                  {t("inventory.pagination.summary", {
+                    from: transfersRangeStart,
+                    to: transfersRangeEnd,
+                    total: transfersTotal,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {t("inventory.pagination.page", { page: transferPage, totalPages: transfersTotalPages })}
+                  </span>
+                  <Button variant="secondary" onClick={() => setTransferPage((current) => current - 1)} disabled={transferPage <= 1}>
+                    {t("inventory.pagination.previous")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setTransferPage((current) => current + 1)}
+                    disabled={transferPage >= transfersTotalPages}
+                  >
+                    {t("inventory.pagination.next")}
+                  </Button>
+                </div>
               </div>
             </Card>
 
@@ -1230,7 +1453,7 @@ export function InventoryPage() {
                     <div className="space-y-1">
                       <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{selectedTransfer.reference}</div>
                       <h2 className="text-2xl font-black tracking-tight text-gray-900">
-                        {selectedTransfer.sourceWarehouse.name} â†’ {selectedTransfer.destinationWarehouse.name}
+                        {selectedTransfer.sourceWarehouse.name} {"->"} {selectedTransfer.destinationWarehouse.name}
                       </h2>
                     </div>
                     <StatusPill
@@ -1249,11 +1472,11 @@ export function InventoryPage() {
                   <div className="space-y-2 text-sm leading-7 text-gray-600">
                     <div>
                       <span className="font-semibold text-gray-900">{t("inventory.transfers.field.sourceWarehouse")}:</span>{" "}
-                      {selectedTransfer.sourceWarehouse.code} Â· {selectedTransfer.sourceWarehouse.name}
+                      {selectedTransfer.sourceWarehouse.code} · {selectedTransfer.sourceWarehouse.name}
                     </div>
                     <div>
                       <span className="font-semibold text-gray-900">{t("inventory.transfers.field.destinationWarehouse")}:</span>{" "}
-                      {selectedTransfer.destinationWarehouse.code} Â· {selectedTransfer.destinationWarehouse.name}
+                      {selectedTransfer.destinationWarehouse.code} · {selectedTransfer.destinationWarehouse.name}
                     </div>
                     <div>
                       <span className="font-semibold text-gray-900">{t("inventory.transfers.field.postedAt")}:</span>{" "}
@@ -1270,10 +1493,10 @@ export function InventoryPage() {
                     {selectedTransfer.lines.map((line) => (
                       <div key={line.id} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         <div className="font-semibold text-gray-900">
-                          {line.item.code} Â· {line.item.name}
+                          {line.item.code} · {line.item.name}
                         </div>
                         <div>
-                          {line.quantity} {line.unitOfMeasure} Â· {line.unitCost} Â· {line.lineTotalAmount}
+                          {line.quantity} {line.unitOfMeasure} · {line.unitCost} · {line.lineTotalAmount}
                         </div>
                         <div>
                           {t("inventory.transfers.detail.available")}: {line.item.onHandQuantity}
@@ -1320,7 +1543,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section id="inventory-adjustments-section" className="space-y-5">
+        <section id="inventory-adjustments-section" className={`space-y-5 ${workspace === "adjustments" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.adjustments.title")}
             description={t("inventory.adjustments.description")}
@@ -1394,6 +1617,35 @@ export function InventoryPage() {
                     );
                   })
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <div>
+                  {t("inventory.pagination.summary", {
+                    from: adjustmentsRangeStart,
+                    to: adjustmentsRangeEnd,
+                    total: adjustmentsTotal,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {t("inventory.pagination.page", { page: adjustmentPage, totalPages: adjustmentsTotalPages })}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setAdjustmentPage((current) => current - 1)}
+                    disabled={adjustmentPage <= 1}
+                  >
+                    {t("inventory.pagination.previous")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setAdjustmentPage((current) => current + 1)}
+                    disabled={adjustmentPage >= adjustmentsTotalPages}
+                  >
+                    {t("inventory.pagination.next")}
+                  </Button>
+                </div>
               </div>
             </Card>
 
@@ -1493,7 +1745,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section id="inventory-warehouses-section" className="space-y-5">
+        <section id="inventory-warehouses-section" className={`space-y-5 ${workspace === "warehouses" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.warehouses.title")}
             description={t("inventory.warehouses.description")}
@@ -1547,7 +1799,7 @@ export function InventoryPage() {
                             <div className="text-sm text-gray-600">
                               {warehouse.isTransit ? t("inventory.warehouses.mode.transit") : t("inventory.warehouses.mode.storage")} ·{" "}
                               {t("inventory.warehouses.itemCount", { count: warehouse.itemCount })}
-                              {warehouse.isDefaultTransit ? ` Â· ${t("inventory.warehouses.badge.defaultTransit")}` : ""}
+                              {warehouse.isDefaultTransit ? ` · ${t("inventory.warehouses.badge.defaultTransit")}` : ""}
                             </div>
                           </div>
                           <StatusPill
@@ -1623,7 +1875,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section id="inventory-receipts-section" className="space-y-5">
+        <section id="inventory-receipts-section" className={`space-y-5 ${workspace === "receipts" ? "" : "hidden"}`}>
           <SectionHeading
             title={t("inventory.receipts.title")}
             description={t("inventory.receipts.description")}
@@ -1687,6 +1939,31 @@ export function InventoryPage() {
                     );
                   })
                 )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+                <div>
+                  {t("inventory.pagination.summary", {
+                    from: receiptsRangeStart,
+                    to: receiptsRangeEnd,
+                    total: receiptsTotal,
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {t("inventory.pagination.page", { page: receiptPage, totalPages: receiptsTotalPages })}
+                  </span>
+                  <Button variant="secondary" onClick={() => setReceiptPage((current) => current - 1)} disabled={receiptPage <= 1}>
+                    {t("inventory.pagination.previous")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setReceiptPage((current) => current + 1)}
+                    disabled={receiptPage >= receiptsTotalPages}
+                  >
+                    {t("inventory.pagination.next")}
+                  </Button>
+                </div>
               </div>
             </Card>
 
@@ -1779,7 +2056,7 @@ export function InventoryPage() {
           </div>
         </section>
 
-        <section className="space-y-6">
+        <section id="inventory-stock-ledger-section" className={`space-y-6 ${workspace === "stockLedger" ? "" : "hidden"}`}>
           <SectionHeading title={t("inventory.stockLedger.title")} description={t("inventory.stockLedger.description")} />
 
           <Card className="space-y-5">
@@ -1860,6 +2137,35 @@ export function InventoryPage() {
                 ))}
               </div>
             )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600">
+              <div>
+                {t("inventory.pagination.summary", {
+                  from: stockMovementsRangeStart,
+                  to: stockMovementsRangeEnd,
+                  total: stockMovementsTotal,
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">
+                  {t("inventory.pagination.page", { page: stockLedgerPage, totalPages: stockMovementsTotalPages })}
+                </span>
+                <Button
+                  variant="secondary"
+                  onClick={() => setStockLedgerPage((current) => current - 1)}
+                  disabled={stockLedgerPage <= 1}
+                >
+                  {t("inventory.pagination.previous")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setStockLedgerPage((current) => current + 1)}
+                  disabled={stockLedgerPage >= stockMovementsTotalPages}
+                >
+                  {t("inventory.pagination.next")}
+                </Button>
+              </div>
+            </div>
           </Card>
         </section>
 

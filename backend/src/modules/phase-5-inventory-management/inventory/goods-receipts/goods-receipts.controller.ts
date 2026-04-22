@@ -16,8 +16,10 @@ export class GoodsReceiptsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.service.list({ status, warehouseId, dateFrom, dateTo, search });
+    return this.service.list({ status, warehouseId, dateFrom, dateTo, search, page, limit });
   }
 
   @Get(':id')

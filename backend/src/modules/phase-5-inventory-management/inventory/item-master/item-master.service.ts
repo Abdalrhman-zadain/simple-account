@@ -9,6 +9,8 @@ type InventoryItemListQuery = {
   isActive?: string;
   search?: string;
   type?: string;
+  page?: string;
+  limit?: string;
 };
 
 type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
@@ -44,35 +46,53 @@ export class ItemMasterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: InventoryItemListQuery = {}) {
+    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
+    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const skip = (page - 1) * limit;
     const search = query.search?.trim();
-    const rows = await this.prisma.inventoryItem.findMany({
-      where: {
-        isActive: query.isActive === undefined || query.isActive === '' ? undefined : query.isActive === 'true',
-        type: this.parseType(query.type),
-        OR: search
-          ? [
-              { code: { contains: search, mode: 'insensitive' } },
-              { name: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { unitOfMeasure: { contains: search, mode: 'insensitive' } },
-              { category: { contains: search, mode: 'insensitive' } },
-              { preferredWarehouseCode: { contains: search, mode: 'insensitive' } },
-              { preferredWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-              { preferredWarehouse: { name: { contains: search, mode: 'insensitive' } } },
-            ]
-          : undefined,
-      },
-      include: {
-        inventoryAccount: { select: this.accountSelect },
-        cogsAccount: { select: this.accountSelect },
-        salesAccount: { select: this.accountSelect },
-        adjustmentAccount: { select: this.accountSelect },
-        preferredWarehouse: { select: this.warehouseSelect },
-      },
-      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-    });
+    const where: Prisma.InventoryItemWhereInput = {
+      isActive: query.isActive === undefined || query.isActive === '' ? undefined : query.isActive === 'true',
+      type: this.parseType(query.type),
+      OR: search
+        ? [
+            { code: { contains: search, mode: 'insensitive' } },
+            { name: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+            { unitOfMeasure: { contains: search, mode: 'insensitive' } },
+            { category: { contains: search, mode: 'insensitive' } },
+            { preferredWarehouseCode: { contains: search, mode: 'insensitive' } },
+            { preferredWarehouse: { code: { contains: search, mode: 'insensitive' } } },
+            { preferredWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+          ]
+        : undefined,
+    };
 
-    return rows.map((row: InventoryItemWithAccounts) => this.mapItem(row));
+    const [total, rows] = await Promise.all([
+      this.prisma.inventoryItem.count({ where }),
+      this.prisma.inventoryItem.findMany({
+        where,
+        include: {
+          inventoryAccount: { select: this.accountSelect },
+          cogsAccount: { select: this.accountSelect },
+          salesAccount: { select: this.accountSelect },
+          adjustmentAccount: { select: this.accountSelect },
+          preferredWarehouse: { select: this.warehouseSelect },
+        },
+        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data: rows.map((row: InventoryItemWithAccounts) => this.mapItem(row)),
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 
   async getById(id: string) {
@@ -311,6 +331,27 @@ export class ItemMasterService {
     }
 
     return value as InventoryItemType;
+  }
+
+  private parsePaginationNumber(
+    value: string | undefined,
+    options: { fallback: number; min: number; max: number; label: string },
+  ) {
+    if (!value?.trim()) {
+      return options.fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      throw new BadRequestException(`${options.label} must be a valid integer.`);
+    }
+    if (parsed < options.min || parsed > options.max) {
+      throw new BadRequestException(
+        `${options.label} must be between ${options.min} and ${options.max}.`,
+      );
+    }
+
+    return parsed;
   }
 
   private parseDecimal(value: string | undefined, label: string) {

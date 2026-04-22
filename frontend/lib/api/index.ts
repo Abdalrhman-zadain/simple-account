@@ -8,15 +8,21 @@ import {
     AccountsQuery,
     InventoryItem,
     InventoryGoodsIssue,
+    InventoryGoodsIssuesResponse,
     InventoryGoodsIssuesQuery,
     InventoryAdjustment,
+    InventoryAdjustmentsResponse,
     InventoryAdjustmentsQuery,
     InventoryStockMovement,
+    InventoryStockLedgerResponse,
     InventoryStockLedgerQuery,
     InventoryItemsQuery,
+    InventoryItemsResponse,
     InventoryGoodsReceipt,
+    InventoryGoodsReceiptsResponse,
     InventoryGoodsReceiptsQuery,
     InventoryTransfer,
+    InventoryTransfersResponse,
     InventoryTransfersQuery,
     InventoryWarehouse,
     InventoryPolicy,
@@ -495,8 +501,10 @@ export async function getInventoryItems(params: InventoryItemsQuery = {}, token?
   if (params.isActive) searchParams.set("isActive", params.isActive);
   if (params.type) searchParams.set("type", params.type);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryItem[]>(`/inventory/items${suffix}`, { token });
+  return apiRequest<InventoryItemsResponse>(`/inventory/items${suffix}`, { token });
 }
 
 export async function getInventoryWarehouses(params: InventoryWarehousesQuery = {}, token?: string | null) {
@@ -515,8 +523,10 @@ export async function getInventoryGoodsReceipts(params: InventoryGoodsReceiptsQu
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryGoodsReceipt[]>(`/inventory/goods-receipts${suffix}`, { token });
+  return apiRequest<InventoryGoodsReceiptsResponse>(`/inventory/goods-receipts${suffix}`, { token });
 }
 
 export async function getInventoryGoodsIssues(params: InventoryGoodsIssuesQuery = {}, token?: string | null) {
@@ -526,8 +536,10 @@ export async function getInventoryGoodsIssues(params: InventoryGoodsIssuesQuery 
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryGoodsIssue[]>(`/inventory/goods-issues${suffix}`, { token });
+  return apiRequest<InventoryGoodsIssuesResponse>(`/inventory/goods-issues${suffix}`, { token });
 }
 
 export async function getInventoryTransfers(params: InventoryTransfersQuery = {}, token?: string | null) {
@@ -538,8 +550,10 @@ export async function getInventoryTransfers(params: InventoryTransfersQuery = {}
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryTransfer[]>(`/inventory/transfers${suffix}`, { token });
+  return apiRequest<InventoryTransfersResponse>(`/inventory/transfers${suffix}`, { token });
 }
 
 export async function getInventoryAdjustments(params: InventoryAdjustmentsQuery = {}, token?: string | null) {
@@ -550,8 +564,10 @@ export async function getInventoryAdjustments(params: InventoryAdjustmentsQuery 
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryAdjustment[]>(`/inventory/adjustments${suffix}`, { token });
+  return apiRequest<InventoryAdjustmentsResponse>(`/inventory/adjustments${suffix}`, { token });
 }
 
 export async function getInventoryStockLedger(params: InventoryStockLedgerQuery = {}, token?: string | null) {
@@ -562,8 +578,10 @@ export async function getInventoryStockLedger(params: InventoryStockLedgerQuery 
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  if (params.page && params.page > 0) searchParams.set("page", String(params.page));
+  if (params.limit && params.limit > 0) searchParams.set("limit", String(params.limit));
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
-  return apiRequest<InventoryStockMovement[]>(`/inventory/stock-ledger${suffix}`, { token });
+  return apiRequest<InventoryStockLedgerResponse>(`/inventory/stock-ledger${suffix}`, { token });
 }
 
 export async function getInventoryPolicy(token?: string | null) {

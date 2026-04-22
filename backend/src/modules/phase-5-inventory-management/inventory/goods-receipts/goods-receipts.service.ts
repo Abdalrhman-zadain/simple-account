@@ -18,6 +18,8 @@ type GoodsReceiptListQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: string;
+  limit?: string;
 };
 
 type ResolvedReceiptLine = {
@@ -74,30 +76,48 @@ export class GoodsReceiptsService {
   ) {}
 
   async list(query: GoodsReceiptListQuery = {}) {
+    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
+    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const skip = (page - 1) * limit;
     const search = query.search?.trim();
-    const rows = await this.prisma.inventoryGoodsReceipt.findMany({
-      where: {
-        status: this.parseStatus(query.status),
-        warehouseId: query.warehouseId,
-        receiptDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
-        OR: search
-          ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { sourcePurchaseOrderRef: { contains: search, mode: 'insensitive' } },
-              { sourcePurchaseInvoiceRef: { contains: search, mode: 'insensitive' } },
-              { warehouse: { code: { contains: search, mode: 'insensitive' } } },
-              { warehouse: { name: { contains: search, mode: 'insensitive' } } },
-              { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
-              { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
-            ]
-          : undefined,
-      },
-      include: this.goodsReceiptInclude(),
-      orderBy: [{ receiptDate: 'desc' }, { createdAt: 'desc' }],
-    });
+    const where: Prisma.InventoryGoodsReceiptWhereInput = {
+      status: this.parseStatus(query.status),
+      warehouseId: query.warehouseId,
+      receiptDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
+      OR: search
+        ? [
+            { reference: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+            { sourcePurchaseOrderRef: { contains: search, mode: 'insensitive' } },
+            { sourcePurchaseInvoiceRef: { contains: search, mode: 'insensitive' } },
+            { warehouse: { code: { contains: search, mode: 'insensitive' } } },
+            { warehouse: { name: { contains: search, mode: 'insensitive' } } },
+            { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
+            { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
+          ]
+        : undefined,
+    };
 
-    return rows.map((row) => this.mapGoodsReceipt(row));
+    const [total, rows] = await Promise.all([
+      this.prisma.inventoryGoodsReceipt.count({ where }),
+      this.prisma.inventoryGoodsReceipt.findMany({
+        where,
+        include: this.goodsReceiptInclude(),
+        orderBy: [{ receiptDate: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data: rows.map((row) => this.mapGoodsReceipt(row)),
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 
   async getById(id: string) {
@@ -557,6 +577,25 @@ export class GoodsReceiptsService {
           lte: dateTo ? new Date(dateTo) : undefined,
         }
       : undefined;
+  }
+
+  private parsePaginationNumber(
+    value: string | undefined,
+    options: { fallback: number; min: number; max: number; label: string },
+  ) {
+    if (!value?.trim()) {
+      return options.fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      throw new BadRequestException(`${options.label} must be a valid integer.`);
+    }
+    if (parsed < options.min || parsed > options.max) {
+      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+    }
+
+    return parsed;
   }
 
   private parseQuantity(value: string, label: string) {

@@ -15,6 +15,8 @@ type TransferListQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: string;
+  limit?: string;
 };
 
 type ResolvedTransferLine = {
@@ -79,31 +81,49 @@ export class TransfersService {
   ) {}
 
   async list(query: TransferListQuery = {}) {
+    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
+    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const skip = (page - 1) * limit;
     const search = query.search?.trim();
-    const rows = await this.prisma.inventoryTransfer.findMany({
-      where: {
-        status: this.parseStatus(query.status),
-        sourceWarehouseId: query.sourceWarehouseId,
-        destinationWarehouseId: query.destinationWarehouseId,
-        transferDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
-        OR: search
-          ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { sourceWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-              { sourceWarehouse: { name: { contains: search, mode: 'insensitive' } } },
-              { destinationWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-              { destinationWarehouse: { name: { contains: search, mode: 'insensitive' } } },
-              { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
-              { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
-            ]
-          : undefined,
-      },
-      include: this.transferInclude(),
-      orderBy: [{ transferDate: 'desc' }, { createdAt: 'desc' }],
-    });
+    const where: Prisma.InventoryTransferWhereInput = {
+      status: this.parseStatus(query.status),
+      sourceWarehouseId: query.sourceWarehouseId,
+      destinationWarehouseId: query.destinationWarehouseId,
+      transferDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
+      OR: search
+        ? [
+            { reference: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+            { sourceWarehouse: { code: { contains: search, mode: 'insensitive' } } },
+            { sourceWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+            { destinationWarehouse: { code: { contains: search, mode: 'insensitive' } } },
+            { destinationWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+            { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
+            { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
+          ]
+        : undefined,
+    };
 
-    return rows.map((row) => this.mapTransfer(row));
+    const [total, rows] = await Promise.all([
+      this.prisma.inventoryTransfer.count({ where }),
+      this.prisma.inventoryTransfer.findMany({
+        where,
+        include: this.transferInclude(),
+        orderBy: [{ transferDate: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data: rows.map((row) => this.mapTransfer(row)),
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 
   async getById(id: string) {
@@ -636,6 +656,25 @@ export class TransfersService {
           lte: dateTo ? new Date(dateTo) : undefined,
         }
       : undefined;
+  }
+
+  private parsePaginationNumber(
+    value: string | undefined,
+    options: { fallback: number; min: number; max: number; label: string },
+  ) {
+    if (!value?.trim()) {
+      return options.fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      throw new BadRequestException(`${options.label} must be a valid integer.`);
+    }
+    if (parsed < options.min || parsed > options.max) {
+      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+    }
+
+    return parsed;
   }
 
   private parseQuantity(value: string, label: string) {

@@ -10,6 +10,8 @@ type StockLedgerListQuery = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  page?: string;
+  limit?: string;
 };
 
 type StockMovementWithRelations = Prisma.InventoryStockMovementGetPayload<{
@@ -37,45 +39,63 @@ export class StockLedgerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: StockLedgerListQuery = {}) {
+    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
+    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const skip = (page - 1) * limit;
     const search = query.search?.trim();
-    const rows = await this.prisma.inventoryStockMovement.findMany({
-      where: {
-        itemId: query.itemId,
-        warehouseId: query.warehouseId,
-        movementType: this.parseMovementType(query.movementType),
-        transactionDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
-        OR: search
-          ? [
-              { transactionReference: { contains: search, mode: 'insensitive' } },
-              { transactionType: { contains: search, mode: 'insensitive' } },
-              { item: { code: { contains: search, mode: 'insensitive' } } },
-              { item: { name: { contains: search, mode: 'insensitive' } } },
-              { warehouse: { code: { contains: search, mode: 'insensitive' } } },
-              { warehouse: { name: { contains: search, mode: 'insensitive' } } },
-            ]
-          : undefined,
-      },
-      include: {
-        item: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            unitOfMeasure: true,
-          },
-        },
-        warehouse: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
-    });
+    const where: Prisma.InventoryStockMovementWhereInput = {
+      itemId: query.itemId,
+      warehouseId: query.warehouseId,
+      movementType: this.parseMovementType(query.movementType),
+      transactionDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
+      OR: search
+        ? [
+            { transactionReference: { contains: search, mode: 'insensitive' } },
+            { transactionType: { contains: search, mode: 'insensitive' } },
+            { item: { code: { contains: search, mode: 'insensitive' } } },
+            { item: { name: { contains: search, mode: 'insensitive' } } },
+            { warehouse: { code: { contains: search, mode: 'insensitive' } } },
+            { warehouse: { name: { contains: search, mode: 'insensitive' } } },
+          ]
+        : undefined,
+    };
 
-    return rows.map((row) => this.mapMovement(row));
+    const [total, rows] = await Promise.all([
+      this.prisma.inventoryStockMovement.count({ where }),
+      this.prisma.inventoryStockMovement.findMany({
+        where,
+        include: {
+          item: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              unitOfMeasure: true,
+            },
+          },
+          warehouse: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: [{ transactionDate: 'asc' }, { createdAt: 'asc' }],
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      data: rows.map((row) => this.mapMovement(row)),
+      page,
+      limit,
+      total,
+      totalPages,
+    };
   }
 
   private mapMovement(row: StockMovementWithRelations) {
@@ -127,5 +147,24 @@ export class StockLedgerService {
           lte: dateTo ? new Date(dateTo) : undefined,
         }
       : undefined;
+  }
+
+  private parsePaginationNumber(
+    value: string | undefined,
+    options: { fallback: number; min: number; max: number; label: string },
+  ) {
+    if (!value?.trim()) {
+      return options.fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      throw new BadRequestException(`${options.label} must be a valid integer.`);
+    }
+    if (parsed < options.min || parsed > options.max) {
+      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+    }
+
+    return parsed;
   }
 }
