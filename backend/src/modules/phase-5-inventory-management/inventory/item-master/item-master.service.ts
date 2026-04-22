@@ -1,9 +1,13 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { InventoryItemType, Prisma } from '../../../../generated/prisma';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
+import { InventoryItemType, Prisma } from "../../../../generated/prisma";
 
-import { PrismaService } from '../../../../common/prisma/prisma.service';
-import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
-import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { CreateInventoryItemDto } from "./dto/create-inventory-item.dto";
+import { UpdateInventoryItemDto } from "./dto/update-inventory-item.dto";
 
 type InventoryItemListQuery = {
   isActive?: string;
@@ -15,11 +19,11 @@ type InventoryItemListQuery = {
 
 type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
   include: {
-    inventoryAccount: { select: ItemMasterService['accountSelect'] };
-    cogsAccount: { select: ItemMasterService['accountSelect'] };
-    salesAccount: { select: ItemMasterService['accountSelect'] };
-    adjustmentAccount: { select: ItemMasterService['accountSelect'] };
-    preferredWarehouse: { select: ItemMasterService['warehouseSelect'] };
+    inventoryAccount: { select: ItemMasterService["accountSelect"] };
+    cogsAccount: { select: ItemMasterService["accountSelect"] };
+    salesAccount: { select: ItemMasterService["accountSelect"] };
+    adjustmentAccount: { select: ItemMasterService["accountSelect"] };
+    preferredWarehouse: { select: ItemMasterService["warehouseSelect"] };
   };
 }>;
 
@@ -46,23 +50,46 @@ export class ItemMasterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: InventoryItemListQuery = {}) {
-    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
-    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const page = this.parsePaginationNumber(query.page, {
+      fallback: 1,
+      min: 1,
+      max: 10_000,
+      label: "Page",
+    });
+    const limit = this.parsePaginationNumber(query.limit, {
+      fallback: 20,
+      min: 1,
+      max: 100,
+      label: "Limit",
+    });
     const skip = (page - 1) * limit;
     const search = query.search?.trim();
     const where: Prisma.InventoryItemWhereInput = {
-      isActive: query.isActive === undefined || query.isActive === '' ? undefined : query.isActive === 'true',
+      isActive:
+        query.isActive === undefined || query.isActive === ""
+          ? undefined
+          : query.isActive === "true",
       type: this.parseType(query.type),
       OR: search
         ? [
-            { code: { contains: search, mode: 'insensitive' } },
-            { name: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-            { unitOfMeasure: { contains: search, mode: 'insensitive' } },
-            { category: { contains: search, mode: 'insensitive' } },
-            { preferredWarehouseCode: { contains: search, mode: 'insensitive' } },
-            { preferredWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-            { preferredWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+            { code: { contains: search, mode: "insensitive" } },
+            { name: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { unitOfMeasure: { contains: search, mode: "insensitive" } },
+            { category: { contains: search, mode: "insensitive" } },
+            {
+              preferredWarehouseCode: { contains: search, mode: "insensitive" },
+            },
+            {
+              preferredWarehouse: {
+                code: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              preferredWarehouse: {
+                name: { contains: search, mode: "insensitive" },
+              },
+            },
           ]
         : undefined,
     };
@@ -78,7 +105,7 @@ export class ItemMasterService {
           adjustmentAccount: { select: this.accountSelect },
           preferredWarehouse: { select: this.warehouseSelect },
         },
-        orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+        orderBy: [{ isActive: "desc" }, { name: "asc" }],
         skip,
         take: limit,
       }),
@@ -101,8 +128,14 @@ export class ItemMasterService {
   }
 
   async create(dto: CreateInventoryItemDto) {
-    const code = dto.code?.trim() || this.generateReference('ITEM');
-    const [inventoryAccountId, cogsAccountId, salesAccountId, adjustmentAccountId, preferredWarehouse] = await Promise.all([
+    const code = dto.code?.trim() || this.generateReference("ITEM");
+    const [
+      inventoryAccountId,
+      cogsAccountId,
+      salesAccountId,
+      adjustmentAccountId,
+      preferredWarehouse,
+    ] = await Promise.all([
       this.validateInventoryAccount(dto.inventoryAccountId),
       this.validateCogsAccount(dto.cogsAccountId),
       this.validateSalesAccount(dto.salesAccountId),
@@ -123,8 +156,11 @@ export class ItemMasterService {
           cogsAccountId,
           salesAccountId,
           adjustmentAccountId,
-          reorderLevel: this.parseDecimal(dto.reorderLevel, 'Reorder level'),
-          reorderQuantity: this.parseDecimal(dto.reorderQuantity, 'Reorder quantity'),
+          reorderLevel: this.parseDecimal(dto.reorderLevel, "Reorder level"),
+          reorderQuantity: this.parseDecimal(
+            dto.reorderQuantity,
+            "Reorder quantity",
+          ),
           preferredWarehouseId: preferredWarehouse?.id ?? null,
           preferredWarehouseCode: preferredWarehouse?.code ?? null,
         },
@@ -138,7 +174,9 @@ export class ItemMasterService {
       })
       .catch((error: unknown) => {
         if (this.isCodeConflict(error)) {
-          throw new ConflictException('An inventory item with this code already exists.');
+          throw new ConflictException(
+            "An inventory item with this code already exists.",
+          );
         }
         throw error;
       });
@@ -149,38 +187,67 @@ export class ItemMasterService {
   async update(id: string, dto: UpdateInventoryItemDto) {
     const current = await this.getItemOrThrow(id);
     if (!current.isActive) {
-      throw new BadRequestException('Deactivated inventory items cannot be edited.');
+      throw new BadRequestException(
+        "Deactivated inventory items cannot be edited.",
+      );
     }
 
-    const [inventoryAccountId, cogsAccountId, salesAccountId, adjustmentAccountId, preferredWarehouse] = await Promise.all([
+    const [
+      inventoryAccountId,
+      cogsAccountId,
+      salesAccountId,
+      adjustmentAccountId,
+      preferredWarehouse,
+    ] = await Promise.all([
       dto.inventoryAccountId !== undefined
         ? this.validateInventoryAccount(dto.inventoryAccountId || undefined)
         : Promise.resolve(undefined),
-      dto.cogsAccountId !== undefined ? this.validateCogsAccount(dto.cogsAccountId || undefined) : Promise.resolve(undefined),
-      dto.salesAccountId !== undefined ? this.validateSalesAccount(dto.salesAccountId || undefined) : Promise.resolve(undefined),
+      dto.cogsAccountId !== undefined
+        ? this.validateCogsAccount(dto.cogsAccountId || undefined)
+        : Promise.resolve(undefined),
+      dto.salesAccountId !== undefined
+        ? this.validateSalesAccount(dto.salesAccountId || undefined)
+        : Promise.resolve(undefined),
       dto.adjustmentAccountId !== undefined
         ? this.validateAdjustmentAccount(dto.adjustmentAccountId || undefined)
         : Promise.resolve(undefined),
-      dto.preferredWarehouseId !== undefined ? this.validateWarehouse(dto.preferredWarehouseId || undefined) : Promise.resolve(undefined),
+      dto.preferredWarehouseId !== undefined
+        ? this.validateWarehouse(dto.preferredWarehouseId || undefined)
+        : Promise.resolve(undefined),
     ]);
 
     const updated = await this.prisma.inventoryItem.update({
       where: { id },
       data: {
         name: dto.name?.trim(),
-        description: dto.description === undefined ? undefined : dto.description.trim() || null,
+        description:
+          dto.description === undefined
+            ? undefined
+            : dto.description.trim() || null,
         unitOfMeasure: dto.unitOfMeasure?.trim(),
-        category: dto.category === undefined ? undefined : dto.category.trim() || null,
+        category:
+          dto.category === undefined ? undefined : dto.category.trim() || null,
         type: dto.type,
         inventoryAccountId,
         cogsAccountId,
         salesAccountId,
         adjustmentAccountId,
-        reorderLevel: dto.reorderLevel === undefined ? undefined : this.parseDecimal(dto.reorderLevel, 'Reorder level'),
+        reorderLevel:
+          dto.reorderLevel === undefined
+            ? undefined
+            : this.parseDecimal(dto.reorderLevel, "Reorder level"),
         reorderQuantity:
-          dto.reorderQuantity === undefined ? undefined : this.parseDecimal(dto.reorderQuantity, 'Reorder quantity'),
-        preferredWarehouseId: dto.preferredWarehouseId === undefined ? undefined : preferredWarehouse?.id ?? null,
-        preferredWarehouseCode: dto.preferredWarehouseId === undefined ? undefined : preferredWarehouse?.code ?? null,
+          dto.reorderQuantity === undefined
+            ? undefined
+            : this.parseDecimal(dto.reorderQuantity, "Reorder quantity"),
+        preferredWarehouseId:
+          dto.preferredWarehouseId === undefined
+            ? undefined
+            : (preferredWarehouse?.id ?? null),
+        preferredWarehouseCode:
+          dto.preferredWarehouseId === undefined
+            ? undefined
+            : (preferredWarehouse?.code ?? null),
         isActive: dto.isActive,
       },
       include: {
@@ -215,7 +282,9 @@ export class ItemMasterService {
   async ensureActiveItem(id: string) {
     const item = await this.getItemOrThrow(id);
     if (!item.isActive) {
-      throw new BadRequestException('Deactivated inventory items cannot be used in new transactions.');
+      throw new BadRequestException(
+        "Deactivated inventory items cannot be used in new transactions.",
+      );
     }
     return item;
   }
@@ -247,28 +316,28 @@ export class ItemMasterService {
 
   private async validateInventoryAccount(id?: string) {
     return this.validateAccount(id, {
-      label: 'Inventory account',
-      allowedTypes: ['ASSET'],
+      label: "Inventory account",
+      allowedTypes: ["ASSET"],
     });
   }
 
   private async validateCogsAccount(id?: string) {
     return this.validateAccount(id, {
-      label: 'Cost of goods sold account',
-      allowedTypes: ['EXPENSE'],
+      label: "Cost of goods sold account",
+      allowedTypes: ["EXPENSE"],
     });
   }
 
   private async validateSalesAccount(id?: string) {
     return this.validateAccount(id, {
-      label: 'Sales account',
-      allowedTypes: ['REVENUE'],
+      label: "Sales account",
+      allowedTypes: ["REVENUE"],
     });
   }
 
   private async validateAdjustmentAccount(id?: string) {
     return this.validateAccount(id, {
-      label: 'Adjustment account',
+      label: "Adjustment account",
       allowedTypes: undefined,
     });
   }
@@ -284,10 +353,10 @@ export class ItemMasterService {
     });
 
     if (!warehouse) {
-      throw new BadRequestException('Preferred warehouse was not found.');
+      throw new BadRequestException("Preferred warehouse was not found.");
     }
     if (!warehouse.isActive) {
-      throw new BadRequestException('Preferred warehouse must be active.');
+      throw new BadRequestException("Preferred warehouse must be active.");
     }
 
     return warehouse;
@@ -295,7 +364,12 @@ export class ItemMasterService {
 
   private async validateAccount(
     id: string | undefined,
-    options: { label: string; allowedTypes?: Array<'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'> },
+    options: {
+      label: string;
+      allowedTypes?: Array<
+        "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"
+      >;
+    },
   ) {
     if (!id) {
       return null;
@@ -310,11 +384,13 @@ export class ItemMasterService {
       throw new BadRequestException(`${options.label} was not found.`);
     }
     if (!account.isActive || !account.isPosting) {
-      throw new BadRequestException(`${options.label} must be active and posting.`);
+      throw new BadRequestException(
+        `${options.label} must be active and posting.`,
+      );
     }
     if (options.allowedTypes && !options.allowedTypes.includes(account.type)) {
       throw new BadRequestException(
-        `${options.label} must be one of the following types: ${options.allowedTypes.join(', ')}.`,
+        `${options.label} must be one of the following types: ${options.allowedTypes.join(", ")}.`,
       );
     }
 
@@ -326,8 +402,12 @@ export class ItemMasterService {
       return undefined;
     }
 
-    if (!Object.values(InventoryItemType).includes(value as InventoryItemType)) {
-      throw new BadRequestException(`Unsupported inventory item type ${value}.`);
+    if (
+      !Object.values(InventoryItemType).includes(value as InventoryItemType)
+    ) {
+      throw new BadRequestException(
+        `Unsupported inventory item type ${value}.`,
+      );
     }
 
     return value as InventoryItemType;
@@ -343,7 +423,9 @@ export class ItemMasterService {
 
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
-      throw new BadRequestException(`${options.label} must be a valid integer.`);
+      throw new BadRequestException(
+        `${options.label} must be a valid integer.`,
+      );
     }
     if (parsed < options.min || parsed > options.max) {
       throw new BadRequestException(
@@ -383,7 +465,7 @@ export class ItemMasterService {
       onHandQuantity: row.onHandQuantity.toString(),
       valuationAmount: row.valuationAmount.toString(),
       isActive: row.isActive,
-      status: row.isActive ? 'ACTIVE' : 'INACTIVE',
+      status: row.isActive ? "ACTIVE" : "INACTIVE",
       inventoryAccount: row.inventoryAccount,
       cogsAccount: row.cogsAccount,
       salesAccount: row.salesAccount,
@@ -394,8 +476,9 @@ export class ItemMasterService {
   }
 
   private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const suffix =
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
   }
 
@@ -404,6 +487,10 @@ export class ItemMasterService {
       return false;
     }
 
-    return error.code === 'P2002' && Array.isArray(error.meta?.target) && error.meta.target.includes('code');
+    return (
+      error.code === "P2002" &&
+      Array.isArray(error.meta?.target) &&
+      error.meta.target.includes("code")
+    );
   }
 }

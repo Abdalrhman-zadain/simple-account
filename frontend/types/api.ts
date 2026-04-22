@@ -111,7 +111,11 @@ export type PaymentMethodType = {
   updatedAt: string;
 };
 
-export type InventoryItemType = "INVENTORY" | "NON_STOCK" | "SERVICE" | "RAW_MATERIAL";
+export type InventoryItemType =
+  | "INVENTORY"
+  | "NON_STOCK"
+  | "SERVICE"
+  | "RAW_MATERIAL";
 
 export type InventoryWarehouse = {
   id: string;
@@ -128,10 +132,26 @@ export type InventoryWarehouse = {
   updatedAt: string;
 };
 
-export type InventoryReceiptStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
-export type InventoryIssueStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
-export type InventoryTransferStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
-export type InventoryAdjustmentStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type InventoryReceiptStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
+export type InventoryIssueStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
+export type InventoryTransferStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
+export type InventoryAdjustmentStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
 export type InventoryStockMovementType =
   | "GOODS_RECEIPT"
   | "GOODS_ISSUE"
@@ -165,7 +185,10 @@ export type InventoryItem = {
   reorderQuantity: string;
   preferredWarehouseId?: string | null;
   preferredWarehouseCode?: string | null;
-  preferredWarehouse?: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit"> | null;
+  preferredWarehouse?: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  > | null;
   onHandQuantity: string;
   valuationAmount: string;
   isActive: boolean;
@@ -314,9 +337,10 @@ export type CreateInventoryWarehousePayload = {
   isDefaultTransit?: boolean;
 };
 
-export type UpdateInventoryWarehousePayload = Partial<CreateInventoryWarehousePayload> & {
-  isActive?: boolean;
-};
+export type UpdateInventoryWarehousePayload =
+  Partial<CreateInventoryWarehousePayload> & {
+    isActive?: boolean;
+  };
 
 export type InventoryGoodsReceiptLine = {
   id: string;
@@ -351,7 +375,10 @@ export type InventoryGoodsReceipt = {
   canPost: boolean;
   canCancel: boolean;
   canReverse?: boolean;
-  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  warehouse: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  >;
   lines: InventoryGoodsReceiptLine[];
   createdAt: string;
   updatedAt: string;
@@ -402,7 +429,10 @@ export type InventoryGoodsIssue = {
   canPost: boolean;
   canCancel: boolean;
   canReverse?: boolean;
-  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  warehouse: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  >;
   lines: InventoryGoodsIssueLine[];
   createdAt: string;
   updatedAt: string;
@@ -449,8 +479,14 @@ export type InventoryTransfer = {
   canPost: boolean;
   canCancel: boolean;
   canReverse?: boolean;
-  sourceWarehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
-  destinationWarehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  sourceWarehouse: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  >;
+  destinationWarehouse: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  >;
   lines: InventoryTransferLine[];
   createdAt: string;
   updatedAt: string;
@@ -500,7 +536,10 @@ export type InventoryAdjustment = {
   canPost: boolean;
   canCancel: boolean;
   canReverse?: boolean;
-  warehouse: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive" | "isTransit">;
+  warehouse: Pick<
+    InventoryWarehouse,
+    "id" | "code" | "name" | "isActive" | "isTransit"
+  >;
   lines: InventoryAdjustmentLine[];
   createdAt: string;
   updatedAt: string;
@@ -561,7 +600,8 @@ export type CreateInventoryGoodsReceiptPayload = {
   lines: InventoryGoodsReceiptLinePayload[];
 };
 
-export type UpdateInventoryGoodsReceiptPayload = Partial<CreateInventoryGoodsReceiptPayload>;
+export type UpdateInventoryGoodsReceiptPayload =
+  Partial<CreateInventoryGoodsReceiptPayload>;
 
 export type InventoryGoodsIssueLinePayload = {
   itemId: string;
@@ -582,7 +622,8 @@ export type CreateInventoryGoodsIssuePayload = {
   lines: InventoryGoodsIssueLinePayload[];
 };
 
-export type UpdateInventoryGoodsIssuePayload = Partial<CreateInventoryGoodsIssuePayload>;
+export type UpdateInventoryGoodsIssuePayload =
+  Partial<CreateInventoryGoodsIssuePayload>;
 
 export type InventoryTransferLinePayload = {
   itemId: string;
@@ -600,7 +641,8 @@ export type CreateInventoryTransferPayload = {
   lines: InventoryTransferLinePayload[];
 };
 
-export type UpdateInventoryTransferPayload = Partial<CreateInventoryTransferPayload>;
+export type UpdateInventoryTransferPayload =
+  Partial<CreateInventoryTransferPayload>;
 
 export type InventoryAdjustmentLinePayload = {
   itemId: string;
@@ -619,7 +661,8 @@ export type CreateInventoryAdjustmentPayload = {
   lines: InventoryAdjustmentLinePayload[];
 };
 
-export type UpdateInventoryAdjustmentPayload = Partial<CreateInventoryAdjustmentPayload>;
+export type UpdateInventoryAdjustmentPayload =
+  Partial<CreateInventoryAdjustmentPayload>;
 
 export type CreatePaymentMethodTypePayload = {
   name: string;
@@ -947,9 +990,25 @@ export type UpdateBankCashTransactionPayload = Partial<{
   description: string | null;
 }>;
 
-export type QuotationStatus = "DRAFT" | "APPROVED" | "EXPIRED" | "CONVERTED" | "CANCELLED";
-export type SalesOrderStatus = "DRAFT" | "CONFIRMED" | "PARTIALLY_INVOICED" | "FULLY_INVOICED" | "CANCELLED";
-export type SalesInvoiceStatus = "DRAFT" | "POSTED" | "PARTIALLY_PAID" | "FULLY_PAID" | "OVERDUE" | "CANCELLED";
+export type QuotationStatus =
+  | "DRAFT"
+  | "APPROVED"
+  | "EXPIRED"
+  | "CONVERTED"
+  | "CANCELLED";
+export type SalesOrderStatus =
+  | "DRAFT"
+  | "CONFIRMED"
+  | "PARTIALLY_INVOICED"
+  | "FULLY_INVOICED"
+  | "CANCELLED";
+export type SalesInvoiceStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "PARTIALLY_PAID"
+  | "FULLY_PAID"
+  | "OVERDUE"
+  | "CANCELLED";
 export type CreditNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED";
 export type AllocationStatus = "UNALLOCATED" | "PARTIAL" | "FULLY_ALLOCATED";
 
@@ -1042,7 +1101,12 @@ export type SupplierTransactionsResponse = {
   transactions: SupplierTransaction[];
 };
 
-export type PurchaseRequestStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED";
+export type PurchaseRequestStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "CLOSED";
 export type PurchaseOrderStatus =
   | "DRAFT"
   | "ISSUED"
@@ -1058,8 +1122,17 @@ export type PurchaseInvoiceStatus =
   | "FULLY_PAID"
   | "CANCELLED"
   | "REVERSED";
-export type SupplierPaymentStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
-export type DebitNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED" | "REVERSED";
+export type SupplierPaymentStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
+export type DebitNoteStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "APPLIED"
+  | "CANCELLED"
+  | "REVERSED";
 
 export type PurchaseRequestLine = {
   id: string;
@@ -1131,7 +1204,8 @@ export type CreatePurchaseRequestPayload = {
   lines: PurchaseRequestLinePayload[];
 };
 
-export type UpdatePurchaseRequestPayload = Partial<CreatePurchaseRequestPayload>;
+export type UpdatePurchaseRequestPayload =
+  Partial<CreatePurchaseRequestPayload>;
 
 export type PurchaseRequestStatusNotePayload = {
   note?: string;
@@ -1296,7 +1370,8 @@ export type CreatePurchaseReceiptPayload = {
   lines: PurchaseReceiptLinePayload[];
 };
 
-export type UpdatePurchaseReceiptPayload = Partial<CreatePurchaseReceiptPayload>;
+export type UpdatePurchaseReceiptPayload =
+  Partial<CreatePurchaseReceiptPayload>;
 
 export type PurchaseInvoiceLine = {
   id: string;
@@ -1386,7 +1461,8 @@ export type CreatePurchaseInvoicePayload = {
   lines: PurchaseInvoiceLinePayload[];
 };
 
-export type UpdatePurchaseInvoicePayload = Partial<CreatePurchaseInvoicePayload>;
+export type UpdatePurchaseInvoicePayload =
+  Partial<CreatePurchaseInvoicePayload>;
 
 export type SupplierPaymentAllocation = {
   id: string;
@@ -1470,7 +1546,8 @@ export type CreateSupplierPaymentPayload = {
   allocations?: SupplierPaymentAllocationPayload[];
 };
 
-export type UpdateSupplierPaymentPayload = Partial<CreateSupplierPaymentPayload>;
+export type UpdateSupplierPaymentPayload =
+  Partial<CreateSupplierPaymentPayload>;
 
 export type DebitNoteLine = {
   id: string;
@@ -1612,7 +1689,12 @@ export type SalesOrder = {
   totalAmount: string;
   sourceQuotation?: { id: string; reference: string } | null;
   customer: SalesQuotation["customer"];
-  salesInvoices: Array<{ id: string; reference: string; totalAmount: string; status: SalesInvoiceStatus }>;
+  salesInvoices: Array<{
+    id: string;
+    reference: string;
+    totalAmount: string;
+    status: SalesInvoiceStatus;
+  }>;
   lines: SalesLine[];
   createdAt: string;
   updatedAt: string;
@@ -1905,7 +1987,8 @@ export type CreateBankCashAccountPayload = {
   openingBalanceOffsetAccountId?: string;
 };
 
-export type UpdateBankCashAccountPayload = Partial<CreateBankCashAccountPayload>;
+export type UpdateBankCashAccountPayload =
+  Partial<CreateBankCashAccountPayload>;
 
 export type BankCashAccountTransaction = {
   id: string;
@@ -1963,16 +2046,31 @@ export type Account = {
   currentBalance: string;
   parentAccountId?: string | null;
   parentAccount?: Account | null;
-  ancestors?: Array<{ id: string; name: string; code: string; parentAccountId: string | null }>;
+  ancestors?: Array<{
+    id: string;
+    name: string;
+    code: string;
+    parentAccountId: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
 
-export type AccountOption = Pick<Account, "id" | "code" | "name" | "currentBalance" | "currencyCode">;
+export type AccountOption = Pick<
+  Account,
+  "id" | "code" | "name" | "currentBalance" | "currencyCode"
+>;
 
 export type AccountTableRow = Pick<
   Account,
-  "id" | "code" | "name" | "type" | "isPosting" | "isActive" | "currentBalance" | "parentAccountId"
+  | "id"
+  | "code"
+  | "name"
+  | "type"
+  | "isPosting"
+  | "isActive"
+  | "currentBalance"
+  | "parentAccountId"
 > & {
   canDelete: boolean;
   parentAccount?: { id: string; name: string } | null;
@@ -2093,9 +2191,6 @@ export type LedgerEntry = {
   runningBalance: string;
 };
 
-
-
-
 export type LedgerResponse = {
   openingBalance: string;
   transactions: LedgerEntry[];
@@ -2109,7 +2204,15 @@ export type LedgerQuery = {
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
 
-export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "POST" | "REVERSE" | "OPEN" | "CLOSE" | "VIEW";
+export type AuditAction =
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "POST"
+  | "REVERSE"
+  | "OPEN"
+  | "CLOSE"
+  | "VIEW";
 
 export type AuditLogEntry = {
   id: string;

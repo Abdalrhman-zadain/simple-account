@@ -36,7 +36,8 @@ const enTranslations: Record<string, string> = {
   "bankCash.description":
     "Register operational bank and cash accounts, link them to posting accounts, and review balances and transaction history.",
   "bankCash.button.new": "New Bank/Cash Account",
-  "bankCash.filters.search": "Search by name, bank, account number, or COA account…",
+  "bankCash.filters.search":
+    "Search by name, bank, account number, or COA account…",
   "bankCash.filters.type": "Payment Method",
   "bankCash.filters.status": "Status",
   "bankCash.filters.allTypes": "All payment methods",
@@ -53,8 +54,10 @@ const enTranslations: Record<string, string> = {
   "bankCash.table.actions": "Actions",
   "bankCash.table.bankName": "Bank / Location",
   "bankCash.history.title": "Transaction History",
-  "bankCash.history.description": "Posted receipts, payments, transfers, and related references for the selected bank/cash account.",
-  "bankCash.history.empty": "No posted transactions were found for this bank/cash account.",
+  "bankCash.history.description":
+    "Posted receipts, payments, transfers, and related references for the selected bank/cash account.",
+  "bankCash.history.empty":
+    "No posted transactions were found for this bank/cash account.",
   "bankCash.history.type": "Transaction Type",
   "bankCash.history.reference": "Reference",
   "bankCash.history.journalReference": "Journal Ref",
@@ -66,7 +69,8 @@ const enTranslations: Record<string, string> = {
   "bankCash.form.editTitle": "Edit Bank/Cash Account",
   "bankCash.form.name": "Account Name",
   "bankCash.form.namePlaceholder": "Search by account code or account name",
-  "bankCash.form.nameHelp": "Choose an active posting account. You can search by account number or account name.",
+  "bankCash.form.nameHelp":
+    "Choose an active posting account. You can search by account number or account name.",
   "bankCash.form.nameEmpty": "No matching posting account found.",
   "bankCash.form.bankName": "Bank Name / Cash Location",
   "bankCash.form.accountNumber": "Account Number / Reference",
@@ -74,19 +78,29 @@ const enTranslations: Record<string, string> = {
   "bankCash.form.linkedAccount": "Linked COA Account",
   "bankCash.form.type": "Payment Method Type",
   "bankCash.form.typePlaceholder": "Select a payment method type",
-  "bankCash.form.typeHelp": "Payment methods come from Master Data. Add Bank, Cash, Click, Wallet, or any other payment method there.",
-  "bankCash.form.bankNameHelp": "Required when the payment method is Bank. Optional for other payment methods.",
-  "bankCash.form.accountNumberHelp": "Required when the payment method is Bank. Optional for other payment methods.",
+  "bankCash.form.typeHelp":
+    "Payment methods come from Master Data. Add Bank, Cash, Click, Wallet, or any other payment method there.",
+  "bankCash.form.bankNameHelp":
+    "Required when the payment method is Bank. Optional for other payment methods.",
+  "bankCash.form.accountNumberHelp":
+    "Required when the payment method is Bank. Optional for other payment methods.",
   "bankCash.form.linkedAccountPlaceholder": "Select a posting asset account",
-  "bankCash.form.linkedAccountSearchHelp": "Start typing the account code or name to filter the chart of accounts.",
-  "bankCash.form.linkedAccountEmpty": "No matching posting asset account found.",
+  "bankCash.form.linkedAccountSearchHelp":
+    "Start typing the account code or name to filter the chart of accounts.",
+  "bankCash.form.linkedAccountEmpty":
+    "No matching posting asset account found.",
   "bankCash.form.openingBalance": "Opening Balance",
-  "bankCash.form.openingBalanceHelp": "Optional at creation time. If provided, the system posts it immediately to the linked account.",
+  "bankCash.form.openingBalanceHelp":
+    "Optional at creation time. If provided, the system posts it immediately to the linked account.",
   "bankCash.form.openingBalanceOffsetAccount": "Opening Balance Offset Account",
-  "bankCash.form.openingBalanceOffsetPlaceholder": "Select the offset posting account",
-  "bankCash.form.openingBalanceOffsetHelp": "Required when opening balance is greater than zero so the entry stays balanced.",
-  "bankCash.error.accountAlreadyLinked": "This chart-of-accounts record is already linked to another bank/cash account.",
-  "bankCash.error.openingBalanceOffsetRequired": "Opening balance offset account is required when an opening balance is provided.",
+  "bankCash.form.openingBalanceOffsetPlaceholder":
+    "Select the offset posting account",
+  "bankCash.form.openingBalanceOffsetHelp":
+    "Required when opening balance is greater than zero so the entry stays balanced.",
+  "bankCash.error.accountAlreadyLinked":
+    "This chart-of-accounts record is already linked to another bank/cash account.",
+  "bankCash.error.openingBalanceOffsetRequired":
+    "Opening balance offset account is required when an opening balance is provided.",
   "bankCash.form.cancel": "Cancel",
   "bankCash.form.create": "Create",
   "bankCash.form.save": "Save Changes",
@@ -106,9 +120,12 @@ const enTranslations: Record<string, string> = {
   "bankCashTransactions.title.RECEIPT": "Receipt Transactions",
   "bankCashTransactions.title.PAYMENT": "Payment Transactions",
   "bankCashTransactions.title.TRANSFER": "Transfer Transactions",
-  "bankCashTransactions.description.RECEIPT": "Record cash and bank receipts as drafts, review them, and post them into accounting when ready.",
-  "bankCashTransactions.description.PAYMENT": "Capture outgoing payments from bank and cash accounts, keep them in draft, then post them through the journal workflow.",
-  "bankCashTransactions.description.TRANSFER": "Move funds between bank and cash accounts with draft review before posting the transfer.",
+  "bankCashTransactions.description.RECEIPT":
+    "Record cash and bank receipts as drafts, review them, and post them into accounting when ready.",
+  "bankCashTransactions.description.PAYMENT":
+    "Capture outgoing payments from bank and cash accounts, keep them in draft, then post them through the journal workflow.",
+  "bankCashTransactions.description.TRANSFER":
+    "Move funds between bank and cash accounts with draft review before posting the transfer.",
   "bankCashTransactions.button.RECEIPT": "New Receipt",
   "bankCashTransactions.button.PAYMENT": "New Payment",
   "bankCashTransactions.button.TRANSFER": "New Transfer",
@@ -116,12 +133,14 @@ const enTranslations: Record<string, string> = {
   "bankCashTransactions.summary.draft": "Drafts",
   "bankCashTransactions.summary.amount": "Amount",
   "bankCashTransactions.summary.rows": "visible rows",
-  "bankCashTransactions.filters.search": "Search by reference, description, or counterparty...",
+  "bankCashTransactions.filters.search":
+    "Search by reference, description, or counterparty...",
   "bankCashTransactions.filters.allStatuses": "All statuses",
   "bankCashTransactions.status.DRAFT": "Draft",
   "bankCashTransactions.status.POSTED": "Posted",
   "bankCashTransactions.table.title": "Transactions",
-  "bankCashTransactions.table.description": "Drafts can be edited and then posted. Posted rows stay linked to their journal entry.",
+  "bankCashTransactions.table.description":
+    "Drafts can be edited and then posted. Posted rows stay linked to their journal entry.",
   "bankCashTransactions.table.reference": "Reference",
   "bankCashTransactions.table.account": "Accounts",
   "bankCashTransactions.table.date": "Date",
@@ -129,37 +148,44 @@ const enTranslations: Record<string, string> = {
   "bankCashTransactions.table.status": "Status",
   "bankCashTransactions.table.actions": "Actions",
   "bankCashTransactions.table.noJournal": "No journal yet",
-  "bankCashTransactions.empty": "No bank/cash transactions match the current filters.",
+  "bankCashTransactions.empty":
+    "No bank/cash transactions match the current filters.",
   "bankCashTransactions.action.edit": "Edit",
   "bankCashTransactions.action.post": "Post",
   "bankCashTransactions.action.view": "View",
   "bankCashTransactions.confirm.post": "Post this transaction now?",
   "bankCashTransactions.details.title": "Transaction Details",
-  "bankCashTransactions.details.empty": "Select a transaction to review its details.",
+  "bankCashTransactions.details.empty":
+    "Select a transaction to review its details.",
   "bankCashTransactions.details.journal": "Journal Ref",
   "bankCashTransactions.details.primary": "Primary Account",
   "bankCashTransactions.details.secondary": "Offset / Destination",
   "bankCashTransactions.form.editTitle": "Edit Draft",
   "bankCashTransactions.form.reference": "Reference",
-  "bankCashTransactions.form.referenceHint": "Leave blank to let the system generate one.",
+  "bankCashTransactions.form.referenceHint":
+    "Leave blank to let the system generate one.",
   "bankCashTransactions.form.date": "Transaction Date",
   "bankCashTransactions.form.amount": "Amount",
   "bankCashTransactions.form.bankCashAccount": "Bank/Cash Account",
   "bankCashTransactions.form.counterAccount": "Counter Account",
   "bankCashTransactions.form.sourceAccount": "Source Account",
   "bankCashTransactions.form.destinationAccount": "Destination Account",
-  "bankCashTransactions.form.selectBankCashAccount": "Select an active bank/cash account",
+  "bankCashTransactions.form.selectBankCashAccount":
+    "Select an active bank/cash account",
   "bankCashTransactions.form.selectCounterAccount": "Select a posting account",
   "bankCashTransactions.form.counterparty": "Counterparty",
-  "bankCashTransactions.form.counterpartyHint.receipt": "Optional customer or payer name.",
-  "bankCashTransactions.form.counterpartyHint.payment": "Optional supplier or payee name.",
+  "bankCashTransactions.form.counterpartyHint.receipt":
+    "Optional customer or payer name.",
+  "bankCashTransactions.form.counterpartyHint.payment":
+    "Optional supplier or payee name.",
   "bankCashTransactions.form.description": "Description",
   "bankCashTransactions.form.cancel": "Cancel",
   "bankCashTransactions.form.create": "Save Draft",
   "bankCashTransactions.form.save": "Save Changes",
 
   "bankReconciliation.title": "Bank Reconciliation",
-  "bankReconciliation.description": "Reconcile bank and cash accounts against statement lines, review unmatched items, and store the audit status of each match.",
+  "bankReconciliation.description":
+    "Reconcile bank and cash accounts against statement lines, review unmatched items, and store the audit status of each match.",
   "bankReconciliation.button.new": "New Reconciliation",
   "bankReconciliation.summary.reconciliations": "Reconciliations",
   "bankReconciliation.summary.unmatchedLines": "Unmatched lines",
@@ -182,10 +208,12 @@ const enTranslations: Record<string, string> = {
   "bankReconciliation.form.create": "Create",
   "bankReconciliation.form.selectAccount": "Select an active bank/cash account",
   "bankReconciliation.list.title": "Reconciliations",
-  "bankReconciliation.list.empty": "No reconciliations match the current filters.",
+  "bankReconciliation.list.empty":
+    "No reconciliations match the current filters.",
   "bankReconciliation.list.lines": "{count} statement lines",
   "bankReconciliation.list.reconciled": "{count} reconciled matches",
-  "bankReconciliation.details.empty": "Select a reconciliation to review statement lines and system transactions.",
+  "bankReconciliation.details.empty":
+    "Select a reconciliation to review statement lines and system transactions.",
   "bankReconciliation.details.statementBalance": "Statement balance",
   "bankReconciliation.details.systemBalance": "System balance",
   "bankReconciliation.details.difference": "Difference",
@@ -194,7 +222,8 @@ const enTranslations: Record<string, string> = {
   "bankReconciliation.statementLines.title": "Statement Lines",
   "bankReconciliation.statementLines.empty": "No statement lines yet.",
   "bankReconciliation.statementLines.unmatched": "Unmatched statement lines",
-  "bankReconciliation.statementLines.importHint": "Paste CSV rows as date,reference,description,debit,credit",
+  "bankReconciliation.statementLines.importHint":
+    "Paste CSV rows as date,reference,description,debit,credit",
   "bankReconciliation.statementLines.add": "Add Line",
   "bankReconciliation.statementLines.import": "Import Lines",
   "bankReconciliation.statementLines.reference": "Reference",
@@ -205,18 +234,23 @@ const enTranslations: Record<string, string> = {
   "bankReconciliation.statementLines.status": "Status",
   "bankReconciliation.statementLines.action.select": "Select",
   "bankReconciliation.matching.title": "Matching",
-  "bankReconciliation.matching.unmatchedSystem": "Unmatched system transactions",
-  "bankReconciliation.matching.emptySystem": "No unmatched system transactions remain for this reconciliation.",
+  "bankReconciliation.matching.unmatchedSystem":
+    "Unmatched system transactions",
+  "bankReconciliation.matching.emptySystem":
+    "No unmatched system transactions remain for this reconciliation.",
   "bankReconciliation.matching.selectedLine": "Selected statement line",
-  "bankReconciliation.matching.noneSelected": "Choose one unmatched statement line and one unmatched system transaction.",
+  "bankReconciliation.matching.noneSelected":
+    "Choose one unmatched statement line and one unmatched system transaction.",
   "bankReconciliation.matching.match": "Match Selected",
   "bankReconciliation.matching.remove": "Remove Match",
   "bankReconciliation.matching.reconcile": "Mark Reconciled",
   "bankReconciliation.matching.complete": "Complete Reconciliation",
   "bankReconciliation.matching.completedAt": "Completed at",
   "bankReconciliation.matching.none": "No matches yet.",
-  "bankReconciliation.import.placeholder": "2026-04-16,DEP-001,Customer deposit,500,0",
-  "bankReconciliation.error.parse": "Each import row must contain date, reference, description, debit, and credit values.",
+  "bankReconciliation.import.placeholder":
+    "2026-04-16,DEP-001,Customer deposit,500,0",
+  "bankReconciliation.error.parse":
+    "Each import row must contain date, reference, description, debit, and credit values.",
 
   "language.toggle.aria": "Toggle language",
   "language.englishShort": "EN",
@@ -231,7 +265,8 @@ const enTranslations: Record<string, string> = {
   "accounts.stats.netBalance": "Net Balance",
   "accounts.stats.accounts": "accounts",
   "accounts.stats.allAccounts": "all accounts",
-  "accounts.search.placeholder": "Search or filter: type:Asset, status:Active, is:Posting…",
+  "accounts.search.placeholder":
+    "Search or filter: type:Asset, status:Active, is:Posting…",
   "accounts.suggestions.title": "Suggestions",
   "accounts.view.title": "Accounts View",
   "accounts.view.rootAccounts": "Root Accounts",
@@ -256,7 +291,8 @@ const enTranslations: Record<string, string> = {
   "accounts.action.deactivate": "Deactivate Account",
   "accounts.action.activate": "Activate Account",
   "accounts.action.delete": "Delete Account",
-  "accounts.confirm.delete": "Delete this account? This is only allowed when the account has no transfer history.",
+  "accounts.confirm.delete":
+    "Delete this account? This is only allowed when the account has no transfer history.",
 
   "accountType.ASSET": "Asset",
   "accountType.LIABILITY": "Liability",
@@ -306,8 +342,8 @@ const enTranslations: Record<string, string> = {
   "fiscal.table.action": "Action",
   "fiscal.action.close": "Close",
   "fiscal.action.reopen": "Re-open",
-  "fiscal.confirm.close": "Close \"{name}\"? This will prevent new postings.",
-  "fiscal.confirm.reopen": "Re-open \"{name}\"?",
+  "fiscal.confirm.close": 'Close "{name}"? This will prevent new postings.',
+  "fiscal.confirm.reopen": 'Re-open "{name}"?',
 
   "audit.title": "Audit Trail",
   "audit.description":
@@ -339,10 +375,12 @@ const enTranslations: Record<string, string> = {
   "journal.lines.debit": "Debit",
   "journal.lines.credit": "Credit",
   "journal.lines.addLine": "+ Add Line",
-  "journal.balance.notBalanced": "Entry is not balanced. Debit: {debit} · Credit: {credit}",
+  "journal.balance.notBalanced":
+    "Entry is not balanced. Debit: {debit} · Credit: {credit}",
   "journal.balance.balanced": "✓ Entry is balanced",
   "journal.list.title": "Journal Entries",
-  "journal.list.subtitle": "Search by reference/description, or filter by type.",
+  "journal.list.subtitle":
+    "Search by reference/description, or filter by type.",
   "journal.list.searchPlaceholder": "Search reference or description…",
   "journal.list.allTypes": "All types",
   "journal.list.loading": "Loading entries...",
@@ -362,17 +400,22 @@ const enTranslations: Record<string, string> = {
   "master.tab.journalEntryTypes": "Journal Entry Types",
   "master.tab.paymentMethodTypes": "Payment Method Types",
   "master.section.accountSubtypes.title": "Account Classes (Subtypes)",
-  "master.section.accountSubtypes.description": "Create your own account classes like Bank, Cash, Receivable, Payable, etc.",
+  "master.section.accountSubtypes.description":
+    "Create your own account classes like Bank, Cash, Receivable, Payable, etc.",
   "master.section.accountSubtypes.add": "Add Class",
   "master.section.journalEntryTypes.title": "Journal Entry Types",
-  "master.section.journalEntryTypes.description": "Create your own journal entry types like Payment, Invoice, Adjustment, Transfer, etc.",
+  "master.section.journalEntryTypes.description":
+    "Create your own journal entry types like Payment, Invoice, Adjustment, Transfer, etc.",
   "master.section.journalEntryTypes.add": "Add Type",
   "master.section.paymentMethodTypes.title": "Payment Method Types",
-  "master.section.paymentMethodTypes.description": "Create payment methods like Bank, Cash, Click, Wallet, Card, or any other way customers can pay.",
+  "master.section.paymentMethodTypes.description":
+    "Create payment methods like Bank, Cash, Click, Wallet, Card, or any other way customers can pay.",
   "master.section.paymentMethodTypes.add": "Add Payment Method",
   "master.accountSubtypes.createError": "Failed to create account class.",
-  "master.journalEntryTypes.createError": "Failed to create journal entry type.",
-  "master.paymentMethodTypes.createError": "Failed to create payment method type.",
+  "master.journalEntryTypes.createError":
+    "Failed to create journal entry type.",
+  "master.paymentMethodTypes.createError":
+    "Failed to create payment method type.",
 
   "journal.accountSelect.placeholder": "— Select posting account —",
   "journal.accountSelect.noMatches": "No matches.",
@@ -402,9 +445,10 @@ const enTranslations: Record<string, string> = {
   "master.segmentValues.namePlaceholder": "Full name (e.g., Amman)",
   "master.accountSubtypes.namePlaceholder": "Class name (e.g., Bank)",
   "master.journalEntryTypes.namePlaceholder": "Type name (e.g., Payment)",
-  "master.paymentMethodTypes.namePlaceholder": "Payment method name (e.g., Click)",
+  "master.paymentMethodTypes.namePlaceholder":
+    "Payment method name (e.g., Click)",
 
-  "common.confirm.deactivate": "Deactivate \"{name}\"?",
+  "common.confirm.deactivate": 'Deactivate "{name}"?',
 
   "accounts.form.loadingDetails": "Loading account details…",
   "accounts.form.title.new": "New Account",
@@ -431,11 +475,14 @@ const enTranslations: Record<string, string> = {
   "accounts.form.nameArHint": "Optional — displayed RTL",
   "accounts.form.nameArPlaceholder": "الحساب البنكي الرئيسي",
   "accounts.form.descriptionLabel": "Description / Notes",
-  "accounts.form.descriptionPlaceholder": "Audit notes, operational scope, or internal commentary…",
+  "accounts.form.descriptionPlaceholder":
+    "Audit notes, operational scope, or internal commentary…",
   "accounts.form.postingSettings": "Posting Settings",
   "accounts.form.allowManual.label": "Allow manual journal entries",
-  "accounts.form.allowManual.help": "When enabled, users can debit/credit this account directly in Journal Entries. Disable for system-controlled accounts (e.g. retained earnings, tax payable).",
-  "accounts.form.allowManual.disabledNote": "Manual posting is disabled. This account can only be updated via automated system rules.",
+  "accounts.form.allowManual.help":
+    "When enabled, users can debit/credit this account directly in Journal Entries. Disable for system-controlled accounts (e.g. retained earnings, tax payable).",
+  "accounts.form.allowManual.disabledNote":
+    "Manual posting is disabled. This account can only be updated via automated system rules.",
   "common.none": "None",
   "common.back": "Back",
   "accounts.form.validation.nameRequired": "Name is required.",
@@ -446,7 +493,8 @@ const enTranslations: Record<string, string> = {
 
 Object.assign(enTranslations, {
   "purchases.title": "Purchases",
-  "purchases.description": "Phase 4 Procure-to-Pay scaffold. The module structure and bilingual requirements baseline are ready so we can implement supplier and purchasing workflows in the same project architecture.",
+  "purchases.description":
+    "Phase 4 Procure-to-Pay scaffold. The module structure and bilingual requirements baseline are ready so we can implement supplier and purchasing workflows in the same project architecture.",
   "purchases.status.scaffold": "Scaffold Only",
   "purchases.summary.phase": "Phase",
   "purchases.summary.phaseValue": "Phase 4",
@@ -455,45 +503,68 @@ Object.assign(enTranslations, {
   "purchases.summary.scopeValue": "Purchases Module",
   "purchases.summary.scopeHint": "Supplier-facing purchasing workflows",
   "purchases.summary.submodules": "Submodules",
-  "purchases.summary.submodulesHint": "Planned ownership slices under purchases",
+  "purchases.summary.submodulesHint":
+    "Planned ownership slices under purchases",
   "purchases.summary.requirements": "Requirements",
-  "purchases.summary.requirementsHint": "Captured in the bilingual Phase 4 requirements document",
+  "purchases.summary.requirementsHint":
+    "Captured in the bilingual Phase 4 requirements document",
   "purchases.section.architecture": "Architecture",
-  "purchases.section.architectureTitle": "Phase 4 follows the same modular ownership style",
-  "purchases.section.architectureDescription": "This first step creates a dedicated Phase 4 backend module and a matching frontend feature entry so each purchasing workflow can be added as its own purchases submodule without mixing responsibilities into Sales, Bank & Cash, or Phase 1 accounting logic.",
+  "purchases.section.architectureTitle":
+    "Phase 4 follows the same modular ownership style",
+  "purchases.section.architectureDescription":
+    "This first step creates a dedicated Phase 4 backend module and a matching frontend feature entry so each purchasing workflow can be added as its own purchases submodule without mixing responsibilities into Sales, Bank & Cash, or Phase 1 accounting logic.",
   "purchases.section.architectureStatus": "Planned Submodules",
   "purchases.section.document": "Requirements",
-  "purchases.section.documentTitle": "Bilingual requirements baseline is saved in docs",
-  "purchases.section.documentDescription": "The full Purchases Module requirements are now tracked in English and Arabic so implementation can proceed requirement by requirement without losing the original business wording.",
+  "purchases.section.documentTitle":
+    "Bilingual requirements baseline is saved in docs",
+  "purchases.section.documentDescription":
+    "The full Purchases Module requirements are now tracked in English and Arabic so implementation can proceed requirement by requirement without losing the original business wording.",
   "purchases.section.documentPathLabel": "Document:",
   "purchases.submodule.requirements": "{count} requirements",
   "purchases.submodule.nextStep": "Next planned slice",
   "purchases.submodule.suppliers.title": "Suppliers",
-  "purchases.submodule.suppliers.description": "Supplier masters, payable account defaults, currency defaults, deactivation rules, transaction history, and outstanding balances.",
-  "purchases.submodule.suppliers.nextStep": "Start with supplier master records, active/deactivated control, and selector-safe validations.",
+  "purchases.submodule.suppliers.description":
+    "Supplier masters, payable account defaults, currency defaults, deactivation rules, transaction history, and outstanding balances.",
+  "purchases.submodule.suppliers.nextStep":
+    "Start with supplier master records, active/deactivated control, and selector-safe validations.",
   "purchases.submodule.purchaseRequests.title": "Purchase Requests",
-  "purchases.submodule.purchaseRequests.description": "Internal request workflow before approval, with draft handling, line details, unique references, and status history.",
-  "purchases.submodule.purchaseRequests.nextStep": "Model draft, submitted, approved, rejected, and closed request lifecycle with one-to-many request lines.",
+  "purchases.submodule.purchaseRequests.description":
+    "Internal request workflow before approval, with draft handling, line details, unique references, and status history.",
+  "purchases.submodule.purchaseRequests.nextStep":
+    "Model draft, submitted, approved, rejected, and closed request lifecycle with one-to-many request lines.",
   "purchases.submodule.purchaseOrders.title": "Purchase Orders",
-  "purchases.submodule.purchaseOrders.description": "Official supplier orders created directly or converted from approved requests, with supplier linkage, dates, lines, and receipt status tracking.",
-  "purchases.submodule.purchaseOrders.nextStep": "Add purchase-order header and line entities plus conversion traceability from approved requests.",
+  "purchases.submodule.purchaseOrders.description":
+    "Official supplier orders created directly or converted from approved requests, with supplier linkage, dates, lines, and receipt status tracking.",
+  "purchases.submodule.purchaseOrders.nextStep":
+    "Add purchase-order header and line entities plus conversion traceability from approved requests.",
   "purchases.submodule.purchaseInvoices.title": "Purchase Invoices",
-  "purchases.submodule.purchaseInvoices.description": "Supplier invoices with account classification, totals, taxes, discounts, references, and draft-before-posting control.",
-  "purchases.submodule.purchaseInvoices.nextStep": "Design invoice posting around Phase 1 journal entry creation while preserving draft editability.",
+  "purchases.submodule.purchaseInvoices.description":
+    "Supplier invoices with account classification, totals, taxes, discounts, references, and draft-before-posting control.",
+  "purchases.submodule.purchaseInvoices.nextStep":
+    "Design invoice posting around Phase 1 journal entry creation while preserving draft editability.",
   "purchases.submodule.supplierPayments.title": "Supplier Payments",
-  "purchases.submodule.supplierPayments.description": "Payment capture, allocation to one or multiple purchase invoices, partial settlement, and Bank & Cash integration after posting.",
-  "purchases.submodule.supplierPayments.nextStep": "Reuse Phase 2 payment behavior where possible, but keep supplier allocation ownership inside Purchases.",
+  "purchases.submodule.supplierPayments.description":
+    "Payment capture, allocation to one or multiple purchase invoices, partial settlement, and Bank & Cash integration after posting.",
+  "purchases.submodule.supplierPayments.nextStep":
+    "Reuse Phase 2 payment behavior where possible, but keep supplier allocation ownership inside Purchases.",
   "purchases.submodule.debitNotes.title": "Debit Notes",
-  "purchases.submodule.debitNotes.description": "Supplier-related debit notes for returns, price corrections, disputes, reference linking, and payable reduction after posting.",
-  "purchases.submodule.debitNotes.nextStep": "Treat debit notes as their own document type with invoice linkage and payable balance impact.",
+  "purchases.submodule.debitNotes.description":
+    "Supplier-related debit notes for returns, price corrections, disputes, reference linking, and payable reduction after posting.",
+  "purchases.submodule.debitNotes.nextStep":
+    "Treat debit notes as their own document type with invoice linkage and payable balance impact.",
   "purchases.submodule.postingAndAccounting.title": "Posting & Accounting",
-  "purchases.submodule.postingAndAccounting.description": "Automatic journal-entry generation, posting status changes, supplier balance updates, document locking, and reversal-safe accounting flow.",
-  "purchases.submodule.postingAndAccounting.nextStep": "Route all accounting impact through Phase 1 journal and posting services instead of writing ledger effects directly.",
+  "purchases.submodule.postingAndAccounting.description":
+    "Automatic journal-entry generation, posting status changes, supplier balance updates, document locking, and reversal-safe accounting flow.",
+  "purchases.submodule.postingAndAccounting.nextStep":
+    "Route all accounting impact through Phase 1 journal and posting services instead of writing ledger effects directly.",
   "purchases.submodule.validationAndControl.title": "Validation & Control",
-  "purchases.submodule.validationAndControl.description": "Prevent duplicate references, over-allocation, posting against deactivated suppliers, and preserve document lifecycle audit history.",
-  "purchases.submodule.validationAndControl.nextStep": "Centralize cross-document checks so draft-save, post, cancel, and reverse rules stay consistent.",
+  "purchases.submodule.validationAndControl.description":
+    "Prevent duplicate references, over-allocation, posting against deactivated suppliers, and preserve document lifecycle audit history.",
+  "purchases.submodule.validationAndControl.nextStep":
+    "Centralize cross-document checks so draft-save, post, cancel, and reverse rules stay consistent.",
   "salesReceivables.title": "Sales & Receivables",
-  "salesReceivables.description": "Manage customer masters, draft and post invoices or credit notes, allocate receipts, and review balances and aging in one place.",
+  "salesReceivables.description":
+    "Manage customer masters, draft and post invoices or credit notes, allocate receipts, and review balances and aging in one place.",
   "salesReceivables.tab.customers": "Customers",
   "salesReceivables.tab.quotations": "Quotations",
   "salesReceivables.tab.orders": "Sales Orders",
@@ -528,7 +599,8 @@ Object.assign(enTranslations, {
   "salesReceivables.summary.over90": "Over 90",
   "salesReceivables.summary.total": "Total",
   "salesReceivables.hint.currentFilteredList": "current filtered list",
-  "salesReceivables.hint.availableForNewTransactions": "available for new transactions",
+  "salesReceivables.hint.availableForNewTransactions":
+    "available for new transactions",
   "salesReceivables.hint.runningCustomerBalances": "running customer balances",
   "salesReceivables.hint.readyForConversion": "ready for conversion",
   "salesReceivables.hint.totalQuotedAmount": "total quoted amount",
@@ -539,17 +611,24 @@ Object.assign(enTranslations, {
   "salesReceivables.hint.matchedToInvoices": "already matched to invoices",
   "salesReceivables.hint.stillEditable": "still editable",
   "salesReceivables.hint.receivableStillOpen": "receivable still open",
-  "salesReceivables.hint.customerBalanceReductions": "customer balance reductions",
-  "salesReceivables.hint.availableReceiptTransactions": "available receipt transactions",
-  "salesReceivables.hint.stillWaitingToBeAllocated": "still waiting to be allocated",
+  "salesReceivables.hint.customerBalanceReductions":
+    "customer balance reductions",
+  "salesReceivables.hint.availableReceiptTransactions":
+    "available receipt transactions",
+  "salesReceivables.hint.stillWaitingToBeAllocated":
+    "still waiting to be allocated",
   "salesReceivables.hint.days0To30": "0-30 days",
   "salesReceivables.hint.days31To60": "31-60 days",
   "salesReceivables.hint.days61To90": "61-90 days",
   "salesReceivables.hint.olderReceivables": "older receivables",
-  "salesReceivables.hint.allOutstandingPostedInvoices": "all outstanding posted invoices",
-  "salesReceivables.filters.searchCustomers": "Search by code, name, or contact...",
-  "salesReceivables.filters.searchInvoices": "Search by reference, description, or customer...",
-  "salesReceivables.filters.searchCreditNotes": "Search by reference, description, or customer...",
+  "salesReceivables.hint.allOutstandingPostedInvoices":
+    "all outstanding posted invoices",
+  "salesReceivables.filters.searchCustomers":
+    "Search by code, name, or contact...",
+  "salesReceivables.filters.searchInvoices":
+    "Search by reference, description, or customer...",
+  "salesReceivables.filters.searchCreditNotes":
+    "Search by reference, description, or customer...",
   "salesReceivables.filters.allStatuses": "All statuses",
   "salesReceivables.filters.activeOnly": "Active only",
   "salesReceivables.filters.inactiveOnly": "Inactive only",
@@ -592,66 +671,91 @@ Object.assign(enTranslations, {
   "salesReceivables.status.overdue": "Overdue",
   "salesReceivables.status.cancelled": "Cancelled",
   "salesReceivables.section.customerMasterRecords": "Customer Master Records",
-  "salesReceivables.section.customerMasterRecordsDescription": "Create, edit, and deactivate customers while preserving transaction history.",
+  "salesReceivables.section.customerMasterRecordsDescription":
+    "Create, edit, and deactivate customers while preserving transaction history.",
   "salesReceivables.section.customerDetails": "Customer Details",
-  "salesReceivables.section.customerDetailsEmpty": "Select a customer to review balances and activity.",
+  "salesReceivables.section.customerDetailsEmpty":
+    "Select a customer to review balances and activity.",
   "salesReceivables.section.customerTransactions": "Transactions",
   "salesReceivables.section.quotations": "Sales Quotations",
-  "salesReceivables.section.quotationsDescription": "Draft, approve, and track quotation validity before conversion.",
+  "salesReceivables.section.quotationsDescription":
+    "Draft, approve, and track quotation validity before conversion.",
   "salesReceivables.section.quotationDetails": "Quotation Details",
-  "salesReceivables.section.quotationDetailsEmpty": "Select a quotation to review details.",
+  "salesReceivables.section.quotationDetailsEmpty":
+    "Select a quotation to review details.",
   "salesReceivables.section.quotationLines": "Quotation Lines",
   "salesReceivables.section.orders": "Sales Orders",
-  "salesReceivables.section.ordersDescription": "Track customer commitments and invoice progress.",
+  "salesReceivables.section.ordersDescription":
+    "Track customer commitments and invoice progress.",
   "salesReceivables.section.orderDetails": "Sales Order Details",
-  "salesReceivables.section.orderDetailsEmpty": "Select a sales order to review details.",
+  "salesReceivables.section.orderDetailsEmpty":
+    "Select a sales order to review details.",
   "salesReceivables.section.orderLines": "Order Lines",
   "salesReceivables.section.salesInvoices": "Sales Invoices",
-  "salesReceivables.section.salesInvoicesDescription": "Draft invoices can be edited. Posting creates the journal entry and locks the document.",
+  "salesReceivables.section.salesInvoicesDescription":
+    "Draft invoices can be edited. Posting creates the journal entry and locks the document.",
   "salesReceivables.section.invoiceDetails": "Invoice Details",
-  "salesReceivables.section.invoiceDetailsEmpty": "Select an invoice to review its lines and posting details.",
+  "salesReceivables.section.invoiceDetailsEmpty":
+    "Select an invoice to review its lines and posting details.",
   "salesReceivables.section.creditNotes": "Credit Notes",
-  "salesReceivables.section.creditNotesDescription": "Create standalone credit notes or link them back to posted invoices for the same customer.",
+  "salesReceivables.section.creditNotesDescription":
+    "Create standalone credit notes or link them back to posted invoices for the same customer.",
   "salesReceivables.section.creditNoteDetails": "Credit Note Details",
-  "salesReceivables.section.creditNoteDetailsEmpty": "Select a credit note to review its lines and linkages.",
+  "salesReceivables.section.creditNoteDetailsEmpty":
+    "Select a credit note to review its lines and linkages.",
   "salesReceivables.section.receipts": "Customer Receipts",
-  "salesReceivables.section.receiptsDescription": "Receipts created from Sales and posted through Bank & Cash.",
+  "salesReceivables.section.receiptsDescription":
+    "Receipts created from Sales and posted through Bank & Cash.",
   "salesReceivables.section.receiptDetails": "Receipt Details",
-  "salesReceivables.section.receiptDetailsEmpty": "Select a receipt to review details.",
+  "salesReceivables.section.receiptDetailsEmpty":
+    "Select a receipt to review details.",
   "salesReceivables.section.allocatePostedReceipts": "Allocate Posted Receipts",
-  "salesReceivables.section.allocatePostedReceiptsDescription": "Apply posted receipt transactions against posted invoices. Partial allocation and multiple receipts per invoice are supported.",
+  "salesReceivables.section.allocatePostedReceiptsDescription":
+    "Apply posted receipt transactions against posted invoices. Partial allocation and multiple receipts per invoice are supported.",
   "salesReceivables.section.openInvoices": "Open Invoices",
-  "salesReceivables.section.openInvoicesDescription": "Outstanding balances update after credit notes and receipt allocations.",
+  "salesReceivables.section.openInvoicesDescription":
+    "Outstanding balances update after credit notes and receipt allocations.",
   "salesReceivables.section.postedReceipts": "Posted Receipts",
-  "salesReceivables.section.postedReceiptsDescription": "Receipts can be applied across multiple invoices until the receipt balance is exhausted.",
+  "salesReceivables.section.postedReceiptsDescription":
+    "Receipts can be applied across multiple invoices until the receipt balance is exhausted.",
   "salesReceivables.section.customerAgingReport": "Customer Aging Report",
-  "salesReceivables.section.customerAgingReportDescription": "Outstanding balances are categorized into current, 31-60, 61-90, and over 90 day buckets.",
+  "salesReceivables.section.customerAgingReportDescription":
+    "Outstanding balances are categorized into current, 31-60, 61-90, and over 90 day buckets.",
   "salesReceivables.section.documentLines": "Document Lines",
-  "salesReceivables.section.documentLinesDescription": "Each line needs a revenue account and either a unit price or line amount.",
+  "salesReceivables.section.documentLinesDescription":
+    "Each line needs a revenue account and either a unit price or line amount.",
   "salesReceivables.empty.customers": "No customers match the current filters.",
   "salesReceivables.empty.customerContact": "No contact details",
   "salesReceivables.empty.notSet": "Not set",
-  "salesReceivables.empty.noPostedCustomerTransactions": "No posted customer transactions yet.",
-  "salesReceivables.empty.customerTransactionPrompt": "Select a customer to review balances and transaction history.",
+  "salesReceivables.empty.noPostedCustomerTransactions":
+    "No posted customer transactions yet.",
+  "salesReceivables.empty.customerTransactionPrompt":
+    "Select a customer to review balances and transaction history.",
   "salesReceivables.empty.quotations": "No quotations found.",
   "salesReceivables.empty.orders": "No sales orders found.",
   "salesReceivables.empty.invoices": "No invoices match the current filters.",
   "salesReceivables.empty.noJournal": "No journal yet",
   "salesReceivables.empty.receipts": "No customer receipts found.",
-  "salesReceivables.empty.creditNotes": "No credit notes match the current filters.",
+  "salesReceivables.empty.creditNotes":
+    "No credit notes match the current filters.",
   "salesReceivables.empty.unlinked": "Unlinked",
   "salesReceivables.empty.manual": "Manual",
   "salesReceivables.empty.manualOrder": "Manual order",
-  "salesReceivables.empty.noOpenPostedInvoices": "No open posted invoices right now.",
-  "salesReceivables.empty.noPostedReceipts": "No posted receipts are available yet.",
-  "salesReceivables.empty.noAgingBalances": "No aged balances were found for the selected date.",
+  "salesReceivables.empty.noOpenPostedInvoices":
+    "No open posted invoices right now.",
+  "salesReceivables.empty.noPostedReceipts":
+    "No posted receipts are available yet.",
+  "salesReceivables.empty.noAgingBalances":
+    "No aged balances were found for the selected date.",
   "salesReceivables.empty.noLinkedInvoice": "No linked invoice",
   "salesReceivables.empty.selectOpenInvoice": "Select an open invoice",
   "salesReceivables.empty.selectPostedReceipt": "Select a posted receipt",
   "salesReceivables.empty.selectActiveCustomer": "Select an active customer",
-  "salesReceivables.empty.selectReceivableAccount": "Select an active posting asset account",
+  "salesReceivables.empty.selectReceivableAccount":
+    "Select an active posting asset account",
   "salesReceivables.empty.selectRevenueAccount": "Select a revenue account",
-  "salesReceivables.empty.selectBankCashAccount": "Select a bank / cash account",
+  "salesReceivables.empty.selectBankCashAccount":
+    "Select a bank / cash account",
   "salesReceivables.empty.revenueAccountOptional": "Revenue account optional",
   "salesReceivables.empty.receipt": "Receipt",
   "salesReceivables.metric.currentBalance": "Current Balance",
@@ -712,12 +816,17 @@ Object.assign(enTranslations, {
   "salesReceivables.field.bankCash": "Bank/Cash",
   "salesReceivables.field.bankCashAccount": "Bank / Cash Account",
   "salesReceivables.field.settlementReference": "Settlement Reference",
-  "salesReceivables.field.codeHint": "Leave blank to let the system generate a code.",
-  "salesReceivables.field.referenceHint": "Leave blank to let the system generate a reference.",
-  "salesReceivables.field.linkedInvoiceHint": "Optional. Linked invoices must belong to the same customer.",
-  "salesReceivables.field.currentOutstandingBalance": "Current outstanding balance: {amount}",
+  "salesReceivables.field.codeHint":
+    "Leave blank to let the system generate a code.",
+  "salesReceivables.field.referenceHint":
+    "Leave blank to let the system generate a reference.",
+  "salesReceivables.field.linkedInvoiceHint":
+    "Optional. Linked invoices must belong to the same customer.",
+  "salesReceivables.field.currentOutstandingBalance":
+    "Current outstanding balance: {amount}",
   "salesReceivables.field.creditNoteTotal": "Credit Note Total",
-  "salesReceivables.field.agingDescription": "Aging uses posted invoices with outstanding balances and buckets them by invoice age.",
+  "salesReceivables.field.agingDescription":
+    "Aging uses posted invoices with outstanding balances and buckets them by invoice age.",
   "salesReceivables.filters.searchQuotations": "Search quotations...",
   "salesReceivables.filters.searchOrders": "Search sales orders...",
   "salesReceivables.filters.searchReceipts": "Search receipts...",
@@ -736,10 +845,13 @@ Object.assign(enTranslations, {
   "salesReceivables.line.qtyPrice": "Qty {quantity} × {price}",
   "salesReceivables.transaction.allocated": "Allocated: {amount}",
   "salesReceivables.transaction.outstanding": "Outstanding: {amount}",
-  "salesReceivables.transaction.appliedToInvoice": "Applied to invoice {reference}",
-  "salesReceivables.confirm.deactivateCustomer": "Deactivate customer \"{name}\"? Historical transactions will remain available.",
-  "salesReceivables.confirm.postInvoice": "Post invoice \"{reference}\" now?",
-  "salesReceivables.confirm.postCreditNote": "Post credit note \"{reference}\" now?",
+  "salesReceivables.transaction.appliedToInvoice":
+    "Applied to invoice {reference}",
+  "salesReceivables.confirm.deactivateCustomer":
+    'Deactivate customer "{name}"? Historical transactions will remain available.',
+  "salesReceivables.confirm.postInvoice": 'Post invoice "{reference}" now?',
+  "salesReceivables.confirm.postCreditNote":
+    'Post credit note "{reference}" now?',
 });
 
 Object.assign(enTranslations, {
@@ -765,11 +877,13 @@ Object.assign(enTranslations, {
   "purchases.summary.totalSuppliers": "Suppliers",
   "purchases.summary.totalSuppliersHint": "Current filtered list",
   "purchases.summary.activeSuppliers": "Active Suppliers",
-  "purchases.summary.activeSuppliersHint": "Available for new purchase transactions",
+  "purchases.summary.activeSuppliersHint":
+    "Available for new purchase transactions",
   "purchases.summary.totalOutstanding": "Outstanding",
   "purchases.summary.totalOutstandingHint": "Total supplier payable balance",
   "purchases.filters.search": "Search",
-  "purchases.filters.searchPlaceholder": "Search by code, supplier name, contact, tax info, or payable account...",
+  "purchases.filters.searchPlaceholder":
+    "Search by code, supplier name, contact, tax info, or payable account...",
   "purchases.filters.status": "Status",
   "purchases.filters.allStatuses": "All statuses",
   "purchases.filters.activeOnly": "Active only",
@@ -794,9 +908,11 @@ Object.assign(enTranslations, {
   "purchases.empty.paymentTerms": "No payment terms",
   "purchases.empty.contactInfo": "No contact information",
   "purchases.empty.taxInfo": "No tax information",
-  "purchases.empty.selectSupplier": "Select a supplier to view outstanding balance and transaction history.",
+  "purchases.empty.selectSupplier":
+    "Select a supplier to view outstanding balance and transaction history.",
   "purchases.empty.transactions": "No supplier transactions yet.",
-  "purchases.empty.selectPayableAccount": "Select an active posting liability account",
+  "purchases.empty.selectPayableAccount":
+    "Select an active posting liability account",
   "purchases.dialog.newSupplier": "New Supplier",
   "purchases.dialog.editSupplier": "Edit Supplier",
   "purchases.dialog.newRequest": "New Purchase Request",
@@ -810,7 +926,8 @@ Object.assign(enTranslations, {
   "purchases.field.paymentTerms": "Payment Terms",
   "purchases.field.defaultCurrency": "Default Currency",
   "purchases.field.payableAccount": "Default Payable Account",
-  "purchases.field.payableAccountHint": "Only active posting liability accounts are allowed.",
+  "purchases.field.payableAccountHint":
+    "Only active posting liability accounts are allowed.",
   "purchases.status.active": "Active",
   "purchases.status.inactive": "Inactive",
   "purchases.status.draft": "Draft",
@@ -823,15 +940,19 @@ Object.assign(enTranslations, {
   "purchases.status.orderIssued": "Issued",
   "purchases.status.orderPartiallyReceived": "Partially Received",
   "purchases.status.orderFullyReceived": "Fully Received",
-  "purchases.requests.description": "Manage internal purchase requests, send them through approval, and convert approved requests into draft purchase orders.",
+  "purchases.requests.description":
+    "Manage internal purchase requests, send them through approval, and convert approved requests into draft purchase orders.",
   "purchases.requests.summary.total": "Requests",
   "purchases.requests.summary.totalHint": "Current filtered list",
   "purchases.requests.summary.pendingApproval": "Pending Approval",
-  "purchases.requests.summary.pendingApprovalHint": "Submitted requests waiting for decision",
+  "purchases.requests.summary.pendingApprovalHint":
+    "Submitted requests waiting for decision",
   "purchases.requests.summary.readyToConvert": "Ready for PO",
-  "purchases.requests.summary.readyToConvertHint": "Approved requests available for draft purchase orders",
+  "purchases.requests.summary.readyToConvertHint":
+    "Approved requests available for draft purchase orders",
   "purchases.requests.filters.search": "Search",
-  "purchases.requests.filters.searchPlaceholder": "Search by request reference, description, request line, or linked draft PO...",
+  "purchases.requests.filters.searchPlaceholder":
+    "Search by request reference, description, request line, or linked draft PO...",
   "purchases.requests.filters.status": "Status",
   "purchases.requests.table.reference": "Request",
   "purchases.requests.table.date": "Request Date",
@@ -849,16 +970,20 @@ Object.assign(enTranslations, {
   "purchases.requests.metric.lines": "Lines",
   "purchases.requests.metric.status": "Status",
   "purchases.requests.metric.linkedOrders": "Linked Orders",
-  "purchases.requests.empty.list": "No purchase requests match the current filters.",
-  "purchases.requests.empty.selectRequest": "Select a purchase request to review its lines, history, and conversion state.",
+  "purchases.requests.empty.list":
+    "No purchase requests match the current filters.",
+  "purchases.requests.empty.selectRequest":
+    "Select a purchase request to review its lines, history, and conversion state.",
   "purchases.requests.empty.notSet": "Not set",
   "purchases.requests.empty.history": "No status history entries yet.",
-  "purchases.requests.empty.linkedOrders": "No linked draft purchase orders yet.",
+  "purchases.requests.empty.linkedOrders":
+    "No linked draft purchase orders yet.",
   "purchases.requests.empty.noDescription": "No description",
   "purchases.requests.empty.noNote": "No note",
   "purchases.requests.empty.selectSupplier": "Select an active supplier",
   "purchases.requests.field.reference": "Request Reference",
-  "purchases.requests.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.requests.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.requests.field.requestDate": "Request Date",
   "purchases.requests.field.description": "Header Description",
   "purchases.requests.field.itemOrService": "Item / Service",
@@ -870,15 +995,18 @@ Object.assign(enTranslations, {
   "purchases.requests.field.orderDate": "Purchase Order Date",
   "purchases.requests.field.currency": "Order Currency",
   "purchases.requests.field.orderReference": "Purchase Order Reference",
-  "purchases.requests.field.orderReferenceHint": "Leave blank to let the system generate the draft PO reference.",
+  "purchases.requests.field.orderReferenceHint":
+    "Leave blank to let the system generate the draft PO reference.",
   "purchases.requests.field.orderDescription": "Purchase Order Description",
   "purchases.requests.line.label": "Line {index}",
   "purchases.requests.line.quantity": "Qty {quantity}",
-  "purchases.requests.confirm.submit": "Submit this purchase request for approval?",
+  "purchases.requests.confirm.submit":
+    "Submit this purchase request for approval?",
   "purchases.requests.confirm.approve": "Approve this purchase request?",
   "purchases.requests.confirm.reject": "Reject this purchase request?",
   "purchases.requests.confirm.close": "Close this purchase request?",
-  "purchases.requests.success.converted": "Draft purchase order {reference} was created from this request.",
+  "purchases.requests.success.converted":
+    "Draft purchase order {reference} was created from this request.",
 });
 
 Object.assign(enTranslations, {
@@ -894,15 +1022,18 @@ Object.assign(enTranslations, {
   "purchases.dialog.newOrder": "New Purchase Order",
   "purchases.dialog.editOrder": "Edit Purchase Order",
   "purchases.dialog.receiveOrder": "Receive Purchase Order",
-  "purchases.orders.description": "Create purchase orders directly or from approved requests, then track issue, receipt progress, and closure.",
+  "purchases.orders.description":
+    "Create purchase orders directly or from approved requests, then track issue, receipt progress, and closure.",
   "purchases.orders.summary.total": "Purchase Orders",
   "purchases.orders.summary.totalHint": "Current filtered list",
   "purchases.orders.summary.issued": "Issued",
   "purchases.orders.summary.issuedHint": "Orders already sent to suppliers",
   "purchases.orders.summary.openReceipt": "Open for Receipt",
-  "purchases.orders.summary.openReceiptHint": "Issued or partially received orders",
+  "purchases.orders.summary.openReceiptHint":
+    "Issued or partially received orders",
   "purchases.orders.filters.search": "Search",
-  "purchases.orders.filters.searchPlaceholder": "Search by PO reference, supplier, source request, or line description...",
+  "purchases.orders.filters.searchPlaceholder":
+    "Search by PO reference, supplier, source request, or line description...",
   "purchases.orders.filters.status": "Status",
   "purchases.orders.table.reference": "Purchase Order",
   "purchases.orders.table.supplier": "Supplier",
@@ -921,13 +1052,17 @@ Object.assign(enTranslations, {
   "purchases.orders.metric.receivedQuantity": "Received Qty",
   "purchases.orders.metric.subtotal": "Subtotal",
   "purchases.orders.metric.tax": "Tax",
-  "purchases.orders.empty.list": "No purchase orders match the current filters.",
-  "purchases.orders.empty.selectOrder": "Select a purchase order to review its lines and receipt status.",
+  "purchases.orders.empty.list":
+    "No purchase orders match the current filters.",
+  "purchases.orders.empty.selectOrder":
+    "Select a purchase order to review its lines and receipt status.",
   "purchases.orders.empty.manual": "Manual order",
-  "purchases.orders.empty.receipts": "No receipt records were posted for this purchase order yet.",
+  "purchases.orders.empty.receipts":
+    "No receipt records were posted for this purchase order yet.",
   "purchases.orders.empty.notPosted": "Not posted yet",
   "purchases.orders.field.reference": "Purchase Order Reference",
-  "purchases.orders.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.orders.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.orders.field.orderDate": "Purchase Order Date",
   "purchases.orders.field.supplier": "Supplier",
   "purchases.orders.field.currency": "Currency",
@@ -944,13 +1079,16 @@ Object.assign(enTranslations, {
   "purchases.orders.line.label": "Line {index}",
   "purchases.orders.line.qtyPrice": "Qty {quantity} × {price}",
   "purchases.orders.confirm.issue": "Issue this purchase order now?",
-  "purchases.orders.confirm.markPartiallyReceived": "Mark this purchase order as partially received?",
-  "purchases.orders.confirm.markFullyReceived": "Mark this purchase order as fully received?",
+  "purchases.orders.confirm.markPartiallyReceived":
+    "Mark this purchase order as partially received?",
+  "purchases.orders.confirm.markFullyReceived":
+    "Mark this purchase order as fully received?",
   "purchases.orders.confirm.cancel": "Cancel this purchase order?",
   "purchases.orders.confirm.close": "Close this purchase order?",
   "purchases.receipts.section.lines": "Receipt Lines",
   "purchases.receipts.field.reference": "Receipt Reference",
-  "purchases.receipts.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.receipts.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.receipts.field.receiptDate": "Receipt Date",
   "purchases.receipts.field.description": "Description",
   "purchases.receipts.field.orderedQuantity": "Ordered Qty",
@@ -965,15 +1103,18 @@ Object.assign(enTranslations, {
   "purchases.workspace.invoices": "Purchase Invoices",
   "purchases.dialog.newInvoice": "New Purchase Invoice",
   "purchases.dialog.editInvoice": "Edit Purchase Invoice",
-  "purchases.invoices.description": "Capture supplier invoices directly or against purchase orders, classify each line to posting accounts, and keep drafts ready for later posting.",
+  "purchases.invoices.description":
+    "Capture supplier invoices directly or against purchase orders, classify each line to posting accounts, and keep drafts ready for later posting.",
   "purchases.invoices.summary.total": "Purchase Invoices",
   "purchases.invoices.summary.totalHint": "Current filtered list",
   "purchases.invoices.summary.draft": "Draft Invoices",
   "purchases.invoices.summary.draftHint": "Invoices not yet posted",
   "purchases.invoices.summary.linkedOrders": "Linked to Orders",
-  "purchases.invoices.summary.linkedOrdersHint": "Invoices referencing purchase orders",
+  "purchases.invoices.summary.linkedOrdersHint":
+    "Invoices referencing purchase orders",
   "purchases.invoices.filters.search": "Search",
-  "purchases.invoices.filters.searchPlaceholder": "Search by invoice reference, supplier, source order, line description, or account...",
+  "purchases.invoices.filters.searchPlaceholder":
+    "Search by invoice reference, supplier, source order, line description, or account...",
   "purchases.invoices.filters.status": "Status",
   "purchases.invoices.status.posted": "Posted",
   "purchases.invoices.status.partiallyPaid": "Partially Paid",
@@ -994,13 +1135,16 @@ Object.assign(enTranslations, {
   "purchases.invoices.metric.subtotal": "Subtotal",
   "purchases.invoices.metric.discount": "Discount",
   "purchases.invoices.metric.tax": "Tax",
-  "purchases.invoices.empty.list": "No purchase invoices match the current filters.",
-  "purchases.invoices.empty.selectInvoice": "Select a purchase invoice to review its lines and account classification.",
+  "purchases.invoices.empty.list":
+    "No purchase invoices match the current filters.",
+  "purchases.invoices.empty.selectInvoice":
+    "Select a purchase invoice to review its lines and account classification.",
   "purchases.invoices.empty.manual": "Manual invoice",
   "purchases.invoices.empty.notPosted": "Not posted yet",
   "purchases.invoices.empty.selectAccount": "Select a posting account",
   "purchases.invoices.field.reference": "Purchase Invoice Reference",
-  "purchases.invoices.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.invoices.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.invoices.field.invoiceDate": "Invoice Date",
   "purchases.invoices.field.supplier": "Supplier",
   "purchases.invoices.field.currency": "Currency",
@@ -1028,7 +1172,8 @@ Object.assign(enTranslations, {
   "purchases.workspace.payments": "Supplier Payments",
   "purchases.dialog.newPayment": "New Supplier Payment",
   "purchases.dialog.editPayment": "Edit Supplier Payment",
-  "purchases.payments.description": "Record supplier payments, allocate them across one or more purchase invoices, and post them into Bank & Cash.",
+  "purchases.payments.description":
+    "Record supplier payments, allocate them across one or more purchase invoices, and post them into Bank & Cash.",
   "purchases.payments.summary.total": "Supplier Payments",
   "purchases.payments.summary.totalHint": "Current filtered list",
   "purchases.payments.summary.draft": "Draft Payments",
@@ -1036,7 +1181,8 @@ Object.assign(enTranslations, {
   "purchases.payments.summary.posted": "Posted Payments",
   "purchases.payments.summary.postedHint": "Integrated into Bank & Cash",
   "purchases.payments.filters.search": "Search",
-  "purchases.payments.filters.searchPlaceholder": "Search by payment reference, supplier, or linked invoice...",
+  "purchases.payments.filters.searchPlaceholder":
+    "Search by payment reference, supplier, or linked invoice...",
   "purchases.payments.filters.status": "Status",
   "purchases.payments.table.reference": "Supplier Payment",
   "purchases.payments.table.supplier": "Supplier",
@@ -1054,13 +1200,17 @@ Object.assign(enTranslations, {
   "purchases.payments.metric.unapplied": "Unapplied",
   "purchases.payments.metric.allocations": "Allocations",
   "purchases.payments.metric.remainingOnInvoice": "Remaining on Invoice",
-  "purchases.payments.empty.list": "No supplier payments match the current filters.",
-  "purchases.payments.empty.selectPayment": "Select a supplier payment to review its allocations and posting state.",
-  "purchases.payments.empty.allocations": "No invoice allocations were added for this payment.",
+  "purchases.payments.empty.list":
+    "No supplier payments match the current filters.",
+  "purchases.payments.empty.selectPayment":
+    "Select a supplier payment to review its allocations and posting state.",
+  "purchases.payments.empty.allocations":
+    "No invoice allocations were added for this payment.",
   "purchases.payments.empty.selectBankCash": "Select a bank / cash account",
   "purchases.payments.empty.selectInvoice": "Select a purchase invoice",
   "purchases.payments.field.reference": "Payment Reference",
-  "purchases.payments.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.payments.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.payments.field.paymentDate": "Payment Date",
   "purchases.payments.field.supplier": "Supplier",
   "purchases.payments.field.amount": "Payment Amount",
@@ -1080,7 +1230,8 @@ Object.assign(enTranslations, {
   "purchases.workspace.debitNotes": "Debit Notes",
   "purchases.dialog.newDebitNote": "New Debit Note",
   "purchases.dialog.editDebitNote": "Edit Debit Note",
-  "purchases.debitNotes.description": "Create supplier debit notes for returns, price corrections, and disputed amounts, then apply them against supplier balances.",
+  "purchases.debitNotes.description":
+    "Create supplier debit notes for returns, price corrections, and disputed amounts, then apply them against supplier balances.",
   "purchases.debitNotes.summary.total": "Debit Notes",
   "purchases.debitNotes.summary.totalHint": "Current filtered list",
   "purchases.debitNotes.summary.draft": "Draft Debit Notes",
@@ -1088,7 +1239,8 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.summary.applied": "Applied Debit Notes",
   "purchases.debitNotes.summary.appliedHint": "Linked to purchase invoices",
   "purchases.debitNotes.filters.search": "Search",
-  "purchases.debitNotes.filters.searchPlaceholder": "Search by debit note reference, supplier, invoice, or reason...",
+  "purchases.debitNotes.filters.searchPlaceholder":
+    "Search by debit note reference, supplier, invoice, or reason...",
   "purchases.debitNotes.filters.status": "Status",
   "purchases.debitNotes.table.reference": "Debit Note",
   "purchases.debitNotes.table.supplier": "Supplier",
@@ -1105,11 +1257,14 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.metric.subtotal": "Subtotal",
   "purchases.debitNotes.metric.tax": "Tax",
   "purchases.debitNotes.metric.total": "Total",
-  "purchases.debitNotes.empty.list": "No debit notes match the current filters.",
-  "purchases.debitNotes.empty.selectDebitNote": "Select a debit note to review its supplier impact and linked invoice.",
+  "purchases.debitNotes.empty.list":
+    "No debit notes match the current filters.",
+  "purchases.debitNotes.empty.selectDebitNote":
+    "Select a debit note to review its supplier impact and linked invoice.",
   "purchases.debitNotes.empty.standalone": "No linked purchase invoice",
   "purchases.debitNotes.field.reference": "Debit Note Reference",
-  "purchases.debitNotes.field.referenceHint": "Leave blank to let the system generate a unique reference.",
+  "purchases.debitNotes.field.referenceHint":
+    "Leave blank to let the system generate a unique reference.",
   "purchases.debitNotes.field.noteDate": "Debit Note Date",
   "purchases.debitNotes.field.supplier": "Supplier",
   "purchases.debitNotes.field.purchaseInvoice": "Related Purchase Invoice",
@@ -1140,7 +1295,8 @@ Object.assign(enTranslations, {
 Object.assign(enTranslations, {
   "nav.item.inventory": "Inventory",
   "inventory.title": "Inventory",
-  "inventory.description": "Phase 5 inventory item master is now live in the project structure, while the remaining stock-control slices stay planned for incremental delivery.",
+  "inventory.description":
+    "Phase 5 inventory item master is now live in the project structure, while the remaining stock-control slices stay planned for incremental delivery.",
   "inventory.status.planned": "Planned",
   "inventory.status.active": "Active",
   "inventory.status.inactive": "Inactive",
@@ -1154,7 +1310,8 @@ Object.assign(enTranslations, {
   "inventory.loading": "Loading inventory items...",
   "inventory.empty": "No inventory items match the current filters.",
   "inventory.emptyValue": "Not set",
-  "inventory.filters.search": "Search by code, name, description, unit, category, or warehouse...",
+  "inventory.filters.search":
+    "Search by code, name, description, unit, category, or warehouse...",
   "inventory.filters.allStatuses": "All statuses",
   "inventory.filters.activeOnly": "Active only",
   "inventory.filters.inactiveOnly": "Inactive only",
@@ -1164,7 +1321,8 @@ Object.assign(enTranslations, {
   "inventory.metrics.inactive": "Inactive",
   "inventory.metrics.selectedOnHand": "Selected On Hand",
   "inventory.workspace.title": "Inventory Workspaces",
-  "inventory.workspace.description": "Open one inventory sub-model at a time, similar to the purchases workspace flow.",
+  "inventory.workspace.description":
+    "Open one inventory sub-model at a time, similar to the purchases workspace flow.",
   "inventory.workspace.policy": "Policy",
   "inventory.workspace.items": "Item Master",
   "inventory.workspace.warehouses": "Warehouses",
@@ -1203,39 +1361,58 @@ Object.assign(enTranslations, {
   "inventory.detail.preferredWarehouse": "Preferred Warehouse",
   "inventory.details.empty": "Select an inventory item to review its details.",
   "inventory.next.title": "Planned next slices",
-  "inventory.next.description": "Item master is the first delivered slice. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
+  "inventory.next.description":
+    "Item master is the first delivered slice. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
   "inventory.overview.label": "Phase 5",
   "inventory.overview.title": "Inventory module scaffold",
-  "inventory.overview.body": "This workspace intentionally exposes the planned Phase 5 module boundary without claiming live inventory behavior. Use it as the handoff point for item master, warehouses, stock movements, costing, and inventory-accounting integration work.",
+  "inventory.overview.body":
+    "This workspace intentionally exposes the planned Phase 5 module boundary without claiming live inventory behavior. Use it as the handoff point for item master, warehouses, stock movements, costing, and inventory-accounting integration work.",
   "inventory.references.label": "References",
-  "inventory.references.requirements": "Requirements baseline: docs/phase-5-inventory-requirements.md",
-  "inventory.references.structure": "Ownership follows dedicated Phase 5 backend/frontend roots and thin ERP route composition.",
-  "inventory.references.translation": "English and Arabic labels should stay aligned as implementation slices are added.",
+  "inventory.references.requirements":
+    "Requirements baseline: docs/phase-5-inventory-requirements.md",
+  "inventory.references.structure":
+    "Ownership follows dedicated Phase 5 backend/frontend roots and thin ERP route composition.",
+  "inventory.references.translation":
+    "English and Arabic labels should stay aligned as implementation slices are added.",
   "inventory.slices.title": "Planned module slices",
-  "inventory.slices.description": "These slices mirror the requirements document and preserve the project’s phase-based ownership model.",
+  "inventory.slices.description":
+    "These slices mirror the requirements document and preserve the project’s phase-based ownership model.",
   "inventory.slice.itemMaster.title": "Item Master",
-  "inventory.slice.itemMaster.description": "Owns inventory item setup, classifications, item defaults, reorder controls, and active/inactive selection rules.",
+  "inventory.slice.itemMaster.description":
+    "Owns inventory item setup, classifications, item defaults, reorder controls, and active/inactive selection rules.",
   "inventory.slice.warehouses.title": "Warehouses",
-  "inventory.slice.warehouses.description": "Owns warehouse and storage-location master records, operational status, and warehouse selection rules.",
+  "inventory.slice.warehouses.description":
+    "Owns warehouse and storage-location master records, operational status, and warehouse selection rules.",
   "inventory.slice.goodsReceipts.title": "Goods Receipts",
-  "inventory.slice.goodsReceipts.description": "Owns draft and posted receipt workflows that increase on-hand stock after successful posting.",
+  "inventory.slice.goodsReceipts.description":
+    "Owns draft and posted receipt workflows that increase on-hand stock after successful posting.",
   "inventory.slice.goodsIssues.title": "Goods Issues",
-  "inventory.slice.goodsIssues.description": "Owns draft and posted issue workflows for stock leaving a warehouse under configured control rules.",
+  "inventory.slice.goodsIssues.description":
+    "Owns draft and posted issue workflows for stock leaving a warehouse under configured control rules.",
   "inventory.slice.inventoryTransfers.title": "Inventory Transfers",
-  "inventory.slice.inventoryTransfers.description": "Owns inter-warehouse transfer drafts, posting rules, and source-versus-destination validation.",
+  "inventory.slice.inventoryTransfers.description":
+    "Owns inter-warehouse transfer drafts, posting rules, and source-versus-destination validation.",
   "inventory.slice.inventoryAdjustments.title": "Inventory Adjustments",
-  "inventory.slice.inventoryAdjustments.description": "Owns stock count, damage, expiry, and variance adjustments with positive and negative quantity support.",
+  "inventory.slice.inventoryAdjustments.description":
+    "Owns stock count, damage, expiry, and variance adjustments with positive and negative quantity support.",
   "inventory.slice.costing.title": "Costing",
-  "inventory.slice.costing.description": "Owns valuation-method configuration, cost layers, issue costing, and remaining inventory valuation logic.",
+  "inventory.slice.costing.description":
+    "Owns valuation-method configuration, cost layers, issue costing, and remaining inventory valuation logic.",
   "inventory.slice.stockLedgerInquiry.title": "Stock Ledger & Inquiry",
-  "inventory.slice.stockLedgerInquiry.description": "Owns stock movement history, running balance inquiry, filters, and source-document drill-down behavior.",
+  "inventory.slice.stockLedgerInquiry.description":
+    "Owns stock movement history, running balance inquiry, filters, and source-document drill-down behavior.",
   "inventory.slice.postingAccounting.title": "Posting & Accounting",
-  "inventory.slice.postingAccounting.description": "Owns the future accounting integration boundary and must reuse Phase 1 posting services when enabled.",
+  "inventory.slice.postingAccounting.description":
+    "Owns the future accounting integration boundary and must reuse Phase 1 posting services when enabled.",
   "inventory.slice.validationControl.title": "Validation & Control",
-  "inventory.slice.validationControl.description": "Owns mandatory-field checks, duplicate-reference protection, audit history, and stock-availability controls.",
-  "inventory.next.dataModel": "Define Prisma models and relations for items, warehouses, stock transactions, and valuation records.",
-  "inventory.next.api": "Add NestJS submodules under the Phase 5 inventory root with DTOs, services, and guarded endpoints.",
-  "inventory.next.ui": "Split feature-owned inventory screens under frontend/features/phase-5-inventory-management as each workflow becomes real.",
+  "inventory.slice.validationControl.description":
+    "Owns mandatory-field checks, duplicate-reference protection, audit history, and stock-availability controls.",
+  "inventory.next.dataModel":
+    "Define Prisma models and relations for items, warehouses, stock transactions, and valuation records.",
+  "inventory.next.api":
+    "Add NestJS submodules under the Phase 5 inventory root with DTOs, services, and guarded endpoints.",
+  "inventory.next.ui":
+    "Split feature-owned inventory screens under frontend/features/phase-5-inventory-management as each workflow becomes real.",
   "inventory.type.INVENTORY": "Inventory",
   "inventory.type.NON_STOCK": "Non-Stock",
   "inventory.type.SERVICE": "Service",
@@ -1243,19 +1420,23 @@ Object.assign(enTranslations, {
 });
 
 Object.assign(enTranslations, {
-  "inventory.description": "Phase 5 inventory now includes live item-master and warehouse-master slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
+  "inventory.description":
+    "Phase 5 inventory now includes live item-master and warehouse-master slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
   "inventory.button.newWarehouse": "New Warehouse",
   "inventory.button.editWarehouse": "Edit Warehouse",
   "inventory.button.createWarehouse": "Create Warehouse",
   "inventory.metrics.warehouses": "Warehouses",
   "inventory.metrics.activeWarehouses": "Active Warehouses",
   "inventory.items.title": "Item Master",
-  "inventory.items.description": "Maintain inventory item setup, account defaults, reorder metadata, and preferred warehouse links.",
+  "inventory.items.description":
+    "Maintain inventory item setup, account defaults, reorder metadata, and preferred warehouse links.",
   "inventory.warehouses.title": "Warehouses",
-  "inventory.warehouses.description": "Maintain warehouse and storage-location master records, including transit locations and active selection control.",
+  "inventory.warehouses.description":
+    "Maintain warehouse and storage-location master records, including transit locations and active selection control.",
   "inventory.warehouses.loading": "Loading warehouses...",
   "inventory.warehouses.empty": "No warehouses match the current filters.",
-  "inventory.warehouses.filters.search": "Search by code, name, address, or responsible person...",
+  "inventory.warehouses.filters.search":
+    "Search by code, name, address, or responsible person...",
   "inventory.warehouses.filters.allModes": "All warehouse modes",
   "inventory.warehouses.filters.storageOnly": "Storage only",
   "inventory.warehouses.filters.transitOnly": "Transit only",
@@ -1263,14 +1444,16 @@ Object.assign(enTranslations, {
   "inventory.warehouses.mode.transit": "Transit / Staging",
   "inventory.warehouses.itemCount": "{count} linked items",
   "inventory.warehouses.field.code": "Warehouse Code",
-  "inventory.warehouses.field.codeHint": "Leave blank to let the system generate one.",
+  "inventory.warehouses.field.codeHint":
+    "Leave blank to let the system generate one.",
   "inventory.warehouses.field.name": "Warehouse Name",
   "inventory.warehouses.field.address": "Address",
   "inventory.warehouses.field.responsiblePerson": "Responsible Person",
   "inventory.warehouses.field.mode": "Warehouse Mode",
   "inventory.warehouses.detail.mode": "Mode",
   "inventory.warehouses.detail.itemCount": "Linked Items",
-  "inventory.warehouses.details.empty": "Select a warehouse to review its details.",
+  "inventory.warehouses.details.empty":
+    "Select a warehouse to review its details.",
   "inventory.warehouses.editor.createTitle": "Create Warehouse",
   "inventory.warehouses.editor.editTitle": "Edit Warehouse",
   "inventory.warehouses.confirm.deactivate": "Deactivate this warehouse?",
@@ -1279,11 +1462,13 @@ Object.assign(enTranslations, {
   "inventory.pagination.page": "Page {page} of {totalPages}",
   "inventory.pagination.previous": "Previous",
   "inventory.pagination.next": "Next",
-  "inventory.next.description": "Item master and warehouses are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
+  "inventory.next.description":
+    "Item master and warehouses are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
 });
 
 Object.assign(enTranslations, {
-  "inventory.description": "Phase 5 inventory now includes live item-master, warehouse-master, and goods-receipt slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
+  "inventory.description":
+    "Phase 5 inventory now includes live item-master, warehouse-master, and goods-receipt slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
   "inventory.metrics.receipts": "Goods Receipts",
   "inventory.metrics.postedReceipts": "Posted Receipts",
   "inventory.button.newReceipt": "New Goods Receipt",
@@ -1292,8 +1477,10 @@ Object.assign(enTranslations, {
   "inventory.button.postReceipt": "Post Receipt",
   "inventory.button.cancelReceipt": "Cancel Receipt",
   "inventory.receipts.title": "Goods Receipts",
-  "inventory.receipts.description": "Capture draft receipt transactions, review received lines, and post them to update item on-hand quantities and valuation summaries.",
-  "inventory.receipts.filters.search": "Search by receipt reference, purchase reference, description, or warehouse...",
+  "inventory.receipts.description":
+    "Capture draft receipt transactions, review received lines, and post them to update item on-hand quantities and valuation summaries.",
+  "inventory.receipts.filters.search":
+    "Search by receipt reference, purchase reference, description, or warehouse...",
   "inventory.receipts.filters.allStatuses": "All receipt statuses",
   "inventory.receipts.filters.allWarehouses": "All warehouses",
   "inventory.receipts.loading": "Loading goods receipts...",
@@ -1305,9 +1492,11 @@ Object.assign(enTranslations, {
   "inventory.receipts.detail.lines": "Lines",
   "inventory.receipts.detail.totalQuantity": "Total Quantity",
   "inventory.receipts.detail.totalAmount": "Total Amount",
-  "inventory.receipts.details.empty": "Select a goods receipt to review its warehouse, source references, and received lines.",
+  "inventory.receipts.details.empty":
+    "Select a goods receipt to review its warehouse, source references, and received lines.",
   "inventory.receipts.field.reference": "Receipt Reference",
-  "inventory.receipts.field.referenceHint": "Leave blank to let the system generate a unique receipt number.",
+  "inventory.receipts.field.referenceHint":
+    "Leave blank to let the system generate a unique receipt number.",
   "inventory.receipts.field.date": "Receipt Date",
   "inventory.receipts.field.warehouse": "Receiving Warehouse",
   "inventory.receipts.field.sourcePurchaseOrder": "Source Purchase Order",
@@ -1328,11 +1517,13 @@ Object.assign(enTranslations, {
   "inventory.receipts.confirm.post": "Post this goods receipt now?",
   "inventory.receipts.confirm.cancel": "Cancel this goods receipt?",
   "inventory.receipts.notPosted": "Not posted yet",
-  "inventory.next.description": "Item master, warehouses, and goods receipts are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
+  "inventory.next.description":
+    "Item master, warehouses, and goods receipts are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
 });
 
 Object.assign(enTranslations, {
-  "inventory.description": "Phase 5 inventory now includes live item-master, warehouse-master, goods-receipt, and goods-issue slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
+  "inventory.description":
+    "Phase 5 inventory now includes live item-master, warehouse-master, goods-receipt, and goods-issue slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
   "inventory.metrics.issues": "Goods Issues",
   "inventory.metrics.postedIssues": "Posted Issues",
   "inventory.button.newIssue": "New Goods Issue",
@@ -1341,8 +1532,10 @@ Object.assign(enTranslations, {
   "inventory.button.postIssue": "Post Issue",
   "inventory.button.cancelIssue": "Cancel Issue",
   "inventory.issues.title": "Goods Issues",
-  "inventory.issues.description": "Capture draft issue transactions, validate available stock, and post the issue to reduce item on-hand quantities using the current carrying value.",
-  "inventory.issues.filters.search": "Search by issue reference, source reference, description, or warehouse...",
+  "inventory.issues.description":
+    "Capture draft issue transactions, validate available stock, and post the issue to reduce item on-hand quantities using the current carrying value.",
+  "inventory.issues.filters.search":
+    "Search by issue reference, source reference, description, or warehouse...",
   "inventory.issues.filters.allStatuses": "All issue statuses",
   "inventory.issues.filters.allWarehouses": "All warehouses",
   "inventory.issues.loading": "Loading goods issues...",
@@ -1355,9 +1548,11 @@ Object.assign(enTranslations, {
   "inventory.issues.detail.totalQuantity": "Total Quantity",
   "inventory.issues.detail.totalAmount": "Total Amount",
   "inventory.issues.detail.available": "Available On Hand",
-  "inventory.issues.details.empty": "Select a goods issue to review its warehouse, source references, and issued lines.",
+  "inventory.issues.details.empty":
+    "Select a goods issue to review its warehouse, source references, and issued lines.",
   "inventory.issues.field.reference": "Issue Reference",
-  "inventory.issues.field.referenceHint": "Leave blank to let the system generate a unique issue number.",
+  "inventory.issues.field.referenceHint":
+    "Leave blank to let the system generate a unique issue number.",
   "inventory.issues.field.date": "Issue Date",
   "inventory.issues.field.warehouse": "Issuing Warehouse",
   "inventory.issues.field.sourceSalesOrder": "Source Sales Order",
@@ -1379,11 +1574,13 @@ Object.assign(enTranslations, {
   "inventory.issues.confirm.post": "Post this goods issue now?",
   "inventory.issues.confirm.cancel": "Cancel this goods issue?",
   "inventory.issues.notPosted": "Not posted yet",
-  "inventory.next.description": "Item master, warehouses, goods receipts, and goods issues are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
+  "inventory.next.description":
+    "Item master, warehouses, goods receipts, and goods issues are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
 });
 
 Object.assign(enTranslations, {
-  "inventory.description": "Phase 5 inventory now includes live item-master, warehouse-master, goods-receipt, goods-issue, and transfer slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
+  "inventory.description":
+    "Phase 5 inventory now includes live item-master, warehouse-master, goods-receipt, goods-issue, and transfer slices inside the existing project structure, while the remaining stock-control workflows stay planned for incremental delivery.",
   "inventory.metrics.transfers": "Inventory Transfers",
   "inventory.metrics.postedTransfers": "Posted Transfers",
   "inventory.button.newTransfer": "New Transfer",
@@ -1392,13 +1589,17 @@ Object.assign(enTranslations, {
   "inventory.button.postTransfer": "Post Transfer",
   "inventory.button.cancelTransfer": "Cancel Transfer",
   "inventory.transfers.title": "Inventory Transfers",
-  "inventory.transfers.description": "Capture draft transfer transactions between active warehouses, validate source availability, and post them to move warehouse-level stock balances and valuation.",
-  "inventory.transfers.filters.search": "Search by transfer reference, description, item, or warehouse...",
+  "inventory.transfers.description":
+    "Capture draft transfer transactions between active warehouses, validate source availability, and post them to move warehouse-level stock balances and valuation.",
+  "inventory.transfers.filters.search":
+    "Search by transfer reference, description, item, or warehouse...",
   "inventory.transfers.filters.allStatuses": "All transfer statuses",
   "inventory.transfers.filters.allSourceWarehouses": "All source warehouses",
-  "inventory.transfers.filters.allDestinationWarehouses": "All destination warehouses",
+  "inventory.transfers.filters.allDestinationWarehouses":
+    "All destination warehouses",
   "inventory.transfers.loading": "Loading inventory transfers...",
-  "inventory.transfers.empty": "No inventory transfers match the current filters.",
+  "inventory.transfers.empty":
+    "No inventory transfers match the current filters.",
   "inventory.transfers.status.DRAFT": "Draft",
   "inventory.transfers.status.POSTED": "Posted",
   "inventory.transfers.status.CANCELLED": "Cancelled",
@@ -1407,9 +1608,11 @@ Object.assign(enTranslations, {
   "inventory.transfers.detail.totalQuantity": "Total Quantity",
   "inventory.transfers.detail.totalAmount": "Total Amount",
   "inventory.transfers.detail.available": "Available On Hand",
-  "inventory.transfers.details.empty": "Select an inventory transfer to review its source warehouse, destination warehouse, and transfer lines.",
+  "inventory.transfers.details.empty":
+    "Select an inventory transfer to review its source warehouse, destination warehouse, and transfer lines.",
   "inventory.transfers.field.reference": "Transfer Reference",
-  "inventory.transfers.field.referenceHint": "Leave blank to let the system generate a unique transfer number.",
+  "inventory.transfers.field.referenceHint":
+    "Leave blank to let the system generate a unique transfer number.",
   "inventory.transfers.field.date": "Transfer Date",
   "inventory.transfers.field.sourceWarehouse": "Source Warehouse",
   "inventory.transfers.field.destinationWarehouse": "Destination Warehouse",
@@ -1428,7 +1631,8 @@ Object.assign(enTranslations, {
   "inventory.transfers.confirm.post": "Post this inventory transfer now?",
   "inventory.transfers.confirm.cancel": "Cancel this inventory transfer?",
   "inventory.transfers.notPosted": "Not posted yet",
-  "inventory.next.description": "Item master, warehouses, goods receipts, goods issues, and transfers are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
+  "inventory.next.description":
+    "Item master, warehouses, goods receipts, goods issues, and transfers are now delivered. The remaining inventory workflows stay explicitly planned until their owning modules are implemented.",
 });
 
 Object.assign(enTranslations, {
@@ -1445,12 +1649,14 @@ Object.assign(enTranslations, {
   "inventory.adjustments.title": "Inventory Adjustments",
   "inventory.adjustments.description":
     "Capture draft adjustment transactions for stock count variances, damage, expiry, and discrepancy corrections, then post them to update warehouse and global stock balances and valuation.",
-  "inventory.adjustments.filters.search": "Search by adjustment reference, reason, description, item, or warehouse...",
+  "inventory.adjustments.filters.search":
+    "Search by adjustment reference, reason, description, item, or warehouse...",
   "inventory.adjustments.filters.allStatuses": "All adjustment statuses",
   "inventory.adjustments.filters.allWarehouses": "All warehouses",
   "inventory.adjustments.filters.reason": "Filter by reason...",
   "inventory.adjustments.loading": "Loading inventory adjustments...",
-  "inventory.adjustments.empty": "No inventory adjustments match the current filters.",
+  "inventory.adjustments.empty":
+    "No inventory adjustments match the current filters.",
   "inventory.adjustments.status.DRAFT": "Draft",
   "inventory.adjustments.status.POSTED": "Posted",
   "inventory.adjustments.status.CANCELLED": "Cancelled",
@@ -1461,9 +1667,11 @@ Object.assign(enTranslations, {
   "inventory.adjustments.detail.system": "System Qty",
   "inventory.adjustments.detail.counted": "Counted Qty",
   "inventory.adjustments.detail.variance": "Variance Qty",
-  "inventory.adjustments.details.empty": "Select an inventory adjustment to review its reason and variance lines.",
+  "inventory.adjustments.details.empty":
+    "Select an inventory adjustment to review its reason and variance lines.",
   "inventory.adjustments.field.reference": "Adjustment Reference",
-  "inventory.adjustments.field.referenceHint": "Leave blank to let the system generate a unique adjustment number.",
+  "inventory.adjustments.field.referenceHint":
+    "Leave blank to let the system generate a unique adjustment number.",
   "inventory.adjustments.field.date": "Adjustment Date",
   "inventory.adjustments.field.warehouse": "Warehouse",
   "inventory.adjustments.field.reason": "Adjustment Reason",
@@ -1487,12 +1695,14 @@ Object.assign(enTranslations, {
   "inventory.stockLedger.title": "Stock Ledger & Inquiry",
   "inventory.stockLedger.description":
     "Review movement history by item and warehouse with running quantity/value balances and source transaction drill-down references.",
-  "inventory.stockLedger.filters.search": "Search by reference, transaction type, item, or warehouse...",
+  "inventory.stockLedger.filters.search":
+    "Search by reference, transaction type, item, or warehouse...",
   "inventory.stockLedger.filters.allItems": "All items",
   "inventory.stockLedger.filters.allWarehouses": "All warehouses",
   "inventory.stockLedger.filters.allMovementTypes": "All movement types",
   "inventory.stockLedger.loading": "Loading stock movements...",
-  "inventory.stockLedger.empty": "No stock movements match the current filters.",
+  "inventory.stockLedger.empty":
+    "No stock movements match the current filters.",
   "inventory.stockLedger.detail.quantityIn": "Qty In",
   "inventory.stockLedger.detail.quantityOut": "Qty Out",
   "inventory.stockLedger.detail.runningQuantity": "Running Qty",
@@ -1511,7 +1721,8 @@ Object.assign(enTranslations, {
 
 Object.assign(enTranslations, {
   "inventory.policy.title": "Inventory Policy",
-  "inventory.policy.description": "Define the inventory valuation method used by posting and costing flows.",
+  "inventory.policy.description":
+    "Define the inventory valuation method used by posting and costing flows.",
   "inventory.policy.field.costingMethod": "Valuation Method",
   "inventory.policy.costingMethod.WEIGHTED_AVERAGE": "Weighted Average Cost",
   "inventory.policy.costingMethod.FIFO": "FIFO (First In, First Out)",
@@ -1542,7 +1753,8 @@ let cachedArabicTranslations: Record<string, string> | null = null;
 
 export function useTranslation() {
   const { language } = useSettings();
-  const [translations, setTranslations] = useState<Record<string, string>>(enTranslations);
+  const [translations, setTranslations] =
+    useState<Record<string, string>>(enTranslations);
 
   useEffect(() => {
     let isCancelled = false;
@@ -1581,11 +1793,14 @@ export function useTranslation() {
   }, [language]);
 
   const t = useMemo(
-    () => (key: TranslationKey, vars?: Record<string, string | number>): string => {
-      const template = translations[key] || enTranslations[key] || key;
-      if (!vars) return template;
-      return template.replace(/\{(\w+)\}/g, (_, name) => String(vars[name] ?? `{${name}}`));
-    },
+    () =>
+      (key: TranslationKey, vars?: Record<string, string | number>): string => {
+        const template = translations[key] || enTranslations[key] || key;
+        if (!vars) return template;
+        return template.replace(/\{(\w+)\}/g, (_, name) =>
+          String(vars[name] ?? `{${name}}`),
+        );
+      },
     [translations],
   );
 

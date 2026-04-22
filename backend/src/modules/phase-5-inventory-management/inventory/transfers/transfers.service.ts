@@ -1,12 +1,25 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AuditAction, InventoryStockMovementType, InventoryTransferStatus, Prisma } from '../../../../generated/prisma';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
+import {
+  AuditAction,
+  InventoryStockMovementType,
+  InventoryTransferStatus,
+  Prisma,
+} from "../../../../generated/prisma";
 
-import { PrismaService } from '../../../../common/prisma/prisma.service';
-import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
-import { ItemMasterService } from '../item-master/item-master.service';
-import { InventoryPostingService } from '../shared/inventory-posting.service';
-import { WarehousesService } from '../warehouses/warehouses.service';
-import { CreateInventoryTransferDto, InventoryTransferLineDto, UpdateInventoryTransferDto } from './dto/transfers.dto';
+import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { AuditService } from "../../../phase-1-accounting-foundation/accounting-core/audit/audit.service";
+import { ItemMasterService } from "../item-master/item-master.service";
+import { InventoryPostingService } from "../shared/inventory-posting.service";
+import { WarehousesService } from "../warehouses/warehouses.service";
+import {
+  CreateInventoryTransferDto,
+  InventoryTransferLineDto,
+  UpdateInventoryTransferDto,
+} from "./dto/transfers.dto";
 
 type TransferListQuery = {
   status?: string;
@@ -50,7 +63,7 @@ type InventoryTransferWithRelations = Prisma.InventoryTransferGetPayload<{
     };
     lines: {
       orderBy: {
-        lineNumber: 'asc';
+        lineNumber: "asc";
       };
       include: {
         item: {
@@ -81,8 +94,18 @@ export class TransfersService {
   ) {}
 
   async list(query: TransferListQuery = {}) {
-    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
-    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const page = this.parsePaginationNumber(query.page, {
+      fallback: 1,
+      min: 1,
+      max: 10_000,
+      label: "Page",
+    });
+    const limit = this.parsePaginationNumber(query.limit, {
+      fallback: 20,
+      min: 1,
+      max: 100,
+      label: "Limit",
+    });
     const skip = (page - 1) * limit;
     const search = query.search?.trim();
     const where: Prisma.InventoryTransferWhereInput = {
@@ -92,14 +115,42 @@ export class TransfersService {
       transferDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
       OR: search
         ? [
-            { reference: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-            { sourceWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-            { sourceWarehouse: { name: { contains: search, mode: 'insensitive' } } },
-            { destinationWarehouse: { code: { contains: search, mode: 'insensitive' } } },
-            { destinationWarehouse: { name: { contains: search, mode: 'insensitive' } } },
-            { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
-            { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
+            { reference: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            {
+              sourceWarehouse: {
+                code: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              sourceWarehouse: {
+                name: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              destinationWarehouse: {
+                code: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              destinationWarehouse: {
+                name: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              lines: {
+                some: {
+                  item: { code: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
+            {
+              lines: {
+                some: {
+                  item: { name: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
           ]
         : undefined,
     };
@@ -109,7 +160,7 @@ export class TransfersService {
       this.prisma.inventoryTransfer.findMany({
         where,
         include: this.transferInclude(),
-        orderBy: [{ transferDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ transferDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
       }),
@@ -138,11 +189,12 @@ export class TransfersService {
   }
 
   async create(dto: CreateInventoryTransferDto) {
-    const { sourceWarehouse, destinationWarehouse } = await this.resolveWarehouses(
-      dto.sourceWarehouseId,
-      dto.destinationWarehouseId,
-    );
-    const reference = dto.reference?.trim() || this.generateReference('TRF');
+    const { sourceWarehouse, destinationWarehouse } =
+      await this.resolveWarehouses(
+        dto.sourceWarehouseId,
+        dto.destinationWarehouseId,
+      );
+    const reference = dto.reference?.trim() || this.generateReference("TRF");
     const lines = await this.resolveLines(dto.lines);
     const totals = this.calculateTotals(lines);
 
@@ -172,7 +224,7 @@ export class TransfersService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryTransfer',
+        entity: "InventoryTransfer",
         entityId: created.id,
         action: AuditAction.CREATE,
         details: {
@@ -185,8 +237,10 @@ export class TransfersService {
 
       return this.mapTransfer(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory transfer with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory transfer with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -195,14 +249,22 @@ export class TransfersService {
   async update(id: string, dto: UpdateInventoryTransferDto) {
     const current = await this.getTransferOrThrow(id);
     if (current.status !== InventoryTransferStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory transfers can be edited.');
+      throw new BadRequestException(
+        "Only draft inventory transfers can be edited.",
+      );
     }
 
-    const sourceWarehouseId = dto.sourceWarehouseId ?? current.sourceWarehouseId;
-    const destinationWarehouseId = dto.destinationWarehouseId ?? current.destinationWarehouseId;
+    const sourceWarehouseId =
+      dto.sourceWarehouseId ?? current.sourceWarehouseId;
+    const destinationWarehouseId =
+      dto.destinationWarehouseId ?? current.destinationWarehouseId;
     const warehouses =
-      dto.sourceWarehouseId !== undefined || dto.destinationWarehouseId !== undefined
-        ? await this.resolveWarehouses(sourceWarehouseId, destinationWarehouseId)
+      dto.sourceWarehouseId !== undefined ||
+      dto.destinationWarehouseId !== undefined
+        ? await this.resolveWarehouses(
+            sourceWarehouseId,
+            destinationWarehouseId,
+          )
         : null;
 
     const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
@@ -216,17 +278,24 @@ export class TransfersService {
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         if (lines) {
-          await tx.inventoryTransferLine.deleteMany({ where: { transferId: id } });
+          await tx.inventoryTransferLine.deleteMany({
+            where: { transferId: id },
+          });
         }
 
         return tx.inventoryTransfer.update({
           where: { id },
           data: {
             reference: dto.reference?.trim(),
-            transferDate: dto.transferDate ? new Date(dto.transferDate) : undefined,
+            transferDate: dto.transferDate
+              ? new Date(dto.transferDate)
+              : undefined,
             sourceWarehouseId: warehouses?.sourceWarehouse.id,
             destinationWarehouseId: warehouses?.destinationWarehouse.id,
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
             totalQuantity: totals.totalQuantity,
             totalAmount: totals.totalAmount,
             lines: lines
@@ -248,7 +317,7 @@ export class TransfersService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryTransfer',
+        entity: "InventoryTransfer",
         entityId: updated.id,
         action: AuditAction.UPDATE,
         details: { status: updated.status, reference: updated.reference },
@@ -256,8 +325,10 @@ export class TransfersService {
 
       return this.mapTransfer(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory transfer with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory transfer with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -268,7 +339,7 @@ export class TransfersService {
       where: { id },
       include: {
         lines: {
-          orderBy: { lineNumber: 'asc' },
+          orderBy: { lineNumber: "asc" },
         },
       },
     });
@@ -277,10 +348,15 @@ export class TransfersService {
       throw new BadRequestException(`Inventory transfer ${id} was not found.`);
     }
     if (transfer.status !== InventoryTransferStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory transfers can be posted.');
+      throw new BadRequestException(
+        "Only draft inventory transfers can be posted.",
+      );
     }
 
-    await this.resolveWarehouses(transfer.sourceWarehouseId, transfer.destinationWarehouseId);
+    await this.resolveWarehouses(
+      transfer.sourceWarehouseId,
+      transfer.destinationWarehouseId,
+    );
 
     const itemIds = [...new Set(transfer.lines.map((line) => line.itemId))];
     const items = await this.prisma.inventoryItem.findMany({
@@ -293,27 +369,40 @@ export class TransfersService {
     });
     const itemMap = new Map(items.map((item) => [item.id, item]));
 
-    const preventNegativeStock = this.inventoryPostingService.preventNegativeStock();
+    const preventNegativeStock =
+      this.inventoryPostingService.preventNegativeStock();
     const costingMethod = await this.inventoryPostingService.getCostingMethod();
-    const sourceBalances = await this.prisma.inventoryWarehouseBalance.findMany({
-      where: {
-        warehouseId: transfer.sourceWarehouseId,
-        itemId: { in: itemIds },
+    const sourceBalances = await this.prisma.inventoryWarehouseBalance.findMany(
+      {
+        where: {
+          warehouseId: transfer.sourceWarehouseId,
+          itemId: { in: itemIds },
+        },
+        select: {
+          itemId: true,
+          onHandQuantity: true,
+        },
       },
-      select: {
-        itemId: true,
-        onHandQuantity: true,
-      },
-    });
-    const availableByItem = new Map(sourceBalances.map((row) => [row.itemId, new Prisma.Decimal(row.onHandQuantity)]));
+    );
+    const availableByItem = new Map(
+      sourceBalances.map((row) => [
+        row.itemId,
+        new Prisma.Decimal(row.onHandQuantity),
+      ]),
+    );
     for (const line of transfer.lines) {
       const item = itemMap.get(line.itemId);
       if (!item || !item.isActive) {
-        throw new BadRequestException('Inventory transfer lines must reference active inventory items.');
+        throw new BadRequestException(
+          "Inventory transfer lines must reference active inventory items.",
+        );
       }
-      const available = availableByItem.get(line.itemId) ?? new Prisma.Decimal(0);
+      const available =
+        availableByItem.get(line.itemId) ?? new Prisma.Decimal(0);
       if (preventNegativeStock && available.lt(line.quantity)) {
-        throw new BadRequestException(`Item ${item.code} does not have enough available stock for this transfer.`);
+        throw new BadRequestException(
+          `Item ${item.code} does not have enough available stock for this transfer.`,
+        );
       }
       availableByItem.set(line.itemId, available.sub(line.quantity));
     }
@@ -325,7 +414,9 @@ export class TransfersService {
       for (const line of transfer.lines) {
         const item = itemMap.get(line.itemId);
         if (!item) {
-          throw new BadRequestException('Inventory transfer lines must reference active inventory items.');
+          throw new BadRequestException(
+            "Inventory transfer lines must reference active inventory items.",
+          );
         }
 
         const sourceBalance = await tx.inventoryWarehouseBalance.findUnique({
@@ -336,13 +427,20 @@ export class TransfersService {
             },
           },
         });
-        const sourceQuantity = sourceBalance?.onHandQuantity ?? new Prisma.Decimal(0);
-        const sourceValuation = sourceBalance?.valuationAmount ?? new Prisma.Decimal(0);
+        const sourceQuantity =
+          sourceBalance?.onHandQuantity ?? new Prisma.Decimal(0);
+        const sourceValuation =
+          sourceBalance?.valuationAmount ?? new Prisma.Decimal(0);
         if (preventNegativeStock && sourceQuantity.lt(line.quantity)) {
-          throw new BadRequestException(`Item ${item.code} does not have enough available stock for this transfer.`);
+          throw new BadRequestException(
+            `Item ${item.code} does not have enough available stock for this transfer.`,
+          );
         }
 
-        const fallbackUnitCost = this.inventoryPostingService.averageUnitCost(sourceQuantity, sourceValuation);
+        const fallbackUnitCost = this.inventoryPostingService.averageUnitCost(
+          sourceQuantity,
+          sourceValuation,
+        );
         const valuation = await this.inventoryPostingService.resolveIssueCost({
           tx,
           itemId: line.itemId,
@@ -350,7 +448,7 @@ export class TransfersService {
           quantity: line.quantity,
           fallbackUnitCost,
           reference: transfer.reference,
-          sourceType: 'InventoryTransfer',
+          sourceType: "InventoryTransfer",
           sourceId: transfer.id,
           sourceLineId: line.id,
           sourceDate: transfer.transferDate,
@@ -368,16 +466,17 @@ export class TransfersService {
           },
         });
 
-        const updatedSourceBalance = await this.inventoryPostingService.applyWarehouseBalance(tx, {
-          itemId: line.itemId,
-          warehouseId: transfer.sourceWarehouseId,
-          quantityDelta: line.quantity.neg(),
-          valueDelta: valuation.totalAmount.neg(),
-        });
+        const updatedSourceBalance =
+          await this.inventoryPostingService.applyWarehouseBalance(tx, {
+            itemId: line.itemId,
+            warehouseId: transfer.sourceWarehouseId,
+            quantityDelta: line.quantity.neg(),
+            valueDelta: valuation.totalAmount.neg(),
+          });
 
         await this.inventoryPostingService.createMovement(tx, {
           movementType: InventoryStockMovementType.TRANSFER_OUT,
-          transactionType: 'InventoryTransfer',
+          transactionType: "InventoryTransfer",
           transactionId: transfer.id,
           transactionLineId: line.id,
           transactionReference: transfer.reference,
@@ -393,16 +492,17 @@ export class TransfersService {
           description: line.description ?? transfer.description ?? null,
         });
 
-        const updatedDestinationBalance = await this.inventoryPostingService.applyWarehouseBalance(tx, {
-          itemId: line.itemId,
-          warehouseId: transfer.destinationWarehouseId,
-          quantityDelta: line.quantity,
-          valueDelta: valuation.totalAmount,
-        });
+        const updatedDestinationBalance =
+          await this.inventoryPostingService.applyWarehouseBalance(tx, {
+            itemId: line.itemId,
+            warehouseId: transfer.destinationWarehouseId,
+            quantityDelta: line.quantity,
+            valueDelta: valuation.totalAmount,
+          });
 
         await this.inventoryPostingService.createMovement(tx, {
           movementType: InventoryStockMovementType.TRANSFER_IN,
-          transactionType: 'InventoryTransfer',
+          transactionType: "InventoryTransfer",
           transactionId: transfer.id,
           transactionLineId: line.id,
           transactionReference: transfer.reference,
@@ -424,7 +524,7 @@ export class TransfersService {
           quantity: line.quantity,
           unitCost: valuation.unitCost,
           movementType: InventoryStockMovementType.TRANSFER_IN,
-          sourceType: 'InventoryTransfer',
+          sourceType: "InventoryTransfer",
           sourceId: transfer.id,
           sourceLineId: line.id,
           sourceReference: transfer.reference,
@@ -445,7 +545,7 @@ export class TransfersService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryTransfer',
+      entity: "InventoryTransfer",
       entityId: updated.id,
       action: AuditAction.POST,
       details: {
@@ -462,7 +562,9 @@ export class TransfersService {
   async cancel(id: string) {
     const current = await this.getTransferOrThrow(id);
     if (current.status !== InventoryTransferStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory transfers can be cancelled.');
+      throw new BadRequestException(
+        "Only draft inventory transfers can be cancelled.",
+      );
     }
 
     const updated = await this.prisma.inventoryTransfer.update({
@@ -472,7 +574,7 @@ export class TransfersService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryTransfer',
+      entity: "InventoryTransfer",
       entityId: updated.id,
       action: AuditAction.DELETE,
       details: { status: updated.status, reference: updated.reference },
@@ -484,7 +586,9 @@ export class TransfersService {
   async reverse(id: string) {
     const current = await this.getTransferOrThrow(id);
     if (current.status !== InventoryTransferStatus.POSTED) {
-      throw new BadRequestException('Only posted inventory transfers can be reversed.');
+      throw new BadRequestException(
+        "Only posted inventory transfers can be reversed.",
+      );
     }
 
     const updated = await this.prisma.inventoryTransfer.update({
@@ -497,7 +601,7 @@ export class TransfersService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryTransfer',
+      entity: "InventoryTransfer",
       entityId: updated.id,
       action: AuditAction.REVERSE,
       details: { status: updated.status, reference: updated.reference },
@@ -511,8 +615,11 @@ export class TransfersService {
 
     for (const line of lines) {
       const item = await this.itemMasterService.ensureActiveItem(line.itemId);
-      const quantity = this.parseQuantity(line.quantity, 'Transfer quantity');
-      const unitCost = this.estimateUnitCost(item.onHandQuantity, item.valuationAmount);
+      const quantity = this.parseQuantity(line.quantity, "Transfer quantity");
+      const unitCost = this.estimateUnitCost(
+        item.onHandQuantity,
+        item.valuationAmount,
+      );
 
       resolved.push({
         itemId: item.id,
@@ -529,8 +636,14 @@ export class TransfersService {
 
   private calculateTotals(lines: ResolvedTransferLine[]) {
     return {
-      totalQuantity: lines.reduce((sum, line) => sum.add(line.quantity), new Prisma.Decimal(0)),
-      totalAmount: lines.reduce((sum, line) => sum.add(line.lineTotalAmount), new Prisma.Decimal(0)),
+      totalQuantity: lines.reduce(
+        (sum, line) => sum.add(line.quantity),
+        new Prisma.Decimal(0),
+      ),
+      totalAmount: lines.reduce(
+        (sum, line) => sum.add(line.lineTotalAmount),
+        new Prisma.Decimal(0),
+      ),
     };
   }
 
@@ -555,7 +668,7 @@ export class TransfersService {
         },
       },
       lines: {
-        orderBy: { lineNumber: 'asc' },
+        orderBy: { lineNumber: "asc" },
         include: {
           item: {
             select: {
@@ -575,25 +688,36 @@ export class TransfersService {
   }
 
   private async getTransferOrThrow(id: string) {
-    const row = await this.prisma.inventoryTransfer.findUnique({ where: { id } });
+    const row = await this.prisma.inventoryTransfer.findUnique({
+      where: { id },
+    });
     if (!row) {
       throw new BadRequestException(`Inventory transfer ${id} was not found.`);
     }
     return row;
   }
 
-  private async resolveWarehouses(sourceWarehouseId: string, destinationWarehouseId: string) {
+  private async resolveWarehouses(
+    sourceWarehouseId: string,
+    destinationWarehouseId: string,
+  ) {
     if (sourceWarehouseId === destinationWarehouseId) {
-      throw new BadRequestException('Source and destination warehouses must be different.');
+      throw new BadRequestException(
+        "Source and destination warehouses must be different.",
+      );
     }
 
     const [sourceWarehouse, destinationWarehouse] = await Promise.all([
       this.warehousesService.getActiveWarehouseReference(sourceWarehouseId),
-      this.warehousesService.getActiveWarehouseReference(destinationWarehouseId),
+      this.warehousesService.getActiveWarehouseReference(
+        destinationWarehouseId,
+      ),
     ]);
 
     if (!sourceWarehouse || !destinationWarehouse) {
-      throw new BadRequestException('Source and destination warehouses are required.');
+      throw new BadRequestException(
+        "Source and destination warehouses are required.",
+      );
     }
 
     return { sourceWarehouse, destinationWarehouse };
@@ -646,7 +770,7 @@ export class TransfersService {
     if (status in InventoryTransferStatus) {
       return status as InventoryTransferStatus;
     }
-    throw new BadRequestException('Invalid inventory transfer status.');
+    throw new BadRequestException("Invalid inventory transfer status.");
   }
 
   private dateRangeFilter(dateFrom?: string, dateTo?: string) {
@@ -668,10 +792,14 @@ export class TransfersService {
 
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
-      throw new BadRequestException(`${options.label} must be a valid integer.`);
+      throw new BadRequestException(
+        `${options.label} must be a valid integer.`,
+      );
     }
     if (parsed < options.min || parsed > options.max) {
-      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+      throw new BadRequestException(
+        `${options.label} must be between ${options.min} and ${options.max}.`,
+      );
     }
 
     return parsed;
@@ -692,7 +820,10 @@ export class TransfersService {
     }
   }
 
-  private estimateUnitCost(onHandQuantity: Prisma.Decimal | string, valuationAmount: Prisma.Decimal | string) {
+  private estimateUnitCost(
+    onHandQuantity: Prisma.Decimal | string,
+    valuationAmount: Prisma.Decimal | string,
+  ) {
     const quantity = new Prisma.Decimal(onHandQuantity);
     if (quantity.lte(0)) {
       return new Prisma.Decimal(0);
@@ -702,15 +833,16 @@ export class TransfersService {
   }
 
   private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const suffix =
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
   }
 
   private isUniqueConflict(error: unknown, field: string) {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002' &&
+      error.code === "P2002" &&
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes(field)
     );

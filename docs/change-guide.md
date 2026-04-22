@@ -269,7 +269,7 @@ Checks to run:
 - backend build
 - account service tests
 - apply the Prisma migration so the PostgreSQL leaf-node trigger is installed
-  
+
 If your environment already contains older numeric charts that used **6-digit** numeric codes, run the one-time migration:
 
 - `backend`: `npm run prisma:migrate:account-codes:6-to-7`

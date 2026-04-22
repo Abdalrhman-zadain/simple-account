@@ -28,7 +28,8 @@ const arTranslations: Record<string, string> = {
   "bankCash.description":
     "إدارة الحسابات التشغيلية للبنوك والصندوق وربطها بحسابات الترحيل ومراجعة الأرصدة والحركات.",
   "bankCash.button.new": "حساب بنك/صندوق جديد",
-  "bankCash.filters.search": "ابحث بالاسم أو البنك أو رقم الحساب أو حساب الدليل…",
+  "bankCash.filters.search":
+    "ابحث بالاسم أو البنك أو رقم الحساب أو حساب الدليل…",
   "bankCash.filters.type": "وسيلة الدفع",
   "bankCash.filters.status": "الحالة",
   "bankCash.filters.allTypes": "كل وسائل الدفع",
@@ -45,7 +46,8 @@ const arTranslations: Record<string, string> = {
   "bankCash.table.actions": "الإجراءات",
   "bankCash.table.bankName": "البنك / الموقع",
   "bankCash.history.title": "سجل الحركات",
-  "bankCash.history.description": "القيود المرحلة المتعلقة بالمقبوضات والمدفوعات والتحويلات والمراجع ذات الصلة للحساب المحدد.",
+  "bankCash.history.description":
+    "القيود المرحلة المتعلقة بالمقبوضات والمدفوعات والتحويلات والمراجع ذات الصلة للحساب المحدد.",
   "bankCash.history.empty": "لا توجد حركات مرحلة لهذا الحساب البنكي/النقدي.",
   "bankCash.history.type": "نوع الحركة",
   "bankCash.history.reference": "المرجع",
@@ -58,7 +60,8 @@ const arTranslations: Record<string, string> = {
   "bankCash.form.editTitle": "تعديل حساب بنك/صندوق",
   "bankCash.form.name": "اسم الحساب",
   "bankCash.form.namePlaceholder": "ابحث برقم الحساب أو اسم الحساب",
-  "bankCash.form.nameHelp": "اختر حساب ترحيل فرعي نشط. يمكنك البحث برقم الحساب أو اسمه.",
+  "bankCash.form.nameHelp":
+    "اختر حساب ترحيل فرعي نشط. يمكنك البحث برقم الحساب أو اسمه.",
   "bankCash.form.nameEmpty": "لم يتم العثور على حساب ترحيل فرعي مطابق.",
   "bankCash.form.bankName": "اسم البنك / موقع الصندوق",
   "bankCash.form.accountNumber": "رقم الحساب / المرجع",
@@ -66,11 +69,15 @@ const arTranslations: Record<string, string> = {
   "bankCash.form.linkedAccount": "حساب الدليل المرتبط",
   "bankCash.form.type": "نوع وسيلة الدفع",
   "bankCash.form.typePlaceholder": "اختر نوع وسيلة الدفع",
-  "bankCash.form.typeHelp": "تأتي وسائل الدفع من البيانات الأساسية. أضف بنك أو صندوق أو كليك أو محفظة أو أي وسيلة دفع أخرى هناك.",
-  "bankCash.form.bankNameHelp": "مطلوب عندما تكون وسيلة الدفع بنك. اختياري لوسائل الدفع الأخرى.",
-  "bankCash.form.accountNumberHelp": "مطلوب عندما تكون وسيلة الدفع بنك. اختياري لوسائل الدفع الأخرى.",
+  "bankCash.form.typeHelp":
+    "تأتي وسائل الدفع من البيانات الأساسية. أضف بنك أو صندوق أو كليك أو محفظة أو أي وسيلة دفع أخرى هناك.",
+  "bankCash.form.bankNameHelp":
+    "مطلوب عندما تكون وسيلة الدفع بنك. اختياري لوسائل الدفع الأخرى.",
+  "bankCash.form.accountNumberHelp":
+    "مطلوب عندما تكون وسيلة الدفع بنك. اختياري لوسائل الدفع الأخرى.",
   "bankCash.form.linkedAccountPlaceholder": "اختر حساب ترحيل أصل",
-  "bankCash.form.linkedAccountSearchHelp": "ابدأ بكتابة رمز الحساب أو اسمه لتصفية دليل الحسابات.",
+  "bankCash.form.linkedAccountSearchHelp":
+    "ابدأ بكتابة رمز الحساب أو اسمه لتصفية دليل الحسابات.",
   "bankCash.form.linkedAccountEmpty": "لم يتم العثور على حساب ترحيل أصل مطابق.",
   "bankCash.form.cancel": "إلغاء",
   "bankCash.form.create": "إنشاء",
@@ -95,7 +102,8 @@ const arTranslations: Record<string, string> = {
   "accounts.stats.netBalance": "صافي الرصيد",
   "accounts.stats.accounts": "حسابات",
   "accounts.stats.allAccounts": "كل الحسابات",
-  "accounts.search.placeholder": "بحث أو تصفية: type:Asset، status:Active، is:Posting…",
+  "accounts.search.placeholder":
+    "بحث أو تصفية: type:Asset، status:Active، is:Posting…",
   "accounts.suggestions.title": "اقتراحات",
   "accounts.view.title": "عرض الحسابات",
   "accounts.view.rootAccounts": "الحسابات الرئيسية",
@@ -119,7 +127,8 @@ const arTranslations: Record<string, string> = {
   "accounts.action.deactivate": "تعطيل الحساب",
   "accounts.action.activate": "تفعيل الحساب",
   "accounts.action.delete": "حذف الحساب",
-  "accounts.confirm.delete": "هل تريد حذف هذا الحساب؟ يُسمح بذلك فقط إذا لم يكن للحساب أي سجل حركات.",
+  "accounts.confirm.delete":
+    "هل تريد حذف هذا الحساب؟ يُسمح بذلك فقط إذا لم يكن للحساب أي سجل حركات.",
 
   "accountType.ASSET": "أصل",
   "accountType.LIABILITY": "التزام",
@@ -169,8 +178,8 @@ const arTranslations: Record<string, string> = {
   "fiscal.table.action": "إجراء",
   "fiscal.action.close": "إغلاق",
   "fiscal.action.reopen": "إعادة فتح",
-  "fiscal.confirm.close": "إغلاق \"{name}\"؟ سيمنع ذلك الترحيل الجديد.",
-  "fiscal.confirm.reopen": "إعادة فتح \"{name}\"؟",
+  "fiscal.confirm.close": 'إغلاق "{name}"؟ سيمنع ذلك الترحيل الجديد.',
+  "fiscal.confirm.reopen": 'إعادة فتح "{name}"؟',
 
   "audit.title": "مسار التدقيق",
   "audit.description":
@@ -202,7 +211,8 @@ const arTranslations: Record<string, string> = {
   "journal.lines.debit": "مدين",
   "journal.lines.credit": "دائن",
   "journal.lines.addLine": "+ إضافة سطر",
-  "journal.balance.notBalanced": "القيد غير متوازن. مدين: {debit} · دائن: {credit}",
+  "journal.balance.notBalanced":
+    "القيد غير متوازن. مدين: {debit} · دائن: {credit}",
   "journal.balance.balanced": "✓ القيد متوازن",
   "journal.list.title": "قيود اليومية",
   "journal.list.subtitle": "ابحث بالمرجع/الوصف أو صفِّ حسب النوع.",
@@ -225,13 +235,16 @@ const arTranslations: Record<string, string> = {
   "master.tab.journalEntryTypes": "أنواع قيود اليومية",
   "master.tab.paymentMethodTypes": "أنواع وسائل الدفع",
   "master.section.accountSubtypes.title": "تصنيفات الحسابات (فئات فرعية)",
-  "master.section.accountSubtypes.description": "أنشئ تصنيفات للحسابات مثل بنك، نقد، ذمم مدينة، ذمم دائنة، وغيرها.",
+  "master.section.accountSubtypes.description":
+    "أنشئ تصنيفات للحسابات مثل بنك، نقد، ذمم مدينة، ذمم دائنة، وغيرها.",
   "master.section.accountSubtypes.add": "إضافة تصنيف",
   "master.section.journalEntryTypes.title": "أنواع قيود اليومية",
-  "master.section.journalEntryTypes.description": "أنشئ أنواعاً لقيود اليومية مثل دفع، فاتورة، تسوية، تحويل، وغيرها.",
+  "master.section.journalEntryTypes.description":
+    "أنشئ أنواعاً لقيود اليومية مثل دفع، فاتورة، تسوية، تحويل، وغيرها.",
   "master.section.journalEntryTypes.add": "إضافة نوع",
   "master.section.paymentMethodTypes.title": "أنواع وسائل الدفع",
-  "master.section.paymentMethodTypes.description": "أنشئ وسائل دفع مثل بنك، صندوق، كليك، محفظة، بطاقة، أو أي طريقة يدفع بها العميل.",
+  "master.section.paymentMethodTypes.description":
+    "أنشئ وسائل دفع مثل بنك، صندوق، كليك، محفظة، بطاقة، أو أي طريقة يدفع بها العميل.",
   "master.section.paymentMethodTypes.add": "إضافة وسيلة دفع",
   "master.accountSubtypes.createError": "فشل إنشاء تصنيف الحساب.",
   "master.journalEntryTypes.createError": "فشل إنشاء نوع قيد اليومية.",
@@ -267,7 +280,7 @@ const arTranslations: Record<string, string> = {
   "master.journalEntryTypes.namePlaceholder": "اسم النوع (مثال: دفع)",
   "master.paymentMethodTypes.namePlaceholder": "اسم وسيلة الدفع (مثال: كليك)",
 
-  "common.confirm.deactivate": "تعطيل \"{name}\"؟",
+  "common.confirm.deactivate": 'تعطيل "{name}"؟',
 
   "accounts.form.loadingDetails": "جارٍ تحميل تفاصيل الحساب…",
   "accounts.form.title.new": "حساب جديد",
@@ -294,11 +307,14 @@ const arTranslations: Record<string, string> = {
   "accounts.form.nameArHint": "اختياري — يعرض من اليمين إلى اليسار",
   "accounts.form.nameArPlaceholder": "الحساب البنكي الرئيسي",
   "accounts.form.descriptionLabel": "الوصف / ملاحظات",
-  "accounts.form.descriptionPlaceholder": "ملاحظات تدقيق، نطاق تشغيلي، أو تعليقات داخلية…",
+  "accounts.form.descriptionPlaceholder":
+    "ملاحظات تدقيق، نطاق تشغيلي، أو تعليقات داخلية…",
   "accounts.form.postingSettings": "إعدادات الترحيل",
   "accounts.form.allowManual.label": "السماح بقيود يومية يدوية",
-  "accounts.form.allowManual.help": "عند التفعيل، يمكن للمستخدمين عمل مدين/دائن لهذا الحساب مباشرةً في قيود اليومية. عطّل ذلك للحسابات التي يديرها النظام (مثل الأرباح المحتجزة، ضريبة مستحقة).",
-  "accounts.form.allowManual.disabledNote": "تم تعطيل الترحيل اليدوي. يمكن تحديث هذا الحساب فقط عبر قواعد النظام الآلية.",
+  "accounts.form.allowManual.help":
+    "عند التفعيل، يمكن للمستخدمين عمل مدين/دائن لهذا الحساب مباشرةً في قيود اليومية. عطّل ذلك للحسابات التي يديرها النظام (مثل الأرباح المحتجزة، ضريبة مستحقة).",
+  "accounts.form.allowManual.disabledNote":
+    "تم تعطيل الترحيل اليدوي. يمكن تحديث هذا الحساب فقط عبر قواعد النظام الآلية.",
   "common.none": "لا يوجد",
   "accounts.form.validation.nameRequired": "الاسم مطلوب.",
   "accounts.form.validation.typeRequired": "نوع الحساب مطلوب.",
@@ -308,12 +324,16 @@ const arTranslations: Record<string, string> = {
 
 Object.assign(arTranslations, {
   "bankCash.form.openingBalance": "الرصيد الافتتاحي",
-  "bankCash.form.openingBalanceHelp": "اختياري عند الإنشاء. إذا تم إدخاله، فسيقوم النظام بترحيله مباشرة إلى الحساب المرتبط.",
+  "bankCash.form.openingBalanceHelp":
+    "اختياري عند الإنشاء. إذا تم إدخاله، فسيقوم النظام بترحيله مباشرة إلى الحساب المرتبط.",
   "bankCash.form.openingBalanceOffsetAccount": "الحساب المقابل للرصد الافتتاحي",
   "bankCash.form.openingBalanceOffsetPlaceholder": "اختر حساب الترحيل المقابل",
-  "bankCash.form.openingBalanceOffsetHelp": "يكون مطلوباً عندما يكون الرصيد الافتتاحي أكبر من صفر حتى يبقى القيد متوازناً.",
-  "bankCash.error.accountAlreadyLinked": "هذا الحساب في دليل الحسابات مرتبط بالفعل بحساب بنك/صندوق آخر.",
-  "bankCash.error.openingBalanceOffsetRequired": "حساب الترحيل المقابل للرصد الافتتاحي مطلوب عند إدخال رصيد افتتاحي.",
+  "bankCash.form.openingBalanceOffsetHelp":
+    "يكون مطلوباً عندما يكون الرصيد الافتتاحي أكبر من صفر حتى يبقى القيد متوازناً.",
+  "bankCash.error.accountAlreadyLinked":
+    "هذا الحساب في دليل الحسابات مرتبط بالفعل بحساب بنك/صندوق آخر.",
+  "bankCash.error.openingBalanceOffsetRequired":
+    "حساب الترحيل المقابل للرصد الافتتاحي مطلوب عند إدخال رصيد افتتاحي.",
 
   "nav.item.bankCashTransactions": "حركات البنك",
 
@@ -326,9 +346,12 @@ Object.assign(arTranslations, {
   "bankCashTransactions.title.RECEIPT": "حركات المقبوضات",
   "bankCashTransactions.title.PAYMENT": "حركات المدفوعات",
   "bankCashTransactions.title.TRANSFER": "حركات التحويلات",
-  "bankCashTransactions.description.RECEIPT": "سجل المقبوضات البنكية والنقدية كمسودات، راجعها، ثم رحلها إلى المحاسبة عند الجاهزية.",
-  "bankCashTransactions.description.PAYMENT": "سجل المدفوعات الخارجة من حسابات البنك والصندوق، واحتفظ بها كمسودات قبل ترحيلها عبر سير القيود.",
-  "bankCashTransactions.description.TRANSFER": "انقل الأموال بين حسابات البنك والصندوق مع مراجعة المسودة قبل ترحيل التحويل.",
+  "bankCashTransactions.description.RECEIPT":
+    "سجل المقبوضات البنكية والنقدية كمسودات، راجعها، ثم رحلها إلى المحاسبة عند الجاهزية.",
+  "bankCashTransactions.description.PAYMENT":
+    "سجل المدفوعات الخارجة من حسابات البنك والصندوق، واحتفظ بها كمسودات قبل ترحيلها عبر سير القيود.",
+  "bankCashTransactions.description.TRANSFER":
+    "انقل الأموال بين حسابات البنك والصندوق مع مراجعة المسودة قبل ترحيل التحويل.",
   "bankCashTransactions.button.RECEIPT": "مقبوض جديد",
   "bankCashTransactions.button.PAYMENT": "مدفوع جديد",
   "bankCashTransactions.button.TRANSFER": "تحويل جديد",
@@ -336,12 +359,14 @@ Object.assign(arTranslations, {
   "bankCashTransactions.summary.draft": "المسودات",
   "bankCashTransactions.summary.amount": "المبلغ",
   "bankCashTransactions.summary.rows": "الصفوف المعروضة",
-  "bankCashTransactions.filters.search": "ابحث بالمرجع أو الوصف أو اسم الجهة...",
+  "bankCashTransactions.filters.search":
+    "ابحث بالمرجع أو الوصف أو اسم الجهة...",
   "bankCashTransactions.filters.allStatuses": "كل الحالات",
   "bankCashTransactions.status.DRAFT": "مسودة",
   "bankCashTransactions.status.POSTED": "مرحل",
   "bankCashTransactions.table.title": "الحركات",
-  "bankCashTransactions.table.description": "يمكن تعديل المسودات ثم ترحيلها. تبقى الحركات المرحلة مرتبطة بقيدها المحاسبي.",
+  "bankCashTransactions.table.description":
+    "يمكن تعديل المسودات ثم ترحيلها. تبقى الحركات المرحلة مرتبطة بقيدها المحاسبي.",
   "bankCashTransactions.table.reference": "المرجع",
   "bankCashTransactions.table.account": "الحسابات",
   "bankCashTransactions.table.date": "التاريخ",
@@ -349,7 +374,8 @@ Object.assign(arTranslations, {
   "bankCashTransactions.table.status": "الحالة",
   "bankCashTransactions.table.actions": "الإجراءات",
   "bankCashTransactions.table.noJournal": "لا يوجد قيد بعد",
-  "bankCashTransactions.empty": "لا توجد حركات بنكية/نقدية تطابق الفلاتر الحالية.",
+  "bankCashTransactions.empty":
+    "لا توجد حركات بنكية/نقدية تطابق الفلاتر الحالية.",
   "bankCashTransactions.action.edit": "تعديل",
   "bankCashTransactions.action.post": "ترحيل",
   "bankCashTransactions.action.view": "عرض",
@@ -361,7 +387,8 @@ Object.assign(arTranslations, {
   "bankCashTransactions.details.secondary": "الحساب المقابل / الوجهة",
   "bankCashTransactions.form.editTitle": "تعديل المسودة",
   "bankCashTransactions.form.reference": "المرجع",
-  "bankCashTransactions.form.referenceHint": "اتركه فارغاً ليقوم النظام بتوليده.",
+  "bankCashTransactions.form.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليده.",
   "bankCashTransactions.form.date": "تاريخ الحركة",
   "bankCashTransactions.form.amount": "المبلغ",
   "bankCashTransactions.form.bankCashAccount": "حساب البنك/الصندوق",
@@ -371,15 +398,18 @@ Object.assign(arTranslations, {
   "bankCashTransactions.form.selectBankCashAccount": "اختر حساب بنك/صندوق نشط",
   "bankCashTransactions.form.selectCounterAccount": "اختر حساب ترحيل",
   "bankCashTransactions.form.counterparty": "الطرف المقابل",
-  "bankCashTransactions.form.counterpartyHint.receipt": "اختياري: اسم العميل أو الدافع.",
-  "bankCashTransactions.form.counterpartyHint.payment": "اختياري: اسم المورد أو المستفيد.",
+  "bankCashTransactions.form.counterpartyHint.receipt":
+    "اختياري: اسم العميل أو الدافع.",
+  "bankCashTransactions.form.counterpartyHint.payment":
+    "اختياري: اسم المورد أو المستفيد.",
   "bankCashTransactions.form.description": "الوصف",
   "bankCashTransactions.form.cancel": "إلغاء",
   "bankCashTransactions.form.create": "حفظ كمسودة",
   "bankCashTransactions.form.save": "حفظ التغييرات",
 
   "bankReconciliation.title": "التسوية البنكية",
-  "bankReconciliation.description": "طابق حسابات البنك والصندوق مع سطور كشف الحساب، وراجع البنود غير المطابقة، واحفظ حالة المراجعة لكل مطابقة.",
+  "bankReconciliation.description":
+    "طابق حسابات البنك والصندوق مع سطور كشف الحساب، وراجع البنود غير المطابقة، واحفظ حالة المراجعة لكل مطابقة.",
   "bankReconciliation.button.new": "تسوية جديدة",
   "bankReconciliation.summary.reconciliations": "التسويات",
   "bankReconciliation.summary.unmatchedLines": "السطور غير المطابقة",
@@ -405,7 +435,8 @@ Object.assign(arTranslations, {
   "bankReconciliation.list.empty": "لا توجد تسويات تطابق الفلاتر الحالية.",
   "bankReconciliation.list.lines": "{count} سطر كشف",
   "bankReconciliation.list.reconciled": "{count} مطابقات مسوّاة",
-  "bankReconciliation.details.empty": "اختر تسوية لمراجعة سطور الكشف والحركات النظامية.",
+  "bankReconciliation.details.empty":
+    "اختر تسوية لمراجعة سطور الكشف والحركات النظامية.",
   "bankReconciliation.details.statementBalance": "رصيد الكشف",
   "bankReconciliation.details.systemBalance": "رصيد النظام",
   "bankReconciliation.details.difference": "الفرق",
@@ -414,7 +445,8 @@ Object.assign(arTranslations, {
   "bankReconciliation.statementLines.title": "سطور كشف الحساب",
   "bankReconciliation.statementLines.empty": "لا توجد سطور كشف بعد.",
   "bankReconciliation.statementLines.unmatched": "سطور الكشف غير المطابقة",
-  "bankReconciliation.statementLines.importHint": "ألصق سطور CSV بالترتيب: التاريخ، المرجع، الوصف، مدين، دائن",
+  "bankReconciliation.statementLines.importHint":
+    "ألصق سطور CSV بالترتيب: التاريخ، المرجع، الوصف، مدين، دائن",
   "bankReconciliation.statementLines.add": "إضافة سطر",
   "bankReconciliation.statementLines.import": "استيراد السطور",
   "bankReconciliation.statementLines.reference": "المرجع",
@@ -426,17 +458,21 @@ Object.assign(arTranslations, {
   "bankReconciliation.statementLines.action.select": "اختر",
   "bankReconciliation.matching.title": "المطابقة",
   "bankReconciliation.matching.unmatchedSystem": "حركات النظام غير المطابقة",
-  "bankReconciliation.matching.emptySystem": "لا توجد حركات نظام غير مطابقة متبقية لهذه التسوية.",
+  "bankReconciliation.matching.emptySystem":
+    "لا توجد حركات نظام غير مطابقة متبقية لهذه التسوية.",
   "bankReconciliation.matching.selectedLine": "تم اختيار سطر الكشف",
-  "bankReconciliation.matching.noneSelected": "اختر سطر كشف غير مطابق وحركة نظام غير مطابقة.",
+  "bankReconciliation.matching.noneSelected":
+    "اختر سطر كشف غير مطابق وحركة نظام غير مطابقة.",
   "bankReconciliation.matching.match": "مطابقة المحدد",
   "bankReconciliation.matching.remove": "إزالة المطابقة",
   "bankReconciliation.matching.reconcile": "تعليم كمسوّى",
   "bankReconciliation.matching.complete": "إكمال التسوية",
   "bankReconciliation.matching.completedAt": "اكتملت في",
   "bankReconciliation.matching.none": "لا توجد مطابقات بعد.",
-  "bankReconciliation.import.placeholder": "2026-04-16,DEP-001,إيداع عميل,500,0",
-  "bankReconciliation.error.parse": "يجب أن يحتوي كل سطر استيراد على التاريخ والمرجع والوصف والمدين والدائن.",
+  "bankReconciliation.import.placeholder":
+    "2026-04-16,DEP-001,إيداع عميل,500,0",
+  "bankReconciliation.error.parse":
+    "يجب أن يحتوي كل سطر استيراد على التاريخ والمرجع والوصف والمدين والدائن.",
   "salesReceivables.action.toOrder": "تحويل إلى أمر بيع",
   "salesReceivables.action.toInvoice": "تحويل إلى فاتورة",
   "salesReceivables.status.partiallyPaid": "مدفوعة جزئيًا",
@@ -452,7 +488,8 @@ Object.assign(arTranslations, {
 Object.assign(arTranslations, {
   "nav.item.salesReceivables": "المبيعات والذمم المدينة",
   "salesReceivables.title": "المبيعات والذمم المدينة",
-  "salesReceivables.description": "إدارة بيانات العملاء، وإنشاء وترحيل فواتير المبيعات والإشعارات الدائنة، وتخصيص المقبوضات، ومراجعة الأرصدة وتقارير الأعمار.",
+  "salesReceivables.description":
+    "إدارة بيانات العملاء، وإنشاء وترحيل فواتير المبيعات والإشعارات الدائنة، وتخصيص المقبوضات، ومراجعة الأرصدة وتقارير الأعمار.",
   "salesReceivables.tab.customers": "العملاء",
   "salesReceivables.tab.quotations": "عروض الأسعار",
   "salesReceivables.tab.orders": "أوامر البيع",
@@ -499,16 +536,21 @@ Object.assign(arTranslations, {
   "salesReceivables.hint.stillEditable": "ما زالت قابلة للتعديل",
   "salesReceivables.hint.receivableStillOpen": "الذمة ما زالت مفتوحة",
   "salesReceivables.hint.customerBalanceReductions": "تخفيضات أرصدة العملاء",
-  "salesReceivables.hint.availableReceiptTransactions": "حركات المقبوضات المتاحة",
+  "salesReceivables.hint.availableReceiptTransactions":
+    "حركات المقبوضات المتاحة",
   "salesReceivables.hint.stillWaitingToBeAllocated": "ما زالت بانتظار التخصيص",
   "salesReceivables.hint.days0To30": "0-30 يوماً",
   "salesReceivables.hint.days31To60": "31-60 يوماً",
   "salesReceivables.hint.days61To90": "61-90 يوماً",
   "salesReceivables.hint.olderReceivables": "ذمم أقدم",
-  "salesReceivables.hint.allOutstandingPostedInvoices": "جميع الفواتير المرحلة غير المسددة",
-  "salesReceivables.filters.searchCustomers": "ابحث بالرمز أو الاسم أو بيانات التواصل...",
-  "salesReceivables.filters.searchInvoices": "ابحث بالمرجع أو الوصف أو العميل...",
-  "salesReceivables.filters.searchCreditNotes": "ابحث بالمرجع أو الوصف أو العميل...",
+  "salesReceivables.hint.allOutstandingPostedInvoices":
+    "جميع الفواتير المرحلة غير المسددة",
+  "salesReceivables.filters.searchCustomers":
+    "ابحث بالرمز أو الاسم أو بيانات التواصل...",
+  "salesReceivables.filters.searchInvoices":
+    "ابحث بالمرجع أو الوصف أو العميل...",
+  "salesReceivables.filters.searchCreditNotes":
+    "ابحث بالمرجع أو الوصف أو العميل...",
   "salesReceivables.filters.allStatuses": "كل الحالات",
   "salesReceivables.filters.activeOnly": "النشط فقط",
   "salesReceivables.filters.inactiveOnly": "غير النشط فقط",
@@ -546,59 +588,82 @@ Object.assign(arTranslations, {
   "salesReceivables.status.fullyInvoiced": "مفوترة بالكامل",
   "salesReceivables.status.cancelled": "ملغى",
   "salesReceivables.section.customerMasterRecords": "بيانات العملاء",
-  "salesReceivables.section.customerMasterRecordsDescription": "إنشاء وتعديل وتعطيل العملاء مع الحفاظ على التاريخ المحاسبي.",
+  "salesReceivables.section.customerMasterRecordsDescription":
+    "إنشاء وتعديل وتعطيل العملاء مع الحفاظ على التاريخ المحاسبي.",
   "salesReceivables.section.customerDetails": "تفاصيل العميل",
-  "salesReceivables.section.customerDetailsEmpty": "اختر عميلاً لمراجعة الأرصدة والنشاط.",
+  "salesReceivables.section.customerDetailsEmpty":
+    "اختر عميلاً لمراجعة الأرصدة والنشاط.",
   "salesReceivables.section.customerTransactions": "الحركات",
   "salesReceivables.section.quotations": "عروض الأسعار",
-  "salesReceivables.section.quotationsDescription": "أنشئ عروض أسعار كمسودات ثم اعتمدها وتابع صلاحيتها قبل التحويل.",
+  "salesReceivables.section.quotationsDescription":
+    "أنشئ عروض أسعار كمسودات ثم اعتمدها وتابع صلاحيتها قبل التحويل.",
   "salesReceivables.section.quotationDetails": "تفاصيل عرض السعر",
-  "salesReceivables.section.quotationDetailsEmpty": "اختر عرض سعر لمراجعة التفاصيل.",
+  "salesReceivables.section.quotationDetailsEmpty":
+    "اختر عرض سعر لمراجعة التفاصيل.",
   "salesReceivables.section.quotationLines": "بنود عرض السعر",
   "salesReceivables.section.orders": "أوامر البيع",
-  "salesReceivables.section.ordersDescription": "تابع التزامات العملاء وتقدم الفوترة لكل أمر بيع.",
+  "salesReceivables.section.ordersDescription":
+    "تابع التزامات العملاء وتقدم الفوترة لكل أمر بيع.",
   "salesReceivables.section.orderDetails": "تفاصيل أمر البيع",
-  "salesReceivables.section.orderDetailsEmpty": "اختر أمر بيع لمراجعة التفاصيل.",
+  "salesReceivables.section.orderDetailsEmpty":
+    "اختر أمر بيع لمراجعة التفاصيل.",
   "salesReceivables.section.orderLines": "بنود أمر البيع",
   "salesReceivables.section.salesInvoices": "فواتير المبيعات",
-  "salesReceivables.section.salesInvoicesDescription": "يمكن تعديل المسودات. عند الترحيل يُنشئ النظام القيد ويقفل المستند.",
+  "salesReceivables.section.salesInvoicesDescription":
+    "يمكن تعديل المسودات. عند الترحيل يُنشئ النظام القيد ويقفل المستند.",
   "salesReceivables.section.invoiceDetails": "تفاصيل الفاتورة",
-  "salesReceivables.section.invoiceDetailsEmpty": "اختر فاتورة لمراجعة البنود وتفاصيل الترحيل.",
+  "salesReceivables.section.invoiceDetailsEmpty":
+    "اختر فاتورة لمراجعة البنود وتفاصيل الترحيل.",
   "salesReceivables.section.creditNotes": "الإشعارات الدائنة",
-  "salesReceivables.section.creditNotesDescription": "أنشئ إشعارات دائنة مستقلة أو اربطها بفواتير مرحلة للعميل نفسه.",
+  "salesReceivables.section.creditNotesDescription":
+    "أنشئ إشعارات دائنة مستقلة أو اربطها بفواتير مرحلة للعميل نفسه.",
   "salesReceivables.section.creditNoteDetails": "تفاصيل إشعار الدائن",
-  "salesReceivables.section.creditNoteDetailsEmpty": "اختر إشعار دائن لمراجعة بنوده وروابطه.",
+  "salesReceivables.section.creditNoteDetailsEmpty":
+    "اختر إشعار دائن لمراجعة بنوده وروابطه.",
   "salesReceivables.section.receipts": "مقبوضات العملاء",
-  "salesReceivables.section.receiptsDescription": "مقبوضات تُنشأ من المبيعات وتُرحّل من خلال البنك والصندوق.",
+  "salesReceivables.section.receiptsDescription":
+    "مقبوضات تُنشأ من المبيعات وتُرحّل من خلال البنك والصندوق.",
   "salesReceivables.section.receiptDetails": "تفاصيل المقبوض",
-  "salesReceivables.section.receiptDetailsEmpty": "اختر مقبوضاً لمراجعة التفاصيل.",
+  "salesReceivables.section.receiptDetailsEmpty":
+    "اختر مقبوضاً لمراجعة التفاصيل.",
   "salesReceivables.section.allocatePostedReceipts": "تخصيص المقبوضات المرحلة",
-  "salesReceivables.section.allocatePostedReceiptsDescription": "طبّق المقبوضات المرحلة على الفواتير المرحلة. التخصيص الجزئي وتعدد المقبوضات للفاتورة مدعومان.",
+  "salesReceivables.section.allocatePostedReceiptsDescription":
+    "طبّق المقبوضات المرحلة على الفواتير المرحلة. التخصيص الجزئي وتعدد المقبوضات للفاتورة مدعومان.",
   "salesReceivables.section.openInvoices": "الفواتير المفتوحة",
-  "salesReceivables.section.openInvoicesDescription": "تتحدث الأرصدة المستحقة بعد الإشعارات الدائنة وتخصيص المقبوضات.",
+  "salesReceivables.section.openInvoicesDescription":
+    "تتحدث الأرصدة المستحقة بعد الإشعارات الدائنة وتخصيص المقبوضات.",
   "salesReceivables.section.postedReceipts": "المقبوضات المرحلة",
-  "salesReceivables.section.postedReceiptsDescription": "يمكن توزيع المقبوضات على أكثر من فاتورة حتى ينفد رصيد المقبوض.",
+  "salesReceivables.section.postedReceiptsDescription":
+    "يمكن توزيع المقبوضات على أكثر من فاتورة حتى ينفد رصيد المقبوض.",
   "salesReceivables.section.customerAgingReport": "تقرير أعمار الذمم",
-  "salesReceivables.section.customerAgingReportDescription": "يتم تصنيف الأرصدة المستحقة إلى حالي، 31-60، 61-90، وأكثر من 90 يوماً.",
+  "salesReceivables.section.customerAgingReportDescription":
+    "يتم تصنيف الأرصدة المستحقة إلى حالي، 31-60، 61-90، وأكثر من 90 يوماً.",
   "salesReceivables.section.documentLines": "بنود المستند",
-  "salesReceivables.section.documentLinesDescription": "كل سطر يحتاج إلى حساب إيراد وإلى سعر وحدة أو مبلغ السطر.",
+  "salesReceivables.section.documentLinesDescription":
+    "كل سطر يحتاج إلى حساب إيراد وإلى سعر وحدة أو مبلغ السطر.",
   "salesReceivables.empty.customers": "لا توجد عملاء يطابقون الفلاتر الحالية.",
   "salesReceivables.empty.customerContact": "لا توجد بيانات تواصل",
   "salesReceivables.empty.notSet": "غير محدد",
-  "salesReceivables.empty.noPostedCustomerTransactions": "لا توجد حركات عملاء مرحلة حتى الآن.",
-  "salesReceivables.empty.customerTransactionPrompt": "اختر عميلاً لمراجعة الأرصدة وتاريخ الحركات.",
+  "salesReceivables.empty.noPostedCustomerTransactions":
+    "لا توجد حركات عملاء مرحلة حتى الآن.",
+  "salesReceivables.empty.customerTransactionPrompt":
+    "اختر عميلاً لمراجعة الأرصدة وتاريخ الحركات.",
   "salesReceivables.empty.quotations": "لا توجد عروض أسعار.",
   "salesReceivables.empty.orders": "لا توجد أوامر بيع.",
   "salesReceivables.empty.invoices": "لا توجد فواتير تطابق الفلاتر الحالية.",
   "salesReceivables.empty.noJournal": "لا يوجد قيد بعد",
   "salesReceivables.empty.receipts": "لا توجد مقبوضات عملاء.",
-  "salesReceivables.empty.creditNotes": "لا توجد إشعارات دائن تطابق الفلاتر الحالية.",
+  "salesReceivables.empty.creditNotes":
+    "لا توجد إشعارات دائن تطابق الفلاتر الحالية.",
   "salesReceivables.empty.unlinked": "غير مرتبط",
   "salesReceivables.empty.manual": "يدوي",
   "salesReceivables.empty.manualOrder": "أمر يدوي",
-  "salesReceivables.empty.noOpenPostedInvoices": "لا توجد فواتير مرحلة مفتوحة حالياً.",
-  "salesReceivables.empty.noPostedReceipts": "لا توجد مقبوضات مرحلة متاحة حتى الآن.",
-  "salesReceivables.empty.noAgingBalances": "لم يتم العثور على أرصدة معَمّرة للتاريخ المحدد.",
+  "salesReceivables.empty.noOpenPostedInvoices":
+    "لا توجد فواتير مرحلة مفتوحة حالياً.",
+  "salesReceivables.empty.noPostedReceipts":
+    "لا توجد مقبوضات مرحلة متاحة حتى الآن.",
+  "salesReceivables.empty.noAgingBalances":
+    "لم يتم العثور على أرصدة معَمّرة للتاريخ المحدد.",
   "salesReceivables.empty.noLinkedInvoice": "بدون فاتورة مرتبطة",
   "salesReceivables.empty.selectOpenInvoice": "اختر فاتورة مفتوحة",
   "salesReceivables.empty.selectPostedReceipt": "اختر مقبوضاً مرحلاً",
@@ -661,12 +726,17 @@ Object.assign(arTranslations, {
   "salesReceivables.field.bankCash": "البنك/الصندوق",
   "salesReceivables.field.bankCashAccount": "حساب البنك / الصندوق",
   "salesReceivables.field.settlementReference": "مرجع التسوية",
-  "salesReceivables.field.codeHint": "اترك الحقل فارغاً ليقوم النظام بتوليد رمز.",
-  "salesReceivables.field.referenceHint": "اترك الحقل فارغاً ليقوم النظام بتوليد المرجع.",
-  "salesReceivables.field.linkedInvoiceHint": "اختياري. يجب أن تكون الفاتورة المرتبطة لنفس العميل.",
-  "salesReceivables.field.currentOutstandingBalance": "الرصيد المستحق الحالي: {amount}",
+  "salesReceivables.field.codeHint":
+    "اترك الحقل فارغاً ليقوم النظام بتوليد رمز.",
+  "salesReceivables.field.referenceHint":
+    "اترك الحقل فارغاً ليقوم النظام بتوليد المرجع.",
+  "salesReceivables.field.linkedInvoiceHint":
+    "اختياري. يجب أن تكون الفاتورة المرتبطة لنفس العميل.",
+  "salesReceivables.field.currentOutstandingBalance":
+    "الرصيد المستحق الحالي: {amount}",
   "salesReceivables.field.creditNoteTotal": "إجمالي إشعار الدائن",
-  "salesReceivables.field.agingDescription": "يعتمد تقرير الأعمار على الفواتير المرحلة غير المسددة ويصنفها حسب عمر الفاتورة.",
+  "salesReceivables.field.agingDescription":
+    "يعتمد تقرير الأعمار على الفواتير المرحلة غير المسددة ويصنفها حسب عمر الفاتورة.",
   "salesReceivables.filters.searchQuotations": "ابحث في عروض الأسعار...",
   "salesReceivables.filters.searchOrders": "ابحث في أوامر البيع...",
   "salesReceivables.filters.searchReceipts": "ابحث في المقبوضات...",
@@ -685,16 +755,20 @@ Object.assign(arTranslations, {
   "salesReceivables.line.qtyPrice": "الكمية {quantity} × {price}",
   "salesReceivables.transaction.allocated": "المخصص: {amount}",
   "salesReceivables.transaction.outstanding": "المستحق: {amount}",
-  "salesReceivables.transaction.appliedToInvoice": "تم تطبيقه على الفاتورة {reference}",
-  "salesReceivables.confirm.deactivateCustomer": "تعطيل العميل \"{name}\"؟ سيبقى التاريخ المحاسبي محفوظاً.",
-  "salesReceivables.confirm.postInvoice": "ترحيل الفاتورة \"{reference}\" الآن؟",
-  "salesReceivables.confirm.postCreditNote": "ترحيل إشعار الدائن \"{reference}\" الآن؟",
+  "salesReceivables.transaction.appliedToInvoice":
+    "تم تطبيقه على الفاتورة {reference}",
+  "salesReceivables.confirm.deactivateCustomer":
+    'تعطيل العميل "{name}"؟ سيبقى التاريخ المحاسبي محفوظاً.',
+  "salesReceivables.confirm.postInvoice": 'ترحيل الفاتورة "{reference}" الآن؟',
+  "salesReceivables.confirm.postCreditNote":
+    'ترحيل إشعار الدائن "{reference}" الآن؟',
 });
 
 Object.assign(arTranslations, {
   "nav.item.purchases": "المشتريات",
   "purchases.title": "المشتريات",
-  "purchases.description": "تهيئة أولية للمرحلة الرابعة Procure-to-Pay. تم تجهيز هيكل الوحدة وخط الأساس للمتطلبات باللغتين حتى نبدأ تنفيذ الموردين وسير عمل الشراء بنفس معمارية المشروع الحالية.",
+  "purchases.description":
+    "تهيئة أولية للمرحلة الرابعة Procure-to-Pay. تم تجهيز هيكل الوحدة وخط الأساس للمتطلبات باللغتين حتى نبدأ تنفيذ الموردين وسير عمل الشراء بنفس معمارية المشروع الحالية.",
   "purchases.status.scaffold": "تهيئة أولية فقط",
   "purchases.summary.phase": "المرحلة",
   "purchases.summary.phaseValue": "المرحلة 4",
@@ -705,41 +779,62 @@ Object.assign(arTranslations, {
   "purchases.summary.submodules": "الوحدات الفرعية",
   "purchases.summary.submodulesHint": "تقسيمات الملكية المخططة داخل المشتريات",
   "purchases.summary.requirements": "المتطلبات",
-  "purchases.summary.requirementsHint": "موثقة في ملف متطلبات المرحلة الرابعة باللغتين",
+  "purchases.summary.requirementsHint":
+    "موثقة في ملف متطلبات المرحلة الرابعة باللغتين",
   "purchases.section.architecture": "المعمارية",
-  "purchases.section.architectureTitle": "المرحلة الرابعة تتبع نفس أسلوب الملكية المعياري",
-  "purchases.section.architectureDescription": "هذه الخطوة الأولى تنشئ وحدة Backend مستقلة للمرحلة الرابعة ومدخلاً مناظرًا لها في الواجهة الأمامية حتى نستطيع إضافة كل سير عمل في المشتريات كوحدة فرعية مستقلة دون خلط المسؤوليات مع المبيعات أو البنوك والصندوق أو منطق المرحلة الأولى المحاسبي.",
+  "purchases.section.architectureTitle":
+    "المرحلة الرابعة تتبع نفس أسلوب الملكية المعياري",
+  "purchases.section.architectureDescription":
+    "هذه الخطوة الأولى تنشئ وحدة Backend مستقلة للمرحلة الرابعة ومدخلاً مناظرًا لها في الواجهة الأمامية حتى نستطيع إضافة كل سير عمل في المشتريات كوحدة فرعية مستقلة دون خلط المسؤوليات مع المبيعات أو البنوك والصندوق أو منطق المرحلة الأولى المحاسبي.",
   "purchases.section.architectureStatus": "وحدات فرعية مخططة",
   "purchases.section.document": "المتطلبات",
-  "purchases.section.documentTitle": "تم حفظ خط أساس المتطلبات باللغتين داخل docs",
-  "purchases.section.documentDescription": "أصبحت جميع متطلبات وحدة المشتريات موثقة الآن بالعربية والإنجليزية حتى نستطيع التنفيذ متطلبًا بعد متطلب مع الحفاظ على الصياغة الأصلية للأعمال.",
+  "purchases.section.documentTitle":
+    "تم حفظ خط أساس المتطلبات باللغتين داخل docs",
+  "purchases.section.documentDescription":
+    "أصبحت جميع متطلبات وحدة المشتريات موثقة الآن بالعربية والإنجليزية حتى نستطيع التنفيذ متطلبًا بعد متطلب مع الحفاظ على الصياغة الأصلية للأعمال.",
   "purchases.section.documentPathLabel": "الملف:",
   "purchases.submodule.requirements": "{count} متطلبات",
   "purchases.submodule.nextStep": "الشريحة التالية المخططة",
   "purchases.submodule.suppliers.title": "الموردون",
-  "purchases.submodule.suppliers.description": "بطاقات الموردين، الحسابات الدائنة الافتراضية، العملات الافتراضية، قواعد التعطيل، تاريخ الحركات، والأرصدة المستحقة.",
-  "purchases.submodule.suppliers.nextStep": "نبدأ ببطاقات الموردين، وضوابط النشط/المعطل، والتحقق من عدم اختيار المورد المعطل في العمليات الجديدة.",
+  "purchases.submodule.suppliers.description":
+    "بطاقات الموردين، الحسابات الدائنة الافتراضية، العملات الافتراضية، قواعد التعطيل، تاريخ الحركات، والأرصدة المستحقة.",
+  "purchases.submodule.suppliers.nextStep":
+    "نبدأ ببطاقات الموردين، وضوابط النشط/المعطل، والتحقق من عدم اختيار المورد المعطل في العمليات الجديدة.",
   "purchases.submodule.purchaseRequests.title": "طلبات الشراء",
-  "purchases.submodule.purchaseRequests.description": "سير عمل الطلب الداخلي قبل الموافقة، مع المسودات وتفاصيل البنود والمراجع الفريدة وتاريخ الحالات.",
-  "purchases.submodule.purchaseRequests.nextStep": "نمذجة دورة حياة الطلب: مسودة، مقدم، معتمد، مرفوض، ومغلق مع بنود متعددة لكل طلب.",
+  "purchases.submodule.purchaseRequests.description":
+    "سير عمل الطلب الداخلي قبل الموافقة، مع المسودات وتفاصيل البنود والمراجع الفريدة وتاريخ الحالات.",
+  "purchases.submodule.purchaseRequests.nextStep":
+    "نمذجة دورة حياة الطلب: مسودة، مقدم، معتمد، مرفوض، ومغلق مع بنود متعددة لكل طلب.",
   "purchases.submodule.purchaseOrders.title": "أوامر الشراء",
-  "purchases.submodule.purchaseOrders.description": "أوامر رسمية للموردين تُنشأ مباشرة أو من طلبات شراء معتمدة، مع ربط المورد والتواريخ والبنود وحالات الاستلام.",
-  "purchases.submodule.purchaseOrders.nextStep": "إضافة كيان رأس أمر الشراء وبنوده مع تتبع التحويل من طلب الشراء المعتمد.",
+  "purchases.submodule.purchaseOrders.description":
+    "أوامر رسمية للموردين تُنشأ مباشرة أو من طلبات شراء معتمدة، مع ربط المورد والتواريخ والبنود وحالات الاستلام.",
+  "purchases.submodule.purchaseOrders.nextStep":
+    "إضافة كيان رأس أمر الشراء وبنوده مع تتبع التحويل من طلب الشراء المعتمد.",
   "purchases.submodule.purchaseInvoices.title": "فواتير الشراء",
-  "purchases.submodule.purchaseInvoices.description": "فواتير الموردين مع تصنيف الحسابات والمجاميع والضرائب والخصومات والمراجع وضبط الحفظ كمسودة قبل الترحيل.",
-  "purchases.submodule.purchaseInvoices.nextStep": "تصميم ترحيل الفاتورة بالاعتماد على إنشاء قيود يومية من المرحلة الأولى مع الحفاظ على قابلية تعديل المسودة.",
+  "purchases.submodule.purchaseInvoices.description":
+    "فواتير الموردين مع تصنيف الحسابات والمجاميع والضرائب والخصومات والمراجع وضبط الحفظ كمسودة قبل الترحيل.",
+  "purchases.submodule.purchaseInvoices.nextStep":
+    "تصميم ترحيل الفاتورة بالاعتماد على إنشاء قيود يومية من المرحلة الأولى مع الحفاظ على قابلية تعديل المسودة.",
   "purchases.submodule.supplierPayments.title": "مدفوعات الموردين",
-  "purchases.submodule.supplierPayments.description": "تسجيل الدفعات، وتخصيص دفعة واحدة لفاتورة أو عدة فواتير شراء، والسداد الجزئي، والتكامل مع البنوك والصندوق بعد الترحيل.",
-  "purchases.submodule.supplierPayments.nextStep": "إعادة استخدام سلوك المدفوعات من المرحلة الثانية قدر الإمكان، مع إبقاء تخصيص فواتير الموردين داخل ملكية المشتريات.",
+  "purchases.submodule.supplierPayments.description":
+    "تسجيل الدفعات، وتخصيص دفعة واحدة لفاتورة أو عدة فواتير شراء، والسداد الجزئي، والتكامل مع البنوك والصندوق بعد الترحيل.",
+  "purchases.submodule.supplierPayments.nextStep":
+    "إعادة استخدام سلوك المدفوعات من المرحلة الثانية قدر الإمكان، مع إبقاء تخصيص فواتير الموردين داخل ملكية المشتريات.",
   "purchases.submodule.debitNotes.title": "إشعارات الخصم",
-  "purchases.submodule.debitNotes.description": "إشعارات خصم مرتبطة بالموردين لمرتجعات الشراء أو تصحيحات الأسعار أو المبالغ المتنازع عليها، مع تقليل الرصيد الدائن بعد الترحيل.",
-  "purchases.submodule.debitNotes.nextStep": "اعتبار إشعار الخصم نوع مستند مستقل مع ربط اختياري بفاتورة شراء وتأثير واضح على الرصيد المستحق.",
+  "purchases.submodule.debitNotes.description":
+    "إشعارات خصم مرتبطة بالموردين لمرتجعات الشراء أو تصحيحات الأسعار أو المبالغ المتنازع عليها، مع تقليل الرصيد الدائن بعد الترحيل.",
+  "purchases.submodule.debitNotes.nextStep":
+    "اعتبار إشعار الخصم نوع مستند مستقل مع ربط اختياري بفاتورة شراء وتأثير واضح على الرصيد المستحق.",
   "purchases.submodule.postingAndAccounting.title": "الترحيل والمنطق المحاسبي",
-  "purchases.submodule.postingAndAccounting.description": "إنشاء قيود يومية تلقائيًا، تغيير الحالات بعد الترحيل، تحديث أرصدة الموردين، وقفل المستندات بعد الترحيل مع دعم العكس المنضبط.",
-  "purchases.submodule.postingAndAccounting.nextStep": "تمرير كل الأثر المحاسبي عبر خدمات القيود والترحيل في المرحلة الأولى بدلًا من الكتابة المباشرة على الأستاذ.",
+  "purchases.submodule.postingAndAccounting.description":
+    "إنشاء قيود يومية تلقائيًا، تغيير الحالات بعد الترحيل، تحديث أرصدة الموردين، وقفل المستندات بعد الترحيل مع دعم العكس المنضبط.",
+  "purchases.submodule.postingAndAccounting.nextStep":
+    "تمرير كل الأثر المحاسبي عبر خدمات القيود والترحيل في المرحلة الأولى بدلًا من الكتابة المباشرة على الأستاذ.",
   "purchases.submodule.validationAndControl.title": "قواعد التحقق والرقابة",
-  "purchases.submodule.validationAndControl.description": "منع تكرار المراجع، ومنع التخصيص الزائد، ومنع الترحيل على الموردين المعطلين، وحفظ سجل الحالات لأغراض المراجعة.",
-  "purchases.submodule.validationAndControl.nextStep": "تجميع قواعد التحقق المشتركة حتى تبقى ضوابط المسودة والترحيل والإلغاء والعكس متسقة.",
+  "purchases.submodule.validationAndControl.description":
+    "منع تكرار المراجع، ومنع التخصيص الزائد، ومنع الترحيل على الموردين المعطلين، وحفظ سجل الحالات لأغراض المراجعة.",
+  "purchases.submodule.validationAndControl.nextStep":
+    "تجميع قواعد التحقق المشتركة حتى تبقى ضوابط المسودة والترحيل والإلغاء والعكس متسقة.",
 });
 
 Object.assign(arTranslations, {
@@ -758,7 +853,8 @@ Object.assign(arTranslations, {
   "purchases.summary.totalOutstanding": "الرصيد المستحق",
   "purchases.summary.totalOutstandingHint": "إجمالي أرصدة الموردين الدائنة",
   "purchases.filters.search": "بحث",
-  "purchases.filters.searchPlaceholder": "ابحث بالرمز أو اسم المورد أو بيانات التواصل أو الضريبة أو حساب الدائن...",
+  "purchases.filters.searchPlaceholder":
+    "ابحث بالرمز أو اسم المورد أو بيانات التواصل أو الضريبة أو حساب الدائن...",
   "purchases.filters.status": "الحالة",
   "purchases.filters.allStatuses": "كل الحالات",
   "purchases.filters.activeOnly": "النشط فقط",
@@ -783,7 +879,8 @@ Object.assign(arTranslations, {
   "purchases.empty.paymentTerms": "لا توجد شروط دفع",
   "purchases.empty.contactInfo": "لا توجد بيانات تواصل",
   "purchases.empty.taxInfo": "لا توجد معلومات ضريبية",
-  "purchases.empty.selectSupplier": "اختر موردًا لعرض الرصيد المستحق وتاريخ الحركات.",
+  "purchases.empty.selectSupplier":
+    "اختر موردًا لعرض الرصيد المستحق وتاريخ الحركات.",
   "purchases.empty.transactions": "لا توجد حركات للمورد حتى الآن.",
   "purchases.empty.selectPayableAccount": "اختر حساب دائن فرعي نشط",
   "purchases.dialog.newSupplier": "مورد جديد",
@@ -796,7 +893,8 @@ Object.assign(arTranslations, {
   "purchases.field.paymentTerms": "شروط الدفع",
   "purchases.field.defaultCurrency": "العملة الافتراضية",
   "purchases.field.payableAccount": "حساب الدائن الافتراضي",
-  "purchases.field.payableAccountHint": "يسمح فقط بحسابات الخصوم الفرعية النشطة.",
+  "purchases.field.payableAccountHint":
+    "يسمح فقط بحسابات الخصوم الفرعية النشطة.",
   "purchases.status.active": "نشط",
   "purchases.status.inactive": "غير نشط",
 });
@@ -826,15 +924,18 @@ Object.assign(arTranslations, {
   "purchases.status.orderIssued": "مصدر",
   "purchases.status.orderPartiallyReceived": "مستلم جزئياً",
   "purchases.status.orderFullyReceived": "مستلم كلياً",
-  "purchases.requests.description": "إدارة طلبات الشراء الداخلية، تمريرها عبر دورة الاعتماد، وتحويل الطلبات المعتمدة إلى أوامر شراء مسودة.",
+  "purchases.requests.description":
+    "إدارة طلبات الشراء الداخلية، تمريرها عبر دورة الاعتماد، وتحويل الطلبات المعتمدة إلى أوامر شراء مسودة.",
   "purchases.requests.summary.total": "الطلبات",
   "purchases.requests.summary.totalHint": "القائمة الحالية بعد الفلترة",
   "purchases.requests.summary.pendingApproval": "بانتظار الاعتماد",
   "purchases.requests.summary.pendingApprovalHint": "طلبات مقدمة تنتظر القرار",
   "purchases.requests.summary.readyToConvert": "جاهزة لأمر شراء",
-  "purchases.requests.summary.readyToConvertHint": "طلبات معتمدة متاحة لإنشاء أوامر شراء مسودة",
+  "purchases.requests.summary.readyToConvertHint":
+    "طلبات معتمدة متاحة لإنشاء أوامر شراء مسودة",
   "purchases.requests.filters.search": "بحث",
-  "purchases.requests.filters.searchPlaceholder": "ابحث بالمرجع أو الوصف أو سطر الطلب أو أمر الشراء المرتبط...",
+  "purchases.requests.filters.searchPlaceholder":
+    "ابحث بالمرجع أو الوصف أو سطر الطلب أو أمر الشراء المرتبط...",
   "purchases.requests.filters.status": "الحالة",
   "purchases.requests.table.reference": "الطلب",
   "purchases.requests.table.date": "تاريخ الطلب",
@@ -853,15 +954,19 @@ Object.assign(arTranslations, {
   "purchases.requests.metric.status": "الحالة",
   "purchases.requests.metric.linkedOrders": "الأوامر المرتبطة",
   "purchases.requests.empty.list": "لا توجد طلبات شراء تطابق الفلاتر الحالية.",
-  "purchases.requests.empty.selectRequest": "اختر طلب شراء لمراجعة بنوده وتاريخ حالاته وإمكانية تحويله.",
+  "purchases.requests.empty.selectRequest":
+    "اختر طلب شراء لمراجعة بنوده وتاريخ حالاته وإمكانية تحويله.",
   "purchases.requests.empty.notSet": "غير محدد",
-  "purchases.requests.empty.history": "لا توجد إدخالات في تاريخ الحالات حتى الآن.",
-  "purchases.requests.empty.linkedOrders": "لا توجد أوامر شراء مسودة مرتبطة حتى الآن.",
+  "purchases.requests.empty.history":
+    "لا توجد إدخالات في تاريخ الحالات حتى الآن.",
+  "purchases.requests.empty.linkedOrders":
+    "لا توجد أوامر شراء مسودة مرتبطة حتى الآن.",
   "purchases.requests.empty.noDescription": "لا يوجد وصف",
   "purchases.requests.empty.noNote": "لا توجد ملاحظة",
   "purchases.requests.empty.selectSupplier": "اختر مورداً نشطاً",
   "purchases.requests.field.reference": "مرجع الطلب",
-  "purchases.requests.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.requests.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.requests.field.requestDate": "تاريخ الطلب",
   "purchases.requests.field.description": "وصف الرأس",
   "purchases.requests.field.itemOrService": "الصنف / الخدمة",
@@ -873,7 +978,8 @@ Object.assign(arTranslations, {
   "purchases.requests.field.orderDate": "تاريخ أمر الشراء",
   "purchases.requests.field.currency": "عملة الأمر",
   "purchases.requests.field.orderReference": "مرجع أمر الشراء",
-  "purchases.requests.field.orderReferenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع أمر الشراء المسودة.",
+  "purchases.requests.field.orderReferenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع أمر الشراء المسودة.",
   "purchases.requests.field.orderDescription": "وصف أمر الشراء",
   "purchases.requests.line.label": "السطر {index}",
   "purchases.requests.line.quantity": "الكمية {quantity}",
@@ -881,7 +987,8 @@ Object.assign(arTranslations, {
   "purchases.requests.confirm.approve": "هل تريد اعتماد طلب الشراء؟",
   "purchases.requests.confirm.reject": "هل تريد رفض طلب الشراء؟",
   "purchases.requests.confirm.close": "هل تريد إغلاق طلب الشراء؟",
-  "purchases.requests.success.converted": "تم إنشاء أمر شراء مسودة بالمرجع {reference} من هذا الطلب.",
+  "purchases.requests.success.converted":
+    "تم إنشاء أمر شراء مسودة بالمرجع {reference} من هذا الطلب.",
 });
 
 Object.assign(arTranslations, {
@@ -894,7 +1001,8 @@ Object.assign(arTranslations, {
   "purchases.workspace.orders": "أوامر الشراء",
   "purchases.dialog.newOrder": "أمر شراء جديد",
   "purchases.dialog.editOrder": "تعديل أمر الشراء",
-  "purchases.orders.description": "إنشاء أوامر الشراء مباشرة أو من الطلبات المعتمدة، ثم متابعة الإصدار وحالة الاستلام والإغلاق.",
+  "purchases.orders.description":
+    "إنشاء أوامر الشراء مباشرة أو من الطلبات المعتمدة، ثم متابعة الإصدار وحالة الاستلام والإغلاق.",
   "purchases.orders.summary.total": "أوامر الشراء",
   "purchases.orders.summary.totalHint": "القائمة الحالية بعد الفلترة",
   "purchases.orders.summary.issued": "المصدرة",
@@ -902,7 +1010,8 @@ Object.assign(arTranslations, {
   "purchases.orders.summary.openReceipt": "بانتظار الاستلام",
   "purchases.orders.summary.openReceiptHint": "أوامر مصدرة أو مستلمة جزئياً",
   "purchases.orders.filters.search": "بحث",
-  "purchases.orders.filters.searchPlaceholder": "ابحث بمرجع أمر الشراء أو المورد أو طلب الشراء المصدر أو وصف السطر...",
+  "purchases.orders.filters.searchPlaceholder":
+    "ابحث بمرجع أمر الشراء أو المورد أو طلب الشراء المصدر أو وصف السطر...",
   "purchases.orders.filters.status": "الحالة",
   "purchases.orders.table.reference": "أمر الشراء",
   "purchases.orders.table.supplier": "المورد",
@@ -920,10 +1029,12 @@ Object.assign(arTranslations, {
   "purchases.orders.metric.subtotal": "الإجمالي قبل الضريبة",
   "purchases.orders.metric.tax": "الضريبة",
   "purchases.orders.empty.list": "لا توجد أوامر شراء تطابق الفلاتر الحالية.",
-  "purchases.orders.empty.selectOrder": "اختر أمر شراء لمراجعة بنوده وحالة الاستلام.",
+  "purchases.orders.empty.selectOrder":
+    "اختر أمر شراء لمراجعة بنوده وحالة الاستلام.",
   "purchases.orders.empty.manual": "أمر يدوي",
   "purchases.orders.field.reference": "مرجع أمر الشراء",
-  "purchases.orders.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.orders.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.orders.field.orderDate": "تاريخ أمر الشراء",
   "purchases.orders.field.supplier": "المورد",
   "purchases.orders.field.currency": "العملة",
@@ -939,8 +1050,10 @@ Object.assign(arTranslations, {
   "purchases.orders.line.label": "السطر {index}",
   "purchases.orders.line.qtyPrice": "الكمية {quantity} × {price}",
   "purchases.orders.confirm.issue": "هل تريد إصدار أمر الشراء الآن؟",
-  "purchases.orders.confirm.markPartiallyReceived": "هل تريد تعليم أمر الشراء كمستلم جزئياً؟",
-  "purchases.orders.confirm.markFullyReceived": "هل تريد تعليم أمر الشراء كمستلم كلياً؟",
+  "purchases.orders.confirm.markPartiallyReceived":
+    "هل تريد تعليم أمر الشراء كمستلم جزئياً؟",
+  "purchases.orders.confirm.markFullyReceived":
+    "هل تريد تعليم أمر الشراء كمستلم كلياً؟",
   "purchases.orders.confirm.cancel": "هل تريد إلغاء أمر الشراء؟",
   "purchases.orders.confirm.close": "هل تريد إغلاق أمر الشراء؟",
 });
@@ -950,7 +1063,8 @@ Object.assign(arTranslations, {
   "purchases.workspace.invoices": "فواتير الشراء",
   "purchases.dialog.newInvoice": "فاتورة شراء جديدة",
   "purchases.dialog.editInvoice": "تعديل فاتورة الشراء",
-  "purchases.invoices.description": "تسجيل فواتير الموردين مباشرة أو بالرجوع إلى أوامر الشراء، مع تصنيف كل سطر إلى حساب ترحيل مناسب وحفظها كمسودات بانتظار الترحيل لاحقاً.",
+  "purchases.invoices.description":
+    "تسجيل فواتير الموردين مباشرة أو بالرجوع إلى أوامر الشراء، مع تصنيف كل سطر إلى حساب ترحيل مناسب وحفظها كمسودات بانتظار الترحيل لاحقاً.",
   "purchases.invoices.summary.total": "فواتير الشراء",
   "purchases.invoices.summary.totalHint": "القائمة الحالية بعد الفلترة",
   "purchases.invoices.summary.draft": "الفواتير المسودة",
@@ -958,7 +1072,8 @@ Object.assign(arTranslations, {
   "purchases.invoices.summary.linkedOrders": "مرتبطة بأوامر شراء",
   "purchases.invoices.summary.linkedOrdersHint": "فواتير تشير إلى أوامر شراء",
   "purchases.invoices.filters.search": "بحث",
-  "purchases.invoices.filters.searchPlaceholder": "ابحث بمرجع الفاتورة أو المورد أو أمر الشراء المصدر أو وصف السطر أو الحساب...",
+  "purchases.invoices.filters.searchPlaceholder":
+    "ابحث بمرجع الفاتورة أو المورد أو أمر الشراء المصدر أو وصف السطر أو الحساب...",
   "purchases.invoices.filters.status": "الحالة",
   "purchases.invoices.status.posted": "مرحلة",
   "purchases.invoices.status.partiallyPaid": "مدفوعة جزئياً",
@@ -980,11 +1095,13 @@ Object.assign(arTranslations, {
   "purchases.invoices.metric.discount": "الخصم",
   "purchases.invoices.metric.tax": "الضريبة",
   "purchases.invoices.empty.list": "لا توجد فواتير شراء تطابق الفلاتر الحالية.",
-  "purchases.invoices.empty.selectInvoice": "اختر فاتورة شراء لمراجعة بنودها وتصنيف الحسابات فيها.",
+  "purchases.invoices.empty.selectInvoice":
+    "اختر فاتورة شراء لمراجعة بنودها وتصنيف الحسابات فيها.",
   "purchases.invoices.empty.manual": "فاتورة يدوية",
   "purchases.invoices.empty.selectAccount": "اختر حساب ترحيل",
   "purchases.invoices.field.reference": "مرجع فاتورة الشراء",
-  "purchases.invoices.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.invoices.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.invoices.field.invoiceDate": "تاريخ الفاتورة",
   "purchases.invoices.field.supplier": "المورد",
   "purchases.invoices.field.currency": "العملة",
@@ -1010,7 +1127,8 @@ Object.assign(arTranslations, {
   "purchases.workspace.payments": "مدفوعات الموردين",
   "purchases.dialog.newPayment": "دفعة مورد جديدة",
   "purchases.dialog.editPayment": "تعديل دفعة المورد",
-  "purchases.payments.description": "تسجيل مدفوعات الموردين، وتخصيصها على فاتورة شراء واحدة أو عدة فواتير، ثم ترحيلها إلى البنوك والصندوق.",
+  "purchases.payments.description":
+    "تسجيل مدفوعات الموردين، وتخصيصها على فاتورة شراء واحدة أو عدة فواتير، ثم ترحيلها إلى البنوك والصندوق.",
   "purchases.payments.summary.total": "مدفوعات الموردين",
   "purchases.payments.summary.totalHint": "القائمة الحالية بعد الفلترة",
   "purchases.payments.summary.draft": "الدفعات المسودة",
@@ -1018,7 +1136,8 @@ Object.assign(arTranslations, {
   "purchases.payments.summary.posted": "الدفعات المرحلة",
   "purchases.payments.summary.postedHint": "متكاملة مع البنوك والصندوق",
   "purchases.payments.filters.search": "بحث",
-  "purchases.payments.filters.searchPlaceholder": "ابحث بمرجع الدفعة أو المورد أو الفاتورة المرتبطة...",
+  "purchases.payments.filters.searchPlaceholder":
+    "ابحث بمرجع الدفعة أو المورد أو الفاتورة المرتبطة...",
   "purchases.payments.filters.status": "الحالة",
   "purchases.payments.table.reference": "دفعة المورد",
   "purchases.payments.table.supplier": "المورد",
@@ -1036,13 +1155,16 @@ Object.assign(arTranslations, {
   "purchases.payments.metric.unapplied": "غير المخصص",
   "purchases.payments.metric.allocations": "التخصيصات",
   "purchases.payments.metric.remainingOnInvoice": "المتبقي على الفاتورة",
-  "purchases.payments.empty.list": "لا توجد مدفوعات موردين تطابق الفلاتر الحالية.",
-  "purchases.payments.empty.selectPayment": "اختر دفعة مورد لمراجعة تخصيصاتها وحالة ترحيلها.",
+  "purchases.payments.empty.list":
+    "لا توجد مدفوعات موردين تطابق الفلاتر الحالية.",
+  "purchases.payments.empty.selectPayment":
+    "اختر دفعة مورد لمراجعة تخصيصاتها وحالة ترحيلها.",
   "purchases.payments.empty.allocations": "لا توجد تخصيصات فواتير لهذه الدفعة.",
   "purchases.payments.empty.selectBankCash": "اختر حساب بنك / صندوق",
   "purchases.payments.empty.selectInvoice": "اختر فاتورة شراء",
   "purchases.payments.field.reference": "مرجع الدفعة",
-  "purchases.payments.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.payments.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.payments.field.paymentDate": "تاريخ الدفعة",
   "purchases.payments.field.supplier": "المورد",
   "purchases.payments.field.amount": "مبلغ الدفعة",
@@ -1062,7 +1184,8 @@ Object.assign(arTranslations, {
   "purchases.workspace.debitNotes": "إشعارات الخصم",
   "purchases.dialog.newDebitNote": "إشعار خصم جديد",
   "purchases.dialog.editDebitNote": "تعديل إشعار الخصم",
-  "purchases.debitNotes.description": "إنشاء إشعارات خصم للموردين للمرتجعات وتصحيحات الأسعار والمبالغ المتنازع عليها، مع تأثيرها على أرصدة الموردين.",
+  "purchases.debitNotes.description":
+    "إنشاء إشعارات خصم للموردين للمرتجعات وتصحيحات الأسعار والمبالغ المتنازع عليها، مع تأثيرها على أرصدة الموردين.",
   "purchases.debitNotes.summary.total": "إشعارات الخصم",
   "purchases.debitNotes.summary.totalHint": "القائمة الحالية بعد الفلترة",
   "purchases.debitNotes.summary.draft": "إشعارات خصم مسودة",
@@ -1070,7 +1193,8 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.summary.applied": "إشعارات خصم مطبقة",
   "purchases.debitNotes.summary.appliedHint": "مرتبطة بفواتير الشراء",
   "purchases.debitNotes.filters.search": "بحث",
-  "purchases.debitNotes.filters.searchPlaceholder": "ابحث بمرجع إشعار الخصم أو المورد أو الفاتورة أو السبب...",
+  "purchases.debitNotes.filters.searchPlaceholder":
+    "ابحث بمرجع إشعار الخصم أو المورد أو الفاتورة أو السبب...",
   "purchases.debitNotes.filters.status": "الحالة",
   "purchases.debitNotes.table.reference": "إشعار الخصم",
   "purchases.debitNotes.table.supplier": "المورد",
@@ -1087,11 +1211,14 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.metric.subtotal": "الإجمالي قبل الضريبة",
   "purchases.debitNotes.metric.tax": "الضريبة",
   "purchases.debitNotes.metric.total": "الإجمالي",
-  "purchases.debitNotes.empty.list": "لا توجد إشعارات خصم تطابق الفلاتر الحالية.",
-  "purchases.debitNotes.empty.selectDebitNote": "اختر إشعار خصم لمراجعة تأثيره على المورد والفاتورة المرتبطة.",
+  "purchases.debitNotes.empty.list":
+    "لا توجد إشعارات خصم تطابق الفلاتر الحالية.",
+  "purchases.debitNotes.empty.selectDebitNote":
+    "اختر إشعار خصم لمراجعة تأثيره على المورد والفاتورة المرتبطة.",
   "purchases.debitNotes.empty.standalone": "بدون فاتورة شراء مرتبطة",
   "purchases.debitNotes.field.reference": "مرجع إشعار الخصم",
-  "purchases.debitNotes.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.debitNotes.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.debitNotes.field.noteDate": "تاريخ إشعار الخصم",
   "purchases.debitNotes.field.supplier": "المورد",
   "purchases.debitNotes.field.purchaseInvoice": "فاتورة الشراء المرتبطة",
@@ -1103,7 +1230,8 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.field.taxAmount": "قيمة الضريبة",
   "purchases.debitNotes.field.lineTotal": "إجمالي السطر",
   "purchases.debitNotes.line.label": "السطر {index}",
-  "purchases.debitNotes.line.qtyAmount": "الكمية {quantity} · المبلغ الأساسي {amount}",
+  "purchases.debitNotes.line.qtyAmount":
+    "الكمية {quantity} · المبلغ الأساسي {amount}",
   "purchases.debitNotes.status.applied": "مطبق",
   "purchases.debitNotes.confirm.post": "هل تريد ترحيل إشعار الخصم الآن؟",
   "purchases.debitNotes.confirm.cancel": "هل تريد إلغاء إشعار الخصم؟",
@@ -1122,12 +1250,14 @@ Object.assign(arTranslations, {
   "purchases.dialog.receiveOrder": "استلام أمر الشراء",
   "purchases.orders.section.receipts": "سجل الاستلام",
   "purchases.orders.metric.receivedQuantity": "الكمية المستلمة",
-  "purchases.orders.empty.receipts": "لا توجد سجلات استلام مرحلة لهذا أمر الشراء بعد.",
+  "purchases.orders.empty.receipts":
+    "لا توجد سجلات استلام مرحلة لهذا أمر الشراء بعد.",
   "purchases.orders.empty.notPosted": "لم يتم ترحيلها بعد",
   "purchases.orders.field.postedAt": "تاريخ الترحيل",
   "purchases.receipts.section.lines": "سطور الاستلام",
   "purchases.receipts.field.reference": "مرجع الاستلام",
-  "purchases.receipts.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
+  "purchases.receipts.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
   "purchases.receipts.field.receiptDate": "تاريخ الاستلام",
   "purchases.receipts.field.description": "الوصف",
   "purchases.receipts.field.orderedQuantity": "الكمية المطلوبة",
@@ -1140,16 +1270,20 @@ Object.assign(arTranslations, {
   "purchases.action.reverseInvoice": "Ø¹ÙƒØ³ Ø§Ù„ÙØ§ØªÙˆØ±Ø©",
   "purchases.action.reversePayment": "Ø¹ÙƒØ³ Ø§Ù„Ø¯ÙØ¹Ø©",
   "purchases.action.reverseDebitNote": "Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ…",
-  "purchases.invoices.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡ Ø§Ù„Ø¢Ù†ØŸ",
-  "purchases.payments.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¯ÙØ¹Ø© Ø§Ù„Ù…ÙˆØ±Ø¯ Ø§Ù„Ø¢Ù†ØŸ",
-  "purchases.debitNotes.confirm.reverse": "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ… Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.invoices.confirm.reverse":
+    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡ Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.payments.confirm.reverse":
+    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¯ÙØ¹Ø© Ø§Ù„Ù…ÙˆØ±Ø¯ Ø§Ù„Ø¢Ù†ØŸ",
+  "purchases.debitNotes.confirm.reverse":
+    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ… Ø§Ù„Ø¢Ù†ØŸ",
   "purchases.status.reversed": "Ù…Ø¹ÙƒÙˆØ³",
 });
 
 Object.assign(arTranslations, {
   "nav.item.inventory": "المخزون",
   "inventory.title": "المخزون",
-  "inventory.description": "تم تفعيل شريحة بطاقة الصنف من المرحلة الخامسة داخل هيكل المشروع، بينما تبقى بقية شرائح التحكم في المخزون مخططة للتنفيذ التدريجي.",
+  "inventory.description":
+    "تم تفعيل شريحة بطاقة الصنف من المرحلة الخامسة داخل هيكل المشروع، بينما تبقى بقية شرائح التحكم في المخزون مخططة للتنفيذ التدريجي.",
   "inventory.status.planned": "مخطط",
   "inventory.status.active": "نشط",
   "inventory.status.inactive": "غير نشط",
@@ -1163,7 +1297,8 @@ Object.assign(arTranslations, {
   "inventory.loading": "جارٍ تحميل أصناف المخزون...",
   "inventory.empty": "لا توجد أصناف مخزون مطابقة للفلاتر الحالية.",
   "inventory.emptyValue": "غير محدد",
-  "inventory.filters.search": "ابحث بالرمز أو الاسم أو الوصف أو الوحدة أو الفئة أو المستودع...",
+  "inventory.filters.search":
+    "ابحث بالرمز أو الاسم أو الوصف أو الوحدة أو الفئة أو المستودع...",
   "inventory.filters.allStatuses": "كل الحالات",
   "inventory.filters.activeOnly": "النشطة فقط",
   "inventory.filters.inactiveOnly": "غير النشطة فقط",
@@ -1173,7 +1308,8 @@ Object.assign(arTranslations, {
   "inventory.metrics.inactive": "غير النشطة",
   "inventory.metrics.selectedOnHand": "المتاح للصنف المحدد",
   "inventory.workspace.title": "مساحات عمل المخزون",
-  "inventory.workspace.description": "افتح وحدة مخزنية واحدة في كل مرة، بنفس نمط صفحة المشتريات.",
+  "inventory.workspace.description":
+    "افتح وحدة مخزنية واحدة في كل مرة، بنفس نمط صفحة المشتريات.",
   "inventory.workspace.policy": "السياسة",
   "inventory.workspace.items": "بطاقة الصنف",
   "inventory.workspace.warehouses": "المستودعات",
@@ -1212,39 +1348,58 @@ Object.assign(arTranslations, {
   "inventory.detail.preferredWarehouse": "المستودع المفضل",
   "inventory.details.empty": "اختر صنفًا من المخزون لعرض تفاصيله.",
   "inventory.next.title": "الشرائح المخططة التالية",
-  "inventory.next.description": "بطاقة الصنف هي أول شريحة تم تنفيذها. أما بقية سير العمل المخزني فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
+  "inventory.next.description":
+    "بطاقة الصنف هي أول شريحة تم تنفيذها. أما بقية سير العمل المخزني فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
   "inventory.overview.label": "المرحلة الخامسة",
   "inventory.overview.title": "تهيئة وحدة المخزون",
-  "inventory.overview.body": "تعرض هذه الواجهة حدود وحدة المرحلة الخامسة المخطط لها فقط دون الادعاء بوجود سلوك مخزني مطبق فعليًا. استخدمها كنقطة انطلاق لتنفيذ بطاقة الصنف والمستودعات وحركات المخزون واحتساب التكلفة والتكامل المحاسبي للمخزون.",
+  "inventory.overview.body":
+    "تعرض هذه الواجهة حدود وحدة المرحلة الخامسة المخطط لها فقط دون الادعاء بوجود سلوك مخزني مطبق فعليًا. استخدمها كنقطة انطلاق لتنفيذ بطاقة الصنف والمستودعات وحركات المخزون واحتساب التكلفة والتكامل المحاسبي للمخزون.",
   "inventory.references.label": "المراجع",
-  "inventory.references.requirements": "خط الأساس للمتطلبات: docs/phase-5-inventory-requirements.md",
-  "inventory.references.structure": "الملكية تتبع جذورًا مستقلة للمرحلة الخامسة في الواجهة والخلفية مع إبقاء مسار ERP رفيعًا.",
-  "inventory.references.translation": "يجب أن تبقى التسميات العربية والإنجليزية متوافقة عند إضافة أي شريحة تنفيذية جديدة.",
+  "inventory.references.requirements":
+    "خط الأساس للمتطلبات: docs/phase-5-inventory-requirements.md",
+  "inventory.references.structure":
+    "الملكية تتبع جذورًا مستقلة للمرحلة الخامسة في الواجهة والخلفية مع إبقاء مسار ERP رفيعًا.",
+  "inventory.references.translation":
+    "يجب أن تبقى التسميات العربية والإنجليزية متوافقة عند إضافة أي شريحة تنفيذية جديدة.",
   "inventory.slices.title": "الشرائح المخططة للوحدة",
-  "inventory.slices.description": "تعكس هذه الشرائح وثيقة المتطلبات وتحافظ على نموذج الملكية القائم على المراحل في المشروع.",
+  "inventory.slices.description":
+    "تعكس هذه الشرائح وثيقة المتطلبات وتحافظ على نموذج الملكية القائم على المراحل في المشروع.",
   "inventory.slice.itemMaster.title": "بطاقة الصنف",
-  "inventory.slice.itemMaster.description": "تملك إعداد الأصناف المخزنية وتصنيفاتها وافتراضياتها وضوابط إعادة الطلب وقواعد التفعيل والتعطيل.",
+  "inventory.slice.itemMaster.description":
+    "تملك إعداد الأصناف المخزنية وتصنيفاتها وافتراضياتها وضوابط إعادة الطلب وقواعد التفعيل والتعطيل.",
   "inventory.slice.warehouses.title": "المستودعات",
-  "inventory.slice.warehouses.description": "تملك بطاقات المستودعات ومواقع التخزين وحالتها التشغيلية وقواعد اختيار المستودعات.",
+  "inventory.slice.warehouses.description":
+    "تملك بطاقات المستودعات ومواقع التخزين وحالتها التشغيلية وقواعد اختيار المستودعات.",
   "inventory.slice.goodsReceipts.title": "استلامات المخزون",
-  "inventory.slice.goodsReceipts.description": "تملك سير عمل الاستلام كمسودات أو حركات مرحلة والتي ترفع الكمية المتاحة بعد نجاح الترحيل.",
+  "inventory.slice.goodsReceipts.description":
+    "تملك سير عمل الاستلام كمسودات أو حركات مرحلة والتي ترفع الكمية المتاحة بعد نجاح الترحيل.",
   "inventory.slice.goodsIssues.title": "صرف المخزون",
-  "inventory.slice.goodsIssues.description": "تملك سير عمل الصرف كمسودات أو حركات مرحلة للمخزون الخارج من المستودع وفق قواعد الرقابة.",
+  "inventory.slice.goodsIssues.description":
+    "تملك سير عمل الصرف كمسودات أو حركات مرحلة للمخزون الخارج من المستودع وفق قواعد الرقابة.",
   "inventory.slice.inventoryTransfers.title": "تحويلات المخزون",
-  "inventory.slice.inventoryTransfers.description": "تملك مسودات التحويل بين المستودعات وقواعد الترحيل والتحقق من اختلاف المصدر عن الوجهة.",
+  "inventory.slice.inventoryTransfers.description":
+    "تملك مسودات التحويل بين المستودعات وقواعد الترحيل والتحقق من اختلاف المصدر عن الوجهة.",
   "inventory.slice.inventoryAdjustments.title": "تسويات المخزون",
-  "inventory.slice.inventoryAdjustments.description": "تملك تسويات فروقات الجرد والتلف والانتهاء والفروقات الأخرى مع دعم الزيادات والنقصان.",
+  "inventory.slice.inventoryAdjustments.description":
+    "تملك تسويات فروقات الجرد والتلف والانتهاء والفروقات الأخرى مع دعم الزيادات والنقصان.",
   "inventory.slice.costing.title": "احتساب التكلفة",
-  "inventory.slice.costing.description": "تملك إعداد طرق التقييم وطبقات التكلفة واحتساب تكلفة الصرف ومنطق تقييم المخزون المتبقي.",
+  "inventory.slice.costing.description":
+    "تملك إعداد طرق التقييم وطبقات التكلفة واحتساب تكلفة الصرف ومنطق تقييم المخزون المتبقي.",
   "inventory.slice.stockLedgerInquiry.title": "سجل المخزون والاستعلام",
-  "inventory.slice.stockLedgerInquiry.description": "يملك تاريخ حركات المخزون والاستعلام عن الرصيد الجاري والفلاتر والانتقال إلى المستند المصدر.",
+  "inventory.slice.stockLedgerInquiry.description":
+    "يملك تاريخ حركات المخزون والاستعلام عن الرصيد الجاري والفلاتر والانتقال إلى المستند المصدر.",
   "inventory.slice.postingAccounting.title": "الترحيل والمحاسبة",
-  "inventory.slice.postingAccounting.description": "تملك حدود التكامل المحاسبي المستقبلية ويجب أن تعيد استخدام خدمات الترحيل في المرحلة الأولى عند تفعيلها.",
+  "inventory.slice.postingAccounting.description":
+    "تملك حدود التكامل المحاسبي المستقبلية ويجب أن تعيد استخدام خدمات الترحيل في المرحلة الأولى عند تفعيلها.",
   "inventory.slice.validationControl.title": "التحقق والرقابة",
-  "inventory.slice.validationControl.description": "تملك فحوصات الحقول الإلزامية ومنع تكرار المراجع وسجل التدقيق وضوابط توفر المخزون.",
-  "inventory.next.dataModel": "تعريف نماذج Prisma والعلاقات الخاصة بالأصناف والمستودعات والحركات المخزنية وسجلات التقييم.",
-  "inventory.next.api": "إضافة الوحدات الفرعية في NestJS تحت جذر المرحلة الخامسة مع DTOs والخدمات والمسارات المحمية.",
-  "inventory.next.ui": "تقسيم شاشات المخزون المملوكة للميزة داخل frontend/features/phase-5-inventory-management مع بدء تنفيذ كل سير عمل فعلي.",
+  "inventory.slice.validationControl.description":
+    "تملك فحوصات الحقول الإلزامية ومنع تكرار المراجع وسجل التدقيق وضوابط توفر المخزون.",
+  "inventory.next.dataModel":
+    "تعريف نماذج Prisma والعلاقات الخاصة بالأصناف والمستودعات والحركات المخزنية وسجلات التقييم.",
+  "inventory.next.api":
+    "إضافة الوحدات الفرعية في NestJS تحت جذر المرحلة الخامسة مع DTOs والخدمات والمسارات المحمية.",
+  "inventory.next.ui":
+    "تقسيم شاشات المخزون المملوكة للميزة داخل frontend/features/phase-5-inventory-management مع بدء تنفيذ كل سير عمل فعلي.",
   "inventory.type.INVENTORY": "مخزني",
   "inventory.type.NON_STOCK": "غير مخزني",
   "inventory.type.SERVICE": "خدمة",
@@ -1252,19 +1407,23 @@ Object.assign(arTranslations, {
 });
 
 Object.assign(arTranslations, {
-  "inventory.description": "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف وبطاقة المستودع داخل هيكل المشروع الحالي، بينما تبقى بقية سير العمل المخزني مخططة للتنفيذ التدريجي.",
+  "inventory.description":
+    "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف وبطاقة المستودع داخل هيكل المشروع الحالي، بينما تبقى بقية سير العمل المخزني مخططة للتنفيذ التدريجي.",
   "inventory.button.newWarehouse": "مستودع جديد",
   "inventory.button.editWarehouse": "تعديل المستودع",
   "inventory.button.createWarehouse": "إنشاء المستودع",
   "inventory.metrics.warehouses": "المستودعات",
   "inventory.metrics.activeWarehouses": "المستودعات النشطة",
   "inventory.items.title": "بطاقة الصنف",
-  "inventory.items.description": "إدارة إعداد الأصناف وافتراضيات الحسابات وبيانات إعادة الطلب وربط المستودع المفضل.",
+  "inventory.items.description":
+    "إدارة إعداد الأصناف وافتراضيات الحسابات وبيانات إعادة الطلب وربط المستودع المفضل.",
   "inventory.warehouses.title": "المستودعات",
-  "inventory.warehouses.description": "إدارة بطاقات المستودعات ومواقع التخزين بما في ذلك مواقع الترانزيت وضوابط الاختيار النشط.",
+  "inventory.warehouses.description":
+    "إدارة بطاقات المستودعات ومواقع التخزين بما في ذلك مواقع الترانزيت وضوابط الاختيار النشط.",
   "inventory.warehouses.loading": "جارٍ تحميل المستودعات...",
   "inventory.warehouses.empty": "لا توجد مستودعات مطابقة للفلاتر الحالية.",
-  "inventory.warehouses.filters.search": "ابحث بالرمز أو الاسم أو العنوان أو المسؤول...",
+  "inventory.warehouses.filters.search":
+    "ابحث بالرمز أو الاسم أو العنوان أو المسؤول...",
   "inventory.warehouses.filters.allModes": "كل أنماط المستودع",
   "inventory.warehouses.filters.storageOnly": "تخزين فقط",
   "inventory.warehouses.filters.transitOnly": "ترانزيت فقط",
@@ -1288,11 +1447,13 @@ Object.assign(arTranslations, {
   "inventory.pagination.page": "الصفحة {page} من {totalPages}",
   "inventory.pagination.previous": "السابق",
   "inventory.pagination.next": "التالي",
-  "inventory.next.description": "تم الآن تنفيذ شريحتي بطاقة الصنف والمستودعات. أما بقية سير العمل المخزني فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
+  "inventory.next.description":
+    "تم الآن تنفيذ شريحتي بطاقة الصنف والمستودعات. أما بقية سير العمل المخزني فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
 });
 
 Object.assign(arTranslations, {
-  "inventory.description": "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
+  "inventory.description":
+    "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
   "inventory.metrics.receipts": "استلامات المخزون",
   "inventory.metrics.postedReceipts": "الاستلامات المرحلة",
   "inventory.button.newReceipt": "استلام مخزون جديد",
@@ -1301,8 +1462,10 @@ Object.assign(arTranslations, {
   "inventory.button.postReceipt": "ترحيل الاستلام",
   "inventory.button.cancelReceipt": "إلغاء الاستلام",
   "inventory.receipts.title": "استلامات المخزون",
-  "inventory.receipts.description": "سجل مسودات استلام المخزون، وراجع الأصناف المستلمة، ثم رحل العملية لتحديث الكميات المتاحة وملخصات تقييم المخزون.",
-  "inventory.receipts.filters.search": "ابحث برقم الاستلام أو مرجع الشراء أو الوصف أو المستودع...",
+  "inventory.receipts.description":
+    "سجل مسودات استلام المخزون، وراجع الأصناف المستلمة، ثم رحل العملية لتحديث الكميات المتاحة وملخصات تقييم المخزون.",
+  "inventory.receipts.filters.search":
+    "ابحث برقم الاستلام أو مرجع الشراء أو الوصف أو المستودع...",
   "inventory.receipts.filters.allStatuses": "كل حالات الاستلام",
   "inventory.receipts.filters.allWarehouses": "كل المستودعات",
   "inventory.receipts.loading": "جارٍ تحميل استلامات المخزون...",
@@ -1314,9 +1477,11 @@ Object.assign(arTranslations, {
   "inventory.receipts.detail.lines": "السطور",
   "inventory.receipts.detail.totalQuantity": "إجمالي الكمية",
   "inventory.receipts.detail.totalAmount": "إجمالي القيمة",
-  "inventory.receipts.details.empty": "اختر استلام مخزون لمراجعة المستودع والمراجع المرتبطة وسطور الاستلام.",
+  "inventory.receipts.details.empty":
+    "اختر استلام مخزون لمراجعة المستودع والمراجع المرتبطة وسطور الاستلام.",
   "inventory.receipts.field.reference": "مرجع الاستلام",
-  "inventory.receipts.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد رقم استلام فريد.",
+  "inventory.receipts.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد رقم استلام فريد.",
   "inventory.receipts.field.date": "تاريخ الاستلام",
   "inventory.receipts.field.warehouse": "مستودع الاستلام",
   "inventory.receipts.field.sourcePurchaseOrder": "أمر الشراء المصدر",
@@ -1337,11 +1502,13 @@ Object.assign(arTranslations, {
   "inventory.receipts.confirm.post": "هل تريد ترحيل استلام المخزون الآن؟",
   "inventory.receipts.confirm.cancel": "هل تريد إلغاء استلام المخزون؟",
   "inventory.receipts.notPosted": "لم يتم الترحيل بعد",
-  "inventory.next.description": "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
+  "inventory.next.description":
+    "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
 });
 
 Object.assign(arTranslations, {
-  "inventory.description": "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
+  "inventory.description":
+    "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
   "inventory.metrics.issues": "صرف المخزون",
   "inventory.metrics.postedIssues": "عمليات الصرف المرحلة",
   "inventory.button.newIssue": "صرف مخزون جديد",
@@ -1350,8 +1517,10 @@ Object.assign(arTranslations, {
   "inventory.button.postIssue": "ترحيل الصرف",
   "inventory.button.cancelIssue": "إلغاء الصرف",
   "inventory.issues.title": "صرف المخزون",
-  "inventory.issues.description": "سجل مسودات صرف المخزون، وتحقق من توفر الكميات، ثم رحل العملية لتخفيض الرصيد المتاح باستخدام القيمة الدفترية الحالية.",
-  "inventory.issues.filters.search": "ابحث برقم الصرف أو مرجع المصدر أو الوصف أو المستودع...",
+  "inventory.issues.description":
+    "سجل مسودات صرف المخزون، وتحقق من توفر الكميات، ثم رحل العملية لتخفيض الرصيد المتاح باستخدام القيمة الدفترية الحالية.",
+  "inventory.issues.filters.search":
+    "ابحث برقم الصرف أو مرجع المصدر أو الوصف أو المستودع...",
   "inventory.issues.filters.allStatuses": "كل حالات الصرف",
   "inventory.issues.filters.allWarehouses": "كل المستودعات",
   "inventory.issues.loading": "جارٍ تحميل عمليات صرف المخزون...",
@@ -1364,9 +1533,11 @@ Object.assign(arTranslations, {
   "inventory.issues.detail.totalQuantity": "إجمالي الكمية",
   "inventory.issues.detail.totalAmount": "إجمالي القيمة",
   "inventory.issues.detail.available": "الرصيد المتاح",
-  "inventory.issues.details.empty": "اختر عملية صرف مخزون لمراجعة المستودع والمراجع المرتبطة وسطور الصرف.",
+  "inventory.issues.details.empty":
+    "اختر عملية صرف مخزون لمراجعة المستودع والمراجع المرتبطة وسطور الصرف.",
   "inventory.issues.field.reference": "مرجع الصرف",
-  "inventory.issues.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد رقم صرف فريد.",
+  "inventory.issues.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد رقم صرف فريد.",
   "inventory.issues.field.date": "تاريخ الصرف",
   "inventory.issues.field.warehouse": "مستودع الصرف",
   "inventory.issues.field.sourceSalesOrder": "أمر البيع المصدر",
@@ -1388,11 +1559,13 @@ Object.assign(arTranslations, {
   "inventory.issues.confirm.post": "هل تريد ترحيل صرف المخزون الآن؟",
   "inventory.issues.confirm.cancel": "هل تريد إلغاء صرف المخزون؟",
   "inventory.issues.notPosted": "لم يتم الترحيل بعد",
-  "inventory.next.description": "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
+  "inventory.next.description":
+    "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
 });
 
 Object.assign(arTranslations, {
-  "inventory.description": "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون وتحويلات المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
+  "inventory.description":
+    "تتضمن المرحلة الخامسة للمخزون الآن شرائح منفذة فعلياً لبطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون وتحويلات المخزون داخل هيكل المشروع الحالي، بينما تبقى بقية عمليات ضبط المخزون مخططة للتنفيذ التدريجي.",
   "inventory.metrics.transfers": "تحويلات المخزون",
   "inventory.metrics.postedTransfers": "التحويلات المرحلة",
   "inventory.button.newTransfer": "تحويل مخزون جديد",
@@ -1401,8 +1574,10 @@ Object.assign(arTranslations, {
   "inventory.button.postTransfer": "ترحيل التحويل",
   "inventory.button.cancelTransfer": "إلغاء التحويل",
   "inventory.transfers.title": "تحويلات المخزون",
-  "inventory.transfers.description": "سجل مسودات تحويل المخزون بين المستودعات النشطة، وتحقق من توفر الرصيد، ثم رحل مستند التحويل التشغيلي مع بقاء أرصدة المستودعات التفصيلية ضمن الشرائح المستقبلية.",
-  "inventory.transfers.filters.search": "ابحث برقم التحويل أو الوصف أو الصنف أو المستودع...",
+  "inventory.transfers.description":
+    "سجل مسودات تحويل المخزون بين المستودعات النشطة، وتحقق من توفر الرصيد، ثم رحل مستند التحويل التشغيلي مع بقاء أرصدة المستودعات التفصيلية ضمن الشرائح المستقبلية.",
+  "inventory.transfers.filters.search":
+    "ابحث برقم التحويل أو الوصف أو الصنف أو المستودع...",
   "inventory.transfers.filters.allStatuses": "كل حالات التحويل",
   "inventory.transfers.filters.allSourceWarehouses": "كل مستودعات المصدر",
   "inventory.transfers.filters.allDestinationWarehouses": "كل مستودعات الوجهة",
@@ -1416,9 +1591,11 @@ Object.assign(arTranslations, {
   "inventory.transfers.detail.totalQuantity": "إجمالي الكمية",
   "inventory.transfers.detail.totalAmount": "إجمالي القيمة",
   "inventory.transfers.detail.available": "الرصيد المتاح",
-  "inventory.transfers.details.empty": "اختر تحويل مخزون لمراجعة مستودع المصدر ومستودع الوجهة وسطور التحويل.",
+  "inventory.transfers.details.empty":
+    "اختر تحويل مخزون لمراجعة مستودع المصدر ومستودع الوجهة وسطور التحويل.",
   "inventory.transfers.field.reference": "مرجع التحويل",
-  "inventory.transfers.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد رقم تحويل فريد.",
+  "inventory.transfers.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد رقم تحويل فريد.",
   "inventory.transfers.field.date": "تاريخ التحويل",
   "inventory.transfers.field.sourceWarehouse": "مستودع المصدر",
   "inventory.transfers.field.destinationWarehouse": "مستودع الوجهة",
@@ -1437,11 +1614,13 @@ Object.assign(arTranslations, {
   "inventory.transfers.confirm.post": "هل تريد ترحيل تحويل المخزون الآن؟",
   "inventory.transfers.confirm.cancel": "هل تريد إلغاء تحويل المخزون؟",
   "inventory.transfers.notPosted": "لم يتم الترحيل بعد",
-  "inventory.next.description": "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون وتحويلات المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
+  "inventory.next.description":
+    "تم الآن تنفيذ بطاقة الصنف والمستودعات واستلامات المخزون وصرف المخزون وتحويلات المخزون. أما بقية عمليات المخزون فما زالت مخططة بشكل صريح حتى يتم تنفيذ وحداتها المالكة.",
 });
 
 Object.assign(arTranslations, {
-  "inventory.description": "المرحلة الخامسة للمخزون تشمل الآن بطاقة الصنف والمستودعات والاستلامات والصرف والتحويلات والتسويات وسجل الحركات وضوابط التكلفة والتحقق مع تكامل محاسبي اختياري عند الترحيل.",
+  "inventory.description":
+    "المرحلة الخامسة للمخزون تشمل الآن بطاقة الصنف والمستودعات والاستلامات والصرف والتحويلات والتسويات وسجل الحركات وضوابط التكلفة والتحقق مع تكامل محاسبي اختياري عند الترحيل.",
   "inventory.metrics.adjustments": "تسويات المخزون",
   "inventory.metrics.postedAdjustments": "التسويات المرحلة",
   "inventory.metrics.stockMovements": "حركات المخزون",
@@ -1451,8 +1630,10 @@ Object.assign(arTranslations, {
   "inventory.button.postAdjustment": "ترحيل التسوية",
   "inventory.button.cancelAdjustment": "إلغاء التسوية",
   "inventory.adjustments.title": "تسويات المخزون",
-  "inventory.adjustments.description": "سجل مسودات تسويات فروقات الجرد والتلف والانتهاء والتباينات، ثم رحّلها لتحديث أرصدة الكمية والقيمة على مستوى المستودع وعلى المستوى الإجمالي.",
-  "inventory.adjustments.filters.search": "ابحث برقم التسوية أو السبب أو الوصف أو الصنف أو المستودع...",
+  "inventory.adjustments.description":
+    "سجل مسودات تسويات فروقات الجرد والتلف والانتهاء والتباينات، ثم رحّلها لتحديث أرصدة الكمية والقيمة على مستوى المستودع وعلى المستوى الإجمالي.",
+  "inventory.adjustments.filters.search":
+    "ابحث برقم التسوية أو السبب أو الوصف أو الصنف أو المستودع...",
   "inventory.adjustments.filters.allStatuses": "كل حالات التسوية",
   "inventory.adjustments.filters.allWarehouses": "كل المستودعات",
   "inventory.adjustments.filters.reason": "تصفية حسب السبب...",
@@ -1468,9 +1649,11 @@ Object.assign(arTranslations, {
   "inventory.adjustments.detail.system": "كمية النظام",
   "inventory.adjustments.detail.counted": "كمية الجرد",
   "inventory.adjustments.detail.variance": "كمية التباين",
-  "inventory.adjustments.details.empty": "اختر تسوية مخزون لمراجعة السبب وسطور التباين.",
+  "inventory.adjustments.details.empty":
+    "اختر تسوية مخزون لمراجعة السبب وسطور التباين.",
   "inventory.adjustments.field.reference": "مرجع التسوية",
-  "inventory.adjustments.field.referenceHint": "اتركه فارغاً ليقوم النظام بتوليد رقم تسوية فريد.",
+  "inventory.adjustments.field.referenceHint":
+    "اتركه فارغاً ليقوم النظام بتوليد رقم تسوية فريد.",
   "inventory.adjustments.field.date": "تاريخ التسوية",
   "inventory.adjustments.field.warehouse": "المستودع",
   "inventory.adjustments.field.reason": "سبب التسوية",
@@ -1492,8 +1675,10 @@ Object.assign(arTranslations, {
   "inventory.adjustments.confirm.cancel": "هل تريد إلغاء تسوية المخزون؟",
   "inventory.adjustments.notPosted": "لم يتم الترحيل بعد",
   "inventory.stockLedger.title": "سجل المخزون والاستعلام",
-  "inventory.stockLedger.description": "استعرض تاريخ الحركات حسب الصنف والمستودع مع الرصيد الجاري للكمية والقيمة وروابط الرجوع إلى المستند المصدر.",
-  "inventory.stockLedger.filters.search": "ابحث بالمرجع أو نوع العملية أو الصنف أو المستودع...",
+  "inventory.stockLedger.description":
+    "استعرض تاريخ الحركات حسب الصنف والمستودع مع الرصيد الجاري للكمية والقيمة وروابط الرجوع إلى المستند المصدر.",
+  "inventory.stockLedger.filters.search":
+    "ابحث بالمرجع أو نوع العملية أو الصنف أو المستودع...",
   "inventory.stockLedger.filters.allItems": "كل الأصناف",
   "inventory.stockLedger.filters.allWarehouses": "كل المستودعات",
   "inventory.stockLedger.filters.allMovementTypes": "كل أنواع الحركة",
@@ -1516,7 +1701,8 @@ Object.assign(arTranslations, {
 });
 Object.assign(arTranslations, {
   "inventory.policy.title": "سياسة المخزون",
-  "inventory.policy.description": "تحديد طريقة تقييم المخزون المستخدمة في الترحيل واحتساب التكلفة.",
+  "inventory.policy.description":
+    "تحديد طريقة تقييم المخزون المستخدمة في الترحيل واحتساب التكلفة.",
   "inventory.policy.field.costingMethod": "طريقة التقييم",
   "inventory.policy.costingMethod.WEIGHTED_AVERAGE": "متوسط التكلفة المرجح",
   "inventory.policy.costingMethod.FIFO": "الوارد أولاً يصرف أولاً (FIFO)",
@@ -1542,5 +1728,3 @@ Object.assign(arTranslations, {
 });
 
 export default arTranslations;
-
-

@@ -1038,9 +1038,8 @@ export function InventoryPage() {
                         key={item.id}
                         type="button"
                         onClick={() => setSelectedItemId(item.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-teal-200 bg-teal-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-teal-200 bg-teal-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
@@ -1192,9 +1191,8 @@ export function InventoryPage() {
                         key={issue.id}
                         type="button"
                         onClick={() => setSelectedIssueId(issue.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-rose-200 bg-rose-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-rose-200 bg-rose-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
@@ -1398,9 +1396,8 @@ export function InventoryPage() {
                         key={transfer.id}
                         type="button"
                         onClick={() => setSelectedTransferId(transfer.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-violet-200 bg-violet-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-violet-200 bg-violet-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
@@ -1597,9 +1594,8 @@ export function InventoryPage() {
                         key={adjustment.id}
                         type="button"
                         onClick={() => setSelectedAdjustmentId(adjustment.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-emerald-200 bg-emerald-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-emerald-200 bg-emerald-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
@@ -1788,9 +1784,8 @@ export function InventoryPage() {
                         key={warehouse.id}
                         type="button"
                         onClick={() => setSelectedWarehouseId(warehouse.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-amber-200 bg-amber-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-amber-200 bg-amber-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
@@ -1921,9 +1916,8 @@ export function InventoryPage() {
                         key={receipt.id}
                         type="button"
                         onClick={() => setSelectedReceiptId(receipt.id)}
-                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
-                          isSelected ? "border-sky-200 bg-sky-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
+                        className={`w-full rounded-2xl border px-5 py-4 text-left transition ${isSelected ? "border-sky-200 bg-sky-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">

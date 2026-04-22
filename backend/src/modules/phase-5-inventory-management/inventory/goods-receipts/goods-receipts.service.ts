@@ -1,16 +1,25 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AuditAction, InventoryStockMovementType, InventoryReceiptStatus, Prisma } from '../../../../generated/prisma';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
+import {
+  AuditAction,
+  InventoryStockMovementType,
+  InventoryReceiptStatus,
+  Prisma,
+} from "../../../../generated/prisma";
 
-import { PrismaService } from '../../../../common/prisma/prisma.service';
-import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
-import { ItemMasterService } from '../item-master/item-master.service';
-import { InventoryPostingService } from '../shared/inventory-posting.service';
-import { WarehousesService } from '../warehouses/warehouses.service';
+import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { AuditService } from "../../../phase-1-accounting-foundation/accounting-core/audit/audit.service";
+import { ItemMasterService } from "../item-master/item-master.service";
+import { InventoryPostingService } from "../shared/inventory-posting.service";
+import { WarehousesService } from "../warehouses/warehouses.service";
 import {
   CreateInventoryGoodsReceiptDto,
   InventoryGoodsReceiptLineDto,
   UpdateInventoryGoodsReceiptDto,
-} from './dto/goods-receipts.dto';
+} from "./dto/goods-receipts.dto";
 
 type GoodsReceiptListQuery = {
   status?: string;
@@ -34,36 +43,37 @@ type ResolvedReceiptLine = {
   lineTotalAmount: Prisma.Decimal;
 };
 
-type InventoryGoodsReceiptWithRelations = Prisma.InventoryGoodsReceiptGetPayload<{
-  include: {
-    warehouse: {
-      select: {
-        id: true;
-        code: true;
-        name: true;
-        isActive: true;
-        isTransit: true;
+type InventoryGoodsReceiptWithRelations =
+  Prisma.InventoryGoodsReceiptGetPayload<{
+    include: {
+      warehouse: {
+        select: {
+          id: true;
+          code: true;
+          name: true;
+          isActive: true;
+          isTransit: true;
+        };
       };
-    };
-    lines: {
-      orderBy: {
-        lineNumber: 'asc';
-      };
-      include: {
-        item: {
-          select: {
-            id: true;
-            code: true;
-            name: true;
-            unitOfMeasure: true;
-            type: true;
-            isActive: true;
+      lines: {
+        orderBy: {
+          lineNumber: "asc";
+        };
+        include: {
+          item: {
+            select: {
+              id: true;
+              code: true;
+              name: true;
+              unitOfMeasure: true;
+              type: true;
+              isActive: true;
+            };
           };
         };
       };
     };
-  };
-}>;
+  }>;
 
 @Injectable()
 export class GoodsReceiptsService {
@@ -76,8 +86,18 @@ export class GoodsReceiptsService {
   ) {}
 
   async list(query: GoodsReceiptListQuery = {}) {
-    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
-    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const page = this.parsePaginationNumber(query.page, {
+      fallback: 1,
+      min: 1,
+      max: 10_000,
+      label: "Page",
+    });
+    const limit = this.parsePaginationNumber(query.limit, {
+      fallback: 20,
+      min: 1,
+      max: 100,
+      label: "Limit",
+    });
     const skip = (page - 1) * limit;
     const search = query.search?.trim();
     const where: Prisma.InventoryGoodsReceiptWhereInput = {
@@ -86,14 +106,33 @@ export class GoodsReceiptsService {
       receiptDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
       OR: search
         ? [
-            { reference: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-            { sourcePurchaseOrderRef: { contains: search, mode: 'insensitive' } },
-            { sourcePurchaseInvoiceRef: { contains: search, mode: 'insensitive' } },
-            { warehouse: { code: { contains: search, mode: 'insensitive' } } },
-            { warehouse: { name: { contains: search, mode: 'insensitive' } } },
-            { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
-            { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
+            { reference: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            {
+              sourcePurchaseOrderRef: { contains: search, mode: "insensitive" },
+            },
+            {
+              sourcePurchaseInvoiceRef: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            { warehouse: { code: { contains: search, mode: "insensitive" } } },
+            { warehouse: { name: { contains: search, mode: "insensitive" } } },
+            {
+              lines: {
+                some: {
+                  item: { code: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
+            {
+              lines: {
+                some: {
+                  item: { name: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
           ]
         : undefined,
     };
@@ -103,7 +142,7 @@ export class GoodsReceiptsService {
       this.prisma.inventoryGoodsReceipt.findMany({
         where,
         include: this.goodsReceiptInclude(),
-        orderBy: [{ receiptDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ receiptDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
       }),
@@ -126,17 +165,21 @@ export class GoodsReceiptsService {
       include: this.goodsReceiptInclude(),
     });
     if (!row) {
-      throw new BadRequestException(`Inventory goods receipt ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory goods receipt ${id} was not found.`,
+      );
     }
     return this.mapGoodsReceipt(row);
   }
 
   async create(dto: CreateInventoryGoodsReceiptDto) {
-    const warehouse = await this.warehousesService.getActiveWarehouseReference(dto.warehouseId);
+    const warehouse = await this.warehousesService.getActiveWarehouseReference(
+      dto.warehouseId,
+    );
     if (!warehouse) {
-      throw new BadRequestException('Receiving warehouse is required.');
+      throw new BadRequestException("Receiving warehouse is required.");
     }
-    const reference = dto.reference?.trim() || this.generateReference('GRN');
+    const reference = dto.reference?.trim() || this.generateReference("GRN");
     const lines = await this.resolveLines(dto.lines);
     const totals = this.calculateTotals(lines);
 
@@ -147,7 +190,8 @@ export class GoodsReceiptsService {
           receiptDate: new Date(dto.receiptDate),
           warehouseId: warehouse.id,
           sourcePurchaseOrderRef: dto.sourcePurchaseOrderRef?.trim() || null,
-          sourcePurchaseInvoiceRef: dto.sourcePurchaseInvoiceRef?.trim() || null,
+          sourcePurchaseInvoiceRef:
+            dto.sourcePurchaseInvoiceRef?.trim() || null,
           description: dto.description?.trim() || null,
           totalQuantity: totals.totalQuantity,
           totalAmount: totals.totalAmount,
@@ -167,16 +211,22 @@ export class GoodsReceiptsService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryGoodsReceipt',
+        entity: "InventoryGoodsReceipt",
         entityId: created.id,
         action: AuditAction.CREATE,
-        details: { status: created.status, reference: created.reference, warehouseId: created.warehouseId },
+        details: {
+          status: created.status,
+          reference: created.reference,
+          warehouseId: created.warehouseId,
+        },
       });
 
       return this.mapGoodsReceipt(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory goods receipt with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory goods receipt with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -185,10 +235,16 @@ export class GoodsReceiptsService {
   async update(id: string, dto: UpdateInventoryGoodsReceiptDto) {
     const current = await this.getGoodsReceiptOrThrow(id);
     if (current.status !== InventoryReceiptStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory goods receipts can be edited.');
+      throw new BadRequestException(
+        "Only draft inventory goods receipts can be edited.",
+      );
     }
 
-    const warehouse = dto.warehouseId ? await this.warehousesService.getActiveWarehouseReference(dto.warehouseId) : null;
+    const warehouse = dto.warehouseId
+      ? await this.warehousesService.getActiveWarehouseReference(
+          dto.warehouseId,
+        )
+      : null;
     const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
     const totals = lines
       ? this.calculateTotals(lines)
@@ -200,20 +256,31 @@ export class GoodsReceiptsService {
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         if (lines) {
-          await tx.inventoryGoodsReceiptLine.deleteMany({ where: { goodsReceiptId: id } });
+          await tx.inventoryGoodsReceiptLine.deleteMany({
+            where: { goodsReceiptId: id },
+          });
         }
 
         return tx.inventoryGoodsReceipt.update({
           where: { id },
           data: {
             reference: dto.reference?.trim(),
-            receiptDate: dto.receiptDate ? new Date(dto.receiptDate) : undefined,
+            receiptDate: dto.receiptDate
+              ? new Date(dto.receiptDate)
+              : undefined,
             warehouseId: warehouse?.id,
             sourcePurchaseOrderRef:
-              dto.sourcePurchaseOrderRef === undefined ? undefined : dto.sourcePurchaseOrderRef.trim() || null,
+              dto.sourcePurchaseOrderRef === undefined
+                ? undefined
+                : dto.sourcePurchaseOrderRef.trim() || null,
             sourcePurchaseInvoiceRef:
-              dto.sourcePurchaseInvoiceRef === undefined ? undefined : dto.sourcePurchaseInvoiceRef.trim() || null,
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
+              dto.sourcePurchaseInvoiceRef === undefined
+                ? undefined
+                : dto.sourcePurchaseInvoiceRef.trim() || null,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
             totalQuantity: totals.totalQuantity,
             totalAmount: totals.totalAmount,
             lines: lines
@@ -235,7 +302,7 @@ export class GoodsReceiptsService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryGoodsReceipt',
+        entity: "InventoryGoodsReceipt",
         entityId: updated.id,
         action: AuditAction.UPDATE,
         details: { status: updated.status, reference: updated.reference },
@@ -243,8 +310,10 @@ export class GoodsReceiptsService {
 
       return this.mapGoodsReceipt(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory goods receipt with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory goods receipt with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -255,18 +324,24 @@ export class GoodsReceiptsService {
       where: { id },
       include: {
         lines: {
-          orderBy: { lineNumber: 'asc' },
+          orderBy: { lineNumber: "asc" },
         },
       },
     });
 
     if (!receipt) {
-      throw new BadRequestException(`Inventory goods receipt ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory goods receipt ${id} was not found.`,
+      );
     }
     if (receipt.status !== InventoryReceiptStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory goods receipts can be posted.');
+      throw new BadRequestException(
+        "Only draft inventory goods receipts can be posted.",
+      );
     }
-    await this.warehousesService.getActiveWarehouseReference(receipt.warehouseId);
+    await this.warehousesService.getActiveWarehouseReference(
+      receipt.warehouseId,
+    );
 
     const itemIds = [...new Set(receipt.lines.map((line) => line.itemId))];
     const items = await this.prisma.inventoryItem.findMany({
@@ -285,21 +360,33 @@ export class GoodsReceiptsService {
     for (const line of receipt.lines) {
       const item = itemMap.get(line.itemId);
       if (!item || !item.isActive) {
-        throw new BadRequestException('Inventory goods receipt lines must reference active inventory items.');
+        throw new BadRequestException(
+          "Inventory goods receipt lines must reference active inventory items.",
+        );
       }
     }
 
-    const accountingEnabled = this.inventoryPostingService.isAccountingEnabled();
-    const accountingLines: Array<{ accountId: string; debitAmount: number; creditAmount: number; description?: string }> = [];
+    const accountingEnabled =
+      this.inventoryPostingService.isAccountingEnabled();
+    const accountingLines: Array<{
+      accountId: string;
+      debitAmount: number;
+      creditAmount: number;
+      description?: string;
+    }> = [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
       for (const line of receipt.lines) {
         const item = itemMap.get(line.itemId);
         if (!item) {
-          throw new BadRequestException('Inventory goods receipt lines must reference active inventory items.');
+          throw new BadRequestException(
+            "Inventory goods receipt lines must reference active inventory items.",
+          );
         }
 
-        const unitCost = line.quantity.gt(0) ? line.lineTotalAmount.div(line.quantity) : new Prisma.Decimal(0);
+        const unitCost = line.quantity.gt(0)
+          ? line.lineTotalAmount.div(line.quantity)
+          : new Prisma.Decimal(0);
 
         await tx.inventoryItem.update({
           where: { id: line.itemId },
@@ -313,16 +400,17 @@ export class GoodsReceiptsService {
           },
         });
 
-        const warehouseBalance = await this.inventoryPostingService.applyWarehouseBalance(tx, {
-          itemId: line.itemId,
-          warehouseId: receipt.warehouseId,
-          quantityDelta: line.quantity,
-          valueDelta: line.lineTotalAmount,
-        });
+        const warehouseBalance =
+          await this.inventoryPostingService.applyWarehouseBalance(tx, {
+            itemId: line.itemId,
+            warehouseId: receipt.warehouseId,
+            quantityDelta: line.quantity,
+            valueDelta: line.lineTotalAmount,
+          });
 
         await this.inventoryPostingService.createMovement(tx, {
           movementType: InventoryStockMovementType.GOODS_RECEIPT,
-          transactionType: 'InventoryGoodsReceipt',
+          transactionType: "InventoryGoodsReceipt",
           transactionId: receipt.id,
           transactionLineId: line.id,
           transactionReference: receipt.reference,
@@ -344,7 +432,7 @@ export class GoodsReceiptsService {
           quantity: line.quantity,
           unitCost,
           movementType: InventoryStockMovementType.GOODS_RECEIPT,
-          sourceType: 'InventoryGoodsReceipt',
+          sourceType: "InventoryGoodsReceipt",
           sourceId: receipt.id,
           sourceLineId: line.id,
           sourceReference: receipt.reference,
@@ -375,12 +463,13 @@ export class GoodsReceiptsService {
 
       let journalEntryId: string | undefined;
       if (accountingEnabled && accountingLines.length > 0) {
-        journalEntryId = await this.inventoryPostingService.createAndPostJournalEntry(
-          receipt.reference,
-          receipt.receiptDate,
-          `Inventory goods receipt ${receipt.reference}`,
-          accountingLines,
-        );
+        journalEntryId =
+          await this.inventoryPostingService.createAndPostJournalEntry(
+            receipt.reference,
+            receipt.receiptDate,
+            `Inventory goods receipt ${receipt.reference}`,
+            accountingLines,
+          );
       }
 
       return tx.inventoryGoodsReceipt.update({
@@ -395,10 +484,14 @@ export class GoodsReceiptsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryGoodsReceipt',
+      entity: "InventoryGoodsReceipt",
       entityId: updated.id,
       action: AuditAction.POST,
-      details: { status: updated.status, reference: updated.reference, warehouseId: updated.warehouse.id },
+      details: {
+        status: updated.status,
+        reference: updated.reference,
+        warehouseId: updated.warehouse.id,
+      },
     });
 
     return this.mapGoodsReceipt(updated);
@@ -407,7 +500,9 @@ export class GoodsReceiptsService {
   async cancel(id: string) {
     const current = await this.getGoodsReceiptOrThrow(id);
     if (current.status !== InventoryReceiptStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory goods receipts can be cancelled.');
+      throw new BadRequestException(
+        "Only draft inventory goods receipts can be cancelled.",
+      );
     }
 
     const updated = await this.prisma.inventoryGoodsReceipt.update({
@@ -417,7 +512,7 @@ export class GoodsReceiptsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryGoodsReceipt',
+      entity: "InventoryGoodsReceipt",
       entityId: updated.id,
       action: AuditAction.DELETE,
       details: { status: updated.status, reference: updated.reference },
@@ -429,7 +524,9 @@ export class GoodsReceiptsService {
   async reverse(id: string) {
     const current = await this.getGoodsReceiptOrThrow(id);
     if (current.status !== InventoryReceiptStatus.POSTED) {
-      throw new BadRequestException('Only posted inventory goods receipts can be reversed.');
+      throw new BadRequestException(
+        "Only posted inventory goods receipts can be reversed.",
+      );
     }
 
     const updated = await this.prisma.inventoryGoodsReceipt.update({
@@ -442,7 +539,7 @@ export class GoodsReceiptsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryGoodsReceipt',
+      entity: "InventoryGoodsReceipt",
       entityId: updated.id,
       action: AuditAction.REVERSE,
       details: { status: updated.status, reference: updated.reference },
@@ -457,8 +554,8 @@ export class GoodsReceiptsService {
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
       const item = await this.itemMasterService.ensureActiveItem(line.itemId);
-      const quantity = this.parseQuantity(line.quantity, 'Receipt quantity');
-      const unitCost = this.parseAmount(line.unitCost, 'Unit cost');
+      const quantity = this.parseQuantity(line.quantity, "Receipt quantity");
+      const unitCost = this.parseAmount(line.unitCost, "Unit cost");
       const lineTotalAmount = quantity.mul(unitCost);
 
       resolved.push({
@@ -479,8 +576,14 @@ export class GoodsReceiptsService {
 
   private calculateTotals(lines: ResolvedReceiptLine[]) {
     return {
-      totalQuantity: lines.reduce((sum, line) => sum.add(line.quantity), new Prisma.Decimal(0)),
-      totalAmount: lines.reduce((sum, line) => sum.add(line.lineTotalAmount), new Prisma.Decimal(0)),
+      totalQuantity: lines.reduce(
+        (sum, line) => sum.add(line.quantity),
+        new Prisma.Decimal(0),
+      ),
+      totalAmount: lines.reduce(
+        (sum, line) => sum.add(line.lineTotalAmount),
+        new Prisma.Decimal(0),
+      ),
     };
   }
 
@@ -496,7 +599,7 @@ export class GoodsReceiptsService {
         },
       },
       lines: {
-        orderBy: { lineNumber: 'asc' },
+        orderBy: { lineNumber: "asc" },
         include: {
           item: {
             select: {
@@ -514,9 +617,13 @@ export class GoodsReceiptsService {
   }
 
   private async getGoodsReceiptOrThrow(id: string) {
-    const row = await this.prisma.inventoryGoodsReceipt.findUnique({ where: { id } });
+    const row = await this.prisma.inventoryGoodsReceipt.findUnique({
+      where: { id },
+    });
     if (!row) {
-      throw new BadRequestException(`Inventory goods receipt ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory goods receipt ${id} was not found.`,
+      );
     }
     return row;
   }
@@ -567,7 +674,7 @@ export class GoodsReceiptsService {
     if (status in InventoryReceiptStatus) {
       return status as InventoryReceiptStatus;
     }
-    throw new BadRequestException('Invalid inventory goods receipt status.');
+    throw new BadRequestException("Invalid inventory goods receipt status.");
   }
 
   private dateRangeFilter(dateFrom?: string, dateTo?: string) {
@@ -589,10 +696,14 @@ export class GoodsReceiptsService {
 
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
-      throw new BadRequestException(`${options.label} must be a valid integer.`);
+      throw new BadRequestException(
+        `${options.label} must be a valid integer.`,
+      );
     }
     if (parsed < options.min || parsed > options.max) {
-      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+      throw new BadRequestException(
+        `${options.label} must be between ${options.min} and ${options.max}.`,
+      );
     }
 
     return parsed;
@@ -629,15 +740,16 @@ export class GoodsReceiptsService {
   }
 
   private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const suffix =
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
   }
 
   private isUniqueConflict(error: unknown, field: string) {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002' &&
+      error.code === "P2002" &&
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes(field)
     );

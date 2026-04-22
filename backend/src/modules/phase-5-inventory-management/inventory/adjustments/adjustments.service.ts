@@ -1,12 +1,25 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AuditAction, InventoryAdjustmentStatus, InventoryStockMovementType, Prisma } from '../../../../generated/prisma';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
+import {
+  AuditAction,
+  InventoryAdjustmentStatus,
+  InventoryStockMovementType,
+  Prisma,
+} from "../../../../generated/prisma";
 
-import { PrismaService } from '../../../../common/prisma/prisma.service';
-import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
-import { ItemMasterService } from '../item-master/item-master.service';
-import { InventoryPostingService } from '../shared/inventory-posting.service';
-import { WarehousesService } from '../warehouses/warehouses.service';
-import { CreateInventoryAdjustmentDto, InventoryAdjustmentLineDto, UpdateInventoryAdjustmentDto } from './dto/adjustments.dto';
+import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { AuditService } from "../../../phase-1-accounting-foundation/accounting-core/audit/audit.service";
+import { ItemMasterService } from "../item-master/item-master.service";
+import { InventoryPostingService } from "../shared/inventory-posting.service";
+import { WarehousesService } from "../warehouses/warehouses.service";
+import {
+  CreateInventoryAdjustmentDto,
+  InventoryAdjustmentLineDto,
+  UpdateInventoryAdjustmentDto,
+} from "./dto/adjustments.dto";
 
 type AdjustmentListQuery = {
   status?: string;
@@ -43,7 +56,7 @@ type InventoryAdjustmentWithRelations = Prisma.InventoryAdjustmentGetPayload<{
     };
     lines: {
       orderBy: {
-        lineNumber: 'asc';
+        lineNumber: "asc";
       };
       include: {
         item: {
@@ -74,8 +87,18 @@ export class AdjustmentsService {
   ) {}
 
   async list(query: AdjustmentListQuery = {}) {
-    const page = this.parsePaginationNumber(query.page, { fallback: 1, min: 1, max: 10_000, label: 'Page' });
-    const limit = this.parsePaginationNumber(query.limit, { fallback: 20, min: 1, max: 100, label: 'Limit' });
+    const page = this.parsePaginationNumber(query.page, {
+      fallback: 1,
+      min: 1,
+      max: 10_000,
+      label: "Page",
+    });
+    const limit = this.parsePaginationNumber(query.limit, {
+      fallback: 20,
+      min: 1,
+      max: 100,
+      label: "Limit",
+    });
     const skip = (page - 1) * limit;
     const search = query.search?.trim();
     const reason = query.reason?.trim();
@@ -83,17 +106,29 @@ export class AdjustmentsService {
     const where: Prisma.InventoryAdjustmentWhereInput = {
       status: this.parseStatus(query.status),
       warehouseId: query.warehouseId,
-      reason: reason ? { contains: reason, mode: 'insensitive' } : undefined,
+      reason: reason ? { contains: reason, mode: "insensitive" } : undefined,
       adjustmentDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
       OR: search
         ? [
-            { reference: { contains: search, mode: 'insensitive' } },
-            { reason: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-            { warehouse: { code: { contains: search, mode: 'insensitive' } } },
-            { warehouse: { name: { contains: search, mode: 'insensitive' } } },
-            { lines: { some: { item: { code: { contains: search, mode: 'insensitive' } } } } },
-            { lines: { some: { item: { name: { contains: search, mode: 'insensitive' } } } } },
+            { reference: { contains: search, mode: "insensitive" } },
+            { reason: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { warehouse: { code: { contains: search, mode: "insensitive" } } },
+            { warehouse: { name: { contains: search, mode: "insensitive" } } },
+            {
+              lines: {
+                some: {
+                  item: { code: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
+            {
+              lines: {
+                some: {
+                  item: { name: { contains: search, mode: "insensitive" } },
+                },
+              },
+            },
           ]
         : undefined,
     };
@@ -103,7 +138,7 @@ export class AdjustmentsService {
       this.prisma.inventoryAdjustment.findMany({
         where,
         include: this.adjustmentInclude(),
-        orderBy: [{ adjustmentDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ adjustmentDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: limit,
       }),
@@ -126,18 +161,22 @@ export class AdjustmentsService {
       include: this.adjustmentInclude(),
     });
     if (!row) {
-      throw new BadRequestException(`Inventory adjustment ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory adjustment ${id} was not found.`,
+      );
     }
     return this.mapAdjustment(row);
   }
 
   async create(dto: CreateInventoryAdjustmentDto) {
-    const warehouse = await this.warehousesService.getActiveWarehouseReference(dto.warehouseId);
+    const warehouse = await this.warehousesService.getActiveWarehouseReference(
+      dto.warehouseId,
+    );
     if (!warehouse) {
-      throw new BadRequestException('Adjustment warehouse is required.');
+      throw new BadRequestException("Adjustment warehouse is required.");
     }
 
-    const reference = dto.reference?.trim() || this.generateReference('ADJ');
+    const reference = dto.reference?.trim() || this.generateReference("ADJ");
     const reason = dto.reason.trim();
     const lines = await this.resolveLines(dto.lines);
     const totals = this.calculateTotals(lines);
@@ -170,7 +209,7 @@ export class AdjustmentsService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryAdjustment',
+        entity: "InventoryAdjustment",
         entityId: created.id,
         action: AuditAction.CREATE,
         details: {
@@ -183,8 +222,10 @@ export class AdjustmentsService {
 
       return this.mapAdjustment(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory adjustment with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory adjustment with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -193,10 +234,16 @@ export class AdjustmentsService {
   async update(id: string, dto: UpdateInventoryAdjustmentDto) {
     const current = await this.getAdjustmentOrThrow(id);
     if (current.status !== InventoryAdjustmentStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory adjustments can be edited.');
+      throw new BadRequestException(
+        "Only draft inventory adjustments can be edited.",
+      );
     }
 
-    const warehouse = dto.warehouseId ? await this.warehousesService.getActiveWarehouseReference(dto.warehouseId) : null;
+    const warehouse = dto.warehouseId
+      ? await this.warehousesService.getActiveWarehouseReference(
+          dto.warehouseId,
+        )
+      : null;
     const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
     const totals = lines
       ? this.calculateTotals(lines)
@@ -208,17 +255,24 @@ export class AdjustmentsService {
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         if (lines) {
-          await tx.inventoryAdjustmentLine.deleteMany({ where: { adjustmentId: id } });
+          await tx.inventoryAdjustmentLine.deleteMany({
+            where: { adjustmentId: id },
+          });
         }
 
         return tx.inventoryAdjustment.update({
           where: { id },
           data: {
             reference: dto.reference?.trim(),
-            adjustmentDate: dto.adjustmentDate ? new Date(dto.adjustmentDate) : undefined,
+            adjustmentDate: dto.adjustmentDate
+              ? new Date(dto.adjustmentDate)
+              : undefined,
             warehouseId: warehouse?.id,
             reason: dto.reason === undefined ? undefined : dto.reason.trim(),
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
             totalVarianceQuantity: totals.totalVarianceQuantity,
             totalAmount: totals.totalAmount,
             lines: lines
@@ -242,16 +296,22 @@ export class AdjustmentsService {
       });
 
       await this.auditService.log({
-        entity: 'InventoryAdjustment',
+        entity: "InventoryAdjustment",
         entityId: updated.id,
         action: AuditAction.UPDATE,
-        details: { status: updated.status, reference: updated.reference, reason: updated.reason },
+        details: {
+          status: updated.status,
+          reference: updated.reference,
+          reason: updated.reason,
+        },
       });
 
       return this.mapAdjustment(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('An inventory adjustment with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "An inventory adjustment with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -262,19 +322,25 @@ export class AdjustmentsService {
       where: { id },
       include: {
         lines: {
-          orderBy: { lineNumber: 'asc' },
+          orderBy: { lineNumber: "asc" },
         },
       },
     });
 
     if (!adjustment) {
-      throw new BadRequestException(`Inventory adjustment ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory adjustment ${id} was not found.`,
+      );
     }
     if (adjustment.status !== InventoryAdjustmentStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory adjustments can be posted.');
+      throw new BadRequestException(
+        "Only draft inventory adjustments can be posted.",
+      );
     }
 
-    await this.warehousesService.getActiveWarehouseReference(adjustment.warehouseId);
+    await this.warehousesService.getActiveWarehouseReference(
+      adjustment.warehouseId,
+    );
 
     const itemIds = [...new Set(adjustment.lines.map((line) => line.itemId))];
     const items = await this.prisma.inventoryItem.findMany({
@@ -290,10 +356,17 @@ export class AdjustmentsService {
       },
     });
     const itemMap = new Map(items.map((item) => [item.id, item]));
-    const preventNegativeStock = this.inventoryPostingService.preventNegativeStock();
-    const accountingEnabled = this.inventoryPostingService.isAccountingEnabled();
+    const preventNegativeStock =
+      this.inventoryPostingService.preventNegativeStock();
+    const accountingEnabled =
+      this.inventoryPostingService.isAccountingEnabled();
     const costingMethod = await this.inventoryPostingService.getCostingMethod();
-    const accountingLines: Array<{ accountId: string; debitAmount: number; creditAmount: number; description?: string }> = [];
+    const accountingLines: Array<{
+      accountId: string;
+      debitAmount: number;
+      creditAmount: number;
+      description?: string;
+    }> = [];
 
     const updated = await this.prisma.$transaction(async (tx) => {
       let totalVarianceQuantity = new Prisma.Decimal(0);
@@ -302,7 +375,9 @@ export class AdjustmentsService {
       for (const line of adjustment.lines) {
         const item = itemMap.get(line.itemId);
         if (!item || !item.isActive) {
-          throw new BadRequestException('Inventory adjustment lines must reference active inventory items.');
+          throw new BadRequestException(
+            "Inventory adjustment lines must reference active inventory items.",
+          );
         }
 
         const currentBalance = await tx.inventoryWarehouseBalance.findUnique({
@@ -313,13 +388,20 @@ export class AdjustmentsService {
             },
           },
         });
-        const systemQuantity = currentBalance?.onHandQuantity ?? new Prisma.Decimal(0);
-        const currentValuation = currentBalance?.valuationAmount ?? new Prisma.Decimal(0);
+        const systemQuantity =
+          currentBalance?.onHandQuantity ?? new Prisma.Decimal(0);
+        const currentValuation =
+          currentBalance?.valuationAmount ?? new Prisma.Decimal(0);
         const countedQuantity = line.countedQuantity;
         const varianceQuantity = countedQuantity.sub(systemQuantity);
 
-        if (preventNegativeStock && systemQuantity.add(varianceQuantity).lt(0)) {
-          throw new BadRequestException(`Item ${item.code} does not have enough available stock for this adjustment.`);
+        if (
+          preventNegativeStock &&
+          systemQuantity.add(varianceQuantity).lt(0)
+        ) {
+          throw new BadRequestException(
+            `Item ${item.code} does not have enough available stock for this adjustment.`,
+          );
         }
 
         let unitCost = new Prisma.Decimal(0);
@@ -334,7 +416,7 @@ export class AdjustmentsService {
             quantity: varianceQuantity,
             unitCost,
             movementType: InventoryStockMovementType.ADJUSTMENT_IN,
-            sourceType: 'InventoryAdjustment',
+            sourceType: "InventoryAdjustment",
             sourceId: adjustment.id,
             sourceLineId: line.id,
             sourceReference: adjustment.reference,
@@ -342,20 +424,25 @@ export class AdjustmentsService {
           });
         } else if (varianceQuantity.lt(0)) {
           const issueQuantity = varianceQuantity.abs();
-          const fallbackUnitCost = this.inventoryPostingService.averageUnitCost(systemQuantity, currentValuation);
-          const valuation = await this.inventoryPostingService.resolveIssueCost({
-            tx,
-            itemId: line.itemId,
-            warehouseId: adjustment.warehouseId,
-            quantity: issueQuantity,
-            fallbackUnitCost,
-            reference: adjustment.reference,
-            sourceType: 'InventoryAdjustment',
-            sourceId: adjustment.id,
-            sourceLineId: line.id,
-            sourceDate: adjustment.adjustmentDate,
-            costingMethod,
-          });
+          const fallbackUnitCost = this.inventoryPostingService.averageUnitCost(
+            systemQuantity,
+            currentValuation,
+          );
+          const valuation = await this.inventoryPostingService.resolveIssueCost(
+            {
+              tx,
+              itemId: line.itemId,
+              warehouseId: adjustment.warehouseId,
+              quantity: issueQuantity,
+              fallbackUnitCost,
+              reference: adjustment.reference,
+              sourceType: "InventoryAdjustment",
+              sourceId: adjustment.id,
+              sourceLineId: line.id,
+              sourceDate: adjustment.adjustmentDate,
+              costingMethod,
+            },
+          );
           unitCost = valuation.unitCost;
           lineTotalAmount = valuation.totalAmount.neg();
         }
@@ -386,17 +473,20 @@ export class AdjustmentsService {
           },
         });
 
-        const warehouseBalance = await this.inventoryPostingService.applyWarehouseBalance(tx, {
-          itemId: item.id,
-          warehouseId: adjustment.warehouseId,
-          quantityDelta: varianceQuantity,
-          valueDelta: lineTotalAmount,
-        });
+        const warehouseBalance =
+          await this.inventoryPostingService.applyWarehouseBalance(tx, {
+            itemId: item.id,
+            warehouseId: adjustment.warehouseId,
+            quantityDelta: varianceQuantity,
+            valueDelta: lineTotalAmount,
+          });
 
         const isPositive = varianceQuantity.gt(0);
         await this.inventoryPostingService.createMovement(tx, {
-          movementType: isPositive ? InventoryStockMovementType.ADJUSTMENT_IN : InventoryStockMovementType.ADJUSTMENT_OUT,
-          transactionType: 'InventoryAdjustment',
+          movementType: isPositive
+            ? InventoryStockMovementType.ADJUSTMENT_IN
+            : InventoryStockMovementType.ADJUSTMENT_OUT,
+          transactionType: "InventoryAdjustment",
           transactionId: adjustment.id,
           transactionLineId: line.id,
           transactionReference: adjustment.reference,
@@ -404,7 +494,9 @@ export class AdjustmentsService {
           itemId: item.id,
           warehouseId: adjustment.warehouseId,
           quantityIn: isPositive ? varianceQuantity : new Prisma.Decimal(0),
-          quantityOut: isPositive ? new Prisma.Decimal(0) : varianceQuantity.abs(),
+          quantityOut: isPositive
+            ? new Prisma.Decimal(0)
+            : varianceQuantity.abs(),
           unitCost,
           valueIn: isPositive ? lineTotalAmount : new Prisma.Decimal(0),
           valueOut: isPositive ? new Prisma.Decimal(0) : lineTotalAmount.abs(),
@@ -453,12 +545,13 @@ export class AdjustmentsService {
 
       let journalEntryId: string | undefined;
       if (accountingEnabled && accountingLines.length > 0) {
-        journalEntryId = await this.inventoryPostingService.createAndPostJournalEntry(
-          adjustment.reference,
-          adjustment.adjustmentDate,
-          `Inventory adjustment ${adjustment.reference}`,
-          accountingLines,
-        );
+        journalEntryId =
+          await this.inventoryPostingService.createAndPostJournalEntry(
+            adjustment.reference,
+            adjustment.adjustmentDate,
+            `Inventory adjustment ${adjustment.reference}`,
+            accountingLines,
+          );
       }
 
       return tx.inventoryAdjustment.update({
@@ -475,7 +568,7 @@ export class AdjustmentsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryAdjustment',
+      entity: "InventoryAdjustment",
       entityId: updated.id,
       action: AuditAction.POST,
       details: {
@@ -492,7 +585,9 @@ export class AdjustmentsService {
   async cancel(id: string) {
     const current = await this.getAdjustmentOrThrow(id);
     if (current.status !== InventoryAdjustmentStatus.DRAFT) {
-      throw new BadRequestException('Only draft inventory adjustments can be cancelled.');
+      throw new BadRequestException(
+        "Only draft inventory adjustments can be cancelled.",
+      );
     }
 
     const updated = await this.prisma.inventoryAdjustment.update({
@@ -502,7 +597,7 @@ export class AdjustmentsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryAdjustment',
+      entity: "InventoryAdjustment",
       entityId: updated.id,
       action: AuditAction.DELETE,
       details: { status: updated.status, reference: updated.reference },
@@ -514,7 +609,9 @@ export class AdjustmentsService {
   async reverse(id: string) {
     const current = await this.getAdjustmentOrThrow(id);
     if (current.status !== InventoryAdjustmentStatus.POSTED) {
-      throw new BadRequestException('Only posted inventory adjustments can be reversed.');
+      throw new BadRequestException(
+        "Only posted inventory adjustments can be reversed.",
+      );
     }
 
     const updated = await this.prisma.inventoryAdjustment.update({
@@ -527,7 +624,7 @@ export class AdjustmentsService {
     });
 
     await this.auditService.log({
-      entity: 'InventoryAdjustment',
+      entity: "InventoryAdjustment",
       entityId: updated.id,
       action: AuditAction.REVERSE,
       details: { status: updated.status, reference: updated.reference },
@@ -541,10 +638,19 @@ export class AdjustmentsService {
 
     for (const line of lines) {
       const item = await this.itemMasterService.ensureActiveItem(line.itemId);
-      const systemQuantity = this.parseNonNegativeQuantity(line.systemQuantity, 'System quantity');
-      const countedQuantity = this.parseNonNegativeQuantity(line.countedQuantity, 'Counted quantity');
+      const systemQuantity = this.parseNonNegativeQuantity(
+        line.systemQuantity,
+        "System quantity",
+      );
+      const countedQuantity = this.parseNonNegativeQuantity(
+        line.countedQuantity,
+        "Counted quantity",
+      );
       const varianceQuantity = countedQuantity.sub(systemQuantity);
-      const unitCost = this.estimateUnitCost(item.onHandQuantity, item.valuationAmount);
+      const unitCost = this.estimateUnitCost(
+        item.onHandQuantity,
+        item.valuationAmount,
+      );
       const lineTotalAmount = unitCost.mul(varianceQuantity);
 
       resolved.push({
@@ -564,8 +670,14 @@ export class AdjustmentsService {
 
   private calculateTotals(lines: ResolvedAdjustmentLine[]) {
     return {
-      totalVarianceQuantity: lines.reduce((sum, line) => sum.add(line.varianceQuantity), new Prisma.Decimal(0)),
-      totalAmount: lines.reduce((sum, line) => sum.add(line.lineTotalAmount), new Prisma.Decimal(0)),
+      totalVarianceQuantity: lines.reduce(
+        (sum, line) => sum.add(line.varianceQuantity),
+        new Prisma.Decimal(0),
+      ),
+      totalAmount: lines.reduce(
+        (sum, line) => sum.add(line.lineTotalAmount),
+        new Prisma.Decimal(0),
+      ),
     };
   }
 
@@ -581,7 +693,7 @@ export class AdjustmentsService {
         },
       },
       lines: {
-        orderBy: { lineNumber: 'asc' },
+        orderBy: { lineNumber: "asc" },
         include: {
           item: {
             select: {
@@ -601,9 +713,13 @@ export class AdjustmentsService {
   }
 
   private async getAdjustmentOrThrow(id: string) {
-    const row = await this.prisma.inventoryAdjustment.findUnique({ where: { id } });
+    const row = await this.prisma.inventoryAdjustment.findUnique({
+      where: { id },
+    });
     if (!row) {
-      throw new BadRequestException(`Inventory adjustment ${id} was not found.`);
+      throw new BadRequestException(
+        `Inventory adjustment ${id} was not found.`,
+      );
     }
     return row;
   }
@@ -657,7 +773,7 @@ export class AdjustmentsService {
     if (status in InventoryAdjustmentStatus) {
       return status as InventoryAdjustmentStatus;
     }
-    throw new BadRequestException('Invalid inventory adjustment status.');
+    throw new BadRequestException("Invalid inventory adjustment status.");
   }
 
   private dateRangeFilter(dateFrom?: string, dateTo?: string) {
@@ -679,10 +795,14 @@ export class AdjustmentsService {
 
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
-      throw new BadRequestException(`${options.label} must be a valid integer.`);
+      throw new BadRequestException(
+        `${options.label} must be a valid integer.`,
+      );
     }
     if (parsed < options.min || parsed > options.max) {
-      throw new BadRequestException(`${options.label} must be between ${options.min} and ${options.max}.`);
+      throw new BadRequestException(
+        `${options.label} must be between ${options.min} and ${options.max}.`,
+      );
     }
 
     return parsed;
@@ -703,7 +823,10 @@ export class AdjustmentsService {
     }
   }
 
-  private estimateUnitCost(onHandQuantity: Prisma.Decimal | string, valuationAmount: Prisma.Decimal | string) {
+  private estimateUnitCost(
+    onHandQuantity: Prisma.Decimal | string,
+    valuationAmount: Prisma.Decimal | string,
+  ) {
     const quantity = new Prisma.Decimal(onHandQuantity);
     if (quantity.lte(0)) {
       return new Prisma.Decimal(0);
@@ -713,15 +836,16 @@ export class AdjustmentsService {
   }
 
   private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const suffix =
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
   }
 
   private isUniqueConflict(error: unknown, field: string) {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002' &&
+      error.code === "P2002" &&
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes(field)
     );
