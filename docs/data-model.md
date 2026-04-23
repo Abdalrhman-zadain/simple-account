@@ -235,6 +235,46 @@ Accounting meaning:
 - stock movement history is stored in `InventoryStockMovement` for inquiry filters and source-document drill-down behavior
 - items can now point to a dedicated preferred warehouse record, while `preferredWarehouseCode` remains as a compatibility/reference mirror
 
+### Payroll
+
+Main models:
+
+- `Employee`
+- `PayrollGroup`
+- `PayrollComponent`
+- `PayrollGroupComponent`
+- `EmployeePayrollComponent`
+- `PayrollRule`
+- `PayrollPeriod`
+- `Payslip`
+- `PayslipLine`
+- `PayrollAdjustment`
+- `PayrollPayment`
+- `PayrollPaymentAllocation`
+
+Key fields:
+
+- employee `code`, `name`, `department`, `position`, `joiningDate`, `paymentMethod`, `status`, optional payroll group link/string, and `currentBalance`
+- payroll group `code`, `name`, active flag, component assignments, rules, employees, and periods
+- payroll component `code`, `name`, `type`, `calculationMethod`, default amount/percentage, optional formula, taxable flag, and linked expense/liability accounts
+- employee and group component assignment amount/percentage/quantity, optional installment amount, effective dates, recurring flag, and optional employee outstanding balance for tracked deductions
+- payroll rule `code`, `name`, type, component link, optional group link, calculation method, amount/percentage/formula, and active flag
+- payroll period `reference`, `name`, payroll group link/string, cycle, start/end/payment dates, status, payroll payable account, and optional journal entry link
+- payslip `reference`, status, employee/period links, gross pay, deductions, employer contributions, net pay, paid/outstanding amounts, notes, and lines
+- payroll adjustment `reference`, type, period/payslip/employee links, amount, description, and adjustment/reversal journal-entry link
+- payroll payment `reference`, status, payment date, period/employee links, bank/cash account, amount, allocation totals, and bank/cash transaction link
+
+Accounting meaning:
+
+- employee records are deactivated rather than deleted so historical payroll remains reportable
+- payroll components link to Phase 1 posting accounts instead of creating payroll-specific ledgers
+- generated payslips snapshot component lines and totals for a payroll period
+- posting a payroll period creates and posts a journal entry through Phase 1; earnings/benefits debit expense accounts, deductions and employer contributions credit liability accounts, and net pay credits the payroll payable account
+- posted payroll periods and payslips are locked from direct draft editing and retain the journal-entry reference
+- salary payments are settled through Phase 2 bank/cash payment posting and allocate against posted payslips
+- payment allocation updates payslip paid/outstanding amounts and reduces employee payroll payable balance
+- posted payslips can receive auditable adjustment entries, and posted payroll periods/payments can be reversed through Phase 1 reversal control or compensating Phase 2 bank/cash transactions
+
 ### Fiscal Control
 
 Main models:
@@ -407,6 +447,20 @@ Ownership by module:
 - `InventoryCostLayer`
 - `InventoryPolicy`
   - currently owns item-master setup, warehouse master setup, goods-receipt/issue/transfer/adjustment draft-post-cancel behavior, default account mapping, reorder metadata, active/inactive control, warehouse transit flags, configurable costing method behavior, warehouse-level and item-level balance updates, stock movement inquiry history, optional accounting integration, and stock availability controls
+- Payroll:
+  - `Employee`
+  - `PayrollGroup`
+  - `PayrollComponent`
+  - `PayrollGroupComponent`
+  - `EmployeePayrollComponent`
+  - `PayrollRule`
+  - `PayrollPeriod`
+  - `Payslip`
+  - `PayslipLine`
+  - `PayrollAdjustment`
+  - `PayrollPayment`
+  - `PayrollPaymentAllocation`
+  - owns employee masters, payroll setup, rules/formulas, payslip generation, payroll posting/reversal orchestration, adjustment posting, salary-payment allocation/settlement/reversal, and payroll inquiry while reusing Phase 1 journal/posting/reversal services and Phase 2 bank/cash payments
 
 ## Balance Integrity Expectations
 

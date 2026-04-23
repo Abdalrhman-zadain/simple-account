@@ -234,6 +234,41 @@ Checks to run:
 - frontend typecheck
 - Prisma generate and migration review when schema changes are introduced
 
+## Start Or Extend Phase 6 Payroll
+
+Where to edit:
+
+- backend `phase-6-payroll-management/payroll`
+- frontend `features/phase-6-payroll-management`
+- route files under `frontend/app/(erp)/payroll`
+- `backend/prisma/schema.prisma` and Prisma migration files when payroll, employee, payslip, payment, deduction, or payroll-period data structures are added
+- `docs/phase-6-payroll-requirements.md` when requirements are clarified, split, or translated
+
+What else to check:
+
+- keep the payroll module split by subdomain ownership such as employees, payroll setup, payroll periods, payslips, deductions, benefits/allowances, posting/accounting, payments, reporting/inquiry, and validation/control
+- route files must stay thin and compose the owning Phase 6 feature page
+- payroll components must link to valid posting accounts in Phase 1 instead of creating parallel accounting ledgers
+- payroll posting must reuse Phase 1 journal-entry and posting services instead of writing ledger effects directly
+- payroll payments that move cash must integrate with the existing Phase 2 bank/cash module rather than duplicating payment posting behavior
+- posted payroll periods, payslips, and payment settlements must preserve auditable links between employee records, payroll periods, source payslips, and generated journal entries
+- deactivated employees must remain historically reportable but blocked from new payroll periods, payslips, and payment selection
+- Arabic and English terminology must stay aligned when adding payroll components, statuses, document labels, and reporting terminology
+
+Must remain compatible:
+
+- current implemented phase boundaries
+- docs must distinguish between implemented payroll behavior and any remaining planned payroll extensions
+- stable route naming under `/payroll`
+- Phase 1 journal-entry and posting invariants
+- Phase 2 bank/cash payment posting behavior when payroll settlements move through bank or cash accounts
+
+Checks to run:
+
+- backend build
+- frontend typecheck
+- Prisma generate and migration review when schema changes are introduced
+
 ## Change Account Creation Behavior
 
 Where to edit:

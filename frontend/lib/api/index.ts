@@ -34,6 +34,9 @@ import {
   ApiErrorShape,
   AuditLogEntry,
   AllocateReceiptPayload,
+  AdjustPayslipPayload,
+  AssignEmployeeComponentPayload,
+  AssignPayrollGroupComponentPayload,
   BankCashAccount,
   BankCashAccountsQuery,
   BankCashAccountTransactionsResponse,
@@ -70,6 +73,12 @@ import {
   CreateBankReconciliationPayload,
   CreateBankStatementLinePayload,
   CreatePaymentPayload,
+  CreatePayrollComponentPayload,
+  CreatePayrollEmployeePayload,
+  CreatePayrollGroupPayload,
+  CreatePayrollPaymentPayload,
+  CreatePayrollPeriodPayload,
+  CreatePayrollRulePayload,
   CreateReceiptPayload,
   CreateCustomerReceiptPayload,
   CreateSalesInvoicePayload,
@@ -92,6 +101,15 @@ import {
   LoginPayload,
   LoginResponse,
   PaymentMethodType,
+  PayrollComponent,
+  PayrollEmployee,
+  PayrollGroup,
+  PayrollPayment,
+  PayrollPeriod,
+  PayrollRule,
+  PayrollSummary,
+  Payslip,
+  EmployeePayrollComponent,
   ReceiptAllocationResult,
   RegisterPayload,
   RegisterResponse,
@@ -134,6 +152,12 @@ import {
   UpdateCustomerPayload,
   UpdateJournalEntryTypePayload,
   UpdatePaymentMethodTypePayload,
+  UpdatePayrollComponentPayload,
+  UpdatePayrollEmployeePayload,
+  UpdatePayrollGroupPayload,
+  UpdatePayrollPaymentPayload,
+  UpdatePayrollPeriodPayload,
+  UpdatePayrollRulePayload,
   UpdateSalesOrderPayload,
   UpdateSalesQuotationPayload,
   UpdateSalesInvoicePayload,
@@ -2031,6 +2055,190 @@ export async function getAgingReport(asOfDate?: string, token?: string | null) {
 }
 
 // ─── Segments ─────────────────────────────────────────────────────────────────
+
+// Payroll
+
+export async function getPayrollGroups(params: { isActive?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollGroup[]>(`/payroll/groups${suffix}`, { token });
+}
+
+export async function createPayrollGroup(payload: CreatePayrollGroupPayload, token?: string | null) {
+  return apiRequest<PayrollGroup>("/payroll/groups", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollGroup(id: string, payload: UpdatePayrollGroupPayload, token?: string | null) {
+  return apiRequest<PayrollGroup>(`/payroll/groups/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivatePayrollGroup(id: string, token?: string | null) {
+  return apiRequest<PayrollGroup>(`/payroll/groups/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function assignPayrollGroupComponent(id: string, payload: AssignPayrollGroupComponentPayload, token?: string | null) {
+  return apiRequest<EmployeePayrollComponent>(`/payroll/groups/${id}/components`, { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function getPayrollRules(params: { ruleType?: string; payrollGroupId?: string; isActive?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.ruleType) searchParams.set("ruleType", params.ruleType);
+  if (params.payrollGroupId) searchParams.set("payrollGroupId", params.payrollGroupId);
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollRule[]>(`/payroll/rules${suffix}`, { token });
+}
+
+export async function createPayrollRule(payload: CreatePayrollRulePayload, token?: string | null) {
+  return apiRequest<PayrollRule>("/payroll/rules", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollRule(id: string, payload: UpdatePayrollRulePayload, token?: string | null) {
+  return apiRequest<PayrollRule>(`/payroll/rules/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivatePayrollRule(id: string, token?: string | null) {
+  return apiRequest<PayrollRule>(`/payroll/rules/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function getPayrollEmployees(params: { status?: string; department?: string; payrollGroup?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.department) searchParams.set("department", params.department);
+  if (params.payrollGroup) searchParams.set("payrollGroup", params.payrollGroup);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollEmployee[]>(`/payroll/employees${suffix}`, { token });
+}
+
+export async function createPayrollEmployee(payload: CreatePayrollEmployeePayload, token?: string | null) {
+  return apiRequest<PayrollEmployee>("/payroll/employees", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollEmployee(id: string, payload: UpdatePayrollEmployeePayload, token?: string | null) {
+  return apiRequest<PayrollEmployee>(`/payroll/employees/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivatePayrollEmployee(id: string, token?: string | null) {
+  return apiRequest<PayrollEmployee>(`/payroll/employees/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function assignPayrollEmployeeComponent(id: string, payload: AssignEmployeeComponentPayload, token?: string | null) {
+  return apiRequest<EmployeePayrollComponent>(`/payroll/employees/${id}/components`, { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function getPayrollComponents(params: { type?: string; isActive?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.type) searchParams.set("type", params.type);
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollComponent[]>(`/payroll/components${suffix}`, { token });
+}
+
+export async function createPayrollComponent(payload: CreatePayrollComponentPayload, token?: string | null) {
+  return apiRequest<PayrollComponent>("/payroll/components", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollComponent(id: string, payload: UpdatePayrollComponentPayload, token?: string | null) {
+  return apiRequest<PayrollComponent>(`/payroll/components/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivatePayrollComponent(id: string, token?: string | null) {
+  return apiRequest<PayrollComponent>(`/payroll/components/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function getPayrollPeriods(params: { status?: string; payrollGroup?: string; dateFrom?: string; dateTo?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.payrollGroup) searchParams.set("payrollGroup", params.payrollGroup);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollPeriod[]>(`/payroll/periods${suffix}`, { token });
+}
+
+export async function createPayrollPeriod(payload: CreatePayrollPeriodPayload, token?: string | null) {
+  return apiRequest<PayrollPeriod>("/payroll/periods", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollPeriod(id: string, payload: UpdatePayrollPeriodPayload, token?: string | null) {
+  return apiRequest<PayrollPeriod>(`/payroll/periods/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function generatePayrollPayslips(id: string, employeeIds?: string[], token?: string | null) {
+  return apiRequest<Payslip[]>(`/payroll/periods/${id}/generate-payslips`, { method: "POST", body: JSON.stringify({ employeeIds }), token });
+}
+
+export async function postPayrollPeriod(id: string, token?: string | null) {
+  return apiRequest<PayrollPeriod>(`/payroll/periods/${id}/post`, { method: "POST", token });
+}
+
+export async function closePayrollPeriod(id: string, token?: string | null) {
+  return apiRequest<PayrollPeriod>(`/payroll/periods/${id}/close`, { method: "POST", token });
+}
+
+export async function reversePayrollPeriod(id: string, token?: string | null) {
+  return apiRequest<PayrollPeriod>(`/payroll/periods/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getPayslips(params: { status?: string; employeeId?: string; payrollPeriodId?: string; department?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.employeeId) searchParams.set("employeeId", params.employeeId);
+  if (params.payrollPeriodId) searchParams.set("payrollPeriodId", params.payrollPeriodId);
+  if (params.department) searchParams.set("department", params.department);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<Payslip[]>(`/payroll/payslips${suffix}`, { token });
+}
+
+export async function adjustPayslip(id: string, payload: AdjustPayslipPayload, token?: string | null) {
+  return apiRequest<Payslip>(`/payroll/payslips/${id}/adjust`, { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function getPayrollPayments(params: { status?: string; employeeId?: string; payrollPeriodId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.employeeId) searchParams.set("employeeId", params.employeeId);
+  if (params.payrollPeriodId) searchParams.set("payrollPeriodId", params.payrollPeriodId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollPayment[]>(`/payroll/payments${suffix}`, { token });
+}
+
+export async function createPayrollPayment(payload: CreatePayrollPaymentPayload, token?: string | null) {
+  return apiRequest<PayrollPayment>("/payroll/payments", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updatePayrollPayment(id: string, payload: UpdatePayrollPaymentPayload, token?: string | null) {
+  return apiRequest<PayrollPayment>(`/payroll/payments/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function postPayrollPayment(id: string, token?: string | null) {
+  return apiRequest<PayrollPayment>(`/payroll/payments/${id}/post`, { method: "POST", token });
+}
+
+export async function cancelPayrollPayment(id: string, token?: string | null) {
+  return apiRequest<PayrollPayment>(`/payroll/payments/${id}/cancel`, { method: "POST", token });
+}
+
+export async function reversePayrollPayment(id: string, token?: string | null) {
+  return apiRequest<PayrollPayment>(`/payroll/payments/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getPayrollSummary(params: { payrollPeriodId?: string; employeeId?: string; department?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.payrollPeriodId) searchParams.set("payrollPeriodId", params.payrollPeriodId);
+  if (params.employeeId) searchParams.set("employeeId", params.employeeId);
+  if (params.department) searchParams.set("department", params.department);
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<PayrollSummary>(`/payroll/reports/summary${suffix}`, { token });
+}
 
 export async function getSegmentDefinitions(token?: string | null) {
   return apiRequest<SegmentDefinition[]>("/segments/definitions", { token });

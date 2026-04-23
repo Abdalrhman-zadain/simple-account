@@ -105,3 +105,18 @@ What this means for future edits:
 - keep future inventory code inside the dedicated Phase 5 ownership roots rather than mixing it into purchases, sales, or Phase 1 accounting modules.
 - preserve Arabic/English translation coverage when adding inventory statuses, movement labels, warehouse terminology, and costing method names.
 - document inventory policy behavior (`/inventory/policy` plus `INVENTORY_COSTING_METHOD` fallback) and policy toggles (`INVENTORY_PREVENT_NEGATIVE_STOCK`, `INVENTORY_ACCOUNTING_ENABLED`) whenever behavior changes.
+
+## Phase 6 Payroll Status
+
+Current status:
+
+- Phase 6 Payroll is implemented for employee masters, payroll groups, component setup, employee/group component assignment, payroll rules, payroll periods, payslip generation/editing, payroll period posting/reversal, posted-payslip adjustment, salary payment allocation/settlement/reversal through Bank & Cash, and summary inquiry.
+- Formula-based payroll calculations are implemented with a constrained arithmetic evaluator using payroll variables such as `amount`, `base`, `percentage`, `quantity`, `grossPay`, `totalDeductions`, `employerContributions`, and `netPay`.
+- Installment-based deductions are represented on component assignments through tracked installment amounts and outstanding balances.
+- The `/payroll` frontend exposes group setup, rule setup, employee/component assignment, period processing, payslip adjustment, batch payment allocation capture, payment posting/cancellation/reversal, period reversal, and summary inquiry.
+
+What this means for future edits:
+
+- keep future payroll code inside dedicated Phase 6 ownership roots rather than mixing payroll behavior into purchases, sales, bank/cash, or Phase 1 accounting modules.
+- preserve Arabic/English translation coverage when adding payroll components, employee/payment terminology, payslip labels, statuses, and reporting filters.
+- treat future payroll extensions as refinements to this implemented module rather than as unimplemented Phase 6 basics.

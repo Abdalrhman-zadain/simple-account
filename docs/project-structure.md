@@ -83,6 +83,7 @@ Current feature areas:
 - `features/phase-3-sales-receivables`
 - `features/phase-4-procure-to-pay`
 - `features/phase-5-inventory-management`
+- `features/phase-6-payroll-management`
 
 Put code here when:
 
@@ -243,6 +244,18 @@ Current root:
 
 `inventory` currently implements the `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, `policy`, and shared posting/costing support slices. Posting now maintains warehouse-level balances, movement history, organization-configured costing behavior (`/inventory/policy`), and optional accounting integration through Phase 1 posting services.
 
+### `backend/src/modules/phase-6-payroll-management`
+
+Purpose:
+
+- ownership root for Phase 6 payroll and human-resources financial workflows
+
+Current root:
+
+- `payroll`
+
+`payroll` currently implements employee masters, payroll groups, payroll components, employee/group component assignments, payroll rules, payroll periods, payslip generation/editing/adjustment, payroll period posting/reversal, payroll payments with payslip allocation and reversal, and payroll summary inquiry. Payroll posting and adjustment journal entries reuse Phase 1 journal-entry/posting services, period reversal reuses Phase 1 reversal control, and salary payments reuse Phase 2 bank/cash payment posting.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -285,6 +298,16 @@ Current feature area:
 
 - `inventory` (Item Master, Warehouses, Goods Receipts, Goods Issues, Transfers, Adjustments, Stock Ledger inquiry, and valuation policy controls implemented with costing/accounting integration hooks)
 
+### `frontend/features/phase-6-payroll-management`
+
+Purpose:
+
+- feature-owned UI for Phase 6 payroll workflows
+
+Current feature area:
+
+- `payroll` (group, rule, employee, component, period, payslip, payment, adjustment, reversal, and summary workspace)
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -305,6 +328,8 @@ Use these rules before editing:
   - put them in `frontend/features/phase-4-procure-to-pay`
 - inventory screens:
   - put them in `frontend/features/phase-5-inventory-management`
+- payroll screens:
+  - put them in `frontend/features/phase-6-payroll-management`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -325,6 +350,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-4-procure-to-pay/purchases`
 - inventory, warehouse, stock movement, costing, and inventory inquiry workflows:
   - put them in `backend/src/modules/phase-5-inventory-management/inventory`
+- payroll employee, component, period, payslip, posting, payment, and inquiry workflows:
+  - put them in `backend/src/modules/phase-6-payroll-management/payroll`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

@@ -77,7 +77,15 @@ Open a second terminal for the backend:
 
 ```powershell
 cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+npm run prisma:generate
 npm run start:dev
+```
+
+If you need to sync schema changes locally and `npm run prisma:migrate` fails with `P3006` (shadow database replay), run:
+
+```powershell
+cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+npx prisma db push --skip-generate
 ```
 
 The backend runs at:
@@ -122,7 +130,10 @@ Use these after dependency or schema changes:
 cd backend
 npm install
 npm run prisma:generate
+# Use migrate for normal migration workflow.
+# If migrate fails locally with P3006, use db push as a local fallback.
 npm run prisma:migrate
+# npx prisma db push --skip-generate
 npm run start:dev
 ```
 

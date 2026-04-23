@@ -1,6 +1,6 @@
 # System Structure Report
 
-**Scope:** Phase 1 Accounting Foundation, Phase 2 Bank & Cash Management, Phase 3 Sales & Receivables, Phase 4 Purchases, and implemented Phase 5 inventory ownership including setup, stock movements, warehouse balances, stock ledger inquiry, costing policy, and optional accounting integration, plus `platform/auth`.
+**Scope:** Phase 1 Accounting Foundation, Phase 2 Bank & Cash Management, Phase 3 Sales & Receivables, Phase 4 Purchases, implemented Phase 5 inventory, implemented Phase 6 payroll, plus `platform/auth`.
 
 A concise description of the current system shape for architecture review, handoff, or engineering status updates.
 
@@ -62,6 +62,7 @@ flowchart TB
     B4["phase-2-bank-cash-management/bank-cash-accounts module"]
     B5["phase-2-bank-cash-management/bank-cash-transactions module"]
     B6["phase-5-inventory-management/inventory module"]
+    B7["phase-6-payroll-management/payroll module"]
     B3["backend/src/common/prisma"]
   end
 
@@ -74,17 +75,21 @@ flowchart TB
   A3 -->|HTTP JSON| B4
   A3 -->|HTTP JSON| B5
   A3 -->|HTTP JSON| B6
+  A3 -->|HTTP JSON| B7
   A5 -->|API client| B1
   A5 -->|API client| B2
   A5 -->|API client| B4
   A5 -->|API client| B5
   A5 -->|API client| B6
+  A5 -->|API client| B7
   B1 -->|uses| B3
   B2 -->|uses| B3
   B4 -->|uses| B3
   B5 -->|uses| B2
   B5 -->|uses| B3
   B6 -->|uses| B3
+  B7 -->|uses| B2
+  B7 -->|uses| B3
   B3 -->|Prisma ORM| C1
 ```
 
@@ -105,6 +110,7 @@ flowchart TB
 - `backend/src/modules/phase-2-bank-cash-management/bank-cash-accounts` - bank/cash operational registry
 - `backend/src/modules/phase-2-bank-cash-management/bank-cash-transactions` - receipt, payment, and transfer workflow records that post through accounting journals
 - `backend/src/modules/phase-5-inventory-management/inventory` - inventory item master, warehouse master, goods-receipt, goods-issue, transfer, and adjustment workflows
+- `backend/src/modules/phase-6-payroll-management/payroll` - employee, payroll setup, period, payslip, posting, payment, and inquiry workflows
 
 ## Request flow example
 
@@ -146,6 +152,7 @@ This ERD is generated directly from `backend/prisma/schema.prisma` using `prisma
 - `InventoryTransfer` and `InventoryTransferLine` store draft and posted warehouse-transfer documents that move warehouse-level quantity/value balances and write transfer-out/transfer-in movement history.
 - `InventoryAdjustment` and `InventoryAdjustmentLine` store draft and posted variance-adjustment documents, including system/counted/variance quantities, and update both warehouse-level and item-level balances.
 - `InventoryWarehouseBalance`, `InventoryStockMovement`, and `InventoryCostLayer` store warehouse balances, stock-ledger inquiry history, and costing layers.
+- `Employee`, `PayrollComponent`, `EmployeePayrollComponent`, `PayrollPeriod`, `Payslip`, `PayslipLine`, `PayrollPayment`, and `PayrollPaymentAllocation` store Phase 6 payroll setup, period processing, posting references, salary-payment settlement, and inquiry data.
 - `JournalEntryLine` links each journal line to its `JournalEntry` and `Account`.
 - `LedgerTransaction` is the posted history row for a journal line and posting batch.
 - `PostingBatch` groups posted ledger rows for a journal entry.
@@ -169,7 +176,9 @@ simple-account/
 |   |   |-- phase-2-bank-cash-management/
 |   |   |   `-- bank-cash-accounts/
 |   |   `-- phase-5-inventory-management/
-|   |       `-- inventory/
+|   |   |   `-- inventory/
+|   |   `-- phase-6-payroll-management/
+|   |       `-- payroll/
 |   |-- lib/                       # api (client), config, utils, storage
 |   `-- providers/                 # app-providers, auth-provider, query-provider
 `-- backend/
@@ -184,7 +193,9 @@ simple-account/
             |-- phase-2-bank-cash-management/
             |   `-- bank-cash-accounts/
             `-- phase-5-inventory-management/
-                `-- inventory/
+            |   `-- inventory/
+            `-- phase-6-payroll-management/
+                `-- payroll/
 ```
 
 ### Repository ownership
@@ -213,6 +224,7 @@ flowchart TB
     B2["src/modules/platform/auth: auth, JWT, tenant context"]
     B3["src/modules/phase-1-accounting-foundation/accounting-core: accounting domain"]
     B4["src/modules/phase-5-inventory-management/inventory: item master, warehouse master, goods receipts, goods issues, transfers, adjustments"]
+    B5["src/modules/phase-6-payroll-management/payroll: employees, components, periods, payslips, payments"]
   end
 
   subgraph DocsOwnership["Documentation"]
@@ -232,6 +244,7 @@ flowchart TB
   B --> B2
   B --> B3
   B --> B4
+  B --> B5
 
   C --> C1
   C --> C2

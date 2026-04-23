@@ -664,6 +664,340 @@ export type CreateInventoryAdjustmentPayload = {
 export type UpdateInventoryAdjustmentPayload =
   Partial<CreateInventoryAdjustmentPayload>;
 
+export type EmployeeStatus = "ACTIVE" | "INACTIVE";
+export type EmployeePaymentMethod = "BANK" | "CASH" | "OTHER";
+export type PayrollComponentType =
+  | "EARNING"
+  | "DEDUCTION"
+  | "EMPLOYER_CONTRIBUTION"
+  | "BENEFIT";
+export type PayrollCalculationMethod =
+  | "FIXED_AMOUNT"
+  | "PERCENTAGE"
+  | "QUANTITY"
+  | "FORMULA";
+export type PayrollPeriodStatus = "DRAFT" | "POSTED" | "CLOSED" | "REVERSED";
+export type PayslipStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "PARTIALLY_PAID"
+  | "PAID"
+  | "CANCELLED"
+  | "REVERSED";
+export type PayrollPaymentStatus =
+  | "DRAFT"
+  | "POSTED"
+  | "CANCELLED"
+  | "REVERSED";
+export type PayrollRuleType =
+  | "TAX"
+  | "INSURANCE"
+  | "LOAN"
+  | "STATUTORY_DEDUCTION"
+  | "OTHER";
+
+export type PayrollComponent = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr?: string | null;
+  type: PayrollComponentType;
+  calculationMethod: PayrollCalculationMethod;
+  defaultAmount: string;
+  defaultPercentage: string;
+  formula?: string | null;
+  taxable: boolean;
+  isActive: boolean;
+  expenseAccount?: AccountOption | null;
+  liabilityAccount?: AccountOption | null;
+};
+
+export type EmployeePayrollComponent = {
+  id: string;
+  payrollComponentId: string;
+  payrollComponent?: PayrollComponent | null;
+  amount: string;
+  percentage: string;
+  quantity: string;
+  installmentAmount?: string | null;
+  isRecurring: boolean;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  outstandingBalance?: string | null;
+};
+
+export type PayrollGroup = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  employeesCount: number;
+  periodsCount: number;
+  rulesCount: number;
+  components: EmployeePayrollComponent[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayrollRule = {
+  id: string;
+  code: string;
+  name: string;
+  ruleType: PayrollRuleType;
+  payrollComponentId: string;
+  payrollComponent?: PayrollComponent | null;
+  payrollGroupId?: string | null;
+  payrollGroup?: PayrollGroup | null;
+  calculationMethod: PayrollCalculationMethod;
+  amount: string;
+  percentage: string;
+  formula?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayrollEmployee = {
+  id: string;
+  code: string;
+  name: string;
+  department?: string | null;
+  position?: string | null;
+  joiningDate: string;
+  paymentMethod: EmployeePaymentMethod;
+  status: EmployeeStatus;
+  defaultSalaryStructure?: string | null;
+  bankAccountNumber?: string | null;
+  payrollGroup?: string | null;
+  payrollGroupId?: string | null;
+  payrollGroupRecord?: PayrollGroup | null;
+  currentBalance: string;
+  components: EmployeePayrollComponent[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayslipLine = {
+  id: string;
+  lineNumber: number;
+  payrollComponentId?: string | null;
+  componentCode: string;
+  componentName: string;
+  componentType: PayrollComponentType;
+  calculationMethod: PayrollCalculationMethod;
+  quantity: string;
+  rate: string;
+  amount: string;
+  accountId?: string | null;
+  liabilityAccountId?: string | null;
+  description?: string | null;
+};
+
+export type Payslip = {
+  id: string;
+  reference: string;
+  status: PayslipStatus;
+  payrollPeriod?: Pick<PayrollPeriod, "id" | "reference" | "name" | "status">;
+  employee?: PayrollEmployee | null;
+  grossPay: string;
+  totalDeductions: string;
+  employerContributions: string;
+  netPay: string;
+  paidAmount: string;
+  outstandingAmount: string;
+  notes?: string | null;
+  lines: PayslipLine[];
+  postedAt?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayrollPeriod = {
+  id: string;
+  reference: string;
+  name: string;
+  payrollGroup?: string | null;
+  payrollGroupId?: string | null;
+  payrollGroupRecord?: PayrollGroup | null;
+  cycle: string;
+  startDate: string;
+  endDate: string;
+  paymentDate: string;
+  status: PayrollPeriodStatus;
+  payrollPayableAccount: AccountOption;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  grossPay: string;
+  totalDeductions: string;
+  employerContributions: string;
+  netPay: string;
+  payslipCount: number;
+  payslips: Payslip[];
+  postedAt?: string | null;
+  closedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayrollPayment = {
+  id: string;
+  reference: string;
+  status: PayrollPaymentStatus;
+  paymentDate: string;
+  payrollPeriod: Pick<PayrollPeriod, "id" | "reference" | "name" | "status">;
+  employee?: PayrollEmployee | null;
+  bankCashAccount: BankCashAccount;
+  amount: string;
+  allocatedAmount: string;
+  unappliedAmount: string;
+  description?: string | null;
+  bankCashTransaction?: Pick<BankCashTransaction, "id" | "reference" | "status" | "postedAt"> | null;
+  allocations: Array<{
+    id: string;
+    payslipId: string;
+    payslipReference?: string;
+    employeeName?: string;
+    amount: string;
+    allocatedAt: string;
+  }>;
+  postedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PayrollSummary = {
+  grossPay: string;
+  totalDeductions: string;
+  employerContributions: string;
+  netPay: string;
+  paidAmount: string;
+  outstandingAmount: string;
+  payslipCount: number;
+  componentTotals: Array<{ name: string; type: string; amount: string }>;
+  rows: Payslip[];
+};
+
+export type CreatePayrollEmployeePayload = {
+  code?: string;
+  name: string;
+  department?: string;
+  position?: string;
+  joiningDate: string;
+  paymentMethod: EmployeePaymentMethod;
+  defaultSalaryStructure?: string;
+  bankAccountNumber?: string;
+  payrollGroup?: string;
+  payrollGroupId?: string;
+};
+
+export type UpdatePayrollEmployeePayload = Partial<CreatePayrollEmployeePayload> & {
+  status?: EmployeeStatus;
+};
+
+export type CreatePayrollComponentPayload = {
+  code?: string;
+  name: string;
+  nameAr?: string;
+  type: PayrollComponentType;
+  calculationMethod: PayrollCalculationMethod;
+  defaultAmount?: number;
+  defaultPercentage?: number;
+  formula?: string;
+  taxable?: boolean;
+  expenseAccountId?: string;
+  liabilityAccountId?: string;
+};
+
+export type UpdatePayrollComponentPayload =
+  Partial<CreatePayrollComponentPayload> & { isActive?: boolean };
+
+export type AssignEmployeeComponentPayload = {
+  payrollComponentId: string;
+  amount?: number;
+  percentage?: number;
+  quantity?: number;
+  installmentAmount?: number;
+  isRecurring?: boolean;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  outstandingBalance?: number;
+};
+
+export type CreatePayrollGroupPayload = {
+  code?: string;
+  name: string;
+  description?: string;
+};
+
+export type UpdatePayrollGroupPayload = Partial<CreatePayrollGroupPayload> & {
+  isActive?: boolean;
+};
+
+export type AssignPayrollGroupComponentPayload = AssignEmployeeComponentPayload;
+
+export type CreatePayrollRulePayload = {
+  code?: string;
+  name: string;
+  ruleType: PayrollRuleType;
+  payrollComponentId: string;
+  payrollGroupId?: string;
+  calculationMethod: PayrollCalculationMethod;
+  amount?: number;
+  percentage?: number;
+  formula?: string;
+};
+
+export type UpdatePayrollRulePayload = Partial<CreatePayrollRulePayload> & {
+  isActive?: boolean;
+};
+
+export type CreatePayrollPeriodPayload = {
+  reference?: string;
+  name: string;
+  payrollGroup?: string;
+  payrollGroupId?: string;
+  cycle?: string;
+  startDate: string;
+  endDate: string;
+  paymentDate: string;
+  payrollPayableAccountId: string;
+};
+
+export type UpdatePayrollPeriodPayload = Partial<CreatePayrollPeriodPayload>;
+
+export type CreatePayrollPaymentPayload = {
+  reference?: string;
+  paymentDate: string;
+  payrollPeriodId: string;
+  employeeId?: string;
+  bankCashAccountId: string;
+  amount: number;
+  description?: string;
+  allocations?: Array<{ payslipId: string; amount: number }>;
+};
+
+export type UpdatePayrollPaymentPayload =
+  Partial<Omit<CreatePayrollPaymentPayload, "payrollPeriodId" | "reference">>;
+
+export type AdjustPayslipPayload = {
+  description?: string;
+  lines: Array<{
+    payrollComponentId?: string;
+    componentCode: string;
+    componentName: string;
+    componentType: PayrollComponentType;
+    calculationMethod: PayrollCalculationMethod;
+    quantity?: number;
+    rate?: number;
+    amount: number;
+    accountId?: string;
+    liabilityAccountId?: string;
+    description?: string;
+  }>;
+};
+
 export type CreatePaymentMethodTypePayload = {
   name: string;
 };

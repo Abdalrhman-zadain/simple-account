@@ -187,6 +187,67 @@ enum InventoryStockMovementType {
   ADJUSTMENT_OUT
 }
 
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EmployeePaymentMethod {
+  BANK
+  CASH
+  OTHER
+}
+
+enum PayrollComponentType {
+  EARNING
+  DEDUCTION
+  EMPLOYER_CONTRIBUTION
+  BENEFIT
+}
+
+enum PayrollCalculationMethod {
+  FIXED_AMOUNT
+  PERCENTAGE
+  QUANTITY
+  FORMULA
+}
+
+enum PayrollPeriodStatus {
+  DRAFT
+  POSTED
+  CLOSED
+  REVERSED
+}
+
+enum PayslipStatus {
+  DRAFT
+  POSTED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+  REVERSED
+}
+
+enum PayrollPaymentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum PayrollRuleType {
+  TAX
+  INSURANCE
+  LOAN
+  STATUTORY_DEDUCTION
+  OTHER
+}
+
+enum PayrollAdjustmentType {
+  ADJUSTMENT
+  REVERSAL
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -228,7 +289,7 @@ model Account {
   bankCashAccount                 BankCashAccount?
   bankCashCounterpartTransactions BankCashTransaction[] @relation("BankCashCounterAccount")
   customerReceivables             Customer[]            @relation("CustomerReceivableAccount")
-  supplierPayables               Supplier[]            @relation("SupplierPayableAccount")
+  supplierPayables                Supplier[]            @relation("SupplierPayableAccount")
   purchaseRequestExpenseLines     PurchaseRequestLine[] @relation("PurchaseRequestExpenseAccount")
   purchaseInvoiceAccountLines     PurchaseInvoiceLine[] @relation("PurchaseInvoiceClassificationAccount")
   salesQuotationRevenueLines      SalesQuotationLine[]  @relation("SalesQuotationRevenueAccount")
@@ -239,6 +300,9 @@ model Account {
   inventoryCogsItems              InventoryItem[]       @relation("InventoryItemCogsAccount")
   inventorySalesItems             InventoryItem[]       @relation("InventoryItemSalesAccount")
   inventoryAdjustmentItems        InventoryItem[]       @relation("InventoryItemAdjustmentAccount")
+  payrollExpenseComponents        PayrollComponent[]    @relation("PayrollComponentExpenseAccount")
+  payrollLiabilityComponents      PayrollComponent[]    @relation("PayrollComponentLiabilityAccount")
+  payrollPeriodPayables           PayrollPeriod[]       @relation("PayrollPeriodPayableAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -267,6 +331,7 @@ model BankCashAccount {
   destinationTransfers BankCashTransaction[] @relation("BankCashDestinationAccount")
   reconciliations      BankReconciliation[]
   supplierPayments     SupplierPayment[]
+  payrollPayments      PayrollPayment[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -296,6 +361,7 @@ model BankCashTransaction {
   journalEntry                 JournalEntry?             @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
   receiptAllocations           ReceiptAllocation[]       @relation("ReceiptTransactionAllocations")
   supplierPayment              SupplierPayment?
+  payrollPayment               PayrollPayment?
   postedAt                     DateTime?
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
@@ -404,21 +470,23 @@ model JournalEntry {
   fiscalPeriodId String?
   fiscalPeriod   FiscalPeriod? @relation(fields: [fiscalPeriodId], references: [id])
 
-  reversalOfId        String?              @unique
-  reversalOf          JournalEntry?        @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
-  reversedBy          JournalEntry?        @relation("JournalEntryReversal")
-  lines               JournalEntryLine[]
-  ledgerLines         LedgerTransaction[]
-  postingBatchId      String?              @unique
-  postingBatch        PostingBatch?        @relation(fields: [postingBatchId], references: [id])
-  bankCashTransaction BankCashTransaction?
-  salesInvoice        SalesInvoice?        @relation("SalesInvoiceToJournalEntry")
-  purchaseInvoice     PurchaseInvoice?     @relation("PurchaseInvoiceToJournalEntry")
-  creditNote          CreditNote?          @relation("CreditNoteToJournalEntry")
-  debitNote           DebitNote?           @relation("DebitNoteToJournalEntry")
+  reversalOfId          String?                @unique
+  reversalOf            JournalEntry?          @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
+  reversedBy            JournalEntry?          @relation("JournalEntryReversal")
+  lines                 JournalEntryLine[]
+  ledgerLines           LedgerTransaction[]
+  postingBatchId        String?                @unique
+  postingBatch          PostingBatch?          @relation(fields: [postingBatchId], references: [id])
+  bankCashTransaction   BankCashTransaction?
+  salesInvoice          SalesInvoice?          @relation("SalesInvoiceToJournalEntry")
+  purchaseInvoice       PurchaseInvoice?       @relation("PurchaseInvoiceToJournalEntry")
+  creditNote            CreditNote?            @relation("CreditNoteToJournalEntry")
+  debitNote             DebitNote?             @relation("DebitNoteToJournalEntry")
   inventoryGoodsReceipt InventoryGoodsReceipt? @relation("InventoryGoodsReceiptToJournalEntry")
   inventoryGoodsIssue   InventoryGoodsIssue?   @relation("InventoryGoodsIssueToJournalEntry")
   inventoryAdjustment   InventoryAdjustment?   @relation("InventoryAdjustmentToJournalEntry")
+  payrollPeriod         PayrollPeriod?         @relation("PayrollPeriodToJournalEntry")
+  payrollAdjustment     PayrollAdjustment?     @relation("PayrollAdjustmentToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -456,61 +524,61 @@ model Customer {
 }
 
 model Supplier {
-  id                String   @id @default(cuid())
-  code              String   @unique
-  name              String
-  contactInfo       String?
-  paymentTerms      String?
-  taxInfo           String?
-  defaultCurrency   String   @default("JOD")
-  currentBalance    Decimal  @default(0) @db.Decimal(18, 2)
-  isActive          Boolean  @default(true)
-  payableAccountId  String
-  payableAccount    Account  @relation("SupplierPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
-  purchaseOrders    PurchaseOrder[]
-  purchaseReceipts  PurchaseReceipt[]
-  purchaseInvoices  PurchaseInvoice[]
-  supplierPayments  SupplierPayment[]
-  debitNotes        DebitNote[]
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String            @id @default(cuid())
+  code             String            @unique
+  name             String
+  contactInfo      String?
+  paymentTerms     String?
+  taxInfo          String?
+  defaultCurrency  String            @default("JOD")
+  currentBalance   Decimal           @default(0) @db.Decimal(18, 2)
+  isActive         Boolean           @default(true)
+  payableAccountId String
+  payableAccount   Account           @relation("SupplierPayableAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  purchaseOrders   PurchaseOrder[]
+  purchaseReceipts PurchaseReceipt[]
+  purchaseInvoices PurchaseInvoice[]
+  supplierPayments SupplierPayment[]
+  debitNotes       DebitNote[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([isActive, name])
 }
 
 model InventoryItem {
-  id                  String            @id @default(cuid())
-  code                String            @unique
-  name                String
-  description         String?
-  unitOfMeasure       String
-  category            String?
-  type                InventoryItemType @default(INVENTORY)
-  inventoryAccountId  String?
-  inventoryAccount    Account?          @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
-  cogsAccountId       String?
-  cogsAccount         Account?          @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
-  salesAccountId      String?
-  salesAccount        Account?          @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
-  adjustmentAccountId String?
-  adjustmentAccount   Account?          @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
-  reorderLevel        Decimal           @default(0) @db.Decimal(18, 4)
-  reorderQuantity     Decimal           @default(0) @db.Decimal(18, 4)
-  preferredWarehouseId String?
-  preferredWarehouse   InventoryWarehouse? @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
+  id                     String                      @id @default(cuid())
+  code                   String                      @unique
+  name                   String
+  description            String?
+  unitOfMeasure          String
+  category               String?
+  type                   InventoryItemType           @default(INVENTORY)
+  inventoryAccountId     String?
+  inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccountId          String?
+  cogsAccount            Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  salesAccountId         String?
+  salesAccount           Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  adjustmentAccountId    String?
+  adjustmentAccount      Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  reorderLevel           Decimal                     @default(0) @db.Decimal(18, 4)
+  reorderQuantity        Decimal                     @default(0) @db.Decimal(18, 4)
+  preferredWarehouseId   String?
+  preferredWarehouse     InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
   preferredWarehouseCode String?
-  isActive            Boolean           @default(true)
-  onHandQuantity      Decimal           @default(0) @db.Decimal(18, 4)
-  valuationAmount     Decimal           @default(0) @db.Decimal(18, 2)
-  goodsReceiptLines   InventoryGoodsReceiptLine[]
-  goodsIssueLines     InventoryGoodsIssueLine[]
-  transferLines       InventoryTransferLine[]
-  adjustmentLines     InventoryAdjustmentLine[]
-  warehouseBalances   InventoryWarehouseBalance[]
-  costLayers          InventoryCostLayer[]
-  stockMovements      InventoryStockMovement[]
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  isActive               Boolean                     @default(true)
+  onHandQuantity         Decimal                     @default(0) @db.Decimal(18, 4)
+  valuationAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  goodsReceiptLines      InventoryGoodsReceiptLine[]
+  goodsIssueLines        InventoryGoodsIssueLine[]
+  transferLines          InventoryTransferLine[]
+  adjustmentLines        InventoryAdjustmentLine[]
+  warehouseBalances      InventoryWarehouseBalance[]
+  costLayers             InventoryCostLayer[]
+  stockMovements         InventoryStockMovement[]
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([type, isActive])
   @@index([name])
@@ -518,99 +586,377 @@ model InventoryItem {
 }
 
 model InventoryPolicy {
-  id            String               @id
+  id            String                 @id
   costingMethod InventoryCostingMethod @default(WEIGHTED_AVERAGE)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 }
 
 model InventoryWarehouse {
-  id                String          @id @default(cuid())
-  code              String          @unique
-  name              String
-  address           String?
-  responsiblePerson String?
-  isTransit         Boolean         @default(false)
-  isDefaultTransit  Boolean         @default(false)
-  isActive          Boolean         @default(true)
-  items             InventoryItem[] @relation("InventoryItemPreferredWarehouse")
-  goodsReceipts     InventoryGoodsReceipt[]
-  goodsIssues       InventoryGoodsIssue[]
-  sourceTransfers   InventoryTransfer[] @relation("InventoryTransferSourceWarehouse")
-  destinationTransfers InventoryTransfer[] @relation("InventoryTransferDestinationWarehouse")
-  adjustments       InventoryAdjustment[]
-  itemBalances      InventoryWarehouseBalance[]
-  costLayers        InventoryCostLayer[]
-  stockMovements    InventoryStockMovement[]
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id                   String                      @id @default(cuid())
+  code                 String                      @unique
+  name                 String
+  address              String?
+  responsiblePerson    String?
+  isTransit            Boolean                     @default(false)
+  isDefaultTransit     Boolean                     @default(false)
+  isActive             Boolean                     @default(true)
+  items                InventoryItem[]             @relation("InventoryItemPreferredWarehouse")
+  goodsReceipts        InventoryGoodsReceipt[]
+  goodsIssues          InventoryGoodsIssue[]
+  sourceTransfers      InventoryTransfer[]         @relation("InventoryTransferSourceWarehouse")
+  destinationTransfers InventoryTransfer[]         @relation("InventoryTransferDestinationWarehouse")
+  adjustments          InventoryAdjustment[]
+  itemBalances         InventoryWarehouseBalance[]
+  costLayers           InventoryCostLayer[]
+  stockMovements       InventoryStockMovement[]
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
 
   @@index([isActive, name])
 }
 
-model InventoryGoodsReceipt {
-  id                    String                 @id @default(cuid())
-  reference             String                 @unique
-  status                InventoryReceiptStatus @default(DRAFT)
-  receiptDate           DateTime
-  warehouseId           String
-  warehouse             InventoryWarehouse     @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  sourcePurchaseOrderRef String?
-  sourcePurchaseInvoiceRef String?
-  description           String?
-  totalQuantity         Decimal                @default(0) @db.Decimal(18, 4)
-  totalAmount           Decimal                @default(0) @db.Decimal(18, 2)
-  journalEntryId        String?                @unique
-  journalEntry          JournalEntry?          @relation("InventoryGoodsReceiptToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
-  lines                 InventoryGoodsReceiptLine[]
+model Employee {
+  id                     String                     @id @default(cuid())
+  code                   String                     @unique
+  name                   String
+  department             String?
+  position               String?
+  joiningDate            DateTime
+  paymentMethod          EmployeePaymentMethod      @default(BANK)
+  status                 EmployeeStatus             @default(ACTIVE)
+  defaultSalaryStructure String?
+  bankAccountNumber      String?
+  payrollGroup           String?
+  payrollGroupId         String?
+  payrollGroupRecord     PayrollGroup?              @relation(fields: [payrollGroupId], references: [id], onDelete: Restrict)
+  currentBalance         Decimal                    @default(0) @db.Decimal(18, 2)
+  componentAssignments   EmployeePayrollComponent[]
+  payslips               Payslip[]
+  payrollPayments        PayrollPayment[]
+  payrollAdjustments     PayrollAdjustment[]
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  @@index([status, name])
+  @@index([department])
+  @@index([payrollGroup])
+  @@index([payrollGroupId])
+}
+
+model PayrollGroup {
+  id                   String                  @id @default(cuid())
+  code                 String                  @unique
+  name                 String
+  description          String?
+  isActive             Boolean                 @default(true)
+  employees            Employee[]
+  componentAssignments PayrollGroupComponent[]
+  rules                PayrollRule[]
+  periods              PayrollPeriod[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([isActive, name])
+}
+
+model PayrollComponent {
+  id                  String                     @id @default(cuid())
+  code                String                     @unique
+  name                String
+  nameAr              String?
+  type                PayrollComponentType
+  calculationMethod   PayrollCalculationMethod   @default(FIXED_AMOUNT)
+  defaultAmount       Decimal                    @default(0) @db.Decimal(18, 2)
+  defaultPercentage   Decimal                    @default(0) @db.Decimal(9, 4)
+  formula             String?
+  taxable             Boolean                    @default(false)
+  isActive            Boolean                    @default(true)
+  expenseAccountId    String?
+  expenseAccount      Account?                   @relation("PayrollComponentExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  liabilityAccountId  String?
+  liabilityAccount    Account?                   @relation("PayrollComponentLiabilityAccount", fields: [liabilityAccountId], references: [id], onDelete: Restrict)
+  employeeAssignments EmployeePayrollComponent[]
+  groupAssignments    PayrollGroupComponent[]
+  rules               PayrollRule[]
+  payslipLines        PayslipLine[]
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  @@index([type, isActive])
+  @@index([expenseAccountId])
+  @@index([liabilityAccountId])
+}
+
+model PayrollGroupComponent {
+  id                 String           @id @default(cuid())
+  payrollGroupId     String
+  payrollGroup       PayrollGroup     @relation(fields: [payrollGroupId], references: [id], onDelete: Cascade)
+  payrollComponentId String
+  payrollComponent   PayrollComponent @relation(fields: [payrollComponentId], references: [id], onDelete: Restrict)
+  amount             Decimal          @default(0) @db.Decimal(18, 2)
+  percentage         Decimal          @default(0) @db.Decimal(9, 4)
+  quantity           Decimal          @default(1) @db.Decimal(18, 4)
+  installmentAmount  Decimal?         @db.Decimal(18, 2)
+  isRecurring        Boolean          @default(true)
+  effectiveFrom      DateTime?
+  effectiveTo        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([payrollGroupId, payrollComponentId])
+  @@index([payrollComponentId])
+}
+
+model PayrollRule {
+  id                 String                   @id @default(cuid())
+  code               String                   @unique
+  name               String
+  ruleType           PayrollRuleType
+  payrollComponentId String
+  payrollComponent   PayrollComponent         @relation(fields: [payrollComponentId], references: [id], onDelete: Restrict)
+  payrollGroupId     String?
+  payrollGroup       PayrollGroup?            @relation(fields: [payrollGroupId], references: [id], onDelete: Restrict)
+  calculationMethod  PayrollCalculationMethod @default(FIXED_AMOUNT)
+  amount             Decimal                  @default(0) @db.Decimal(18, 2)
+  percentage         Decimal                  @default(0) @db.Decimal(9, 4)
+  formula            String?
+  isActive           Boolean                  @default(true)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@index([ruleType, isActive])
+  @@index([payrollComponentId])
+  @@index([payrollGroupId])
+}
+
+model EmployeePayrollComponent {
+  id                 String           @id @default(cuid())
+  employeeId         String
+  employee           Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollComponentId String
+  payrollComponent   PayrollComponent @relation(fields: [payrollComponentId], references: [id], onDelete: Restrict)
+  amount             Decimal          @default(0) @db.Decimal(18, 2)
+  percentage         Decimal          @default(0) @db.Decimal(9, 4)
+  quantity           Decimal          @default(1) @db.Decimal(18, 4)
+  installmentAmount  Decimal?         @db.Decimal(18, 2)
+  isRecurring        Boolean          @default(true)
+  effectiveFrom      DateTime?
+  effectiveTo        DateTime?
+  outstandingBalance Decimal?         @db.Decimal(18, 2)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([employeeId, payrollComponentId])
+  @@index([payrollComponentId])
+}
+
+model PayrollPeriod {
+  id                      String              @id @default(cuid())
+  reference               String              @unique
+  name                    String
+  payrollGroup            String?
+  payrollGroupId          String?
+  payrollGroupRecord      PayrollGroup?       @relation(fields: [payrollGroupId], references: [id], onDelete: Restrict)
+  cycle                   String              @default("MONTHLY")
+  startDate               DateTime
+  endDate                 DateTime
+  paymentDate             DateTime
+  status                  PayrollPeriodStatus @default(DRAFT)
+  payrollPayableAccountId String
+  payrollPayableAccount   Account             @relation("PayrollPeriodPayableAccount", fields: [payrollPayableAccountId], references: [id], onDelete: Restrict)
+  journalEntryId          String?             @unique
+  journalEntry            JournalEntry?       @relation("PayrollPeriodToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  payslips                Payslip[]
+  payments                PayrollPayment[]
+  adjustments             PayrollAdjustment[]
+  postedAt                DateTime?
+  closedAt                DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([status, startDate, endDate])
+  @@index([payrollGroup])
+  @@index([payrollGroupId])
+  @@index([payrollPayableAccountId])
+}
+
+model Payslip {
+  id                    String                     @id @default(cuid())
+  reference             String                     @unique
+  status                PayslipStatus              @default(DRAFT)
+  payrollPeriodId       String
+  payrollPeriod         PayrollPeriod              @relation(fields: [payrollPeriodId], references: [id], onDelete: Restrict)
+  employeeId            String
+  employee              Employee                   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  grossPay              Decimal                    @default(0) @db.Decimal(18, 2)
+  totalDeductions       Decimal                    @default(0) @db.Decimal(18, 2)
+  employerContributions Decimal                    @default(0) @db.Decimal(18, 2)
+  netPay                Decimal                    @default(0) @db.Decimal(18, 2)
+  paidAmount            Decimal                    @default(0) @db.Decimal(18, 2)
+  outstandingAmount     Decimal                    @default(0) @db.Decimal(18, 2)
+  notes                 String?
+  lines                 PayslipLine[]
+  paymentAllocations    PayrollPaymentAllocation[]
+  adjustments           PayrollAdjustment[]
   postedAt              DateTime?
-  reversedAt            DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  paidAt                DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@unique([payrollPeriodId, employeeId])
+  @@index([employeeId, status])
+  @@index([payrollPeriodId, status])
+}
+
+model PayrollAdjustment {
+  id              String                @id @default(cuid())
+  reference       String                @unique
+  type            PayrollAdjustmentType
+  payrollPeriodId String
+  payrollPeriod   PayrollPeriod         @relation(fields: [payrollPeriodId], references: [id], onDelete: Restrict)
+  payslipId       String?
+  payslip         Payslip?              @relation(fields: [payslipId], references: [id], onDelete: Restrict)
+  employeeId      String?
+  employee        Employee?             @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  amount          Decimal               @default(0) @db.Decimal(18, 2)
+  description     String?
+  journalEntryId  String?               @unique
+  journalEntry    JournalEntry?         @relation("PayrollAdjustmentToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  createdAt       DateTime              @default(now())
+
+  @@index([payrollPeriodId, type])
+  @@index([payslipId])
+  @@index([employeeId])
+}
+
+model PayslipLine {
+  id                 String                   @id @default(cuid())
+  payslipId          String
+  payslip            Payslip                  @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  payrollComponentId String?
+  payrollComponent   PayrollComponent?        @relation(fields: [payrollComponentId], references: [id], onDelete: Restrict)
+  lineNumber         Int
+  componentCode      String
+  componentName      String
+  componentType      PayrollComponentType
+  calculationMethod  PayrollCalculationMethod
+  quantity           Decimal                  @default(1) @db.Decimal(18, 4)
+  rate               Decimal                  @default(0) @db.Decimal(18, 4)
+  amount             Decimal                  @default(0) @db.Decimal(18, 2)
+  accountId          String?
+  liabilityAccountId String?
+  description        String?
+  createdAt          DateTime                 @default(now())
+
+  @@unique([payslipId, lineNumber])
+  @@index([payrollComponentId])
+}
+
+model PayrollPayment {
+  id                    String                     @id @default(cuid())
+  reference             String                     @unique
+  status                PayrollPaymentStatus       @default(DRAFT)
+  paymentDate           DateTime
+  payrollPeriodId       String
+  payrollPeriod         PayrollPeriod              @relation(fields: [payrollPeriodId], references: [id], onDelete: Restrict)
+  employeeId            String?
+  employee              Employee?                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  bankCashAccountId     String
+  bankCashAccount       BankCashAccount            @relation(fields: [bankCashAccountId], references: [id], onDelete: Restrict)
+  amount                Decimal                    @db.Decimal(18, 2)
+  allocatedAmount       Decimal                    @default(0) @db.Decimal(18, 2)
+  unappliedAmount       Decimal                    @default(0) @db.Decimal(18, 2)
+  description           String?
+  bankCashTransactionId String?                    @unique
+  bankCashTransaction   BankCashTransaction?       @relation(fields: [bankCashTransactionId], references: [id], onDelete: Restrict)
+  allocations           PayrollPaymentAllocation[]
+  postedAt              DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@index([payrollPeriodId, status, paymentDate])
+  @@index([employeeId])
+  @@index([bankCashAccountId])
+}
+
+model PayrollPaymentAllocation {
+  id               String         @id @default(cuid())
+  payrollPaymentId String
+  payrollPayment   PayrollPayment @relation(fields: [payrollPaymentId], references: [id], onDelete: Cascade)
+  payslipId        String
+  payslip          Payslip        @relation(fields: [payslipId], references: [id], onDelete: Restrict)
+  amount           Decimal        @db.Decimal(18, 2)
+  allocatedAt      DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+
+  @@unique([payrollPaymentId, payslipId])
+  @@index([payslipId])
+}
+
+model InventoryGoodsReceipt {
+  id                       String                      @id @default(cuid())
+  reference                String                      @unique
+  status                   InventoryReceiptStatus      @default(DRAFT)
+  receiptDate              DateTime
+  warehouseId              String
+  warehouse                InventoryWarehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  sourcePurchaseOrderRef   String?
+  sourcePurchaseInvoiceRef String?
+  description              String?
+  totalQuantity            Decimal                     @default(0) @db.Decimal(18, 4)
+  totalAmount              Decimal                     @default(0) @db.Decimal(18, 2)
+  journalEntryId           String?                     @unique
+  journalEntry             JournalEntry?               @relation("InventoryGoodsReceiptToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines                    InventoryGoodsReceiptLine[]
+  postedAt                 DateTime?
+  reversedAt               DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
 
   @@index([warehouseId, status, receiptDate])
   @@index([status, receiptDate])
 }
 
 model InventoryGoodsReceiptLine {
-  id               String                @id @default(cuid())
-  goodsReceiptId   String
-  goodsReceipt     InventoryGoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
-  itemId           String
-  item             InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  lineNumber       Int
-  quantity         Decimal               @default(0) @db.Decimal(18, 4)
-  unitCost         Decimal               @default(0) @db.Decimal(18, 2)
-  unitOfMeasure    String
-  description      String?
-  lineTotalAmount  Decimal               @default(0) @db.Decimal(18, 2)
-  createdAt        DateTime              @default(now())
+  id              String                @id @default(cuid())
+  goodsReceiptId  String
+  goodsReceipt    InventoryGoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            InventoryItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  lineNumber      Int
+  quantity        Decimal               @default(0) @db.Decimal(18, 4)
+  unitCost        Decimal               @default(0) @db.Decimal(18, 2)
+  unitOfMeasure   String
+  description     String?
+  lineTotalAmount Decimal               @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime              @default(now())
 
   @@unique([goodsReceiptId, lineNumber])
   @@index([itemId])
 }
 
 model InventoryGoodsIssue {
-  id                         String               @id @default(cuid())
-  reference                  String               @unique
-  status                     InventoryIssueStatus @default(DRAFT)
+  id                         String                    @id @default(cuid())
+  reference                  String                    @unique
+  status                     InventoryIssueStatus      @default(DRAFT)
   issueDate                  DateTime
   warehouseId                String
-  warehouse                  InventoryWarehouse   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouse                  InventoryWarehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   sourceSalesOrderRef        String?
   sourceSalesInvoiceRef      String?
   sourceProductionRequestRef String?
   sourceInternalRequestRef   String?
   description                String?
-  totalQuantity              Decimal              @default(0) @db.Decimal(18, 4)
-  totalAmount                Decimal              @default(0) @db.Decimal(18, 2)
-  journalEntryId             String?              @unique
-  journalEntry               JournalEntry?        @relation("InventoryGoodsIssueToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  totalQuantity              Decimal                   @default(0) @db.Decimal(18, 4)
+  totalAmount                Decimal                   @default(0) @db.Decimal(18, 2)
+  journalEntryId             String?                   @unique
+  journalEntry               JournalEntry?             @relation("InventoryGoodsIssueToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines                      InventoryGoodsIssueLine[]
   postedAt                   DateTime?
   reversedAt                 DateTime?
-  createdAt                  DateTime             @default(now())
-  updatedAt                  DateTime             @updatedAt
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
 
   @@index([warehouseId, status, issueDate])
   @@index([status, issueDate])
@@ -719,65 +1065,65 @@ model InventoryAdjustmentLine {
 }
 
 model InventoryWarehouseBalance {
-  id             String             @id @default(cuid())
-  itemId         String
-  item           InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouseId    String
-  warehouse      InventoryWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  onHandQuantity Decimal            @default(0) @db.Decimal(18, 4)
-  valuationAmount Decimal           @default(0) @db.Decimal(18, 2)
+  id              String                   @id @default(cuid())
+  itemId          String
+  item            InventoryItem            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId     String
+  warehouse       InventoryWarehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  onHandQuantity  Decimal                  @default(0) @db.Decimal(18, 4)
+  valuationAmount Decimal                  @default(0) @db.Decimal(18, 2)
   stockMovements  InventoryStockMovement[]
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
 
   @@unique([itemId, warehouseId])
   @@index([warehouseId, itemId])
 }
 
 model InventoryCostLayer {
-  id                   String             @id @default(cuid())
-  itemId               String
-  item                 InventoryItem      @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouseId          String
-  warehouse            InventoryWarehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  remainingQuantity    Decimal            @default(0) @db.Decimal(18, 4)
-  unitCost             Decimal            @default(0) @db.Decimal(18, 2)
-  sourceMovementType   InventoryStockMovementType
+  id                    String                     @id @default(cuid())
+  itemId                String
+  item                  InventoryItem              @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId           String
+  warehouse             InventoryWarehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  remainingQuantity     Decimal                    @default(0) @db.Decimal(18, 4)
+  unitCost              Decimal                    @default(0) @db.Decimal(18, 2)
+  sourceMovementType    InventoryStockMovementType
   sourceTransactionType String
-  sourceTransactionId  String
-  sourceLineId         String?
-  sourceReference      String?
-  sourceDate           DateTime
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  sourceTransactionId   String
+  sourceLineId          String?
+  sourceReference       String?
+  sourceDate            DateTime
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
 
   @@index([itemId, warehouseId, sourceDate, createdAt])
   @@index([itemId, remainingQuantity])
 }
 
 model InventoryStockMovement {
-  id                    String                    @id @default(cuid())
-  movementType          InventoryStockMovementType
-  transactionType       String
-  transactionId         String
-  transactionLineId     String?
-  transactionReference  String
-  transactionDate       DateTime
-  itemId                String
-  item                  InventoryItem             @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  warehouseId           String
-  warehouse             InventoryWarehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  quantityIn            Decimal                   @default(0) @db.Decimal(18, 4)
-  quantityOut           Decimal                   @default(0) @db.Decimal(18, 4)
-  unitCost              Decimal                   @default(0) @db.Decimal(18, 2)
-  valueIn               Decimal                   @default(0) @db.Decimal(18, 2)
-  valueOut              Decimal                   @default(0) @db.Decimal(18, 2)
-  runningQuantity       Decimal                   @default(0) @db.Decimal(18, 4)
-  runningValuation      Decimal                   @default(0) @db.Decimal(18, 2)
-  balanceId             String?
-  balance               InventoryWarehouseBalance? @relation(fields: [balanceId], references: [id], onDelete: SetNull)
-  description           String?
-  createdAt             DateTime                  @default(now())
+  id                   String                     @id @default(cuid())
+  movementType         InventoryStockMovementType
+  transactionType      String
+  transactionId        String
+  transactionLineId    String?
+  transactionReference String
+  transactionDate      DateTime
+  itemId               String
+  item                 InventoryItem              @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId          String
+  warehouse            InventoryWarehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  quantityIn           Decimal                    @default(0) @db.Decimal(18, 4)
+  quantityOut          Decimal                    @default(0) @db.Decimal(18, 4)
+  unitCost             Decimal                    @default(0) @db.Decimal(18, 2)
+  valueIn              Decimal                    @default(0) @db.Decimal(18, 2)
+  valueOut             Decimal                    @default(0) @db.Decimal(18, 2)
+  runningQuantity      Decimal                    @default(0) @db.Decimal(18, 4)
+  runningValuation     Decimal                    @default(0) @db.Decimal(18, 2)
+  balanceId            String?
+  balance              InventoryWarehouseBalance? @relation(fields: [balanceId], references: [id], onDelete: SetNull)
+  description          String?
+  createdAt            DateTime                   @default(now())
 
   @@index([itemId, warehouseId, transactionDate, createdAt])
   @@index([warehouseId, movementType, transactionDate])
@@ -785,33 +1131,33 @@ model InventoryStockMovement {
 }
 
 model PurchaseRequest {
-  id             String                       @id @default(cuid())
-  reference      String                       @unique
-  status         PurchaseRequestStatus        @default(DRAFT)
+  id             String                         @id @default(cuid())
+  reference      String                         @unique
+  status         PurchaseRequestStatus          @default(DRAFT)
   requestDate    DateTime
   description    String?
   lines          PurchaseRequestLine[]
   statusHistory  PurchaseRequestStatusHistory[]
   purchaseOrders PurchaseOrder[]
-  createdAt      DateTime                     @default(now())
-  updatedAt      DateTime                     @updatedAt
+  createdAt      DateTime                       @default(now())
+  updatedAt      DateTime                       @updatedAt
 
   @@index([status, requestDate])
 }
 
 model PurchaseRequestLine {
-  id                    String           @id @default(cuid())
+  id                    String          @id @default(cuid())
   purchaseRequestId     String
-  purchaseRequest       PurchaseRequest  @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  purchaseRequest       PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   lineNumber            Int
   itemName              String?
   description           String
-  quantity              Decimal          @default(1) @db.Decimal(18, 4)
+  quantity              Decimal         @default(1) @db.Decimal(18, 4)
   requestedDeliveryDate DateTime?
   justification         String?
   expenseAccountId      String?
-  expenseAccount        Account?         @relation("PurchaseRequestExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
-  createdAt             DateTime         @default(now())
+  expenseAccount        Account?        @relation("PurchaseRequestExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  createdAt             DateTime        @default(now())
 
   @@unique([purchaseRequestId, lineNumber])
   @@index([requestedDeliveryDate])
@@ -855,20 +1201,20 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderLine {
-  id                    String        @id @default(cuid())
+  id                    String                @id @default(cuid())
   purchaseOrderId       String
-  purchaseOrder         PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrder         PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   lineNumber            Int
   itemName              String?
   description           String
-  quantity              Decimal       @default(1) @db.Decimal(18, 4)
-  receivedQuantity      Decimal       @default(0) @db.Decimal(18, 4)
-  unitPrice             Decimal       @default(0) @db.Decimal(18, 2)
-  taxAmount             Decimal       @default(0) @db.Decimal(18, 2)
-  lineTotalAmount       Decimal       @default(0) @db.Decimal(18, 2)
+  quantity              Decimal               @default(1) @db.Decimal(18, 4)
+  receivedQuantity      Decimal               @default(0) @db.Decimal(18, 4)
+  unitPrice             Decimal               @default(0) @db.Decimal(18, 2)
+  taxAmount             Decimal               @default(0) @db.Decimal(18, 2)
+  lineTotalAmount       Decimal               @default(0) @db.Decimal(18, 2)
   requestedDeliveryDate DateTime?
   receiptLines          PurchaseReceiptLine[]
-  createdAt             DateTime      @default(now())
+  createdAt             DateTime              @default(now())
 
   @@unique([purchaseOrderId, lineNumber])
 }
@@ -894,47 +1240,47 @@ model PurchaseReceipt {
 }
 
 model PurchaseReceiptLine {
-  id                  String          @id @default(cuid())
+  id                  String            @id @default(cuid())
   purchaseReceiptId   String
-  purchaseReceipt     PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Cascade)
+  purchaseReceipt     PurchaseReceipt   @relation(fields: [purchaseReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderLineId String
   purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
   lineNumber          Int
   itemName            String?
   description         String
-  quantityReceived    Decimal         @default(0) @db.Decimal(18, 4)
-  createdAt           DateTime        @default(now())
+  quantityReceived    Decimal           @default(0) @db.Decimal(18, 4)
+  createdAt           DateTime          @default(now())
 
   @@unique([purchaseReceiptId, lineNumber])
   @@index([purchaseOrderLineId])
 }
 
 model PurchaseInvoice {
-  id                    String                @id @default(cuid())
-  reference             String                @unique
-  status                PurchaseInvoiceStatus @default(DRAFT)
+  id                    String                      @id @default(cuid())
+  reference             String                      @unique
+  status                PurchaseInvoiceStatus       @default(DRAFT)
   invoiceDate           DateTime
   supplierId            String
-  supplier              Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  currencyCode          String                @default("JOD")
+  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  currencyCode          String                      @default("JOD")
   description           String?
   sourcePurchaseOrderId String?
-  sourcePurchaseOrder   PurchaseOrder?        @relation(fields: [sourcePurchaseOrderId], references: [id], onDelete: Restrict)
-  subtotalAmount        Decimal               @default(0) @db.Decimal(18, 2)
-  discountAmount        Decimal               @default(0) @db.Decimal(18, 2)
-  taxAmount             Decimal               @default(0) @db.Decimal(18, 2)
-  totalAmount           Decimal               @default(0) @db.Decimal(18, 2)
-  allocatedAmount       Decimal               @default(0) @db.Decimal(18, 2)
-  outstandingAmount     Decimal               @default(0) @db.Decimal(18, 2)
-  allocationStatus      AllocationStatus      @default(UNALLOCATED)
-  journalEntryId        String?               @unique
-  journalEntry          JournalEntry?         @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  sourcePurchaseOrder   PurchaseOrder?              @relation(fields: [sourcePurchaseOrderId], references: [id], onDelete: Restrict)
+  subtotalAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  discountAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  taxAmount             Decimal                     @default(0) @db.Decimal(18, 2)
+  totalAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  allocatedAmount       Decimal                     @default(0) @db.Decimal(18, 2)
+  outstandingAmount     Decimal                     @default(0) @db.Decimal(18, 2)
+  allocationStatus      AllocationStatus            @default(UNALLOCATED)
+  journalEntryId        String?                     @unique
+  journalEntry          JournalEntry?               @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines                 PurchaseInvoiceLine[]
   supplierAllocations   SupplierPaymentAllocation[]
   debitNotes            DebitNote[]
   postedAt              DateTime?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
 
   @@index([supplierId, status, invoiceDate])
   @@index([allocationStatus])
@@ -963,63 +1309,63 @@ model PurchaseInvoiceLine {
 }
 
 model SupplierPayment {
-  id                 String                  @id @default(cuid())
-  reference          String                  @unique
-  status             SupplierPaymentStatus   @default(DRAFT)
-  paymentDate        DateTime
-  supplierId         String
-  supplier           Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  amount             Decimal                 @db.Decimal(18, 2)
-  allocatedAmount    Decimal                 @default(0) @db.Decimal(18, 2)
-  unappliedAmount    Decimal                 @default(0) @db.Decimal(18, 2)
-  bankCashAccountId  String
-  bankCashAccount    BankCashAccount         @relation(fields: [bankCashAccountId], references: [id], onDelete: Restrict)
-  description        String?
-  bankCashTransactionId String?              @unique
-  bankCashTransaction BankCashTransaction?   @relation(fields: [bankCashTransactionId], references: [id], onDelete: Restrict)
-  allocations        SupplierPaymentAllocation[]
-  postedAt           DateTime?
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
+  id                    String                      @id @default(cuid())
+  reference             String                      @unique
+  status                SupplierPaymentStatus       @default(DRAFT)
+  paymentDate           DateTime
+  supplierId            String
+  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  amount                Decimal                     @db.Decimal(18, 2)
+  allocatedAmount       Decimal                     @default(0) @db.Decimal(18, 2)
+  unappliedAmount       Decimal                     @default(0) @db.Decimal(18, 2)
+  bankCashAccountId     String
+  bankCashAccount       BankCashAccount             @relation(fields: [bankCashAccountId], references: [id], onDelete: Restrict)
+  description           String?
+  bankCashTransactionId String?                     @unique
+  bankCashTransaction   BankCashTransaction?        @relation(fields: [bankCashTransactionId], references: [id], onDelete: Restrict)
+  allocations           SupplierPaymentAllocation[]
+  postedAt              DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
 
   @@index([supplierId, status, paymentDate])
   @@index([bankCashAccountId])
 }
 
 model SupplierPaymentAllocation {
-  id                String           @id @default(cuid())
+  id                String          @id @default(cuid())
   supplierPaymentId String
-  supplierPayment   SupplierPayment  @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
   purchaseInvoiceId String
-  purchaseInvoice   PurchaseInvoice  @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
-  amount            Decimal          @db.Decimal(18, 2)
-  allocatedAt       DateTime         @default(now())
-  createdAt         DateTime         @default(now())
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
+  amount            Decimal         @db.Decimal(18, 2)
+  allocatedAt       DateTime        @default(now())
+  createdAt         DateTime        @default(now())
 
   @@unique([supplierPaymentId, purchaseInvoiceId])
   @@index([purchaseInvoiceId])
 }
 
 model DebitNote {
-  id                String          @id @default(cuid())
-  reference         String          @unique
-  status            DebitNoteStatus @default(DRAFT)
+  id                String           @id @default(cuid())
+  reference         String           @unique
+  status            DebitNoteStatus  @default(DRAFT)
   noteDate          DateTime
   supplierId        String
-  supplier          Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplier          Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseInvoiceId String?
   purchaseInvoice   PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Restrict)
-  currencyCode      String          @default("JOD")
+  currencyCode      String           @default("JOD")
   description       String?
-  subtotalAmount    Decimal         @default(0) @db.Decimal(18, 2)
-  taxAmount         Decimal         @default(0) @db.Decimal(18, 2)
-  totalAmount       Decimal         @default(0) @db.Decimal(18, 2)
-  journalEntryId    String?         @unique
-  journalEntry      JournalEntry?   @relation("DebitNoteToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  subtotalAmount    Decimal          @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal          @default(0) @db.Decimal(18, 2)
+  totalAmount       Decimal          @default(0) @db.Decimal(18, 2)
+  journalEntryId    String?          @unique
+  journalEntry      JournalEntry?    @relation("DebitNoteToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines             DebitNoteLine[]
   postedAt          DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([supplierId, status, noteDate])
   @@index([purchaseInvoiceId])
