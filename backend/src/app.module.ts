@@ -10,6 +10,7 @@ import { PurchasesModule } from './modules/phase-4-procure-to-pay/purchases/purc
 import { InventoryModule } from './modules/phase-5-inventory-management/inventory/inventory.module';
 import { PayrollModule } from './modules/phase-6-payroll-management/payroll/payroll.module';
 import { FixedAssetsModule } from './modules/phase-7-fixed-assets-management/fixed-assets/fixed-assets.module';
+import { ReportingModule } from './modules/phase-8-reporting-control/reporting/reporting.module';
 import { AuthModule } from './modules/platform/auth/auth.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { AuthModule } from './modules/platform/auth/auth.module';
     InventoryModule,
     PayrollModule,
     FixedAssetsModule,
+    ReportingModule,
     AuthModule,
   ],
 })

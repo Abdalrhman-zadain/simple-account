@@ -26,6 +26,7 @@ Additional phase requirements baselines:
 - [Phase 5 Inventory Requirements](./phase-5-inventory-requirements.md)
 - [Phase 6 Payroll Requirements](./phase-6-payroll-requirements.md)
 - [Phase 7 Fixed Assets Requirements](./phase-7-fixed-assets-requirements.md)
+- [Phase 8 Reporting Requirements](./phase-8-reporting-requirements.md)
 
 ## Scope
 
@@ -41,6 +42,7 @@ These docs describe the currently implemented accounting modules.
 - `phase-5-inventory-management/inventory` now includes Item Master, Warehouses (including default transit designation), Goods Receipts, Goods Issues, Inventory Transfers, Inventory Adjustments, stock ledger inquiry, inventory policy configuration (`/inventory/policy` for valuation method), warehouse-level balances, FIFO/weighted-average costing control, posting/accounting integration hooks, and bilingual ERP workspace coverage. Posted movements now maintain both item-level and warehouse-level quantity/value balances with stock movement history, source-transaction drill-down, and reverse-status history for posted inventory documents.
 - `phase-6-payroll-management/payroll` is implemented for employee masters, payroll groups, payroll components, employee/group component assignments, payroll rules with fixed/percentage/quantity/formula calculation, payroll periods, payslip generation/editing/adjustment, payroll posting and reversal through Phase 1 journal entries, salary payment allocation/settlement/reversal through Phase 2 bank/cash payments, and summary inquiry.
 - `phase-7-fixed-assets-management/fixed-assets` is implemented for fixed-asset category setup, asset register maintenance/editing, acquisition draft/post/reverse, depreciation run draft/post/reverse with schedule/history visibility, disposal draft/post/reverse, transfer draft/post/reverse, audit-history capture, summary inquiry, and bilingual ERP workspace coverage.
+- `phase-8-reporting-control/reporting` is implemented for a bilingual reporting workspace covering summary inquiry, trial balance, balance sheet, profit and loss, cash movement, general ledger, audit inquiry, saved report definitions, point-in-time snapshots, export/print output generation, and reporting activity logging using posted accounting data.
 - other later ERP phases are **not implemented yet** and should not be described as existing behavior
 
 ## How To Use These Docs

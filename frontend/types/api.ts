@@ -2635,7 +2635,7 @@ export type Account = {
 
 export type AccountOption = Pick<
   Account,
-  "id" | "code" | "name" | "currentBalance" | "currencyCode"
+  "id" | "code" | "name" | "currentBalance" | "currencyCode" | "segment3" | "segment4" | "segment5"
 >;
 
 export type AccountTableRow = Pick<
@@ -2778,6 +2778,289 @@ export type LedgerQuery = {
   dateFrom?: string;
   dateTo?: string;
 };
+
+export type ReportingBasis = "ACCRUAL" | "CASH";
+
+export type ReportingQuery = {
+  dateFrom?: string;
+  dateTo?: string;
+  comparisonFrom?: string;
+  comparisonTo?: string;
+  basis?: ReportingBasis;
+  includeZeroBalance?: boolean;
+  accountId?: string;
+  accountType?: AccountType;
+  currencyCode?: string;
+  segment3?: string;
+  segment4?: string;
+  segment5?: string;
+  journalEntryTypeId?: string;
+  entity?: string;
+  limit?: number;
+};
+
+export type ReportingCatalogItem = {
+  reportType: string;
+  canView: boolean;
+  canSaveDefinition: boolean;
+  canSnapshot: boolean;
+  canExport: boolean;
+};
+
+export type ReportingWarning = {
+  code: string;
+  severity: "warning" | "info";
+  message: string;
+  reportTypes: string[];
+};
+
+export type ReportingDefinitionPayload = {
+  name: string;
+  reportType: string;
+  parameters?: Record<string, unknown>;
+  isShared?: boolean;
+};
+
+export type ReportingDefinition = {
+  id: string;
+  name: string;
+  reportType: string;
+  parameters: Record<string, unknown>;
+  createdById: string;
+  updatedById: string;
+  isShared: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReportingSnapshotPayload = {
+  name: string;
+  reportType: string;
+  parameters?: Record<string, unknown>;
+};
+
+export type ReportingSnapshot = {
+  id: string;
+  name: string;
+  reportType: string;
+  parameters: Record<string, unknown>;
+  snapshotData: Record<string, unknown>;
+  periodLabel?: string | null;
+  comparisonPeriodLabel?: string | null;
+  generatedAt: string;
+  version: number;
+  isLocked: boolean;
+  lockedAt?: string | null;
+  lockedById?: string | null;
+  replacesSnapshotId?: string | null;
+  rootSnapshotId?: string | null;
+  createdById: string;
+  createdAt: string;
+};
+
+export type ReportingExportFormat = "PDF" | "EXCEL" | "PRINT";
+
+export type ReportingExportPayload = {
+  reportType: string;
+  format: ReportingExportFormat;
+  title?: string;
+  parameters?: Record<string, unknown>;
+};
+
+export type ReportingExportResult = {
+  title: string;
+  reportType: string;
+  format: ReportingExportFormat;
+  generatedAt: string;
+  fileName: string;
+  mimeType: string;
+  encoding?: "utf8" | "base64";
+  content: string;
+};
+
+export type ReportingMetric = {
+  key: string;
+  label: string;
+  amount: string;
+  comparisonAmount: string;
+  varianceAmount: string;
+};
+
+export type ReportingSummary = {
+  generatedAt: string;
+  basis: ReportingBasis;
+  period: string;
+  comparisonPeriod?: string | null;
+  metrics: ReportingMetric[];
+  warnings?: ReportingWarning[];
+  operational: {
+    trialBalanceRowCount: number;
+    cashAccountCount: number;
+    auditEventCount: number;
+  };
+};
+
+export type ReportingTrialBalanceRow = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountNameAr?: string | null;
+  accountType: AccountType;
+  currencyCode: string;
+  openingBalance: string;
+  debitTotal: string;
+  creditTotal: string;
+  closingBalance: string;
+  closingSide: "DEBIT" | "CREDIT" | "ZERO";
+  drillDownPath?: string;
+};
+
+export type ReportingTrialBalanceReport = {
+  generatedAt: string;
+  basis: ReportingBasis;
+  period: string;
+  totals: {
+    opening: string;
+    debit: string;
+    credit: string;
+    closingDebit: string;
+    closingCredit: string;
+    difference: string;
+  };
+  rows: ReportingTrialBalanceRow[];
+};
+
+export type ReportingBalanceSheetRow = {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountNameAr?: string | null;
+  accountType: AccountType;
+  amount: string;
+  comparisonAmount: string;
+  varianceAmount: string;
+  drillDownPath?: string;
+};
+
+export type ReportingBalanceSheetReport = {
+  generatedAt: string;
+  asOfDate: string;
+  comparisonAsOfDate?: string | null;
+  assets: ReportingBalanceSheetRow[];
+  liabilities: ReportingBalanceSheetRow[];
+  equity: ReportingBalanceSheetRow[];
+  totals: {
+    assets: ReportingMetric;
+    liabilities: ReportingMetric;
+    equity: ReportingMetric;
+  };
+};
+
+export type ReportingProfitLossRow = ReportingBalanceSheetRow;
+
+export type ReportingProfitLossReport = {
+  generatedAt: string;
+  period: string;
+  comparisonPeriod?: string | null;
+  revenue: ReportingProfitLossRow[];
+  expenses: ReportingProfitLossRow[];
+  totals: {
+    revenue: ReportingMetric;
+    expenses: ReportingMetric;
+    netIncome: ReportingMetric;
+  };
+};
+
+export type ReportingCashMovementRow = {
+  bankCashAccountId: string;
+  accountId: string;
+  code: string;
+  name: string;
+  nameAr?: string | null;
+  type: string;
+  currencyCode: string;
+  openingBalance: string;
+  debitTotal: string;
+  creditTotal: string;
+  netMovement: string;
+  closingBalance: string;
+  comparisonNetMovement: string;
+  comparisonClosingBalance: string;
+  varianceAmount: string;
+  drillDownPath?: string;
+};
+
+export type ReportingCashMovementReport = {
+  generatedAt: string;
+  period: string;
+  comparisonPeriod?: string | null;
+  rows: ReportingCashMovementRow[];
+  classified: Record<string, ReportingMetric>;
+  totals: {
+    openingBalance: ReportingMetric;
+    debit: ReportingMetric;
+    credit: ReportingMetric;
+    netMovement: ReportingMetric;
+    closingBalance: ReportingMetric;
+  };
+};
+
+export type ReportingGeneralLedgerTransaction = {
+  id: string;
+  reference: string;
+  journalEntryId: string;
+  journalReference: string;
+  journalDescription?: string | null;
+  entryDate: string;
+  postedAt: string;
+  description?: string | null;
+  debitAmount: string;
+  creditAmount: string;
+  runningBalance: string;
+  sourceDocument?: {
+    type: string;
+    id: string;
+    reference: string;
+    label: string;
+    path: string;
+  };
+};
+
+export type ReportingGeneralLedgerReport = {
+  generatedAt: string;
+  account: {
+    id: string;
+    code: string;
+    name: string;
+    nameAr?: string | null;
+    type: AccountType;
+    currencyCode: string;
+    isPosting: boolean;
+    isActive: boolean;
+  } | null;
+  openingBalance: string;
+  totalDebit: string;
+  totalCredit: string;
+  closingBalance: string;
+  transactions: ReportingGeneralLedgerTransaction[];
+};
+
+export type ReportingAuditReport = {
+  generatedAt: string;
+  totalEvents: number;
+  actionTotals: Array<{ action: string; count: number }>;
+  exceptions: Array<{ code: string; description: string; count: number }>;
+  compliancePackage: {
+    generatedAt: string;
+    entryCount: number;
+    highRiskCount: number;
+    systemEventCount: number;
+  };
+  entries: AuditLogEntry[];
+};
+
+export type ReportingActivityEntry = AuditLogEntry;
 
 // ─── Audit ────────────────────────────────────────────────────────────────────
 

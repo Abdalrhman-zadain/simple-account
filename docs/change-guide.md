@@ -303,6 +303,37 @@ Checks to run:
 - frontend typecheck
 - Prisma generate and migration review when schema changes are introduced
 
+## Start Or Extend Phase 8 Reporting
+
+Where to edit:
+
+- backend `phase-8-reporting-control/reporting`
+- frontend `features/phase-8-reporting-control`
+- route files under `frontend/app/(erp)/reporting`
+- `docs/phase-8-reporting-requirements.md` when requirements are clarified, split, or translated
+
+What else to check:
+
+- keep the reporting module split by ownership such as filters/definitions, financial statements, ledger inquiry, audit inquiry, comparison logic, and validation/control
+- route files must stay thin and compose the owning Phase 8 feature page
+- official financial reports must use posted data only and must not read draft journals or draft operational documents as report balances
+- trial balance, balance sheet, profit and loss, and general-ledger inquiry should stay reconcilable to the same posted ledger source for the same filters/period
+- cash movement reporting should continue to derive from the linked bank/cash posting accounts rather than inventing a parallel balance store
+- Arabic and English terminology must stay aligned when adding report names, column labels, filters, export labels, and drill-down actions
+
+Must remain compatible:
+
+- current implemented phase boundaries
+- docs must distinguish between the implemented initial reporting workspace and the remaining Phase 8 roadmap
+- stable route naming under `/reporting`
+- Phase 1 ledger and posting invariants as the reporting source of truth
+
+Checks to run:
+
+- backend TypeScript build
+- frontend typecheck
+- frontend production build when the environment supports the current Next.js script/tooling
+
 ## Change Account Creation Behavior
 
 Where to edit:

@@ -121,6 +121,23 @@ import {
   FixedAssetDisposal,
   FixedAssetSummary,
   FixedAssetTransfer,
+  ReportingActivityEntry,
+  ReportingAuditReport,
+  ReportingBalanceSheetReport,
+  ReportingCatalogItem,
+  ReportingCashMovementReport,
+  ReportingDefinition,
+  ReportingDefinitionPayload,
+  ReportingExportPayload,
+  ReportingExportResult,
+  ReportingGeneralLedgerReport,
+  ReportingProfitLossReport,
+  ReportingQuery,
+  ReportingSnapshot,
+  ReportingSnapshotPayload,
+  ReportingSummary,
+  ReportingTrialBalanceReport,
+  ReportingWarning,
   Payslip,
   EmployeePayrollComponent,
   ReceiptAllocationResult,
@@ -2386,6 +2403,135 @@ export async function reverseFixedAssetTransfer(id: string, token?: string | nul
 
 export async function getFixedAssetSummary(token?: string | null) {
   return apiRequest<FixedAssetSummary>("/fixed-assets/reports/summary", { token });
+}
+
+function buildReportingSearchParams(params: ReportingQuery = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.comparisonFrom) searchParams.set("comparisonFrom", params.comparisonFrom);
+  if (params.comparisonTo) searchParams.set("comparisonTo", params.comparisonTo);
+  if (params.basis) searchParams.set("basis", params.basis);
+  if (params.includeZeroBalance !== undefined) searchParams.set("includeZeroBalance", String(params.includeZeroBalance));
+  if (params.accountId) searchParams.set("accountId", params.accountId);
+  if (params.accountType) searchParams.set("accountType", params.accountType);
+  if (params.currencyCode) searchParams.set("currencyCode", params.currencyCode);
+  if (params.segment3) searchParams.set("segment3", params.segment3);
+  if (params.segment4) searchParams.set("segment4", params.segment4);
+  if (params.segment5) searchParams.set("segment5", params.segment5);
+  if (params.journalEntryTypeId) searchParams.set("journalEntryTypeId", params.journalEntryTypeId);
+  if (params.entity) searchParams.set("entity", params.entity);
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  return searchParams.toString() ? `?${searchParams}` : "";
+}
+
+export async function getReportingSummary(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingSummary>(`/reporting/summary${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingTrialBalance(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingTrialBalanceReport>(`/reporting/trial-balance${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingBalanceSheet(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingBalanceSheetReport>(`/reporting/balance-sheet${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingProfitLoss(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingProfitLossReport>(`/reporting/profit-loss${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingCashMovement(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingCashMovementReport>(`/reporting/cash-movement${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingGeneralLedger(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingGeneralLedgerReport>(`/reporting/general-ledger${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingAudit(params: ReportingQuery = {}, token?: string | null) {
+  return apiRequest<ReportingAuditReport>(`/reporting/audit${buildReportingSearchParams(params)}`, { token });
+}
+
+export async function getReportingCatalog(token?: string | null) {
+  return apiRequest<ReportingCatalogItem[]>("/reporting/catalog", { token });
+}
+
+export async function getReportingWarnings(token?: string | null) {
+  return apiRequest<ReportingWarning[]>("/reporting/warnings", { token });
+}
+
+export async function getReportingDefinitions(token?: string | null) {
+  return apiRequest<ReportingDefinition[]>("/reporting/definitions", { token });
+}
+
+export async function createReportingDefinition(payload: ReportingDefinitionPayload, token?: string | null) {
+  return apiRequest<ReportingDefinition>("/reporting/definitions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateReportingDefinition(id: string, payload: Partial<ReportingDefinitionPayload>, token?: string | null) {
+  return apiRequest<ReportingDefinition>(`/reporting/definitions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateReportingDefinition(id: string, token?: string | null) {
+  return apiRequest<{ id: string; deactivated: boolean }>(`/reporting/definitions/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getReportingSnapshots(token?: string | null) {
+  return apiRequest<ReportingSnapshot[]>("/reporting/snapshots", { token });
+}
+
+export async function createReportingSnapshot(payload: ReportingSnapshotPayload, token?: string | null) {
+  return apiRequest<ReportingSnapshot>("/reporting/snapshots", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function lockReportingSnapshot(id: string, token?: string | null) {
+  return apiRequest<ReportingSnapshot>(`/reporting/snapshots/${id}/lock`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function unlockReportingSnapshot(id: string, token?: string | null) {
+  return apiRequest<ReportingSnapshot>(`/reporting/snapshots/${id}/unlock`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function createReportingSnapshotVersion(id: string, payload: { name?: string }, token?: string | null) {
+  return apiRequest<ReportingSnapshot>(`/reporting/snapshots/${id}/version`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function getReportingActivity(limit = 100, token?: string | null) {
+  return apiRequest<ReportingActivityEntry[]>(`/reporting/activity?limit=${limit}`, { token });
+}
+
+export async function exportReporting(payload: ReportingExportPayload, token?: string | null) {
+  return apiRequest<ReportingExportResult>("/reporting/export", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
 }
 
 export async function getSegmentDefinitions(token?: string | null) {

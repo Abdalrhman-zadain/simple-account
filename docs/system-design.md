@@ -16,6 +16,7 @@ The current business scope is:
 - Phase 5 inventory currently implements `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, and `policy` slices with warehouse-level balances, stock movement history, source-document drill-down, organization-level costing method selection via `inventory/policy` (`WEIGHTED_AVERAGE` or `FIFO`), prevent-negative-stock policy toggles, optional accounting posting integration through Phase 1 journal/posting services, and reverse-status workflows for posted inventory documents
 - Phase 6 payroll implements employee masters, payroll groups, payroll component setup, employee/group component assignments, payroll rules and formulas, payroll periods, payslip generation and draft review, posted-payslip adjustments, payroll period posting/reversal through Phase 1 journal/posting/reversal services, salary payment allocation/settlement/reversal through Phase 2 bank/cash payment posting, and payroll summary inquiry
 - Phase 7 fixed assets implements asset categories, fixed-asset register, acquisition capture/posting/reversal, depreciation runs/posting/reversal, disposal capture/posting/reversal, transfer capture/posting/reversal, asset schedule/history inquiry, and audit logging through a dedicated fixed-assets module
+- Phase 8 reporting implements a dedicated reporting workspace for summary inquiry, trial balance, balance sheet, profit and loss, cash movement, general ledger, audit review, saved definitions, snapshots, exports, and reporting activity review using posted accounting data plus comparison-period filters
 
 The system is organized to keep domain logic inside the owning implemented phase module and keep the frontend split into route composition and feature-owned UI.
 
@@ -58,6 +59,7 @@ The backend root module wires three major concerns:
 - `modules/phase-5-inventory-management/inventory`
 - `modules/phase-6-payroll-management/payroll`
 - `modules/phase-7-fixed-assets-management/fixed-assets`
+- `modules/phase-8-reporting-control/reporting`
 
 `AccountingCoreModule` is the Phase 1 composition root and imports:
 
@@ -136,6 +138,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/inventory`
 - `/payroll`
 - `/fixed-assets`
+- `/reporting`
 - `/general-ledger`
 - `/fiscal`
 - `/audit`

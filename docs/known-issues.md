@@ -134,3 +134,23 @@ What this means for future edits:
 - keep future fixed-asset code inside dedicated Phase 7 ownership roots rather than mixing asset lifecycle behavior into purchases, inventory, bank/cash, or Phase 1 accounting modules.
 - preserve Arabic/English translation coverage when adding fixed-asset statuses, depreciation methods, disposal terminology, document labels, and reporting filters.
 - treat future fixed-asset extensions as refinements to this implemented module rather than as unimplemented Phase 7 basics.
+
+## Phase 8 Reporting Status
+
+Current status:
+
+- Phase 8 Reporting is implemented as a bilingual workspace at `/reporting` with saved definitions, snapshots, export controls, and activity visibility in addition to the core financial inquiries.
+- The current slice includes summary inquiry, trial balance, balance sheet, profit and loss, classified cash flow reporting, general ledger inquiry, audit inquiry, comparison-period filters, reusable saved definitions, persisted snapshots, snapshot locking/versioning, native XLSX/PDF/print export output generation, and reporting activity logging.
+- The current implementation derives report values from posted ledger, bank/cash, account, and audit data and persists reporting controls in Phase 8-owned runtime tables.
+
+Current limitation:
+
+- reporting control persistence is created at runtime by the reporting service and is not yet modeled through a generated Prisma delegate workflow.
+- exported document layouts are functionally complete for the baseline requirements, but the PDF/XLSX output remains intentionally minimal rather than visually polished.
+- cash-flow classification currently uses posted counter-account heuristics from the journal entry to split operating, investing, financing, and unclassified movement.
+
+What this means for future edits:
+
+- keep new reporting code inside `backend/src/modules/phase-8-reporting-control/reporting` and `frontend/features/phase-8-reporting-control`.
+- preserve Arabic/English translation coverage when adding report names, filters, actions, column labels, and comparison/snapshot terminology.
+- do not document the remaining Phase 8 roadmap items as implemented until the actual routes, data structures, and output behavior exist.

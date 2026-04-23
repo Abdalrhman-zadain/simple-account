@@ -84,6 +84,7 @@ Current feature areas:
 - `features/phase-4-procure-to-pay`
 - `features/phase-5-inventory-management`
 - `features/phase-6-payroll-management`
+- `features/phase-8-reporting-control`
 
 Put code here when:
 
@@ -268,6 +269,18 @@ Current root:
 
 `fixed-assets` currently implements fixed-asset categories, fixed-asset register masters, acquisition capture/posting/reversal, depreciation run capture/posting/reversal, disposal capture/posting/reversal, transfer capture/posting/reversal, audit/history inquiry, and summary inquiry. Asset lifecycle posting reuses Phase 1 journal-entry/posting services so capitalization, depreciation expense/accumulated depreciation, disposal proceeds, and gain/loss recognition remain aligned with the accounting foundation.
 
+### `backend/src/modules/phase-8-reporting-control`
+
+Purpose:
+
+- ownership root for Phase 8 reporting and control inquiry workflows
+
+Current root:
+
+- `reporting`
+
+`reporting` currently implements summary inquiry, trial balance, balance sheet, profit and loss, cash movement, general ledger inquiry, and audit inquiry endpoints. The module is read-oriented in this slice and derives report output from posted ledger, bank/cash, account, and audit data rather than introducing new accounting persistence.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -330,6 +343,16 @@ Current feature area:
 
 - `fixed-assets` (category, asset register, acquisition, depreciation, disposal, transfer, and summary workspace)
 
+### `frontend/features/phase-8-reporting-control`
+
+Purpose:
+
+- feature-owned UI for Phase 8 reporting workflows
+
+Current feature area:
+
+- `reporting` (summary, trial balance, balance sheet, profit and loss, cash movement, general ledger, and audit workspace)
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -354,6 +377,8 @@ Use these rules before editing:
   - put them in `frontend/features/phase-6-payroll-management`
 - fixed-asset screens:
   - put them in `frontend/features/phase-7-fixed-assets-management`
+- reporting screens:
+  - put them in `frontend/features/phase-8-reporting-control`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -378,6 +403,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-6-payroll-management/payroll`
 - fixed-asset category, register, acquisition, depreciation, disposal, transfer, and inquiry workflows:
   - put them in `backend/src/modules/phase-7-fixed-assets-management/fixed-assets`
+- reporting summary, trial balance, balance sheet, profit/loss, cash movement, general-ledger-inquiry composition, and audit-report workflows:
+  - put them in `backend/src/modules/phase-8-reporting-control/reporting`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

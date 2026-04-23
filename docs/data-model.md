@@ -87,6 +87,10 @@ Key fields:
 
 Accounting meaning:
 
+- Phase 8 reporting reads posted balances from `LedgerTransaction`, account metadata from `Account`, bank/cash reporting scope from `BankCashAccount`, and operational visibility from `AuditLog`
+- reusable reporting definitions and persisted report snapshots are currently stored in runtime-managed PostgreSQL tables named `ReportDefinition` and `ReportSnapshot`
+- those reporting-control tables are created by the Phase 8 reporting service with SQL guards (`CREATE TABLE IF NOT EXISTS`) because Prisma client regeneration is not yet part of the current Windows-safe workflow
+
 - posted history is stored in ledger transactions
 - the posting batch groups a posting operation
 - ledger rows are the authoritative posted history behind the general ledger
@@ -493,6 +497,12 @@ Ownership by module:
   - `PayrollPayment`
   - `PayrollPaymentAllocation`
   - owns employee masters, payroll setup, rules/formulas, payslip generation, payroll posting/reversal orchestration, adjustment posting, salary-payment allocation/settlement/reversal, and payroll inquiry while reusing Phase 1 journal/posting/reversal services and Phase 2 bank/cash payments
+- Reporting:
+  - reads `Account`
+  - reads `LedgerTransaction`
+  - reads `BankCashAccount`
+  - reads `AuditLog`
+  - currently owns read-only report composition for summary inquiry, trial balance, balance sheet, profit and loss, cash movement, general-ledger inquiry, and audit inquiry without introducing Phase 8-specific persistence in this slice
 
 ## Balance Integrity Expectations
 
