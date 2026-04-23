@@ -120,3 +120,17 @@ What this means for future edits:
 - keep future payroll code inside dedicated Phase 6 ownership roots rather than mixing payroll behavior into purchases, sales, bank/cash, or Phase 1 accounting modules.
 - preserve Arabic/English translation coverage when adding payroll components, employee/payment terminology, payslip labels, statuses, and reporting filters.
 - treat future payroll extensions as refinements to this implemented module rather than as unimplemented Phase 6 basics.
+
+## Phase 7 Fixed Assets Status
+
+Current status:
+
+- Phase 7 Fixed Assets is implemented for category setup, fixed-asset register maintenance/editing, acquisition capture/posting/reversal, depreciation run capture/posting/reversal, disposal capture/posting/reversal, transfer capture/posting/reversal, asset-level depreciation schedule/history inquiry, and summary inquiry.
+- Asset categories store default depreciation assumptions and posting-account references used to seed fixed-asset masters and lifecycle documents.
+- The `/fixed-assets` frontend exposes category setup, asset register, asset editing/deactivation, acquisition, depreciation, disposal, transfer, audit history, and summary workflows with Arabic/English translation coverage.
+
+What this means for future edits:
+
+- keep future fixed-asset code inside dedicated Phase 7 ownership roots rather than mixing asset lifecycle behavior into purchases, inventory, bank/cash, or Phase 1 accounting modules.
+- preserve Arabic/English translation coverage when adding fixed-asset statuses, depreciation methods, disposal terminology, document labels, and reporting filters.
+- treat future fixed-asset extensions as refinements to this implemented module rather than as unimplemented Phase 7 basics.

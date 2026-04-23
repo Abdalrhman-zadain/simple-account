@@ -256,6 +256,18 @@ Current root:
 
 `payroll` currently implements employee masters, payroll groups, payroll components, employee/group component assignments, payroll rules, payroll periods, payslip generation/editing/adjustment, payroll period posting/reversal, payroll payments with payslip allocation and reversal, and payroll summary inquiry. Payroll posting and adjustment journal entries reuse Phase 1 journal-entry/posting services, period reversal reuses Phase 1 reversal control, and salary payments reuse Phase 2 bank/cash payment posting.
 
+### `backend/src/modules/phase-7-fixed-assets-management`
+
+Purpose:
+
+- ownership root for Phase 7 fixed-asset register and lifecycle accounting workflows
+
+Current root:
+
+- `fixed-assets`
+
+`fixed-assets` currently implements fixed-asset categories, fixed-asset register masters, acquisition capture/posting/reversal, depreciation run capture/posting/reversal, disposal capture/posting/reversal, transfer capture/posting/reversal, audit/history inquiry, and summary inquiry. Asset lifecycle posting reuses Phase 1 journal-entry/posting services so capitalization, depreciation expense/accumulated depreciation, disposal proceeds, and gain/loss recognition remain aligned with the accounting foundation.
+
 ### `frontend/features/phase-2-bank-cash-management`
 
 Purpose:
@@ -308,6 +320,16 @@ Current feature area:
 
 - `payroll` (group, rule, employee, component, period, payslip, payment, adjustment, reversal, and summary workspace)
 
+### `frontend/features/phase-7-fixed-assets-management`
+
+Purpose:
+
+- feature-owned UI for Phase 7 fixed-asset workflows
+
+Current feature area:
+
+- `fixed-assets` (category, asset register, acquisition, depreciation, disposal, transfer, and summary workspace)
+
 ## Edit Placement Rules
 
 Use these rules before editing:
@@ -330,6 +352,8 @@ Use these rules before editing:
   - put them in `frontend/features/phase-5-inventory-management`
 - payroll screens:
   - put them in `frontend/features/phase-6-payroll-management`
+- fixed-asset screens:
+  - put them in `frontend/features/phase-7-fixed-assets-management`
 - route wrapper or route-level composition:
   - put it in `frontend/app/...`
 - auth screen:
@@ -352,6 +376,8 @@ Use these rules before editing:
   - put them in `backend/src/modules/phase-5-inventory-management/inventory`
 - payroll employee, component, period, payslip, posting, payment, and inquiry workflows:
   - put them in `backend/src/modules/phase-6-payroll-management/payroll`
+- fixed-asset category, register, acquisition, depreciation, disposal, transfer, and inquiry workflows:
+  - put them in `backend/src/modules/phase-7-fixed-assets-management/fixed-assets`
 - cross-cutting backend infrastructure:
   - put it in `backend/src/common`
 

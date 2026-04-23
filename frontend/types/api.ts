@@ -696,6 +696,249 @@ export type PayrollRuleType =
   | "STATUTORY_DEDUCTION"
   | "OTHER";
 
+export type FixedAssetStatus = "ACTIVE" | "INACTIVE" | "DISPOSED" | "RETIRED";
+export type FixedAssetDepreciationMethod = "STRAIGHT_LINE" | "DECLINING_BALANCE";
+export type FixedAssetTransactionStatus = "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
+export type FixedAssetDisposalMethod = "SALE" | "WRITE_OFF" | "SCRAP" | "OTHER";
+
+export type FixedAssetCategory = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  assetAccount: AccountOption;
+  accumulatedDepreciationAccount: AccountOption;
+  depreciationExpenseAccount: AccountOption;
+  disposalGainAccount?: AccountOption | null;
+  disposalLossAccount?: AccountOption | null;
+  assetCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAsset = {
+  id: string;
+  code: string;
+  name: string;
+  categoryId: string;
+  category?: FixedAssetCategory | null;
+  acquisitionDate: string;
+  depreciationStartDate: string;
+  usefulLifeMonths: number;
+  depreciationMethod: FixedAssetDepreciationMethod;
+  residualValue: string;
+  acquisitionCost: string;
+  accumulatedDepreciation: string;
+  bookValue: string;
+  status: FixedAssetStatus;
+  department?: string | null;
+  costCenter?: string | null;
+  employee?: string | null;
+  location?: string | null;
+  branch?: string | null;
+  acquisitions: Array<{ id: string; reference: string; status: FixedAssetTransactionStatus; totalCost: string; postedAt?: string | null }>;
+  depreciationHistory: Array<{ id: string; reference?: string | null; amount: string; periodEnd?: string | null }>;
+  depreciationSchedule: Array<{ periodStart: string; amount: string; projectedAccumulated: string; projectedBookValue: string }>;
+  disposals: Array<{ id: string; reference: string; status: FixedAssetTransactionStatus; gainLossAmount: string }>;
+  transfers: Array<{ id: string; reference: string; status: FixedAssetTransactionStatus; toLocation?: string | null; toDepartment?: string | null }>;
+  auditHistory?: Array<{ id: string; entity: string; entityId?: string | null; action: string; details?: unknown; createdAt: string }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetAcquisition = {
+  id: string;
+  reference: string;
+  status: FixedAssetTransactionStatus;
+  asset: FixedAsset;
+  acquisitionDate: string;
+  acquisitionCost: string;
+  capitalizedCost: string;
+  totalCost: string;
+  supplierReference?: string | null;
+  purchaseInvoiceReference?: string | null;
+  paymentReference?: string | null;
+  clearingAccount: AccountOption;
+  description?: string | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  reversedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetDepreciationLine = {
+  id: string;
+  asset: FixedAsset;
+  depreciationAmount: string;
+  accumulatedBefore: string;
+  accumulatedAfter: string;
+  bookValueBefore: string;
+  bookValueAfter: string;
+};
+
+export type FixedAssetDepreciationRun = {
+  id: string;
+  reference: string;
+  status: FixedAssetTransactionStatus;
+  periodStart: string;
+  periodEnd: string;
+  scope: string;
+  categoryId?: string | null;
+  assetId?: string | null;
+  description?: string | null;
+  totalAmount: string;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  reversedAt?: string | null;
+  lines: FixedAssetDepreciationLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetDisposal = {
+  id: string;
+  reference: string;
+  status: FixedAssetTransactionStatus;
+  asset: FixedAsset;
+  disposalDate: string;
+  method: FixedAssetDisposalMethod;
+  proceedsAmount: string;
+  disposalExpense: string;
+  bookValueAtDisposal: string;
+  gainLossAmount: string;
+  proceedsAccount?: AccountOption | null;
+  disposalExpenseAccount?: AccountOption | null;
+  description?: string | null;
+  journalEntryId?: string | null;
+  journalReference?: string | null;
+  postedAt?: string | null;
+  reversedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetTransfer = {
+  id: string;
+  reference: string;
+  status: FixedAssetTransactionStatus;
+  asset: FixedAsset;
+  transferDate: string;
+  fromDepartment?: string | null;
+  toDepartment?: string | null;
+  fromCostCenter?: string | null;
+  toCostCenter?: string | null;
+  fromEmployee?: string | null;
+  toEmployee?: string | null;
+  fromLocation?: string | null;
+  toLocation?: string | null;
+  fromBranch?: string | null;
+  toBranch?: string | null;
+  reason?: string | null;
+  postedAt?: string | null;
+  reversedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FixedAssetSummary = {
+  assetCount: number;
+  activeAssetCount: number;
+  acquisitionCost: string;
+  accumulatedDepreciation: string;
+  bookValue: string;
+  postedAcquisitions: number;
+  postedDepreciationRuns: number;
+  postedDisposals: number;
+  postedTransfers: number;
+};
+
+export type CreateFixedAssetCategoryPayload = {
+  code?: string;
+  name: string;
+  nameAr?: string;
+  description?: string;
+  assetAccountId: string;
+  accumulatedDepreciationAccountId: string;
+  depreciationExpenseAccountId: string;
+  disposalGainAccountId?: string;
+  disposalLossAccountId?: string;
+};
+
+export type UpdateFixedAssetCategoryPayload = Partial<CreateFixedAssetCategoryPayload> & {
+  isActive?: boolean;
+};
+
+export type CreateFixedAssetPayload = {
+  code?: string;
+  name: string;
+  categoryId: string;
+  acquisitionDate: string;
+  depreciationStartDate: string;
+  usefulLifeMonths: number;
+  depreciationMethod: FixedAssetDepreciationMethod;
+  residualValue?: number;
+  department?: string;
+  costCenter?: string;
+  employee?: string;
+  location?: string;
+  branch?: string;
+};
+
+export type UpdateFixedAssetPayload = Partial<CreateFixedAssetPayload> & {
+  status?: FixedAssetStatus;
+};
+
+export type CreateFixedAssetAcquisitionPayload = {
+  reference?: string;
+  assetId: string;
+  acquisitionDate: string;
+  acquisitionCost: number;
+  capitalizedCost?: number;
+  supplierReference?: string;
+  purchaseInvoiceReference?: string;
+  paymentReference?: string;
+  clearingAccountId: string;
+  description?: string;
+};
+
+export type CreateFixedAssetDepreciationRunPayload = {
+  reference?: string;
+  periodStart: string;
+  periodEnd: string;
+  categoryId?: string;
+  assetId?: string;
+  description?: string;
+};
+
+export type CreateFixedAssetDisposalPayload = {
+  reference?: string;
+  assetId: string;
+  disposalDate: string;
+  method: FixedAssetDisposalMethod;
+  proceedsAmount?: number;
+  disposalExpense?: number;
+  proceedsAccountId?: string;
+  disposalExpenseAccountId?: string;
+  description?: string;
+};
+
+export type CreateFixedAssetTransferPayload = {
+  reference?: string;
+  assetId: string;
+  transferDate: string;
+  toDepartment?: string;
+  toCostCenter?: string;
+  toEmployee?: string;
+  toLocation?: string;
+  toBranch?: string;
+  reason?: string;
+};
+
 export type PayrollComponent = {
   id: string;
   code: string;

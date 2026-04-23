@@ -248,6 +248,32 @@ enum PayrollAdjustmentType {
   REVERSAL
 }
 
+enum FixedAssetStatus {
+  ACTIVE
+  INACTIVE
+  DISPOSED
+  RETIRED
+}
+
+enum FixedAssetDepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+}
+
+enum FixedAssetTransactionStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  REVERSED
+}
+
+enum FixedAssetDisposalMethod {
+  SALE
+  WRITE_OFF
+  SCRAP
+  OTHER
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -303,6 +329,14 @@ model Account {
   payrollExpenseComponents        PayrollComponent[]    @relation("PayrollComponentExpenseAccount")
   payrollLiabilityComponents      PayrollComponent[]    @relation("PayrollComponentLiabilityAccount")
   payrollPeriodPayables           PayrollPeriod[]       @relation("PayrollPeriodPayableAccount")
+  fixedAssetCategoryAssetAccounts FixedAssetCategory[]  @relation("FixedAssetCategoryAssetAccount")
+  fixedAssetCategoryAccumAccounts FixedAssetCategory[]  @relation("FixedAssetCategoryAccumulatedDepreciationAccount")
+  fixedAssetCategoryExpenseAccounts FixedAssetCategory[] @relation("FixedAssetCategoryDepreciationExpenseAccount")
+  fixedAssetCategoryGainAccounts  FixedAssetCategory[]  @relation("FixedAssetCategoryDisposalGainAccount")
+  fixedAssetCategoryLossAccounts  FixedAssetCategory[]  @relation("FixedAssetCategoryDisposalLossAccount")
+  fixedAssetAcquisitionClearingAccounts FixedAssetAcquisition[] @relation("FixedAssetAcquisitionClearingAccount")
+  fixedAssetDisposalProceedsAccounts FixedAssetDisposal[] @relation("FixedAssetDisposalProceedsAccount")
+  fixedAssetDisposalExpenseClearingAccounts FixedAssetDisposal[] @relation("FixedAssetDisposalExpenseClearingAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -487,6 +521,9 @@ model JournalEntry {
   inventoryAdjustment   InventoryAdjustment?   @relation("InventoryAdjustmentToJournalEntry")
   payrollPeriod         PayrollPeriod?         @relation("PayrollPeriodToJournalEntry")
   payrollAdjustment     PayrollAdjustment?     @relation("PayrollAdjustmentToJournalEntry")
+  fixedAssetAcquisition FixedAssetAcquisition? @relation("FixedAssetAcquisitionToJournalEntry")
+  fixedAssetDepreciationRun FixedAssetDepreciationRun? @relation("FixedAssetDepreciationRunToJournalEntry")
+  fixedAssetDisposal    FixedAssetDisposal?    @relation("FixedAssetDisposalToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -892,6 +929,181 @@ model PayrollPaymentAllocation {
 
   @@unique([payrollPaymentId, payslipId])
   @@index([payslipId])
+}
+
+model FixedAssetCategory {
+  id                                String  @id @default(cuid())
+  code                              String  @unique
+  name                              String
+  nameAr                            String?
+  description                       String?
+  isActive                          Boolean @default(true)
+  assetAccountId                    String
+  assetAccount                      Account @relation("FixedAssetCategoryAssetAccount", fields: [assetAccountId], references: [id], onDelete: Restrict)
+  accumulatedDepreciationAccountId  String
+  accumulatedDepreciationAccount    Account @relation("FixedAssetCategoryAccumulatedDepreciationAccount", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
+  depreciationExpenseAccountId      String
+  depreciationExpenseAccount        Account @relation("FixedAssetCategoryDepreciationExpenseAccount", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
+  disposalGainAccountId             String?
+  disposalGainAccount               Account? @relation("FixedAssetCategoryDisposalGainAccount", fields: [disposalGainAccountId], references: [id], onDelete: Restrict)
+  disposalLossAccountId             String?
+  disposalLossAccount               Account? @relation("FixedAssetCategoryDisposalLossAccount", fields: [disposalLossAccountId], references: [id], onDelete: Restrict)
+  assets                            FixedAsset[]
+  createdAt                         DateTime @default(now())
+  updatedAt                         DateTime @updatedAt
+
+  @@index([isActive, name])
+}
+
+model FixedAsset {
+  id                      String                         @id @default(cuid())
+  code                    String                         @unique
+  name                    String
+  categoryId              String
+  category                FixedAssetCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  acquisitionDate         DateTime
+  depreciationStartDate   DateTime
+  usefulLifeMonths        Int
+  depreciationMethod      FixedAssetDepreciationMethod   @default(STRAIGHT_LINE)
+  residualValue           Decimal                        @default(0) @db.Decimal(18, 2)
+  acquisitionCost         Decimal                        @default(0) @db.Decimal(18, 2)
+  accumulatedDepreciation Decimal                        @default(0) @db.Decimal(18, 2)
+  bookValue               Decimal                        @default(0) @db.Decimal(18, 2)
+  status                  FixedAssetStatus               @default(ACTIVE)
+  department              String?
+  costCenter              String?
+  employee                String?
+  location                String?
+  branch                  String?
+  acquisitions            FixedAssetAcquisition[]
+  depreciationLines       FixedAssetDepreciationLine[]
+  disposals               FixedAssetDisposal[]
+  transfers               FixedAssetTransfer[]
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
+
+  @@index([categoryId, status])
+  @@index([name])
+}
+
+model FixedAssetAcquisition {
+  id                 String                      @id @default(cuid())
+  reference          String                      @unique
+  status             FixedAssetTransactionStatus @default(DRAFT)
+  assetId            String
+  asset              FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  acquisitionDate    DateTime
+  acquisitionCost    Decimal                     @db.Decimal(18, 2)
+  capitalizedCost    Decimal                     @default(0) @db.Decimal(18, 2)
+  totalCost          Decimal                     @db.Decimal(18, 2)
+  supplierReference  String?
+  purchaseInvoiceReference String?
+  paymentReference   String?
+  clearingAccountId  String
+  clearingAccount    Account                     @relation("FixedAssetAcquisitionClearingAccount", fields: [clearingAccountId], references: [id], onDelete: Restrict)
+  description        String?
+  journalEntryId     String?                     @unique
+  journalEntry       JournalEntry?               @relation("FixedAssetAcquisitionToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  postedAt           DateTime?
+  reversedAt         DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  @@index([assetId, status, acquisitionDate])
+}
+
+model FixedAssetDepreciationRun {
+  id             String                      @id @default(cuid())
+  reference      String                      @unique
+  status         FixedAssetTransactionStatus @default(DRAFT)
+  periodStart    DateTime
+  periodEnd      DateTime
+  scope          String                      @default("ALL")
+  categoryId     String?
+  assetId        String?
+  description    String?
+  totalAmount    Decimal                     @default(0) @db.Decimal(18, 2)
+  journalEntryId String?                     @unique
+  journalEntry   JournalEntry?               @relation("FixedAssetDepreciationRunToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines          FixedAssetDepreciationLine[]
+  postedAt       DateTime?
+  reversedAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@index([status, periodStart, periodEnd])
+  @@index([categoryId])
+  @@index([assetId])
+}
+
+model FixedAssetDepreciationLine {
+  id                    String                    @id @default(cuid())
+  runId                 String
+  run                   FixedAssetDepreciationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  assetId               String
+  asset                 FixedAsset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  depreciationAmount    Decimal                   @db.Decimal(18, 2)
+  accumulatedBefore     Decimal                   @db.Decimal(18, 2)
+  accumulatedAfter      Decimal                   @db.Decimal(18, 2)
+  bookValueBefore       Decimal                   @db.Decimal(18, 2)
+  bookValueAfter        Decimal                   @db.Decimal(18, 2)
+  createdAt             DateTime                  @default(now())
+
+  @@unique([assetId, runId])
+  @@index([assetId])
+}
+
+model FixedAssetDisposal {
+  id                String                      @id @default(cuid())
+  reference         String                      @unique
+  status            FixedAssetTransactionStatus @default(DRAFT)
+  assetId           String
+  asset             FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  disposalDate      DateTime
+  method            FixedAssetDisposalMethod
+  proceedsAmount    Decimal                     @default(0) @db.Decimal(18, 2)
+  disposalExpense   Decimal                     @default(0) @db.Decimal(18, 2)
+  bookValueAtDisposal Decimal                   @default(0) @db.Decimal(18, 2)
+  gainLossAmount    Decimal                     @default(0) @db.Decimal(18, 2)
+  proceedsAccountId String?
+  proceedsAccount   Account?                    @relation("FixedAssetDisposalProceedsAccount", fields: [proceedsAccountId], references: [id], onDelete: Restrict)
+  disposalExpenseAccountId String?
+  disposalExpenseAccount   Account?             @relation("FixedAssetDisposalExpenseClearingAccount", fields: [disposalExpenseAccountId], references: [id], onDelete: Restrict)
+  description       String?
+  journalEntryId    String?                     @unique
+  journalEntry      JournalEntry?               @relation("FixedAssetDisposalToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  postedAt          DateTime?
+  reversedAt        DateTime?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+
+  @@index([assetId, status, disposalDate])
+}
+
+model FixedAssetTransfer {
+  id                  String                      @id @default(cuid())
+  reference           String                      @unique
+  status              FixedAssetTransactionStatus @default(DRAFT)
+  assetId             String
+  asset               FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  transferDate        DateTime
+  fromDepartment      String?
+  toDepartment        String?
+  fromCostCenter      String?
+  toCostCenter        String?
+  fromEmployee        String?
+  toEmployee          String?
+  fromLocation        String?
+  toLocation          String?
+  fromBranch          String?
+  toBranch            String?
+  reason              String?
+  postedAt            DateTime?
+  reversedAt          DateTime?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  @@index([assetId, status, transferDate])
 }
 
 model InventoryGoodsReceipt {

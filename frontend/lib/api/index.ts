@@ -79,6 +79,12 @@ import {
   CreatePayrollPaymentPayload,
   CreatePayrollPeriodPayload,
   CreatePayrollRulePayload,
+  CreateFixedAssetAcquisitionPayload,
+  CreateFixedAssetCategoryPayload,
+  CreateFixedAssetDepreciationRunPayload,
+  CreateFixedAssetDisposalPayload,
+  CreateFixedAssetPayload,
+  CreateFixedAssetTransferPayload,
   CreateReceiptPayload,
   CreateCustomerReceiptPayload,
   CreateSalesInvoicePayload,
@@ -108,6 +114,13 @@ import {
   PayrollPeriod,
   PayrollRule,
   PayrollSummary,
+  FixedAsset,
+  FixedAssetAcquisition,
+  FixedAssetCategory,
+  FixedAssetDepreciationRun,
+  FixedAssetDisposal,
+  FixedAssetSummary,
+  FixedAssetTransfer,
   Payslip,
   EmployeePayrollComponent,
   ReceiptAllocationResult,
@@ -158,6 +171,8 @@ import {
   UpdatePayrollPaymentPayload,
   UpdatePayrollPeriodPayload,
   UpdatePayrollRulePayload,
+  UpdateFixedAssetCategoryPayload,
+  UpdateFixedAssetPayload,
   UpdateSalesOrderPayload,
   UpdateSalesQuotationPayload,
   UpdateSalesInvoicePayload,
@@ -2238,6 +2253,139 @@ export async function getPayrollSummary(params: { payrollPeriodId?: string; empl
   if (params.department) searchParams.set("department", params.department);
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
   return apiRequest<PayrollSummary>(`/payroll/reports/summary${suffix}`, { token });
+}
+
+export async function getFixedAssetCategories(params: { isActive?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAssetCategory[]>(`/fixed-assets/categories${suffix}`, { token });
+}
+
+export async function createFixedAssetCategory(payload: CreateFixedAssetCategoryPayload, token?: string | null) {
+  return apiRequest<FixedAssetCategory>("/fixed-assets/categories", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updateFixedAssetCategory(id: string, payload: UpdateFixedAssetCategoryPayload, token?: string | null) {
+  return apiRequest<FixedAssetCategory>(`/fixed-assets/categories/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivateFixedAssetCategory(id: string, token?: string | null) {
+  return apiRequest<FixedAssetCategory>(`/fixed-assets/categories/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function getFixedAssets(params: { status?: string; categoryId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.categoryId) searchParams.set("categoryId", params.categoryId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAsset[]>(`/fixed-assets/assets${suffix}`, { token });
+}
+
+export async function getFixedAsset(id: string, token?: string | null) {
+  return apiRequest<FixedAsset>(`/fixed-assets/assets/${id}`, { token });
+}
+
+export async function createFixedAsset(payload: CreateFixedAssetPayload, token?: string | null) {
+  return apiRequest<FixedAsset>("/fixed-assets/assets", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function updateFixedAsset(id: string, payload: UpdateFixedAssetPayload, token?: string | null) {
+  return apiRequest<FixedAsset>(`/fixed-assets/assets/${id}`, { method: "PATCH", body: JSON.stringify(payload), token });
+}
+
+export async function deactivateFixedAsset(id: string, token?: string | null) {
+  return apiRequest<FixedAsset>(`/fixed-assets/assets/${id}/deactivate`, { method: "POST", token });
+}
+
+export async function getFixedAssetAcquisitions(params: { status?: string; assetId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.assetId) searchParams.set("assetId", params.assetId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAssetAcquisition[]>(`/fixed-assets/acquisitions${suffix}`, { token });
+}
+
+export async function createFixedAssetAcquisition(payload: CreateFixedAssetAcquisitionPayload, token?: string | null) {
+  return apiRequest<FixedAssetAcquisition>("/fixed-assets/acquisitions", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function postFixedAssetAcquisition(id: string, token?: string | null) {
+  return apiRequest<FixedAssetAcquisition>(`/fixed-assets/acquisitions/${id}/post`, { method: "POST", token });
+}
+
+export async function reverseFixedAssetAcquisition(id: string, token?: string | null) {
+  return apiRequest<FixedAssetAcquisition>(`/fixed-assets/acquisitions/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getFixedAssetDepreciationRuns(params: { status?: string; assetId?: string; categoryId?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.assetId) searchParams.set("assetId", params.assetId);
+  if (params.categoryId) searchParams.set("categoryId", params.categoryId);
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAssetDepreciationRun[]>(`/fixed-assets/depreciation-runs${suffix}`, { token });
+}
+
+export async function createFixedAssetDepreciationRun(payload: CreateFixedAssetDepreciationRunPayload, token?: string | null) {
+  return apiRequest<FixedAssetDepreciationRun>("/fixed-assets/depreciation-runs", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function postFixedAssetDepreciationRun(id: string, token?: string | null) {
+  return apiRequest<FixedAssetDepreciationRun>(`/fixed-assets/depreciation-runs/${id}/post`, { method: "POST", token });
+}
+
+export async function reverseFixedAssetDepreciationRun(id: string, token?: string | null) {
+  return apiRequest<FixedAssetDepreciationRun>(`/fixed-assets/depreciation-runs/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getFixedAssetDisposals(params: { status?: string; assetId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.assetId) searchParams.set("assetId", params.assetId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAssetDisposal[]>(`/fixed-assets/disposals${suffix}`, { token });
+}
+
+export async function createFixedAssetDisposal(payload: CreateFixedAssetDisposalPayload, token?: string | null) {
+  return apiRequest<FixedAssetDisposal>("/fixed-assets/disposals", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function postFixedAssetDisposal(id: string, token?: string | null) {
+  return apiRequest<FixedAssetDisposal>(`/fixed-assets/disposals/${id}/post`, { method: "POST", token });
+}
+
+export async function reverseFixedAssetDisposal(id: string, token?: string | null) {
+  return apiRequest<FixedAssetDisposal>(`/fixed-assets/disposals/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getFixedAssetTransfers(params: { status?: string; assetId?: string; search?: string } = {}, token?: string | null) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.assetId) searchParams.set("assetId", params.assetId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<FixedAssetTransfer[]>(`/fixed-assets/transfers${suffix}`, { token });
+}
+
+export async function createFixedAssetTransfer(payload: CreateFixedAssetTransferPayload, token?: string | null) {
+  return apiRequest<FixedAssetTransfer>("/fixed-assets/transfers", { method: "POST", body: JSON.stringify(payload), token });
+}
+
+export async function postFixedAssetTransfer(id: string, token?: string | null) {
+  return apiRequest<FixedAssetTransfer>(`/fixed-assets/transfers/${id}/post`, { method: "POST", token });
+}
+
+export async function reverseFixedAssetTransfer(id: string, token?: string | null) {
+  return apiRequest<FixedAssetTransfer>(`/fixed-assets/transfers/${id}/reverse`, { method: "POST", token });
+}
+
+export async function getFixedAssetSummary(token?: string | null) {
+  return apiRequest<FixedAssetSummary>("/fixed-assets/reports/summary", { token });
 }
 
 export async function getSegmentDefinitions(token?: string | null) {

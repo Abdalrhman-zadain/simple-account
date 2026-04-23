@@ -269,6 +269,40 @@ Checks to run:
 - frontend typecheck
 - Prisma generate and migration review when schema changes are introduced
 
+## Start Or Extend Phase 7 Fixed Assets
+
+Where to edit:
+
+- backend `phase-7-fixed-assets-management/fixed-assets`
+- frontend `features/phase-7-fixed-assets-management`
+- route files under `frontend/app/(erp)/fixed-assets`
+- `backend/prisma/schema.prisma` and Prisma migration files when fixed-asset register, category, acquisition, depreciation, disposal, or transfer data structures are added
+- `docs/phase-7-fixed-assets-requirements.md` when requirements are clarified, split, or translated
+
+What else to check:
+
+- keep the fixed-assets module split by subdomain ownership such as asset register, categories, acquisition, depreciation, disposal, transfer, posting/accounting, reporting/inquiry, and validation/control
+- route files must stay thin and compose the owning Phase 7 feature page
+- asset categories and assets must link to valid capitalization, accumulated depreciation, depreciation expense, disposal, and gain/loss accounts in Phase 1 instead of introducing parallel ledgers
+- acquisition, depreciation, and disposal posting must reuse Phase 1 journal-entry and posting services instead of writing ledger effects directly
+- posted asset lifecycle transactions must preserve auditable links between source fixed-asset documents, assets, generated journal entries, and audit-log history
+- inactive or fully disposed assets must remain historically reportable but blocked from new draft lifecycle transactions where business rules require it
+- Arabic and English terminology must stay aligned when adding fixed-asset statuses, methods, document labels, and reporting terminology
+
+Must remain compatible:
+
+- current implemented phase boundaries
+- docs must distinguish between implemented fixed-asset behavior and any remaining planned Phase 7 extensions
+- stable route naming under `/fixed-assets`
+- Phase 1 journal-entry and posting invariants
+- depreciation/disposal calculations must stay consistent with stored asset cost, residual value, useful life, accumulated depreciation, and net book value assumptions
+
+Checks to run:
+
+- backend build
+- frontend typecheck
+- Prisma generate and migration review when schema changes are introduced
+
 ## Change Account Creation Behavior
 
 Where to edit:

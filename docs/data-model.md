@@ -275,6 +275,38 @@ Accounting meaning:
 - payment allocation updates payslip paid/outstanding amounts and reduces employee payroll payable balance
 - posted payslips can receive auditable adjustment entries, and posted payroll periods/payments can be reversed through Phase 1 reversal control or compensating Phase 2 bank/cash transactions
 
+### Phase 7 Fixed Assets
+
+Main models:
+
+- `FixedAssetCategory`
+- `FixedAsset`
+- `FixedAssetAcquisition`
+- `FixedAssetDepreciationRun`
+- `FixedAssetDepreciationLine`
+- `FixedAssetDisposal`
+- `FixedAssetTransfer`
+
+Key fields:
+
+- fixed asset category `code`, `name`, `status`, `depreciationMethod`, `usefulLifeMonths`, `depreciationRate`, and linked capitalization/accumulated-depreciation/depreciation-expense/disposal/gain-loss accounts
+- fixed asset `code`, `name`, `status`, category link/string, acquisition date, in-service date, cost, salvage value, useful life months, depreciation method, depreciation rate, accumulated depreciation, net book value, optional serial/location/custodian details, and notes
+- acquisition `reference`, `status`, asset link, acquisition date, capitalization account, supplier/reference details, amount, notes, and optional journal entry link
+- depreciation run `reference`, `status`, run date, posting period description, notes, totals, optional journal entry link, and related depreciation lines
+- depreciation line depreciation-run link, asset link, depreciation amount, accumulated depreciation after run, and net book value after run
+- disposal `reference`, `status`, asset link, disposal date, disposal method, proceeds, disposal-expense clearing account, gain/loss amount, notes, and optional journal entry link
+- transfer `reference`, `status`, asset link, transfer date, from/to location or custodian details, notes, and posting/reversal timestamps
+
+Accounting meaning:
+
+- fixed assets are maintained as long-lived masters with lifecycle documents rather than one-off journal-only records
+- asset categories centralize default posting accounts and depreciation assumptions that seed new asset records
+- acquisition posting capitalizes the asset cost through Phase 1 journal posting and updates the asset carrying amount
+- depreciation runs snapshot depreciation by asset, increase accumulated depreciation, reduce net book value, and optionally post depreciation expense through Phase 1
+- disposal records preserve proceeds, disposal-expense clearing, accumulated depreciation relief, and gain/loss recognition with auditable journal-entry linkage
+- transfer records move asset responsibility/location without changing asset cost, while preserving posting/reversal history for inquiry and audit
+- inactive or disposed assets remain historically reportable and linked to prior lifecycle transactions
+
 ### Fiscal Control
 
 Main models:

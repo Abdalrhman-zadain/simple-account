@@ -22,6 +22,7 @@ import {
   LuShoppingCart as ShoppingCart,
   LuPackage as Package,
   LuBadgeDollarSign as BadgeDollarSign,
+  LuBuilding2 as Building2,
   LuUsers as Users,
 } from "react-icons/lu";
 
@@ -75,6 +76,7 @@ const navGroups: NavGroup[] = [
       { href: "/purchases", labelKey: "nav.item.purchases", icon: ShoppingCart },
       { href: "/inventory", labelKey: "nav.item.inventory", icon: Package },
       { href: "/payroll", labelKey: "nav.item.payroll", icon: BadgeDollarSign },
+      { href: "/fixed-assets", labelKey: "nav.item.fixedAssets", icon: Building2 },
       { href: "/journal-entries", labelKey: "nav.item.journalEntries", icon: FileText },
       { href: "/general-ledger", labelKey: "nav.item.generalLedger", icon: BarChart2 },
     ],

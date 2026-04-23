@@ -9,6 +9,7 @@ import { SalesReceivablesModule } from './modules/phase-3-sales-receivables/sale
 import { PurchasesModule } from './modules/phase-4-procure-to-pay/purchases/purchases.module';
 import { InventoryModule } from './modules/phase-5-inventory-management/inventory/inventory.module';
 import { PayrollModule } from './modules/phase-6-payroll-management/payroll/payroll.module';
+import { FixedAssetsModule } from './modules/phase-7-fixed-assets-management/fixed-assets/fixed-assets.module';
 import { AuthModule } from './modules/platform/auth/auth.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { AuthModule } from './modules/platform/auth/auth.module';
     PurchasesModule,
     InventoryModule,
     PayrollModule,
+    FixedAssetsModule,
     AuthModule,
   ],
 })
