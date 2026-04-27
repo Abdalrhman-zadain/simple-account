@@ -91,13 +91,13 @@ npx prisma db push --skip-generate
 The backend runs at:
 
 ```text
-http://localhost:3001/api
+http://localhost:3003/api
 ```
 
 Swagger docs are available at:
 
 ```text
-http://localhost:3001/api/docs
+http://localhost:3003/api/docs
 ```
 
 Open a third terminal for the frontend:
@@ -192,3 +192,9 @@ You can also run a production build check:
 cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
 npm run build
 ```
+
+## Troubleshooting
+
+- If backend development startup fails with `EADDRINUSE`, check whether port `3002` is already in use before running `npm run start:dev`.
+- The frontend production build currently succeeds, but it can still take noticeably longer on larger pages because Next.js compiles and validates the app during build.
+- In frontend development mode, page navigation can feel slower than production because Next.js compiles routes on demand.

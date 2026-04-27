@@ -390,7 +390,6 @@ export function SiteHeader({
                   <Link
                     key={item.href}
                     href={item.href}
-                    onMouseEnter={() => prefetchForHref(item.href)}
                     title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
                     className={cn(
                       "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0",

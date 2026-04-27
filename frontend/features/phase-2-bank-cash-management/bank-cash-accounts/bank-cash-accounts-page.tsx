@@ -46,12 +46,14 @@ export function BankCashAccountsPage() {
   const postingAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "ASSET", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "ASSET" }, token),
+    enabled: isEditorOpen,
     staleTime: 5 * 60 * 1000,
   });
 
   const offsetAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+    enabled: isEditorOpen,
     staleTime: 5 * 60 * 1000,
   });
 

@@ -1,0 +1,160 @@
+# تحسين شاشة مجموعة الرواتب (الاقتراح المعتمد)
+
+# Payroll Group Screen Improvement (Approved Proposal)
+
+## 1) تغيير التسمية
+
+## 1) Rename The Feature
+
+غيّر اسم **"مجموعة الرواتب"** إلى **"قالب الراتب"** لأنه أوضح للمحاسب ويعكس الهدف الفعلي للشاشة.
+Rename **"Payroll Group"** to **"Payroll Template"** because it is clearer for accountants and better reflects the actual purpose of the screen.
+
+أمثلة مناسبة:
+Suggested examples:
+
+- قالب موظفين إداريين
+- قالب موظفين ميدانيين
+- قالب موظفي السعودية الشهري
+- Administrative Staff Template
+- Field Staff Template
+- Saudi Monthly Staff Template
+
+## 2) تقسيم الشاشة إلى خطوات واضحة
+
+## 2) Split The Screen Into Clear Steps
+
+بدل عرض كل شيء في صفحة واحدة، يُفضّل تنظيم التدفق كالتالي:
+Instead of showing everything on one page, structure the workflow as follows:
+
+- الخطوة 1: إنشاء قالب راتب (الرمز، الاسم، الوصف)
+- الخطوة 2: إضافة بنود الراتب (راتب أساسي، بدل مواصلات، مكافأة، خصم...)
+- الخطوة 3: مراجعة القالب (ملخص الاستحقاقات والخصومات قبل الحفظ)
+- Step 1: Create payroll template (code, name, description)
+- Step 2: Add payroll items (basic salary, transport allowance, bonus, deduction...)
+- Step 3: Review template (summary of earnings and deductions before save)
+
+## 3) تبسيط المصطلحات للمحاسب
+
+## 3) Simplify Terms For Accountants
+
+استبدال المصطلحات التقنية بمصطلحات مفهومة:
+Replace technical terms with clearer business terms:
+
+- المكون -> بند الراتب
+- Component -> Payroll Item
+- المبلغ -> قيمة ثابتة
+- Amount -> Fixed Value
+- النسبة -> نسبة الخصم أو النسبة
+- Percentage -> Deduction Rate or Percentage
+- الكمية -> عدد الساعات أو الأيام
+- Quantity -> Number of Hours or Days
+- مبلغ القسط -> قسط السلفة أو الاستقطاع
+- Installment Amount -> Loan/Deduction Installment
+- تعيين -> إضافة البند للقالب
+- Assign -> Add Item To Template
+
+## 4) إظهار الحقول حسب نوع البند
+
+## 4) Show Fields Based On Item Type
+
+لا تعرض جميع الحقول دائمًا، لأن ذلك يسبب إرباكًا.
+Do not show all fields all the time, because this confuses users.
+
+المبدأ المقترح:
+Proposed behavior:
+
+- عند اختيار "راتب أساسي": أظهر "المبلغ" فقط
+- عند اختيار "ضريبة": أظهر "النسبة" فقط
+- عند اختيار "عمل إضافي": أظهر "عدد الساعات" و"سعر الساعة"
+- If "Basic Salary" is selected: show "Amount" only
+- If "Tax" is selected: show "Percentage" only
+- If "Overtime" is selected: show "Hours" and "Hourly Rate"
+
+## 5) إضافة شرح قصير تحت الحقول
+
+## 5) Add Short Helper Text Under Fields
+
+أمثلة نصوص إرشادية:
+Suggested helper text:
+
+- تحت "قالب الراتب": اختر القالب الذي تريد إضافة بند الراتب له.
+- تحت "بند الراتب": مثل راتب أساسي، بدل مواصلات، ضريبة، تأمين.
+- Under "Payroll Template": Select the template you want to add a payroll item to.
+- Under "Payroll Item": For example basic salary, transport allowance, tax, insurance.
+
+## 6) إضافة معاينة قبل الحفظ (Preview)
+
+## 6) Add Preview Before Save
+
+اعرض ملخصًا واضحًا قبل الحفظ لتقليل الأخطاء:
+Show a clear summary before save to reduce mistakes:
+
+ملخص القالب: موظفين إداريين
+Template Summary: Administrative Staff
+
+| البند       | النوع   | القيمة |
+| ----------- | ------- | ------ |
+| راتب أساسي  | استحقاق | 900    |
+| بدل مواصلات | استحقاق | 60     |
+| ضريبة       | استقطاع | 5%     |
+
+| Item                | Type      | Value |
+| ------------------- | --------- | ----- |
+| Basic Salary        | Earning   | 900   |
+| Transport Allowance | Earning   | 60    |
+| Tax                 | Deduction | 5%    |
+
+## 7) إضافة قوالب جاهزة
+
+## 7) Add Ready-Made Templates
+
+لتسريع العمل بدل البدء من الصفر:
+To speed up work instead of starting from scratch:
+
+- إنشاء قالب موظفين إداريين
+- إنشاء قالب موظفين ميدانيين
+- إنشاء قالب شهري
+- إنشاء قالب بالساعة
+- Create Administrative Staff Template
+- Create Field Staff Template
+- Create Monthly Template
+- Create Hourly Template
+
+## 8) تحسين العناوين والأزرار
+
+## 8) Improve Titles And Buttons
+
+العنوان:
+Title:
+
+- بدل: تعيين مكون
+- استخدم: إضافة بند إلى قالب الراتب
+- Replace: Assign Component
+- Use: Add Item To Payroll Template
+
+الزر:
+Button:
+
+- بدل: تعيين
+- استخدم: إضافة البند
+- Replace: Assign
+- Use: Add Item
+
+## 9) نصوص واجهة مقترحة
+
+## 9) Suggested UI Copy
+
+**إنشاء قالب راتب**
+**Create Payroll Template**
+
+"أنشئ قالبًا يحتوي على بنود الراتب التي سيتم تطبيقها على الموظفين."
+"Create a template that contains payroll items to be applied to employees."
+
+**إضافة بند إلى القالب**
+**Add Item To Template**
+
+"اختر القالب، ثم أضف بند راتب مثل راتب أساسي أو بدل أو خصم."
+"Select a template, then add a payroll item such as basic salary, allowance, or deduction."
+
+بهذا الشكل تكون الشاشة واضحة وسهلة للمحاسب بدون تعقيد.
+This makes the screen clear and easy for accountants without unnecessary complexity.

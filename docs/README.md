@@ -27,6 +27,7 @@ Additional phase requirements baselines:
 - [Phase 6 Payroll Requirements](./phase-6-payroll-requirements.md)
 - [Phase 7 Fixed Assets Requirements](./phase-7-fixed-assets-requirements.md)
 - [Phase 8 Reporting Requirements](./phase-8-reporting-requirements.md)
+- [Phase 9 Tax & Compliance Requirements](./phase-9-tax-compliance-requirements.md)
 
 ## Scope
 

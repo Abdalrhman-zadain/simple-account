@@ -32,7 +32,7 @@ Create `backend/.env` with:
 
 ```bash
 DATABASE_URL="postgresql://simple_account_user:simple_account_pass@localhost:54329/simple_account?schema=public"
-PORT=3001
+PORT=3003
 JWT_SECRET="your_highly_secret_key_change_in_production"
 JWT_EXPIRATION="24h"
 ```
