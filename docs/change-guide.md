@@ -44,10 +44,17 @@ What else to check:
 - payment-method type must match an active `PaymentMethodType` from Master Data
 - the default payment-method set is `Bank` and `Cash`; additional methods are managed in Master Data rather than hard-coded in the bank/cash feature
 - linked account must remain unique per bank/cash record
-- account linking autocomplete may be driven either from the dedicated linked-account field or from the account-number/reference search suggestions, but both must resolve to the same posting account selection
+- the create/edit form should let the user select the linked posting account from the dedicated linked-account autocomplete only, but may also create a new eligible linked account inline from that control
+- inline linked-account creation must stay inside the seeded `Cash and Cash Equivalents` asset subtree
+- inline linked-account creation must support both:
+  - creating a new header under `Cash and Cash Equivalents` and then a posting child under that new header
+  - creating a posting child under any existing header within the `Cash and Cash Equivalents` subtree
+- the stored bank/cash `accountNumber`/reference should be generated from the linked chart-of-accounts code rather than typed manually in the form
 - currency must match the linked chart-of-accounts account
-- records typed as `Bank` require `bankName` and `accountNumber`; other types may leave those fields empty
+- records typed as `Bank` require `bankName`; the system derives the reference/account number from the linked chart-of-accounts code
 - if an opening balance is provided, an offset posting account must also be selected so the system can post a balanced opening entry
+- opening-balance offset account choices in the bank/cash create form should be limited to active posting `EQUITY` accounts
+- the bank/cash create form should default the opening-balance offset account to `3410001 Opening Balance Equity` when that posting equity account is available in the chart of accounts
 - deactivated records must stay visible for history but blocked from edit and new selection
 - history reads must come from posted ledger transactions, not drafts
 

@@ -5,8 +5,11 @@ import { BankCashAccountsService } from './bank-cash-accounts.service';
 describe('BankCashAccountsService', () => {
   let service: BankCashAccountsService;
   const prisma = {
+    $transaction: jest.fn(),
     account: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
     },
     paymentMethodType: {
       findFirst: jest.fn(),
@@ -28,10 +31,19 @@ describe('BankCashAccountsService', () => {
   const postingService = {
     post: jest.fn(),
   };
+  const accountsService = {
+    createWithinTransaction: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new BankCashAccountsService(prisma as never, journalEntriesService as never, postingService as never);
+    prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma as never));
+    service = new BankCashAccountsService(
+      prisma as never,
+      accountsService as never,
+      journalEntriesService as never,
+      postingService as never,
+    );
     prisma.paymentMethodType.findFirst.mockImplementation(async ({ where }: { where: { name?: { equals?: string } } }) => {
       const name = where.name?.equals;
       return name ? { name } : null;
@@ -55,7 +67,7 @@ describe('BankCashAccountsService', () => {
       type: 'Bank',
       name: 'Main Bank',
       bankName: 'Arab Bank',
-      accountNumber: '123456',
+      accountNumber: '1100001',
       currencyCode: 'JOD',
       isActive: true,
       createdAt: new Date('2026-04-14T00:00:00.000Z'),
@@ -76,7 +88,7 @@ describe('BankCashAccountsService', () => {
       type: 'Bank',
       name: 'Main Bank Account',
       bankName: 'Arab Bank',
-      accountNumber: '123456',
+      accountNumber: 'manual-reference',
       currencyCode: 'JOD',
       accountId: 'acct-1',
     });
@@ -86,6 +98,7 @@ describe('BankCashAccountsService', () => {
         data: expect.objectContaining({
           type: 'Bank',
           name: 'Main Bank',
+          accountNumber: '1100001',
           account: {
             connect: {
               id: 'acct-1',
@@ -125,7 +138,7 @@ describe('BankCashAccountsService', () => {
         type: 'Bank',
         name: 'Main Bank',
         bankName: 'Arab Bank',
-        accountNumber: '123456',
+        accountNumber: '1100001',
         currencyCode: 'JOD',
         isActive: true,
         createdAt: new Date('2026-04-14T00:00:00.000Z'),
@@ -146,7 +159,7 @@ describe('BankCashAccountsService', () => {
       type: 'Bank',
       name: 'Main Bank',
       bankName: 'Arab Bank',
-      accountNumber: '123456',
+      accountNumber: '1100001',
       currencyCode: 'JOD',
       isActive: true,
       createdAt: new Date('2026-04-14T00:00:00.000Z'),
@@ -169,7 +182,6 @@ describe('BankCashAccountsService', () => {
       type: 'Bank',
       name: 'Main Bank Account',
       bankName: 'Arab Bank',
-      accountNumber: '123456',
       currencyCode: 'JOD',
       accountId: 'acct-1',
       openingBalance: 500,
@@ -287,7 +299,7 @@ describe('BankCashAccountsService', () => {
     await expect(service.update('bc-2', { name: 'Front Desk Cash' })).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('requires bank details for bank accounts', async () => {
+  it('requires bank name for bank accounts', async () => {
     prisma.account.findUnique.mockResolvedValue({
       id: 'acct-bank',
       code: '1100001',
@@ -324,9 +336,8 @@ describe('BankCashAccountsService', () => {
     await expect(
       service.create({
         type: 'Bank',
-      name: 'USD Bank Account',
+        name: 'USD Bank Account',
         bankName: 'Arab Bank',
-        accountNumber: '123456',
         currencyCode: 'JOD',
         accountId: 'acct-foreign',
       }),
@@ -422,7 +433,6 @@ describe('BankCashAccountsService', () => {
         type: 'Bank',
         name: 'Main Bank Account',
         bankName: 'Arab Bank',
-        accountNumber: '123456',
         currencyCode: 'JOD',
         accountId: 'acct-1',
       }),
@@ -492,5 +502,281 @@ describe('BankCashAccountsService', () => {
         }),
       }),
     );
+  });
+
+  it('creates a new header and posting child under Cash and Cash Equivalents', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUniqueOrThrow.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    accountsService.createWithinTransaction
+      .mockResolvedValueOnce({
+        id: 'parent-1',
+        code: '1115000',
+        name: 'Branch Cash',
+        currencyCode: 'JOD',
+      })
+      .mockResolvedValueOnce({
+        id: 'child-1',
+        code: '1115001',
+        name: 'Branch Cash Register',
+        currencyCode: 'JOD',
+        currentBalance: { toString: () => '0.00' },
+      });
+
+    const result = await service.createLinkedAccount({
+      mode: 'create_parent_and_child',
+      currencyCode: 'JOD',
+      childName: 'Branch Cash Register',
+      parentName: 'Branch Cash',
+    });
+
+    expect(accountsService.createWithinTransaction).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        name: 'Branch Cash',
+        type: 'ASSET',
+        isPosting: false,
+        parentAccountId: 'cash-root',
+      }),
+      prisma,
+    );
+    expect(accountsService.createWithinTransaction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        name: 'Branch Cash Register',
+        type: 'ASSET',
+        isPosting: true,
+        parentAccountId: 'parent-1',
+      }),
+      prisma,
+    );
+    expect(result.postingAccount.code).toBe('1115001');
+    expect(result.parentAccount.id).toBe('parent-1');
+  });
+
+  it('creates a posting child under an existing header inside Cash and Cash Equivalents', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUnique
+      .mockResolvedValueOnce({
+        id: 'parent-2',
+        code: '1112000',
+        name: 'Bank Accounts',
+        type: 'ASSET',
+        isPosting: false,
+        isActive: true,
+        currencyCode: 'JOD',
+        parentAccountId: 'cash-root',
+      })
+      .mockResolvedValueOnce({
+        parentAccountId: 'cash-root',
+      })
+      .mockResolvedValueOnce({
+        parentAccountId: 'current-assets',
+      });
+    accountsService.createWithinTransaction.mockResolvedValue({
+      id: 'child-2',
+      code: '1112001',
+      name: 'Arab Bank - Main',
+      currencyCode: 'JOD',
+      currentBalance: { toString: () => '0.00' },
+    });
+
+    const result = await service.createLinkedAccount({
+      mode: 'create_child_under_existing_parent',
+      currencyCode: 'JOD',
+      childName: 'Arab Bank - Main',
+      existingParentAccountId: 'parent-2',
+    });
+
+    expect(accountsService.createWithinTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Arab Bank - Main',
+        parentAccountId: 'parent-2',
+        isPosting: true,
+      }),
+      prisma,
+    );
+    expect(result.parentAccount.id).toBe('parent-2');
+  });
+
+  it('rejects linked-account parents outside the Cash and Cash Equivalents subtree', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUnique
+      .mockResolvedValueOnce({
+        id: 'parent-3',
+        code: '1200000',
+        name: 'Accounts Receivable',
+        type: 'ASSET',
+        isPosting: false,
+        isActive: true,
+        currencyCode: 'JOD',
+        parentAccountId: 'assets-root',
+      })
+      .mockResolvedValueOnce({
+        parentAccountId: 'assets-root',
+      })
+      .mockResolvedValueOnce({
+        parentAccountId: null,
+      });
+
+    await expect(
+      service.createLinkedAccount({
+        mode: 'create_child_under_existing_parent',
+        currencyCode: 'JOD',
+        childName: 'Invalid Child',
+        existingParentAccountId: 'parent-3',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects posting accounts as linked-account parents', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUnique.mockResolvedValue({
+      id: 'posting-parent',
+      code: '1112001',
+      name: 'Operating Bank',
+      type: 'ASSET',
+      isPosting: true,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'cash-root',
+    });
+
+    await expect(
+      service.createLinkedAccount({
+        mode: 'create_child_under_existing_parent',
+        currencyCode: 'JOD',
+        childName: 'Invalid Child',
+        existingParentAccountId: 'posting-parent',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('passes the requested currency into created linked accounts', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'USD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUnique.mockResolvedValueOnce({
+      id: 'parent-usd',
+      code: '1112000',
+      name: 'USD Banks',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'USD',
+      parentAccountId: 'cash-root',
+    });
+    accountsService.createWithinTransaction.mockResolvedValue({
+      id: 'child-usd',
+      code: '1112002',
+      name: 'USD Bank Account',
+      currencyCode: 'USD',
+      currentBalance: { toString: () => '0.00' },
+    });
+
+    await service.createLinkedAccount({
+      mode: 'create_child_under_existing_parent',
+      currencyCode: 'USD',
+      childName: 'USD Bank Account',
+      existingParentAccountId: 'parent-usd',
+    });
+
+    expect(accountsService.createWithinTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currencyCode: 'USD',
+      }),
+      prisma,
+    );
+  });
+
+  it('runs linked-account creation atomically', async () => {
+    prisma.account.findFirst.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      isActive: true,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    prisma.account.findUniqueOrThrow.mockResolvedValue({
+      id: 'cash-root',
+      code: '1110000',
+      name: 'Cash and Cash Equivalents',
+      type: 'ASSET',
+      isPosting: false,
+      currencyCode: 'JOD',
+      parentAccountId: 'current-assets',
+    });
+    accountsService.createWithinTransaction
+      .mockResolvedValueOnce({
+        id: 'parent-atomic',
+        code: '1116000',
+        name: 'Atomic Parent',
+        currencyCode: 'JOD',
+      })
+      .mockRejectedValueOnce(new Error('boom'));
+
+    await expect(
+      service.createLinkedAccount({
+        mode: 'create_parent_and_child',
+        currencyCode: 'JOD',
+        childName: 'Atomic Child',
+        parentName: 'Atomic Parent',
+      }),
+    ).rejects.toThrow('boom');
+
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 });

@@ -113,6 +113,7 @@ Examples:
 - `Card`
 - `StatusPill`
 - `PageShell`
+- shared typography and language-sensitive presentation rules in `app/globals.css` plus reusable form/control primitives in `components/ui`
 
 Do not put these here:
 
@@ -433,6 +434,7 @@ These contracts should remain true unless intentionally changed:
 - feature folders own business UI
 - large feature folders should split orchestration, feature-local components, and feature-local helpers instead of keeping one oversized page file
 - `components/ui` owns reusable primitives only
+- project-wide typography, placeholder, and language-direction polish belongs in shared frontend UI layers (`frontend/app/globals.css`, `frontend/components/ui`), while feature-specific visual tuning stays in the owning feature folder
 - auth belongs to `platform/auth`
 - accounting logic belongs inside the owning implemented backend phase module
 - only implemented ERP phases should be documented as implemented

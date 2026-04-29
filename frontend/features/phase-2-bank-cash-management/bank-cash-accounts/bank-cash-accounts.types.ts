@@ -5,7 +5,6 @@ export type EditorState = {
   type: BankCashAccountType;
   name: string;
   bankName: string;
-  accountNumber: string;
   currencyCode: string;
   accountId: string;
   openingBalance: string;
@@ -16,7 +15,6 @@ export const EMPTY_EDITOR: EditorState = {
   type: "",
   name: "",
   bankName: "",
-  accountNumber: "",
   currencyCode: "JOD",
   accountId: "",
   openingBalance: "",

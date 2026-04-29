@@ -28,12 +28,12 @@ export function BankCashAccountsFilters({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={t("bankCash.filters.search")}
-          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-[15px] font-medium text-gray-900 outline-none placeholder:font-medium placeholder:text-gray-600 focus:ring-2 focus:ring-teal-500/40 arabic-auto arabic-placeholder"
         />
         <select
           value={typeFilter}
           onChange={(event) => onTypeFilterChange(event.target.value as BankCashAccountType | "")}
-          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-[15px] font-medium text-gray-900 outline-none focus:ring-2 focus:ring-teal-500/40 arabic-auto"
         >
           <option value="">{t("bankCash.filters.allTypes")}</option>
           {paymentMethodTypes
@@ -47,7 +47,7 @@ export function BankCashAccountsFilters({
         <select
           value={statusFilter}
           onChange={(event) => onStatusFilterChange(event.target.value as "true" | "false" | "")}
-          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+          className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-[15px] font-medium text-gray-900 outline-none focus:ring-2 focus:ring-teal-500/40 arabic-auto"
         >
           <option value="">{t("bankCash.filters.allStatuses")}</option>
           <option value="true">{t("bankCash.filters.active")}</option>

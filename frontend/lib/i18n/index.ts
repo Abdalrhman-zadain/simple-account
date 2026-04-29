@@ -66,8 +66,8 @@ const enTranslations: Record<string, string> = {
   "bankCash.history.descriptionColumn": "Description",
   "bankCash.history.debit": "Debit",
   "bankCash.history.credit": "Credit",
-  "bankCash.form.createTitle": "New Bank/Cash Account",
-  "bankCash.form.editTitle": "Edit Bank/Cash Account",
+  "bankCash.form.createTitle": "Add New Account",
+  "bankCash.form.editTitle": "Edit Account",
   "bankCash.form.name": "Account Name",
   "bankCash.form.namePlaceholder": "Search by account code or account name",
   "bankCash.form.nameHelp":
@@ -90,6 +90,29 @@ const enTranslations: Record<string, string> = {
     "Start typing the account code or name to filter the chart of accounts.",
   "bankCash.form.linkedAccountEmpty":
     "No matching posting asset account found.",
+  "bankCash.form.linkedAccountCreate.button": "Create account",
+  "bankCash.form.linkedAccountCreate.help":
+    "You can enter the posting child name here, or start from the bank name / cash location if already filled.",
+  "bankCash.form.linkedAccountCreate.title": "Create linked chart account",
+  "bankCash.form.linkedAccountCreate.description":
+    "Create a posting asset account inside Cash and Cash Equivalents without leaving this form.",
+  "bankCash.form.linkedAccountCreate.childNameLabel": "Posting child account name",
+  "bankCash.form.linkedAccountCreate.childNamePlaceholder": "Enter the posting child account name",
+  "bankCash.form.linkedAccountCreate.childNameArLabel": "Posting child account name (Arabic)",
+  "bankCash.form.linkedAccountCreate.childNameArPlaceholder": "Enter the Arabic posting child account name",
+  "bankCash.form.linkedAccountCreate.modeNewParent": "Create a new main account, then a child",
+  "bankCash.form.linkedAccountCreate.modeNewParentHelp":
+    "Adds a new header under Cash and Cash Equivalents, then creates the posting child inside it.",
+  "bankCash.form.linkedAccountCreate.modeExistingParent": "Create a child under an existing main account",
+  "bankCash.form.linkedAccountCreate.modeExistingParentHelp":
+    "Use any existing header account inside the Cash and Cash Equivalents subtree.",
+  "bankCash.form.linkedAccountCreate.parentNameLabel": "New main account name",
+  "bankCash.form.linkedAccountCreate.parentNamePlaceholder": "Enter the new main account name",
+  "bankCash.form.linkedAccountCreate.parentNameArLabel": "New main account name (Arabic)",
+  "bankCash.form.linkedAccountCreate.parentNameArPlaceholder": "Enter the Arabic main account name",
+  "bankCash.form.linkedAccountCreate.existingParentLabel": "Existing main account",
+  "bankCash.form.linkedAccountCreate.existingParentPlaceholder": "Select an existing main account",
+  "bankCash.form.linkedAccountCreate.submit": "Create and select",
   "bankCash.form.openingBalance": "Opening Balance",
   "bankCash.form.openingBalanceHelp":
     "Optional at creation time. If provided, the system posts it immediately to the linked account.",
@@ -103,7 +126,7 @@ const enTranslations: Record<string, string> = {
   "bankCash.error.openingBalanceOffsetRequired":
     "Opening balance offset account is required when an opening balance is provided.",
   "bankCash.form.cancel": "Cancel",
-  "bankCash.form.create": "Create",
+  "bankCash.form.create": "Save",
   "bankCash.form.save": "Save Changes",
   "bankCash.action.edit": "Edit",
   "bankCash.action.deactivate": "Deactivate",

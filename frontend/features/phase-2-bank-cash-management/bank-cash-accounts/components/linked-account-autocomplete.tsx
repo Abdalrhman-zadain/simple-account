@@ -6,8 +6,16 @@ import type { AccountOption } from "@/types/api";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
 
-function formatAccountLabel(option: AccountOption) {
-  return `${option.code} · ${option.name}`;
+function getLocalizedAccountName(option: AccountOption, language: string) {
+  if (language === "ar") {
+    return option.nameAr?.trim() || option.name;
+  }
+
+  return option.name?.trim() || option.nameAr?.trim() || "";
+}
+
+function formatAccountLabel(option: AccountOption, language: string) {
+  return `${option.code} · ${getLocalizedAccountName(option, language)}`;
 }
 
 export function LinkedAccountAutocomplete({
@@ -17,6 +25,9 @@ export function LinkedAccountAutocomplete({
   placeholder,
   helpText,
   emptyText,
+  showHelpText = true,
+  inputClassName,
+  dropdownClassName,
 }: {
   options: AccountOption[];
   value: string;
@@ -24,8 +35,11 @@ export function LinkedAccountAutocomplete({
   placeholder?: string;
   helpText?: string;
   emptyText?: string;
+  showHelpText?: boolean;
+  inputClassName?: string;
+  dropdownClassName?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -42,13 +56,15 @@ export function LinkedAccountAutocomplete({
     }
 
     return options.filter((option) =>
-      [option.code, option.name, option.currencyCode].some((field) => field.toLowerCase().includes(input)),
+      [option.code, option.name, option.nameAr ?? "", option.currencyCode].some((field) =>
+        field.toLowerCase().includes(input),
+      ),
     );
   }, [options, query]);
 
   useEffect(() => {
-    setQuery(selectedOption ? formatAccountLabel(selectedOption) : "");
-  }, [selectedOption]);
+    setQuery(selectedOption ? formatAccountLabel(selectedOption, language) : "");
+  }, [language, selectedOption]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -80,18 +96,28 @@ export function LinkedAccountAutocomplete({
             event.preventDefault();
             const nextOption = filteredOptions[0];
             onSelect(nextOption);
-            setQuery(formatAccountLabel(nextOption));
+            setQuery(formatAccountLabel(nextOption, language));
             setIsOpen(false);
           }
         }}
-        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-500/40"
+        className={cn(
+          "w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-[15px] font-medium text-gray-900 outline-none transition placeholder:font-medium placeholder:text-gray-600 focus:border-teal-300 focus:bg-white focus:ring-2 focus:ring-teal-500/40 arabic-auto arabic-placeholder",
+          inputClassName,
+        )}
       />
-      <p className="mt-1.5 text-xs text-gray-500">{helpText ?? t("bankCash.form.linkedAccountSearchHelp")}</p>
+      {showHelpText ? (
+        <p className="mt-1.5 text-xs text-gray-500 arabic-muted">{helpText ?? t("bankCash.form.linkedAccountSearchHelp")}</p>
+      ) : null}
 
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-72 overflow-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl">
+        <div
+          className={cn(
+            "absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 max-h-72 overflow-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-2xl",
+            dropdownClassName,
+          )}
+        >
           {filteredOptions.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-gray-500">{emptyText ?? t("bankCash.form.linkedAccountEmpty")}</div>
+            <div className="px-3 py-4 text-sm text-gray-500 arabic-muted">{emptyText ?? t("bankCash.form.linkedAccountEmpty")}</div>
           ) : (
             filteredOptions.map((option) => {
               const isSelected = option.id === value;
@@ -103,7 +129,7 @@ export function LinkedAccountAutocomplete({
                   onMouseDown={(event) => {
                     event.preventDefault();
                     onSelect(option);
-                    setQuery(formatAccountLabel(option));
+                    setQuery(formatAccountLabel(option, language));
                     setIsOpen(false);
                   }}
                   className={cn(
@@ -113,11 +139,13 @@ export function LinkedAccountAutocomplete({
                 >
                   <div className="min-w-0">
                     <div className="font-mono text-xs font-bold text-teal-600">{option.code}</div>
-                    <div className="truncate text-sm font-semibold text-gray-900">{option.name}</div>
+                    <div className="truncate text-sm font-semibold text-gray-900 arabic-auto">
+                      {getLocalizedAccountName(option, language)}
+                    </div>
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="text-xs font-bold uppercase tracking-wide text-gray-500">{option.currencyCode}</div>
-                    <div className="text-xs text-gray-500">{formatCurrency(option.currentBalance)}</div>
+                    <div className="text-xs text-gray-500 arabic-muted">{formatCurrency(option.currentBalance)}</div>
                   </div>
                 </button>
               );

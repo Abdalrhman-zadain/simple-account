@@ -39,6 +39,7 @@ Main data involved:
 - parent-child hierarchy
 - posting/header behavior
 - segment assignments
+- bank/cash inline linked-account creation still produces standard Phase 1 `Account` rows, but only within the seeded `Cash and Cash Equivalents` asset subtree
 
 Controller responsibility:
 

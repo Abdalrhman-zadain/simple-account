@@ -2,10 +2,12 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { Prisma } from '../../../generated/prisma';
 
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { AccountsService } from '../../phase-1-accounting-foundation/accounting-core/chart-of-accounts/accounts.service';
 import { JournalEntriesService } from '../../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service';
 import { PostingService } from '../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
 import { AccountNotFoundException } from '../../phase-1-accounting-foundation/accounting-core/validation-rules/accounting-errors';
 import { CreateBankCashAccountDto } from './dto/create-bank-cash-account.dto';
+import { CreateLinkedBankCashAccountDto } from './dto/create-linked-bank-cash-account.dto';
 import { UpdateBankCashAccountDto } from './dto/update-bank-cash-account.dto';
 
 type ListQuery = {
@@ -18,6 +20,7 @@ type ListQuery = {
 export class BankCashAccountsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly accountsService: AccountsService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
   ) {}
@@ -108,6 +111,71 @@ export class BankCashAccountsService {
       }
       throw error;
     }
+  }
+
+  async createLinkedAccount(dto: CreateLinkedBankCashAccountDto) {
+    const childName = dto.childName.trim();
+    const childNameAr = dto.childNameAr?.trim() || undefined;
+    const currencyCode = dto.currencyCode.trim().toUpperCase();
+
+    if (!childName) {
+      throw new BadRequestException('Child account name is required.');
+    }
+
+    if (!currencyCode) {
+      throw new BadRequestException('Currency code is required.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const anchor = await this.findCashAndCashEquivalentsAnchor(tx);
+      const parentAccount = await this.resolveLinkedAccountParent(tx, dto, anchor.id);
+      const createdParent =
+        dto.mode === 'create_parent_and_child'
+          ? await this.accountsService.createWithinTransaction(
+              {
+                name: dto.parentName!.trim(),
+                nameAr: dto.parentNameAr?.trim() || undefined,
+                type: 'ASSET',
+                isPosting: false,
+                parentAccountId: anchor.id,
+                currencyCode,
+                allowManualPosting: false,
+              },
+              tx,
+            )
+          : null;
+
+      const postingParentId = createdParent?.id ?? parentAccount.id;
+      const createdChild = await this.accountsService.createWithinTransaction(
+        {
+          name: childName,
+          nameAr: childNameAr,
+          type: 'ASSET',
+          isPosting: true,
+          parentAccountId: postingParentId,
+          currencyCode,
+          allowManualPosting: true,
+        },
+        tx,
+      );
+
+      return {
+        postingAccount: this.mapAccountOption(createdChild),
+        parentAccount: createdParent
+          ? {
+              id: createdParent.id,
+              code: createdParent.code,
+              name: createdParent.name,
+              currencyCode: createdParent.currencyCode,
+            }
+          : {
+              id: parentAccount.id,
+              code: parentAccount.code,
+              name: parentAccount.name,
+              currencyCode: parentAccount.currencyCode,
+            },
+      };
+    });
   }
 
   async getById(id: string) {
@@ -318,7 +386,6 @@ export class BankCashAccountsService {
     openingBalanceOffsetAccountId: string | null;
   }> {
     const rawBankName = dto.bankName?.trim() || null;
-    const rawAccountNumber = dto.accountNumber?.trim() || null;
     const currencyCode = dto.currencyCode?.trim().toUpperCase();
     const type = await this.normalizeAndValidateType(dto.type);
 
@@ -327,14 +394,10 @@ export class BankCashAccountsService {
     }
 
     const bankName = rawBankName;
-    const accountNumber = rawAccountNumber;
 
     if (this.isBankType(type)) {
       if (!bankName) {
         throw new BadRequestException('Bank name is required for bank accounts.');
-      }
-      if (!accountNumber) {
-        throw new BadRequestException('Account number is required for bank accounts.');
       }
     }
 
@@ -371,6 +434,8 @@ export class BankCashAccountsService {
     if (linkedAccount.currencyCode.toUpperCase() !== currencyCode) {
       throw new BadRequestException('Bank/cash account currency must match the linked chart-of-accounts currency.');
     }
+
+    const accountNumber = linkedAccount.code;
 
     const existingLink = await this.prisma.bankCashAccount.findUnique({
       where: { accountId: linkedAccount.id },
@@ -432,6 +497,149 @@ export class BankCashAccountsService {
       accountId: linkedAccount.id,
       openingBalance,
       openingBalanceOffsetAccountId,
+    };
+  }
+
+  private async findCashAndCashEquivalentsAnchor(
+    db: Pick<PrismaService, 'account'>,
+  ) {
+    const anchor = await db.account.findFirst({
+      where: {
+        type: 'ASSET',
+        isPosting: false,
+        isActive: true,
+        OR: [{ code: '1110000' }, { name: 'Cash and Cash Equivalents' }],
+      },
+      orderBy: [{ code: 'asc' }],
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        type: true,
+        isPosting: true,
+        isActive: true,
+        currencyCode: true,
+        parentAccountId: true,
+      },
+    });
+
+    if (!anchor) {
+      throw new BadRequestException('Cash and Cash Equivalents account is not available.');
+    }
+
+    return anchor;
+  }
+
+  private async resolveLinkedAccountParent(
+    db: Pick<PrismaService, 'account'>,
+    dto: CreateLinkedBankCashAccountDto,
+    anchorId: string,
+  ) {
+    if (dto.mode === 'create_parent_and_child') {
+      const parentName = dto.parentName?.trim();
+      if (!parentName) {
+        throw new BadRequestException('Parent account name is required.');
+      }
+
+      return await db.account.findUniqueOrThrow({
+        where: { id: anchorId },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          isPosting: true,
+          type: true,
+          currencyCode: true,
+          parentAccountId: true,
+        },
+      });
+    }
+
+    const parentId = dto.existingParentAccountId?.trim();
+    if (!parentId) {
+      throw new BadRequestException('Existing parent account is required.');
+    }
+
+    const parent = await db.account.findUnique({
+      where: { id: parentId },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        type: true,
+        isPosting: true,
+        isActive: true,
+        currencyCode: true,
+        parentAccountId: true,
+      },
+    });
+
+    if (!parent) {
+      throw new AccountNotFoundException(parentId);
+    }
+
+    if (!parent.isActive) {
+      throw new BadRequestException('Inactive chart-of-accounts entries cannot be used as linked-account parents.');
+    }
+
+    if (parent.type !== 'ASSET') {
+      throw new BadRequestException('Linked-account parent must belong to the asset chart of accounts.');
+    }
+
+    if (parent.isPosting) {
+      throw new BadRequestException('Posting account cannot be used as a linked-account parent.');
+    }
+
+    const isDescendant = await this.isDescendantOf(db, parent.id, anchorId);
+    if (!isDescendant) {
+      throw new BadRequestException('Linked-account parent must belong to the Cash and Cash Equivalents subtree.');
+    }
+
+    return parent;
+  }
+
+  private async isDescendantOf(
+    db: Pick<PrismaService, 'account'>,
+    accountId: string,
+    ancestorId: string,
+  ) {
+    let currentId: string | null = accountId;
+
+    while (currentId) {
+      if (currentId === ancestorId) {
+        return true;
+      }
+
+      const current: { parentAccountId: string | null } | null = await db.account.findUnique({
+        where: { id: currentId },
+        select: { parentAccountId: true },
+      });
+
+      currentId = current?.parentAccountId ?? null;
+    }
+
+    return false;
+  }
+
+  private mapAccountOption(account: {
+    id: string;
+    code: string;
+    name: string;
+    currentBalance?: Prisma.Decimal | { toString(): string } | null;
+    currencyCode: string;
+    segment3?: string | null;
+    segment4?: string | null;
+    segment5?: string | null;
+  }) {
+    return {
+      id: account.id,
+      code: account.code,
+      name: account.name,
+      currentBalance: account.currentBalance?.toString() ?? '0.00',
+      currencyCode: account.currencyCode,
+      segment3: account.segment3 ?? null,
+      segment4: account.segment4 ?? null,
+      segment5: account.segment5 ?? null,
     };
   }
 

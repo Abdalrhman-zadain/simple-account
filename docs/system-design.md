@@ -214,7 +214,9 @@ Resulting accounting meaning:
 - each payment-method record links to exactly one posting account in the chart of accounts
 - the payment-method type list comes from active `PaymentMethodType` master data entries, so users can add new payment methods without code changes
 - master data seeds `Bank` and `Cash` payment methods by default, and migrated environments also preserve distinct existing bank/cash types as `PaymentMethodType` rows
-- the form can suggest and link the posting account while the user types either the bank reference field or the dedicated linked-account autocomplete, and both search by account code or account name
+- the form links the posting account through the dedicated linked-account autocomplete, and can now create an eligible posting asset account inline without leaving the drawer
+- inline linked-account creation is restricted to the seeded `Cash and Cash Equivalents` asset subtree; users can either create a new header under that anchor and then a posting child, or create a posting child under an existing header anywhere in that subtree
+- the stored bank/cash reference/account number is derived from that linked account code
 - account creation may include an opening balance; when it does, the user must also choose an offset posting account so Phase 1 can post a balanced opening entry
 - once a posting account is chosen, the editor keeps that linked account visible and lets the user explicitly change it
 - records typed as `Bank` still require bank-specific details, while other classes can use the optional detail fields as needed

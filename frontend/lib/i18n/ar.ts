@@ -79,6 +79,29 @@ const arTranslations: Record<string, string> = {
   "bankCash.form.linkedAccountSearchHelp":
     "ابدأ بكتابة رمز الحساب أو اسمه لتصفية دليل الحسابات.",
   "bankCash.form.linkedAccountEmpty": "لم يتم العثور على حساب ترحيل أصل مطابق.",
+  "bankCash.form.linkedAccountCreate.button": "إنشاء حساب",
+  "bankCash.form.linkedAccountCreate.help":
+    "يمكنك كتابة اسم الحساب الفرعي هنا مباشرة، أو البدء من اسم البنك / موقع الصندوق إذا كان مدخلاً.",
+  "bankCash.form.linkedAccountCreate.title": "إنشاء حساب محاسبي مرتبط",
+  "bankCash.form.linkedAccountCreate.description":
+    "أنشئ حساب أصل ترحيلي داخل النقد وما في حكمه بدون مغادرة هذه الشاشة.",
+  "bankCash.form.linkedAccountCreate.childNameLabel": "اسم الحساب الفرعي الترحيلي",
+  "bankCash.form.linkedAccountCreate.childNamePlaceholder": "أدخل اسم الحساب الفرعي الترحيلي",
+  "bankCash.form.linkedAccountCreate.childNameArLabel": "اسم الحساب الفرعي بالعربية",
+  "bankCash.form.linkedAccountCreate.childNameArPlaceholder": "أدخل اسم الحساب الفرعي بالعربية",
+  "bankCash.form.linkedAccountCreate.modeNewParent": "إنشاء حساب رئيسي جديد ثم حساب فرعي",
+  "bankCash.form.linkedAccountCreate.modeNewParentHelp":
+    "ينشئ حساباً رئيسياً جديداً تحت النقد وما في حكمه ثم ينشئ الحساب الفرعي داخله.",
+  "bankCash.form.linkedAccountCreate.modeExistingParent": "إنشاء حساب فرعي تحت حساب رئيسي موجود",
+  "bankCash.form.linkedAccountCreate.modeExistingParentHelp":
+    "استخدم أي حساب رئيسي موجود داخل شجرة النقد وما في حكمه.",
+  "bankCash.form.linkedAccountCreate.parentNameLabel": "اسم الحساب الرئيسي الجديد",
+  "bankCash.form.linkedAccountCreate.parentNamePlaceholder": "أدخل اسم الحساب الرئيسي الجديد",
+  "bankCash.form.linkedAccountCreate.parentNameArLabel": "اسم الحساب الرئيسي الجديد بالعربية",
+  "bankCash.form.linkedAccountCreate.parentNameArPlaceholder": "أدخل اسم الحساب الرئيسي الجديد بالعربية",
+  "bankCash.form.linkedAccountCreate.existingParentLabel": "الحساب الرئيسي الموجود",
+  "bankCash.form.linkedAccountCreate.existingParentPlaceholder": "اختر حساباً رئيسياً موجوداً",
+  "bankCash.form.linkedAccountCreate.submit": "إنشاء واختيار",
   "bankCash.form.cancel": "إلغاء",
   "bankCash.form.create": "إنشاء",
   "bankCash.form.save": "حفظ التغييرات",

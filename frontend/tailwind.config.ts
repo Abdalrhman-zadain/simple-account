@@ -19,6 +19,7 @@ const config: Config = {
         panel: "0 8px 32px 0 rgba(0, 0, 0, 0.1)",
       },
       fontFamily: {
+        arabic: ["Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", "sans-serif"],
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },

@@ -18,9 +18,9 @@ export function Field({
       <span className="mb-2 block text-sm font-semibold tracking-wide text-gray-900">{label}</span>
       {children}
       {error ? (
-        <span className="mt-2 block text-sm font-medium text-red-400">{error}</span>
+        <span className="mt-2 block text-sm font-medium text-red-400 arabic-auto">{error}</span>
       ) : hint ? (
-        <span className="mt-2 block text-[13px] font-medium text-gray-500">{hint}</span>
+        <span className="mt-2 block text-[13px] font-medium text-gray-500 arabic-muted">{hint}</span>
       ) : null}
     </label>
   );
@@ -32,7 +32,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       {...props}
       ref={ref}
       className={cn(
-        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10",
+        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[15px] font-medium text-gray-900 outline-none transition-all placeholder:font-medium placeholder:text-gray-600 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10 arabic-auto arabic-placeholder",
         props.className,
       )}
     />
@@ -46,7 +46,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
       {...props}
       ref={ref}
       className={cn(
-        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10 [&>option]:bg-white",
+        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[15px] font-medium text-gray-900 outline-none transition-all focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10 arabic-auto arabic-placeholder [&>option]:bg-white [&>option]:font-medium",
         props.className,
       )}
     />
@@ -60,7 +60,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
       {...props}
       ref={ref}
       className={cn(
-        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10",
+        "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[15px] font-medium text-gray-900 outline-none transition-all placeholder:font-medium placeholder:text-gray-600 focus:border-teal-500 focus:bg-gray-50 focus:ring-4 focus:ring-teal-500/10 arabic-auto arabic-placeholder",
         props.className,
       )}
     />

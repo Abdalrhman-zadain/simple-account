@@ -69,6 +69,8 @@ import {
   CreateSupplierPaymentPayload,
   CreateSupplierPayload,
   CreateBankCashAccountPayload,
+  CreateLinkedBankCashAccountPayload,
+  CreateLinkedBankCashAccountResponse,
   CreateBankReconciliationMatchPayload,
   CreateBankReconciliationPayload,
   CreateBankStatementLinePayload,
@@ -432,6 +434,20 @@ export async function createBankCashAccount(
     body: JSON.stringify(payload),
     token,
   });
+}
+
+export async function createLinkedBankCashAccount(
+  payload: CreateLinkedBankCashAccountPayload,
+  token?: string | null,
+) {
+  return apiRequest<CreateLinkedBankCashAccountResponse>(
+    "/bank-cash-accounts/linked-account",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      token,
+    },
+  );
 }
 
 export async function updateBankCashAccount(

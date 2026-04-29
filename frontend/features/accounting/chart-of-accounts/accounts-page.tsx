@@ -26,13 +26,14 @@ import { AccountsBreadcrumbs } from "./components/accounts-breadcrumbs";
 import { AccountsSearchBar, AccountsSearchBarHandle } from "./components/accounts-search-bar";
 import { AccountsStatsSummary } from "./components/accounts-stats-summary";
 import { AccountsTable } from "./components/accounts-table";
+import { getLocalizedAccountName } from "./chart-of-accounts.naming";
 
 export function AccountsPage() {
   const { token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const parentId = searchParams.get("parentId") || null;
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,7 +138,7 @@ export function AccountsPage() {
                 <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
               </button>
             )}
-            <span>{parentAccount ? parentAccount.name : t("accounts.title.root")}</span>
+            <span>{parentAccount ? getLocalizedAccountName(parentAccount, language) : t("accounts.title.root")}</span>
           </div>
         }
         description={parentAccount ? t("accounts.title.childrenOf", { code: parentAccount.code }) : t("accounts.description.root")}

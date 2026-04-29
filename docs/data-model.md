@@ -40,7 +40,7 @@ Accounting meaning:
 - real posting targets are controlled by `isPosting`
 - current account balance is stored directly and updated by posting logic
 - operational bank/cash records wrap specific posting accounts for balance and history views
-- records typed as `Bank` require `bankName` and `accountNumber`; other payment-method types may leave those fields empty or use them as operational references
+- records typed as `Bank` require `bankName`; the operational `accountNumber`/reference is now derived from the linked chart-of-accounts account code instead of being entered manually
 - receipt, payment, and transfer records are stored as `BankCashTransaction` rows and affect balances only after posting creates a journal entry
 - reconciliation work is stored separately from operational transactions so statement lines and matching status do not alter balances directly
 - bank/cash opening balances are not stored as a separate balance field; they are posted as normal journal/ledger history against the linked account and an offset posting account

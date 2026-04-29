@@ -22,7 +22,9 @@ export function BankCashAccountsTable({
   onEdit: (row: BankCashAccount) => void;
   onDeactivate: (id: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const localizeName = (name: string, nameAr?: string | null) =>
+    language === "ar" ? nameAr?.trim() || name : name;
 
   return (
     <Card className="overflow-hidden border border-gray-200 bg-panel/40 p-0">
@@ -61,13 +63,13 @@ export function BankCashAccountsTable({
               >
                 <td className="px-6 py-4">
                   <button className="text-left" onClick={() => onSelect(row.id)}>
-                    <div className="font-bold text-gray-900">{row.name}</div>
-                    <div className="font-mono text-xs text-teal-500">
-                      {row.account.code} · {row.account.name}
+                    <div className="font-bold text-gray-900 arabic-auto">{localizeName(row.name)}</div>
+                    <div className="font-mono text-xs text-teal-500 arabic-auto">
+                      {row.account.code} - {row.account.name}
                     </div>
                   </button>
                 </td>
-                <td className="px-6 py-4 text-xs text-gray-500">
+                <td className="px-6 py-4 text-xs text-gray-500 arabic-muted">
                   {row.bankName || row.accountNumber || "—"}
                 </td>
                 <td className="px-6 py-4">

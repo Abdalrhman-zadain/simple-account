@@ -6,6 +6,8 @@ import { LuChevronRight as ChevronRight, LuHouse as Home } from "react-icons/lu"
 import { useTranslation } from "@/lib/i18n";
 import { Account } from "@/types/api";
 
+import { getLocalizedAccountName } from "../chart-of-accounts.naming";
+
 export function AccountsBreadcrumbs({
   parentAccount,
   onNavigate,
@@ -13,7 +15,7 @@ export function AccountsBreadcrumbs({
   parentAccount: Account | null | undefined;
   onNavigate: (accountId: string | null) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-y-2 text-sm text-gray-500">
@@ -32,7 +34,7 @@ export function AccountsBreadcrumbs({
             onClick={() => onNavigate(ancestor.id)}
             className="transition-colors hover:text-teal-500"
           >
-            {ancestor.name}
+            {getLocalizedAccountName(ancestor, language)}
           </button>
         </React.Fragment>
       ))}
@@ -40,7 +42,7 @@ export function AccountsBreadcrumbs({
       {parentAccount && (
         <>
           <ChevronRight className="mx-2 h-4 w-4 opacity-30" />
-          <span className="font-bold text-gray-900">{parentAccount.name}</span>
+          <span className="font-bold text-gray-900">{getLocalizedAccountName(parentAccount, language)}</span>
         </>
       )}
     </div>

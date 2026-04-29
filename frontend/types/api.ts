@@ -2567,6 +2567,25 @@ export type CreateBankCashAccountPayload = {
 export type UpdateBankCashAccountPayload =
   Partial<CreateBankCashAccountPayload>;
 
+export type LinkedBankCashAccountCreationMode =
+  | "create_parent_and_child"
+  | "create_child_under_existing_parent";
+
+export type CreateLinkedBankCashAccountPayload = {
+  mode: LinkedBankCashAccountCreationMode;
+  currencyCode: string;
+  childName: string;
+  childNameAr?: string;
+  parentName?: string;
+  parentNameAr?: string;
+  existingParentAccountId?: string;
+};
+
+export type CreateLinkedBankCashAccountResponse = {
+  postingAccount: AccountOption;
+  parentAccount: Pick<Account, "id" | "code" | "name" | "currencyCode">;
+};
+
 export type BankCashAccountTransaction = {
   id: string;
   reference: string;
@@ -2626,6 +2645,7 @@ export type Account = {
   ancestors?: Array<{
     id: string;
     name: string;
+    nameAr?: string | null;
     code: string;
     parentAccountId: string | null;
   }>;
@@ -2635,7 +2655,15 @@ export type Account = {
 
 export type AccountOption = Pick<
   Account,
-  "id" | "code" | "name" | "currentBalance" | "currencyCode" | "segment3" | "segment4" | "segment5"
+  | "id"
+  | "code"
+  | "name"
+  | "nameAr"
+  | "currentBalance"
+  | "currencyCode"
+  | "segment3"
+  | "segment4"
+  | "segment5"
 >;
 
 export type AccountTableRow = Pick<
@@ -2643,6 +2671,7 @@ export type AccountTableRow = Pick<
   | "id"
   | "code"
   | "name"
+  | "nameAr"
   | "type"
   | "isPosting"
   | "isActive"
@@ -2650,7 +2679,7 @@ export type AccountTableRow = Pick<
   | "parentAccountId"
 > & {
   canDelete: boolean;
-  parentAccount?: { id: string; name: string } | null;
+  parentAccount?: { id: string; name: string; nameAr?: string | null } | null;
 };
 
 export type AccountTreeNode = Account & {

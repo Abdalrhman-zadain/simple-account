@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuCirclePlus as CirclePlus } from "react-icons/lu";
 
 import type { BankCashAccount, BankCashAccountTransaction, BankCashAccountType } from "@/types/api";
 import {
+  createLinkedBankCashAccount,
   createBankCashAccount,
+  getAccountsTree,
   deactivateBankCashAccount,
   getAccountOptions,
   getBankCashAccounts,
@@ -25,6 +27,15 @@ import { BankCashAccountEditor } from "./components/bank-cash-account-editor";
 import { BankCashAccountsFilters } from "./components/bank-cash-accounts-filters";
 import { BankCashAccountsSummary } from "./components/bank-cash-accounts-summary";
 import { BankCashAccountsTable } from "./components/bank-cash-accounts-table";
+import type { LinkedAccountParentOption } from "./components/linked-account-creator";
+
+type AccountTreeLike = {
+  id: string;
+  code: string;
+  name: string;
+  isPosting: boolean;
+  children?: AccountTreeLike[];
+};
 
 export function BankCashAccountsPage() {
   const { token } = useAuth();
@@ -36,6 +47,7 @@ export function BankCashAccountsPage() {
   const [statusFilter, setStatusFilter] = useState<"true" | "false" | "">("true");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isLinkedAccountCreatorOpen, setIsLinkedAccountCreatorOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(EMPTY_EDITOR);
 
   const accountsQuery = useQuery({
@@ -51,8 +63,20 @@ export function BankCashAccountsPage() {
   });
 
   const offsetAccountsQuery = useQuery({
-    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
-    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+    queryKey: queryKeys.accounts(token, {
+      isPosting: "true",
+      isActive: "true",
+      type: "EQUITY",
+      view: "selector",
+    }),
+    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "EQUITY" }, token),
+    enabled: isEditorOpen,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const accountHierarchyQuery = useQuery({
+    queryKey: ["accounts-tree", token, "bank-cash-linked-account", isEditorOpen],
+    queryFn: () => getAccountsTree({ type: "ASSET", isActive: "true" }, token),
     enabled: isEditorOpen,
     staleTime: 5 * 60 * 1000,
   });
@@ -84,6 +108,22 @@ export function BankCashAccountsPage() {
     },
   });
 
+  const createLinkedAccountMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof createLinkedBankCashAccount>[0]) =>
+      createLinkedBankCashAccount(payload, token),
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["accounts-tree"] });
+      setEditor((current) => ({
+        ...current,
+        name: created.postingAccount.name,
+        accountId: created.postingAccount.id,
+        currencyCode: created.postingAccount.currencyCode,
+      }));
+      setIsLinkedAccountCreatorOpen(false);
+    },
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => updateBankCashAccount(editor.id!, toPayload(editor), token),
     onSuccess: (updated) => {
@@ -108,14 +148,47 @@ export function BankCashAccountsPage() {
   const historyRows: BankCashAccountTransaction[] = transactionsQuery.data?.transactions ?? [];
   const activeCount = rows.filter((row) => row.isActive).length;
   const totalBalance = rows.reduce((sum, row) => sum + Number(row.currentBalance), 0);
+  const defaultOpeningBalanceOffsetAccountId =
+    (offsetAccountsQuery.data ?? []).find((account) => account.code === "3410001")?.id ?? "";
 
   const editorError = useMemo(() => {
     const error = createMutation.error ?? updateMutation.error;
     return error instanceof Error ? localizeBankCashAccountError(error.message, t) : null;
   }, [createMutation.error, t, updateMutation.error]);
 
+  const linkedAccountCreatorError = useMemo(() => {
+    const error = createLinkedAccountMutation.error;
+    return error instanceof Error ? error.message : null;
+  }, [createLinkedAccountMutation.error]);
+
+  const linkedAccountParentOptions = useMemo(
+    () => buildLinkedAccountParentOptions(accountHierarchyQuery.data ?? []),
+    [accountHierarchyQuery.data],
+  );
+
+  useEffect(() => {
+    if (!isEditorOpen || editor.id || editor.openingBalanceOffsetAccountId || !defaultOpeningBalanceOffsetAccountId) {
+      return;
+    }
+
+    setEditor((current) => {
+      if (current.id || current.openingBalanceOffsetAccountId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        openingBalanceOffsetAccountId: defaultOpeningBalanceOffsetAccountId,
+      };
+    });
+  }, [defaultOpeningBalanceOffsetAccountId, editor.id, editor.openingBalanceOffsetAccountId, isEditorOpen]);
+
   const openCreate = () => {
-    setEditor(EMPTY_EDITOR);
+    setEditor({
+      ...EMPTY_EDITOR,
+      openingBalanceOffsetAccountId: defaultOpeningBalanceOffsetAccountId,
+    });
+    setIsLinkedAccountCreatorOpen(false);
     setIsEditorOpen(true);
   };
 
@@ -125,12 +198,12 @@ export function BankCashAccountsPage() {
       type: row.type,
       name: row.account.name,
       bankName: row.bankName ?? "",
-      accountNumber: row.accountNumber ?? "",
       currencyCode: row.currencyCode,
       accountId: row.account.id,
       openingBalance: "",
       openingBalanceOffsetAccountId: "",
     });
+    setIsLinkedAccountCreatorOpen(false);
     setIsEditorOpen(true);
   };
 
@@ -194,9 +267,19 @@ export function BankCashAccountsPage() {
         paymentMethodTypes={paymentMethodTypesQuery.data ?? []}
         errorMessage={editorError}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
-        onClose={() => setIsEditorOpen(false)}
+        isLinkedAccountCreatorOpen={isLinkedAccountCreatorOpen}
+        linkedAccountCreatorError={linkedAccountCreatorError}
+        linkedAccountParentOptions={linkedAccountParentOptions}
+        isCreatingLinkedAccount={createLinkedAccountMutation.isPending}
+        onClose={() => {
+          setIsLinkedAccountCreatorOpen(false);
+          setIsEditorOpen(false);
+        }}
         onSubmit={submit}
         onChange={setEditor}
+        onLinkedAccountCreatorOpen={() => setIsLinkedAccountCreatorOpen(true)}
+        onLinkedAccountCreatorClose={() => setIsLinkedAccountCreatorOpen(false)}
+        onLinkedAccountCreate={(payload) => createLinkedAccountMutation.mutate(payload)}
       />
     </div>
   );
@@ -207,7 +290,6 @@ function toPayload(editor: EditorState) {
     type: editor.type,
     name: editor.name,
     bankName: editor.bankName || undefined,
-    accountNumber: editor.accountNumber || undefined,
     currencyCode: editor.currencyCode,
     accountId: editor.accountId,
     openingBalance: editor.openingBalance ? Number(editor.openingBalance) : undefined,
@@ -225,4 +307,47 @@ function localizeBankCashAccountError(message: string, t: (key: string) => strin
   }
 
   return message;
+}
+
+function buildLinkedAccountParentOptions(nodes: AccountTreeLike[]) {
+  const anchor = findCashAndCashEquivalentsNode(nodes);
+  if (!anchor) {
+    return [] satisfies LinkedAccountParentOption[];
+  }
+
+  return collectHeaderDescendants(anchor.children ?? [], 0);
+}
+
+function findCashAndCashEquivalentsNode(nodes: AccountTreeLike[]): AccountTreeLike | null {
+  for (const node of nodes) {
+    if (node.code === "1110000" || node.name === "Cash and Cash Equivalents") {
+      return node;
+    }
+
+    const nested = findCashAndCashEquivalentsNode(node.children ?? []);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+function collectHeaderDescendants(nodes: AccountTreeLike[], depth: number) {
+  const out: LinkedAccountParentOption[] = [];
+
+  for (const node of nodes) {
+    if (!node.isPosting) {
+      out.push({
+        id: node.id,
+        code: node.code,
+        name: node.name,
+        depth,
+      });
+    }
+
+    out.push(...collectHeaderDescendants(node.children ?? [], depth + 1));
+  }
+
+  return out;
 }

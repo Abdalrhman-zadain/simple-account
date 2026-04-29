@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
 import { AccountTableRow } from "@/types/api";
 
+import { getLocalizedAccountName } from "../chart-of-accounts.naming";
 import { TYPE_STYLES } from "../chart-of-accounts.utils";
 
 export function AccountRow({
@@ -29,9 +30,11 @@ export function AccountRow({
   onDeactivate: () => void;
   onDelete: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const balanceNum = parseFloat(account.currentBalance);
   const style = TYPE_STYLES[account.type];
+  const displayName = getLocalizedAccountName(account, language);
+  const displayParentName = account.parentAccount ? getLocalizedAccountName(account.parentAccount, language) : null;
 
   return (
     <tr className={cn("group transition-all hover:bg-gray-50", !account.isPosting && "cursor-pointer")} onClick={onEnter}>
@@ -52,7 +55,7 @@ export function AccountRow({
                   account.isActive ? "text-gray-900 group-hover:text-teal-400" : "text-gray-500 line-through",
                 )}
               >
-                {account.name}
+                {displayName}
               </span>
               {!account.isPosting && (
                 <ChevronRight className="h-3 w-3 text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-teal-500" />
@@ -74,7 +77,7 @@ export function AccountRow({
                 <>
                   <div className="h-1 w-1 rounded-full bg-zinc-700" />
                   <div className="max-w-[200px] truncate text-[10px] font-medium uppercase tracking-wider text-teal-500/70">
-                    {t("accounts.row.inParent", { name: account.parentAccount.name })}
+                    {t("accounts.row.inParent", { name: displayParentName ?? account.parentAccount.name })}
                   </div>
                 </>
               )}

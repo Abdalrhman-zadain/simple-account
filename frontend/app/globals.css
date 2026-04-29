@@ -44,7 +44,51 @@
   }
 
   .app-field {
-    @apply w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-gray-900 focus:bg-white;
+    @apply w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition placeholder:font-medium placeholder:text-gray-600 focus:border-gray-900 focus:bg-white;
+  }
+}
+
+@layer utilities {
+  .font-arabic {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    direction: rtl;
+    unicode-bidi: embed;
+  }
+
+  html:lang(ar) .arabic-auto {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.75;
+  }
+
+  html:lang(ar) .arabic-muted {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.8;
+    color: #5f6672;
+  }
+
+  html:lang(ar) .arabic-heading {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.45;
+  }
+
+  html:lang(ar) .arabic-placeholder::placeholder {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: #8a919d;
+    opacity: 1;
+  }
+
+  html:lang(ar) .arabic-option {
+    font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 }
 
@@ -65,6 +109,10 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html:lang(ar) body {
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 @media (min-width: 1440px) {
@@ -116,9 +164,3 @@ pre {
   background: rgba(0, 0, 0, 0.18);
 }
 
-/* Arabic font rendering */
-.font-arabic {
-  font-family: "Noto Naskh Arabic", "Scheherazade New", "Arial", sans-serif;
-  direction: rtl;
-  unicode-bidi: embed;
-}

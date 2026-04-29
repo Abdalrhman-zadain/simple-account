@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@ne
 
 import { JwtAuthGuard } from '../../platform/auth/guards/jwt-auth.guard';
 import { CreateBankCashAccountDto } from './dto/create-bank-cash-account.dto';
+import { CreateLinkedBankCashAccountDto } from './dto/create-linked-bank-cash-account.dto';
 import { UpdateBankCashAccountDto } from './dto/update-bank-cash-account.dto';
 import { BankCashAccountsService } from './bank-cash-accounts.service';
 
@@ -22,6 +23,11 @@ export class BankCashAccountsController {
   @Post()
   create(@Body() dto: CreateBankCashAccountDto) {
     return this.service.create(dto);
+  }
+
+  @Post('linked-account')
+  createLinkedAccount(@Body() dto: CreateLinkedBankCashAccountDto) {
+    return this.service.createLinkedAccount(dto);
   }
 
   @Get(':id')

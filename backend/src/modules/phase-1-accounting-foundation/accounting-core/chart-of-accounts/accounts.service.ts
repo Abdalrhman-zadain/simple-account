@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Prisma, type PrismaClient } from '../../../../generated/prisma/index';
+import { Prisma, type PrismaClient, type Account } from '../../../../generated/prisma/index';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { AccountNotFoundException } from '../validation-rules/accounting-errors';
@@ -39,78 +39,80 @@ export class AccountsService {
     }
   }
 
-  async create(dto: CreateAccountDto) {
+  async create(dto: CreateAccountDto): Promise<Account> {
+    return this.prisma.$transaction(async (tx) => this.createWithinTransaction(dto, tx));
+  }
+
+  async createWithinTransaction(dto: CreateAccountDto, db: DbClient): Promise<Account> {
     for (let attempt = 0; attempt < ACCOUNT_CREATE_MAX_ATTEMPTS; attempt++) {
       try {
-        return await this.prisma.$transaction(async (tx) => {
-          const normalizedSubtype = this.normalizeSubtype(dto.subtype ?? undefined);
-          if (normalizedSubtype) {
-            await this.ensureAccountSubtypeIsActive(normalizedSubtype, tx);
-          }
+        const normalizedSubtype = this.normalizeSubtype(dto.subtype ?? undefined);
+        if (normalizedSubtype) {
+          await this.ensureAccountSubtypeIsActive(normalizedSubtype, db);
+        }
 
-          const parentAccount = dto.parentAccountId
-            ? await this.ensureAccountCanOwnChildren(dto.parentAccountId, tx)
-            : null;
+        const parentAccount = dto.parentAccountId
+          ? await this.ensureAccountCanOwnChildren(dto.parentAccountId, db)
+          : null;
 
-          const requestedIsPosting = dto.isPosting ?? true;
+        const requestedIsPosting = dto.isPosting ?? true;
 
-          const finalCode = await this.allocateNextAccountCode(tx, dto.parentAccountId ?? null, {
-            isPosting: requestedIsPosting,
-            type: dto.type,
-          });
-
-          let finalType = dto.type;
-          if (!finalType && parentAccount) {
-            finalType = parentAccount.type;
-          }
-
-          if (parentAccount && dto.type && dto.type !== parentAccount.type) {
-            throw new BadRequestException('Child account type must match the parent account type.');
-          }
-
-          if (parentAccount) {
-            finalType = parentAccount.type;
-          }
-
-          finalType = finalType || 'ASSET';
-
-          // 7-digit numeric root codes (e.g. 5000000) are structural headers by definition.
-          const isNumeric7Root = dto.parentAccountId == null && /^\d000000$/.test(finalCode);
-          const finalIsPosting = isNumeric7Root ? false : requestedIsPosting;
-
-          try {
-            return await tx.account.create({
-              data: {
-                code: finalCode,
-                name: dto.name,
-                nameAr: dto.nameAr,
-                description: dto.description,
-                type: finalType as never,
-                subtype: normalizedSubtype,
-                isPosting: finalIsPosting,
-                segment1: dto.segment1,
-                segment2: dto.segment2,
-                segment3: dto.segment3,
-                segment4: dto.segment4,
-                segment5: dto.segment5,
-                segment1ValueId: dto.segment1ValueId,
-                segment2ValueId: dto.segment2ValueId,
-                segment3ValueId: dto.segment3ValueId,
-                segment4ValueId: dto.segment4ValueId,
-                segment5ValueId: dto.segment5ValueId,
-                currencyCode: dto.currencyCode || 'JOD',
-                parentAccountId: dto.parentAccountId,
-                allowManualPosting: dto.allowManualPosting,
-              },
-            });
-          } catch (error) {
-            if (this.isPostingLeafConstraint(error)) {
-              throw new BadRequestException(this.getPostingLeafConstraintMessage(error));
-            }
-
-            throw error;
-          }
+        const finalCode = await this.allocateNextAccountCode(db, dto.parentAccountId ?? null, {
+          isPosting: requestedIsPosting,
+          type: dto.type,
         });
+
+        let finalType = dto.type;
+        if (!finalType && parentAccount) {
+          finalType = parentAccount.type;
+        }
+
+        if (parentAccount && dto.type && dto.type !== parentAccount.type) {
+          throw new BadRequestException('Child account type must match the parent account type.');
+        }
+
+        if (parentAccount) {
+          finalType = parentAccount.type;
+        }
+
+        finalType = finalType || 'ASSET';
+
+        // 7-digit numeric root codes (e.g. 5000000) are structural headers by definition.
+        const isNumeric7Root = dto.parentAccountId == null && /^\d000000$/.test(finalCode);
+        const finalIsPosting = isNumeric7Root ? false : requestedIsPosting;
+
+        try {
+          return await db.account.create({
+            data: {
+              code: finalCode,
+              name: dto.name,
+              nameAr: dto.nameAr,
+              description: dto.description,
+              type: finalType as never,
+              subtype: normalizedSubtype,
+              isPosting: finalIsPosting,
+              segment1: dto.segment1,
+              segment2: dto.segment2,
+              segment3: dto.segment3,
+              segment4: dto.segment4,
+              segment5: dto.segment5,
+              segment1ValueId: dto.segment1ValueId,
+              segment2ValueId: dto.segment2ValueId,
+              segment3ValueId: dto.segment3ValueId,
+              segment4ValueId: dto.segment4ValueId,
+              segment5ValueId: dto.segment5ValueId,
+              currencyCode: dto.currencyCode || 'JOD',
+              parentAccountId: dto.parentAccountId,
+              allowManualPosting: dto.allowManualPosting,
+            },
+          });
+        } catch (error) {
+          if (this.isPostingLeafConstraint(error)) {
+            throw new BadRequestException(this.getPostingLeafConstraintMessage(error));
+          }
+
+          throw error;
+        }
       } catch (error) {
         if (this.isAccountCodeUniqueConflict(error) && attempt < ACCOUNT_CREATE_MAX_ATTEMPTS - 1) {
           continue;
@@ -121,6 +123,8 @@ export class AccountsService {
         throw error;
       }
     }
+
+    throw new ConflictException('Unable to create account. Please try again.');
   }
 
   /**
@@ -403,6 +407,7 @@ export class AccountsService {
         id: true,
         code: true,
         name: true,
+        nameAr: true,
         currentBalance: true,
         currencyCode: true,
       },
@@ -424,6 +429,7 @@ export class AccountsService {
         id: true,
         code: true,
         name: true,
+        nameAr: true,
         type: true,
         isPosting: true,
         isActive: true,
@@ -433,6 +439,7 @@ export class AccountsService {
           select: {
             id: true,
             name: true,
+            nameAr: true,
           },
         },
         _count: {
@@ -528,6 +535,7 @@ export class AccountsService {
           select: {
             id: true,
             name: true,
+            nameAr: true,
             code: true,
             parentAccountId: true,
           }
@@ -547,7 +555,7 @@ export class AccountsService {
     };
   }
 
-  private async getAncestors(id: string): Promise<Array<{ id: string; name: string; code: string; parentAccountId: string | null }>> {
+  private async getAncestors(id: string): Promise<Array<{ id: string; name: string; nameAr: string | null; code: string; parentAccountId: string | null }>> {
     const account = await this.prisma.account.findUnique({
       where: { id },
       select: { parentAccountId: true }
@@ -559,7 +567,7 @@ export class AccountsService {
 
     const parent = await this.prisma.account.findUnique({
       where: { id: account.parentAccountId },
-      select: { id: true, name: true, code: true, parentAccountId: true }
+      select: { id: true, name: true, nameAr: true, code: true, parentAccountId: true }
     });
 
     if (!parent) {

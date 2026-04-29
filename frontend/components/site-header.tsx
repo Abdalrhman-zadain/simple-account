@@ -327,7 +327,7 @@ export function SiteHeader({
         isCollapsed ? "w-20" : "w-60",
       )}
     >
-      <div className={cn("flex items-center border-b border-gray-200 px-6 py-8", isCollapsed ? "justify-center" : "gap-4")}>
+      <div className={cn("flex items-center border-b border-gray-200 px-6 py-2.5", isCollapsed ? "justify-center" : "gap-4")}>
         <SiQuickbooks className="h-10 w-10 text-primary" />
         <div className={cn(isCollapsed && "sr-only")}>
           <div className="text-base font-black tracking-tight text-gray-900">{t("app.title")}</div>
