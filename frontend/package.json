@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/next-run.ps1 dev",
-    "build": "powershell -ExecutionPolicy Bypass -File ./scripts/next-run.ps1 build",
-    "start": "powershell -ExecutionPolicy Bypass -File ./scripts/next-run.ps1 start",
+    "dev": "node ./scripts/next-run.mjs dev",
+    "build": "node ./scripts/next-run.mjs build",
+    "start": "node ./scripts/next-run.mjs start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

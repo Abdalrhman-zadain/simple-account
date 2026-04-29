@@ -37,7 +37,6 @@ import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
 type EditorState = {
   id?: string;
-  reference: string;
   transactionDate: string;
   amount: string;
   description: string;
@@ -49,7 +48,6 @@ type EditorState = {
 };
 
 const EMPTY_EDITOR: EditorState = {
-  reference: "",
   transactionDate: new Date().toISOString().slice(0, 10),
   amount: "",
   description: "",
@@ -156,7 +154,6 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
   const openEdit = (row: BankCashTransaction) => {
     setEditor({
       id: row.id,
-      reference: row.reference,
       transactionDate: row.transactionDate.slice(0, 10),
       amount: row.amount,
       description: row.description ?? "",
@@ -358,10 +355,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
         title={editor.id ? t("bankCashTransactions.form.editTitle") : t(transactionButtonKey(kind))}
       >
         <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("bankCashTransactions.form.reference")} hint={t("bankCashTransactions.form.referenceHint")}>
-              <Input value={editor.reference} onChange={(event) => setEditor((current) => ({ ...current, reference: event.target.value }))} />
-            </Field>
+          <div className="grid gap-4 md:grid-cols-1">
             <Field label={t("bankCashTransactions.form.date")}>
               <Input type="date" value={editor.transactionDate} onChange={(event) => setEditor((current) => ({ ...current, transactionDate: event.target.value }))} />
             </Field>
@@ -508,7 +502,6 @@ async function createTransaction(kind: BankCashTransactionKind, editor: EditorSt
   if (kind === "RECEIPT") {
     return createReceiptTransaction(
       {
-        reference: editor.reference || undefined,
         transactionDate: editor.transactionDate,
         amount,
         bankCashAccountId: editor.bankCashAccountId,
@@ -523,7 +516,6 @@ async function createTransaction(kind: BankCashTransactionKind, editor: EditorSt
   if (kind === "PAYMENT") {
     return createPaymentTransaction(
       {
-        reference: editor.reference || undefined,
         transactionDate: editor.transactionDate,
         amount,
         bankCashAccountId: editor.bankCashAccountId,
@@ -537,7 +529,6 @@ async function createTransaction(kind: BankCashTransactionKind, editor: EditorSt
 
   return createTransferTransaction(
     {
-      reference: editor.reference || undefined,
       transactionDate: editor.transactionDate,
       amount,
       sourceBankCashAccountId: editor.sourceBankCashAccountId,
@@ -551,7 +542,6 @@ async function createTransaction(kind: BankCashTransactionKind, editor: EditorSt
 function toUpdatePayload(kind: BankCashTransactionKind, editor: EditorState) {
   if (kind === "TRANSFER") {
     return {
-      reference: editor.reference || undefined,
       transactionDate: editor.transactionDate,
       amount: Number(editor.amount),
       sourceBankCashAccountId: editor.sourceBankCashAccountId,
@@ -561,7 +551,6 @@ function toUpdatePayload(kind: BankCashTransactionKind, editor: EditorState) {
   }
 
   return {
-    reference: editor.reference || undefined,
     transactionDate: editor.transactionDate,
     amount: Number(editor.amount),
     bankCashAccountId: editor.bankCashAccountId,

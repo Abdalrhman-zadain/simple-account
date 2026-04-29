@@ -57,6 +57,7 @@ From the project root:
 cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account
 docker compose up -d postgres
 cd backend
+copy .env.example .env
 npm install
 npm run prisma:generate
 npm run prisma:migrate
@@ -128,6 +129,7 @@ Use these after dependency or schema changes:
 
 ```powershell
 cd backend
+copy .env.example .env
 npm install
 npm run prisma:generate
 # Use migrate for normal migration workflow.

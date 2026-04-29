@@ -19,14 +19,14 @@ Current Status:
 - performance verification must run from `frontend/` against the production Next server (`npm run build && npm run start`), not against dev mode or another package/toolchain in the repo
 - the frontend shell now mirrors the language preference into a cookie so server rendering can keep `lang`/`dir` aligned with the persisted setting and avoid avoidable LTR/RTL layout shift on reloads
 - local fonts should stay compressed (`.woff2`) in `frontend/app/fonts`; shipping raw `.ttf` assets materially increases first-load transfer size
-- the frontend npm scripts route Next through `frontend/scripts/next-run.ps1`, which clears stale `.next` artifacts before `dev` and `build` so OneDrive-backed reparse-point files do not break Next startup
+- the frontend npm scripts route Next through `frontend/scripts/next-run.mjs`, which clears stale `.next` artifacts before `dev` and `build` so OneDrive-backed reparse-point files do not break Next startup while staying runnable on Linux and Windows
 
 What this means for future edits:
 
 - if a change touches app-router behavior, route wrappers, auth gating, or page composition, re-verify the production build to ensure the fix remains stable.
 - if a change touches language initialization, shell layout, or global font wiring, re-run Lighthouse against the production server to catch regressions in request weight or CLS.
 - if the failure recurs, document the specific triggers or environment details here.
-- if frontend script changes bypass `next-run.ps1`, re-verify that stale `.next` artifacts are not the cause before assuming dev/build failures come from application code
+- if frontend script changes bypass `next-run.mjs`, re-verify that stale `.next` artifacts are not the cause before assuming dev/build failures come from application code
 
 ## Documentation Warning
 
@@ -146,6 +146,7 @@ Current status:
 Current limitation:
 
 - reporting control persistence is created at runtime by the reporting service and is not yet modeled through a generated Prisma delegate workflow.
+- reporting persistence bootstrap is serialized inside the reporting service to avoid PostgreSQL duplicate-type races when multiple reporting requests hit the runtime table initializer at the same time.
 - exported document layouts are functionally complete for the baseline requirements, but the PDF/XLSX output remains intentionally minimal rather than visually polished.
 - cash-flow classification currently uses posted counter-account heuristics from the journal entry to split operating, investing, financing, and unclassified movement.
 

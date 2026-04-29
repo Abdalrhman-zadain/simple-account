@@ -84,6 +84,7 @@ What else to check:
 
 - receipts and payments must select an active bank/cash account and an active posting counter account
 - transfers must select active, different source and destination bank/cash accounts
+- receipt, payment, and transfer references should be treated as system-generated identifiers in the Phase 2 transaction UI rather than user-entered fields
 - transaction drafts must not update balances until posted
 - posting must create a journal entry and use Phase 1 posting logic so ledger rows and account balances remain consistent
 - posted transactions must stay locked from edit and retain their journal-entry link

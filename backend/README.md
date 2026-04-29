@@ -19,6 +19,7 @@ src/
 
 ```bash
 npm install
+cp .env.example .env
 npm run db:up
 npm run prisma:generate
 npm run prisma:migrate -- --name init_accounting_core
@@ -28,7 +29,7 @@ npm run start:dev
 
 ## Environment
 
-Create `backend/.env` with:
+Create `backend/.env` by copying `backend/.env.example`, or use:
 
 ```bash
 DATABASE_URL="postgresql://simple_account_user:simple_account_pass@localhost:15432/simple_account?schema=public"

@@ -89,7 +89,7 @@ Accounting meaning:
 
 - Phase 8 reporting reads posted balances from `LedgerTransaction`, account metadata from `Account`, bank/cash reporting scope from `BankCashAccount`, and operational visibility from `AuditLog`
 - reusable reporting definitions and persisted report snapshots are currently stored in runtime-managed PostgreSQL tables named `ReportDefinition` and `ReportSnapshot`
-- those reporting-control tables are created by the Phase 8 reporting service with SQL guards (`CREATE TABLE IF NOT EXISTS`) because Prisma client regeneration is not yet part of the current Windows-safe workflow
+- those reporting-control tables are created by the Phase 8 reporting service with SQL guards (`CREATE TABLE IF NOT EXISTS`) and a process-level initialization lock because Prisma client regeneration is not yet part of the current Windows-safe workflow
 
 - posted history is stored in ledger transactions
 - the posting batch groups a posting operation

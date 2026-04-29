@@ -37,6 +37,7 @@ type WorkbookSheet = { name: string; rows: WorkbookCell[][] };
 @Injectable()
 export class ReportingService {
   private persistenceReady = false;
+  private persistenceReadyPromise: Promise<void> | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -1160,51 +1161,59 @@ export class ReportingService {
 
   private async ensurePersistence() {
     if (this.persistenceReady) return;
+    if (!this.persistenceReadyPromise) {
+      this.persistenceReadyPromise = (async () => {
+        await this.prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "ReportDefinition" (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            report_type TEXT NOT NULL,
+            parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_by_id TEXT NOT NULL,
+            updated_by_id TEXT NOT NULL,
+            is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
 
-    await this.prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ReportDefinition" (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        report_type TEXT NOT NULL,
-        parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
-        created_by_id TEXT NOT NULL,
-        updated_by_id TEXT NOT NULL,
-        is_shared BOOLEAN NOT NULL DEFAULT FALSE,
-        is_active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
+        await this.prisma.$executeRawUnsafe(`
+          CREATE TABLE IF NOT EXISTS "ReportSnapshot" (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            report_type TEXT NOT NULL,
+            parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+            snapshot_data JSONB NOT NULL,
+            period_label TEXT,
+            comparison_period_label TEXT,
+            generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            created_by_id TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )
+        `);
 
-    await this.prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ReportSnapshot" (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        report_type TEXT NOT NULL,
-        parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
-        snapshot_data JSONB NOT NULL,
-        period_label TEXT,
-        comparison_period_label TEXT,
-        generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        created_by_id TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
+        await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_definition_type_active" ON "ReportDefinition"(report_type, is_active)`);
+        await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_definition_creator" ON "ReportDefinition"(created_by_id)`);
+        await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_type_created" ON "ReportSnapshot"(report_type, created_at DESC)`);
+        await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_creator" ON "ReportSnapshot"(created_by_id)`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS is_locked BOOLEAN NOT NULL DEFAULT FALSE`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS locked_by_id TEXT`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS replaces_snapshot_id TEXT`);
+        await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS root_snapshot_id TEXT`);
+        await this.prisma.$executeRawUnsafe(`UPDATE "ReportSnapshot" SET root_snapshot_id = id WHERE root_snapshot_id IS NULL`);
+        await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_root_version" ON "ReportSnapshot"(root_snapshot_id, version DESC)`);
 
-    await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_definition_type_active" ON "ReportDefinition"(report_type, is_active)`);
-    await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_definition_creator" ON "ReportDefinition"(created_by_id)`);
-    await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_type_created" ON "ReportSnapshot"(report_type, created_at DESC)`);
-    await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_creator" ON "ReportSnapshot"(created_by_id)`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS is_locked BOOLEAN NOT NULL DEFAULT FALSE`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS locked_by_id TEXT`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS replaces_snapshot_id TEXT`);
-    await this.prisma.$executeRawUnsafe(`ALTER TABLE "ReportSnapshot" ADD COLUMN IF NOT EXISTS root_snapshot_id TEXT`);
-    await this.prisma.$executeRawUnsafe(`UPDATE "ReportSnapshot" SET root_snapshot_id = id WHERE root_snapshot_id IS NULL`);
-    await this.prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "idx_report_snapshot_root_version" ON "ReportSnapshot"(root_snapshot_id, version DESC)`);
+        this.persistenceReady = true;
+      })().catch((error) => {
+        this.persistenceReadyPromise = null;
+        throw error;
+      });
+    }
 
-    this.persistenceReady = true;
+    await this.persistenceReadyPromise;
   }
 
   private async getDefinitionById(id: string) {
