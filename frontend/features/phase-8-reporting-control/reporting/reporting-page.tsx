@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Card, PageShell, SectionHeading } from "@/components/ui";
@@ -79,7 +79,7 @@ export function ReportingPage() {
   const [dateTo, setDateTo] = useState("");
   const [comparisonFrom, setComparisonFrom] = useState("");
   const [comparisonTo, setComparisonTo] = useState("");
-  const [basis, setBasis] = useState<"ACCRUAL" | "CASH">("ACCRUAL");
+  const [basis, setBasis] = useState<"" | "ACCRUAL" | "CASH">("");
   const [includeZeroBalance, setIncludeZeroBalance] = useState(false);
   const [accountId, setAccountId] = useState("");
   const [accountType, setAccountType] = useState<AccountType | "">("");
@@ -95,6 +95,8 @@ export function ReportingPage() {
   const [shareDefinition, setShareDefinition] = useState(false);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [activeDateChip, setActiveDateChip] = useState<"dateFrom" | "dateTo" | "comparisonFrom" | "comparisonTo" | null>(null);
+  const [activeSelectChip, setActiveSelectChip] = useState<"basis" | "accountId" | "accountType" | "currencyCode" | "segment3" | "segment4" | "segment5" | "journalEntryTypeId" | null>(null);
 
   const filters = useMemo<ReportingQuery>(
     () => ({
@@ -102,7 +104,7 @@ export function ReportingPage() {
       dateTo: dateTo || undefined,
       comparisonFrom: comparisonFrom || undefined,
       comparisonTo: comparisonTo || undefined,
-      basis,
+      basis: basis || "ACCRUAL",
       includeZeroBalance,
       accountId: accountId || undefined,
       accountType: accountType || undefined,
@@ -243,7 +245,7 @@ export function ReportingPage() {
     setDateTo(searchParams.get("dateTo") || "");
     setComparisonFrom(searchParams.get("comparisonFrom") || "");
     setComparisonTo(searchParams.get("comparisonTo") || "");
-    setBasis(searchParams.get("basis") === "CASH" ? "CASH" : "ACCRUAL");
+    setBasis(searchParams.get("basis") === "CASH" ? "CASH" : searchParams.get("basis") === "ACCRUAL" ? "ACCRUAL" : "");
     setIncludeZeroBalance(searchParams.get("includeZeroBalance") === "true");
     setAccountId(searchParams.get("accountId") || "");
     setAccountType((searchParams.get("accountType") as AccountType | null) || "");
@@ -470,266 +472,349 @@ export function ReportingPage() {
       {statusMessage ? <Card className="mb-6 border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{statusMessage}</Card> : null}
 
       <Card className="space-y-4 p-5">
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <Field label={t("reporting.filter.dateFrom")}>
-            <input value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} type="date" className={inputClassName} />
-          </Field>
-          <Field label={t("reporting.filter.dateTo")}>
-            <input value={dateTo} onChange={(event) => setDateTo(event.target.value)} type="date" className={inputClassName} />
-          </Field>
-          <Field label={t("reporting.filter.comparisonFrom")}>
-            <input value={comparisonFrom} onChange={(event) => setComparisonFrom(event.target.value)} type="date" className={inputClassName} />
-          </Field>
-          <Field label={t("reporting.filter.comparisonTo")}>
-            <input value={comparisonTo} onChange={(event) => setComparisonTo(event.target.value)} type="date" className={inputClassName} />
-          </Field>
-          <Field label={t("reporting.filter.basis")}>
-            <select value={basis} onChange={(event) => setBasis(event.target.value as "ACCRUAL" | "CASH")} className={inputClassName}>
+        <div className="pb-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <DateFilterChip
+              label={t("reporting.filter.dateFrom")}
+              value={dateFrom}
+              onChange={setDateFrom}
+              isActive={activeDateChip === "dateFrom"}
+              onActivate={() => setActiveDateChip("dateFrom")}
+              onDeactivate={() => setActiveDateChip(null)}
+              ariaLabel={t("reporting.filter.dateFrom")}
+            />
+            <DateFilterChip
+              label={t("reporting.filter.dateTo")}
+              value={dateTo}
+              onChange={setDateTo}
+              isActive={activeDateChip === "dateTo"}
+              onActivate={() => setActiveDateChip("dateTo")}
+              onDeactivate={() => setActiveDateChip(null)}
+              ariaLabel={t("reporting.filter.dateTo")}
+            />
+            <DateFilterChip
+              label={t("reporting.filter.comparisonFrom")}
+              value={comparisonFrom}
+              onChange={setComparisonFrom}
+              isActive={activeDateChip === "comparisonFrom"}
+              onActivate={() => setActiveDateChip("comparisonFrom")}
+              onDeactivate={() => setActiveDateChip(null)}
+              ariaLabel={t("reporting.filter.comparisonFrom")}
+            />
+            <DateFilterChip
+              label={t("reporting.filter.comparisonTo")}
+              value={comparisonTo}
+              onChange={setComparisonTo}
+              isActive={activeDateChip === "comparisonTo"}
+              onActivate={() => setActiveDateChip("comparisonTo")}
+              onDeactivate={() => setActiveDateChip(null)}
+              ariaLabel={t("reporting.filter.comparisonTo")}
+            />
+
+            <SelectFilterChip
+              label={t("reporting.filter.basis")}
+              value={basis}
+              onChange={(val) => setBasis(val as "" | "ACCRUAL" | "CASH")}
+              isActive={activeSelectChip === "basis"}
+              onActivate={() => setActiveSelectChip("basis")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.basis")}
+            >
+              <option value="">{t("reporting.value.none")}</option>
               <option value="ACCRUAL">{t("reporting.basis.ACCRUAL")}</option>
               <option value="CASH">{t("reporting.basis.CASH")}</option>
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.generalLedgerAccount")}>
-            <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.generalLedgerAccount")}
+              value={accountId}
+              onChange={setAccountId}
+              isActive={activeSelectChip === "accountId"}
+              onActivate={() => setActiveSelectChip("accountId")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.generalLedgerAccount")}
+            >
               <option value="">{t("reporting.filter.allAccounts")}</option>
               {accounts.map((account: AccountOption) => (
                 <option key={account.id} value={account.id}>
                   {account.code} - {account.name}
                 </option>
               ))}
-            </select>
-          </Field>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-          <Field label={t("reporting.filter.accountType")}>
-            <select value={accountType} onChange={(event) => setAccountType(event.target.value as AccountType | "")} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.accountType")}
+              value={accountType}
+              onChange={(val) => setAccountType(val as AccountType | "")}
+              isActive={activeSelectChip === "accountType"}
+              onActivate={() => setActiveSelectChip("accountType")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.accountType")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               <option value="ASSET">{t("reporting.accountType.ASSET")}</option>
               <option value="LIABILITY">{t("reporting.accountType.LIABILITY")}</option>
               <option value="EQUITY">{t("reporting.accountType.EQUITY")}</option>
               <option value="REVENUE">{t("reporting.accountType.REVENUE")}</option>
               <option value="EXPENSE">{t("reporting.accountType.EXPENSE")}</option>
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.currencyCode")}>
-            <select value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.currencyCode")}
+              value={currencyCode}
+              onChange={setCurrencyCode}
+              isActive={activeSelectChip === "currencyCode"}
+              onActivate={() => setActiveSelectChip("currencyCode")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.currencyCode")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               {currencyOptions.map((code) => (
                 <option key={code} value={code}>
                   {code}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.segment3")}>
-            <select value={segment3} onChange={(event) => setSegment3(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.segment3")}
+              value={segment3}
+              onChange={setSegment3}
+              isActive={activeSelectChip === "segment3"}
+              onActivate={() => setActiveSelectChip("segment3")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.segment3")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               {segment3Options.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.segment4")}>
-            <select value={segment4} onChange={(event) => setSegment4(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.segment4")}
+              value={segment4}
+              onChange={setSegment4}
+              isActive={activeSelectChip === "segment4"}
+              onActivate={() => setActiveSelectChip("segment4")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.segment4")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               {segment4Options.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.segment5")}>
-            <select value={segment5} onChange={(event) => setSegment5(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.segment5")}
+              value={segment5}
+              onChange={setSegment5}
+              isActive={activeSelectChip === "segment5"}
+              onActivate={() => setActiveSelectChip("segment5")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.segment5")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               {segment5Options.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>
               ))}
-            </select>
-          </Field>
-          <Field label={t("reporting.filter.journalEntryType")}>
-            <select value={journalEntryTypeId} onChange={(event) => setJournalEntryTypeId(event.target.value)} className={inputClassName}>
+            </SelectFilterChip>
+
+            <SelectFilterChip
+              label={t("reporting.filter.journalEntryType")}
+              value={journalEntryTypeId}
+              onChange={setJournalEntryTypeId}
+              isActive={activeSelectChip === "journalEntryTypeId"}
+              onActivate={() => setActiveSelectChip("journalEntryTypeId")}
+              onDeactivate={() => setActiveSelectChip(null)}
+              ariaLabel={t("reporting.filter.journalEntryType")}
+            >
               <option value="">{t("reporting.value.none")}</option>
               {journalEntryTypes.map((entryType: JournalEntryType) => (
                 <option key={entryType.id} value={entryType.id}>
                   {entryType.name}
                 </option>
               ))}
-            </select>
-          </Field>
-        </div>
+            </SelectFilterChip>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              checked={includeZeroBalance}
-              onChange={(event) => setIncludeZeroBalance(event.target.checked)}
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
-            />
-            {t("reporting.filter.includeZeroBalance")}
-          </label>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDateFrom("");
-              setDateTo("");
-              setComparisonFrom("");
-              setComparisonTo("");
-              setBasis("ACCRUAL");
-              setIncludeZeroBalance(false);
-              setAccountId("");
-              setAccountType("");
-              setCurrencyCode("");
-              setSegment3("");
-              setSegment4("");
-              setSegment5("");
-              setJournalEntryTypeId("");
-              setStatusMessage("");
-            }}
-          >
-            {t("reporting.action.clearFilters")}
-          </Button>
+            <button
+              type="button"
+              onClick={() => setIncludeZeroBalance((value) => !value)}
+              className={`${chipToggleClassName} ${includeZeroBalance ? "border-primary bg-primary/10 text-primary" : "border-gray-400 text-gray-700 hover:border-gray-500"}`}
+            >
+              {t("reporting.filter.includeZeroBalance")}
+            </button>
+
+            <button
+              type="button"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-gray-500"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+                setComparisonFrom("");
+                setComparisonTo("");
+                setBasis("");
+                setIncludeZeroBalance(false);
+                setAccountId("");
+                setAccountType("");
+                setCurrencyCode("");
+                setSegment3("");
+                setSegment4("");
+                setSegment5("");
+                setJournalEntryTypeId("");
+                setActiveDateChip(null);
+                setActiveSelectChip(null);
+                setStatusMessage("");
+              }}
+            >
+              {t("reporting.action.clearFilters")}
+            </button>
+          </div>
         </div>
       </Card>
 
       {reportingWarnings.length ? <WarningsCard warnings={reportingWarnings} activeTab={activeTab} t={t} /> : null}
 
+      {activeTab === "summary" ? <SummarySection data={summaryQuery.data} loading={summaryQuery.isLoading} t={t} /> : null}
+
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         {activePermissions?.canSaveDefinition ? (
-        <Card className="space-y-4 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-base font-bold text-gray-900">{t("reporting.control.definitionsTitle")}</div>
-              <div className="text-sm text-gray-500">{t("reporting.control.definitionsDescription")}</div>
+          <Card className="space-y-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-base font-bold text-gray-900">{t("reporting.control.definitionsTitle")}</div>
+                <div className="text-sm text-gray-500">{t("reporting.control.definitionsDescription")}</div>
+              </div>
+              <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(definitionsQuery.data ?? []).length}</div>
             </div>
-            <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(definitionsQuery.data ?? []).length}</div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("reporting.field.definitionName")}>
-              <input value={definitionName} onChange={(event) => setDefinitionName(event.target.value)} className={inputClassName} />
-            </Field>
-            <Field label={t("reporting.field.selectedDefinition")}>
-              <select
-                value={selectedDefinitionId}
-                onChange={(event) => {
-                  setSelectedDefinitionId(event.target.value);
-                  const nextDefinition = (definitionsQuery.data ?? []).find((row) => row.id === event.target.value);
-                  if (nextDefinition) {
-                    setDefinitionName(nextDefinition.name);
-                    setShareDefinition(nextDefinition.isShared);
-                  }
-                }}
-                className={inputClassName}
-              >
-                <option value="">{t("reporting.value.none")}</option>
-                {(definitionsQuery.data ?? []).map((definition) => (
-                  <option key={definition.id} value={definition.id}>
-                    {definition.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              checked={shareDefinition}
-              onChange={(event) => setShareDefinition(event.target.checked)}
-              type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("reporting.field.definitionName")}>
+                <input value={definitionName} onChange={(event) => setDefinitionName(event.target.value)} className={inputClassName} />
+              </Field>
+              <Field label={t("reporting.field.selectedDefinition")}>
+                <select
+                  value={selectedDefinitionId}
+                  onChange={(event) => {
+                    setSelectedDefinitionId(event.target.value);
+                    const nextDefinition = (definitionsQuery.data ?? []).find((row) => row.id === event.target.value);
+                    if (nextDefinition) {
+                      setDefinitionName(nextDefinition.name);
+                      setShareDefinition(nextDefinition.isShared);
+                    }
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="">{t("reporting.value.none")}</option>
+                  {(definitionsQuery.data ?? []).map((definition) => (
+                    <option key={definition.id} value={definition.id}>
+                      {definition.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                checked={shareDefinition}
+                onChange={(event) => setShareDefinition(event.target.checked)}
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+              />
+              {t("reporting.field.shareDefinition")}
+            </label>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => saveDefinitionMutation.mutate()} disabled={!token || isBusy}>
+                {t("reporting.action.saveDefinition")}
+              </Button>
+              <Button variant="secondary" onClick={() => updateDefinitionMutation.mutate()} disabled={!token || !selectedDefinitionId || isBusy}>
+                {t("reporting.action.updateDefinition")}
+              </Button>
+            </div>
+            <DefinitionList
+              definitions={definitionsQuery.data ?? []}
+              onApply={applyDefinition}
+              onDeactivate={(definitionId) => deactivateDefinitionMutation.mutate(definitionId)}
+              selectedId={selectedDefinitionId}
+              t={t}
             />
-            {t("reporting.field.shareDefinition")}
-          </label>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => saveDefinitionMutation.mutate()} disabled={!token || isBusy}>
-              {t("reporting.action.saveDefinition")}
-            </Button>
-            <Button variant="secondary" onClick={() => updateDefinitionMutation.mutate()} disabled={!token || !selectedDefinitionId || isBusy}>
-              {t("reporting.action.updateDefinition")}
-            </Button>
-          </div>
-          <DefinitionList
-            definitions={definitionsQuery.data ?? []}
-            onApply={applyDefinition}
-            onDeactivate={(definitionId) => deactivateDefinitionMutation.mutate(definitionId)}
-            selectedId={selectedDefinitionId}
-            t={t}
-          />
-        </Card>
+          </Card>
         ) : null}
 
         {activePermissions?.canSnapshot ? (
-        <Card className="space-y-4 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-base font-bold text-gray-900">{t("reporting.control.snapshotsTitle")}</div>
-              <div className="text-sm text-gray-500">{t("reporting.control.snapshotsDescription")}</div>
+          <Card className="space-y-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-base font-bold text-gray-900">{t("reporting.control.snapshotsTitle")}</div>
+                <div className="text-sm text-gray-500">{t("reporting.control.snapshotsDescription")}</div>
+              </div>
+              <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(snapshotsQuery.data ?? []).length}</div>
             </div>
-            <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(snapshotsQuery.data ?? []).length}</div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-            <Field label={t("reporting.field.snapshotName")}>
-              <input value={snapshotName} onChange={(event) => setSnapshotName(event.target.value)} className={inputClassName} />
-            </Field>
-            <div className="flex items-end">
-              <Button onClick={() => snapshotMutation.mutate()} disabled={!token || isBusy}>
-                {t("reporting.action.captureSnapshot")}
-              </Button>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <Field label={t("reporting.field.snapshotName")}>
+                <input value={snapshotName} onChange={(event) => setSnapshotName(event.target.value)} className={inputClassName} />
+              </Field>
+              <div className="flex items-end">
+                <Button onClick={() => snapshotMutation.mutate()} disabled={!token || isBusy}>
+                  {t("reporting.action.captureSnapshot")}
+                </Button>
+              </div>
             </div>
-          </div>
-          <SnapshotList
-            snapshots={snapshotsQuery.data ?? []}
-            onApply={applySnapshot}
-            onLock={(snapshotId) => lockSnapshotMutation.mutate(snapshotId)}
-            onUnlock={(snapshotId) => unlockSnapshotMutation.mutate(snapshotId)}
-            onCreateVersion={(snapshot) => versionSnapshotMutation.mutate(snapshot)}
-            t={t}
-          />
-        </Card>
+            <SnapshotList
+              snapshots={snapshotsQuery.data ?? []}
+              onApply={applySnapshot}
+              onLock={(snapshotId) => lockSnapshotMutation.mutate(snapshotId)}
+              onUnlock={(snapshotId) => unlockSnapshotMutation.mutate(snapshotId)}
+              onCreateVersion={(snapshot) => versionSnapshotMutation.mutate(snapshot)}
+              t={t}
+            />
+          </Card>
         ) : null}
 
         {activePermissions?.canExport ? (
-        <Card className="space-y-4 p-5">
-          <div>
-            <div className="text-base font-bold text-gray-900">{t("reporting.control.exportTitle")}</div>
-            <div className="text-sm text-gray-500">{t("reporting.control.exportDescription")}</div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("reporting.field.exportTitle")}>
-              <input value={exportTitle} onChange={(event) => setExportTitle(event.target.value)} className={inputClassName} />
-            </Field>
-            <Field label={t("reporting.field.exportFormat")}>
-              <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ReportingExportFormat)} className={inputClassName}>
-                <option value="PRINT">{t("reporting.export.PRINT")}</option>
-                <option value="PDF">{t("reporting.export.PDF")}</option>
-                <option value="EXCEL">{t("reporting.export.EXCEL")}</option>
-              </select>
-            </Field>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{t("reporting.export.note")}</div>
-          <Button onClick={() => exportMutation.mutate()} disabled={!token || isBusy}>
-            {t("reporting.action.export")}
-          </Button>
-        </Card>
+          <Card className="space-y-4 p-5">
+            <div>
+              <div className="text-base font-bold text-gray-900">{t("reporting.control.exportTitle")}</div>
+              <div className="text-sm text-gray-500">{t("reporting.control.exportDescription")}</div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("reporting.field.exportTitle")}>
+                <input value={exportTitle} onChange={(event) => setExportTitle(event.target.value)} className={inputClassName} />
+              </Field>
+              <Field label={t("reporting.field.exportFormat")}>
+                <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ReportingExportFormat)} className={inputClassName}>
+                  <option value="PRINT">{t("reporting.export.PRINT")}</option>
+                  <option value="PDF">{t("reporting.export.PDF")}</option>
+                  <option value="EXCEL">{t("reporting.export.EXCEL")}</option>
+                </select>
+              </Field>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{t("reporting.export.note")}</div>
+            <Button onClick={() => exportMutation.mutate()} disabled={!token || isBusy}>
+              {t("reporting.action.export")}
+            </Button>
+          </Card>
         ) : null}
 
         {user?.role !== "USER" ? (
-        <Card className="space-y-4 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-base font-bold text-gray-900">{t("reporting.control.activityTitle")}</div>
-              <div className="text-sm text-gray-500">{t("reporting.control.activityDescription")}</div>
+          <Card className="space-y-4 p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-base font-bold text-gray-900">{t("reporting.control.activityTitle")}</div>
+                <div className="text-sm text-gray-500">{t("reporting.control.activityDescription")}</div>
+              </div>
+              <Button variant="secondary" onClick={() => activityQuery.refetch()} disabled={!token || activityQuery.isFetching}>
+                {t("reporting.action.refreshActivity")}
+              </Button>
             </div>
-            <Button variant="secondary" onClick={() => activityQuery.refetch()} disabled={!token || activityQuery.isFetching}>
-              {t("reporting.action.refreshActivity")}
-            </Button>
-          </div>
-          <ActivityList entries={activityQuery.data ?? []} t={t} />
-        </Card>
+            <ActivityList entries={activityQuery.data ?? []} t={t} />
+          </Card>
         ) : null}
       </div>
 
@@ -742,7 +827,6 @@ export function ReportingPage() {
       </Card>
 
       <div className="mt-6 space-y-6">
-        {activeTab === "summary" ? <SummarySection data={summaryQuery.data} loading={summaryQuery.isLoading} t={t} /> : null}
         {activeTab === "trialBalance" ? (
           <TrialBalanceSection data={trialBalanceQuery.data} loading={trialBalanceQuery.isLoading} t={t} onSelectAccount={setAccountId} />
         ) : null}
@@ -767,10 +851,27 @@ function SummarySection({ data, loading, t }: { data?: ReportingSummary; loading
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
   if (!data) return <EmptyCard label={t("reporting.empty")} />;
 
+  const primaryMetrics = data.metrics.slice(0, 2);
+  const secondaryMetrics = data.metrics.slice(2);
+
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {data.metrics.map((metric) => (
+      <div className="grid gap-4 md:grid-cols-2">
+        {primaryMetrics.map((metric) => (
+          <Card key={metric.key} className="space-y-2 p-5">
+            <div className="text-xs font-bold uppercase tracking-widest text-gray-500">{metric.label}</div>
+            <div className="text-2xl font-black text-gray-900">{formatCurrency(metric.amount)}</div>
+            <div className="text-sm text-gray-500">
+              {t("reporting.metric.comparison")}: {formatCurrency(metric.comparisonAmount)}
+            </div>
+            <div className="text-sm text-gray-500">
+              {t("reporting.metric.variance")}: {formatCurrency(metric.varianceAmount)}
+            </div>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {secondaryMetrics.map((metric) => (
           <Card key={metric.key} className="space-y-2 p-5">
             <div className="text-xs font-bold uppercase tracking-widest text-gray-500">{metric.label}</div>
             <div className="text-2xl font-black text-gray-900">{formatCurrency(metric.amount)}</div>
@@ -1350,6 +1451,157 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+interface DateFilterChipProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  isActive: boolean;
+  onActivate: () => void;
+  onDeactivate: () => void;
+  ariaLabel: string;
+}
+
+function DateFilterChip({ label, value, onChange, isActive, onActivate, onDeactivate, ariaLabel }: DateFilterChipProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isActive && inputRef.current) {
+      // Use setTimeout to ensure the input is rendered and focused
+      setTimeout(() => {
+        inputRef.current?.focus();
+        // Programmatically open native picker on supported browsers
+        if (typeof inputRef.current?.showPicker === "function") {
+          inputRef.current.showPicker();
+        }
+      }, 0);
+    }
+  }, [isActive]);
+
+  const handleInputBlur = () => {
+    onDeactivate();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  };
+
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isActive && !value) {
+      e.preventDefault();
+      onActivate();
+    }
+  };
+
+  return (
+    <div
+      className={`${chipContainerClassName} ${isActive || value ? "border-primary bg-primary/10" : "border-gray-300 bg-white hover:border-gray-500 cursor-pointer"}`}
+      title={label}
+      onClick={handleContainerClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !isActive) {
+          e.preventDefault();
+          onActivate();
+        }
+      }}
+    >
+      <span className="max-w-[102px] truncate text-sm font-semibold text-gray-800">{label}</span>
+      {isActive ? (
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          onChange={handleInputChange}
+          onBlur={handleInputBlur}
+          className={chipInputClassName}
+          aria-label={ariaLabel}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+interface SelectFilterChipProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  isActive: boolean;
+  onActivate: () => void;
+  onDeactivate: () => void;
+  ariaLabel: string;
+  children: ReactNode;
+}
+
+function SelectFilterChip({ label, value, onChange, isActive, onActivate, onDeactivate, ariaLabel, children }: SelectFilterChipProps) {
+  const selectRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (isActive && selectRef.current) {
+      setTimeout(() => {
+        selectRef.current?.focus();
+      }, 0);
+    }
+  }, [isActive]);
+
+  const handleSelectBlur = () => {
+    onDeactivate();
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onChange(e.target.value);
+  };
+
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isActive && !value) {
+      e.preventDefault();
+      onActivate();
+    }
+  };
+
+  return (
+    <div
+      className={`${chipContainerClassName} ${isActive || value ? "border-primary bg-primary/10" : "border-gray-300 bg-white hover:border-gray-500 cursor-pointer"}`}
+      title={label}
+      onClick={handleContainerClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !isActive) {
+          e.preventDefault();
+          onActivate();
+        }
+      }}
+    >
+      <span className="max-w-[102px] truncate text-sm font-semibold text-gray-800">{label}</span>
+      {isActive ? (
+        <select
+          ref={selectRef}
+          value={value}
+          onChange={handleSelectChange}
+          onBlur={handleSelectBlur}
+          className={chipSelectClassName}
+          aria-label={ariaLabel}
+        >
+          {children}
+        </select>
+      ) : null}
+    </div>
+  );
+}
+
+function FilterChip({ label, children, active = false }: { label: string; children: ReactNode; active?: boolean }) {
+  return (
+    <label
+      className={`${chipContainerClassName} ${active ? "border-primary bg-primary/10" : "border-gray-300 bg-white hover:border-gray-500"}`}
+      title={label}
+    >
+      <span className="max-w-[102px] truncate text-sm font-semibold text-gray-800">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function getReportLabel(reportType: string, t: TranslationFn) {
   if (reportTypes.has(reportType as Tab)) {
     return t(`reporting.tab.${reportType}`);
@@ -1436,3 +1688,14 @@ type TranslationFn = (key: string, vars?: Record<string, string | number>) => st
 
 const inputClassName =
   "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20";
+
+const chipContainerClassName =
+  "inline-flex h-10 max-w-full items-center gap-1.5 rounded-full border px-3 transition";
+
+const chipInputClassName =
+  "h-8 w-[124px] rounded-full border border-transparent bg-transparent px-2 text-sm text-gray-900 outline-none focus:border-gray-300";
+
+const chipSelectClassName =
+  "h-8 w-[138px] max-w-[138px] rounded-full border border-transparent bg-transparent px-2 pr-6 text-sm text-gray-900 outline-none focus:border-gray-300";
+
+const chipToggleClassName = "inline-flex h-10 items-center justify-center rounded-full border bg-white px-4 text-sm font-semibold transition";

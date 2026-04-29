@@ -42,7 +42,7 @@ Current limitation:
 
 - some Windows environments reserve dynamic TCP ranges that can block Docker from binding specific localhost ports even when the compose file is correct.
 - the previous local PostgreSQL host port `55432` can fall inside an excluded Windows TCP range, which causes Docker startup failures such as `bind: An attempt was made to access a socket in a way forbidden by its access permissions.`
-- the project now uses local host port `54329` for PostgreSQL to avoid the reserved range seen on affected machines.
+- the project now uses local host port `15432` for PostgreSQL to avoid the reserved range seen on affected machines.
 
 What this means for future edits:
 

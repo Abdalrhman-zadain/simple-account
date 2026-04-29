@@ -76,9 +76,9 @@ const enTranslations: Record<string, string> = {
   "bankCash.form.bankName": "Bank Name / Cash Location",
   "bankCash.form.accountNumber": "Account Number / Reference",
   "bankCash.form.currency": "Currency",
-  "bankCash.form.linkedAccount": "Linked COA Account",
-  "bankCash.form.type": "Payment Method Type",
-  "bankCash.form.typePlaceholder": "Select a payment method type",
+  "bankCash.form.linkedAccount": "Related accounting account",
+  "bankCash.form.type": "Payment Account Type",
+  "bankCash.form.typePlaceholder": "Select a payment account type",
   "bankCash.form.typeHelp":
     "Payment methods come from Master Data. Add Bank, Cash, Click, Wallet, or any other payment method there.",
   "bankCash.form.bankNameHelp":
@@ -399,7 +399,7 @@ const enTranslations: Record<string, string> = {
 
   "master.tab.accountSubtypes": "Account Classes",
   "master.tab.journalEntryTypes": "Journal Entry Types",
-  "master.tab.paymentMethodTypes": "Payment Method Types",
+  "master.tab.paymentMethodTypes": "Payment Account Types",
   "master.section.accountSubtypes.title": "Account Classes (Subtypes)",
   "master.section.accountSubtypes.description":
     "Create your own account classes like Bank, Cash, Receivable, Payable, etc.",
@@ -408,7 +408,7 @@ const enTranslations: Record<string, string> = {
   "master.section.journalEntryTypes.description":
     "Create your own journal entry types like Payment, Invoice, Adjustment, Transfer, etc.",
   "master.section.journalEntryTypes.add": "Add Type",
-  "master.section.paymentMethodTypes.title": "Payment Method Types",
+  "master.section.paymentMethodTypes.title": "Payment Account Types",
   "master.section.paymentMethodTypes.description":
     "Create payment methods like Bank, Cash, Click, Wallet, Card, or any other way customers can pay.",
   "master.section.paymentMethodTypes.add": "Add Payment Method",

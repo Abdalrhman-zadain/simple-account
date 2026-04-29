@@ -8,25 +8,17 @@ type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
 async function main() {
   console.log('Cleaning existing database data...');
 
-  await prisma.auditLog.deleteMany();
-  await prisma.bankReconciliationMatch.deleteMany();
-  await prisma.bankStatementLine.deleteMany();
-  await prisma.bankReconciliation.deleteMany();
-  await prisma.bankCashTransaction.deleteMany();
-  await prisma.ledgerTransaction.deleteMany();
-  await prisma.journalEntryLine.deleteMany();
-  await prisma.journalEntry.deleteMany();
-  await prisma.postingBatch.deleteMany();
-  await prisma.bankCashAccount.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.fiscalPeriod.deleteMany();
-  await prisma.fiscalYear.deleteMany();
-  await prisma.segmentValue.deleteMany();
-  await prisma.segmentDefinition.deleteMany();
-  await prisma.accountSubtype.deleteMany();
-  await prisma.paymentMethodType.deleteMany();
-  await prisma.journalEntryType.deleteMany();
-  await prisma.user.deleteMany();
+  const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'public'
+      AND tablename <> '_prisma_migrations'
+  `;
+
+  if (tables.length > 0) {
+    const quotedTables = tables.map(({ tablename }) => `"public"."${tablename}"`).join(', ');
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quotedTables} RESTART IDENTITY CASCADE;`);
+  }
 
   console.log('Seeding starter accounting dataset...');
 
@@ -204,13 +196,53 @@ async function main() {
     isPosting: false,
   });
 
-  const cashAndBanks = await createAccount({
+  const currentAssets = await createAccount({
     code: '1100000',
-    name: 'Cash and Banks',
+    name: 'Current Assets',
     nameAr: 'النقدية والبنوك',
     type: 'ASSET',
     isPosting: false,
     parentAccountId: assets.id,
+  });
+  const cashAndCashEquivalents = await createAccount({
+    code: '1110000',
+    name: 'Cash and Cash Equivalents',
+    nameAr: 'النقد وما في حكمه',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: currentAssets.id,
+  });
+  const cashOnHand = await createAccount({
+    code: '1111000',
+    name: 'Cash on Hand',
+    nameAr: 'النقد في الصندوق',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: cashAndCashEquivalents.id,
+  });
+  const bankAccounts = await createAccount({
+    code: '1112000',
+    name: 'Bank Accounts',
+    nameAr: 'الحسابات البنكية',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: cashAndCashEquivalents.id,
+  });
+  const digitalWallets = await createAccount({
+    code: '1113000',
+    name: 'Digital Wallets',
+    nameAr: 'المحافظ الإلكترونية',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: cashAndCashEquivalents.id,
+  });
+  const paymentGateways = await createAccount({
+    code: '1114000',
+    name: 'Payment Gateways',
+    nameAr: 'بوابات الدفع',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: cashAndCashEquivalents.id,
   });
   const receivables = await createAccount({
     code: '1200000',
@@ -246,31 +278,202 @@ async function main() {
   });
 
   const mainCash = await createAccount({
-    code: '1110001',
+    code: '1111001',
     name: 'Main Cash',
     nameAr: 'الصندوق الرئيسي',
     type: 'ASSET',
     isPosting: true,
     subtype: 'Cash',
-    parentAccountId: cashAndBanks.id,
+    parentAccountId: cashOnHand.id,
+  });
+  await createAccount({
+    code: '1111002',
+    name: 'Petty Cash',
+    nameAr: 'صندوق المصاريف النثرية',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Cash',
+    parentAccountId: cashOnHand.id,
+  });
+  await createAccount({
+    code: '1111003',
+    name: 'Branch Cash - Amman',
+    nameAr: 'صندوق فرع عمّان',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Cash',
+    parentAccountId: cashOnHand.id,
+  });
+  await createAccount({
+    code: '1111004',
+    name: 'Branch Cash - Irbid',
+    nameAr: 'صندوق فرع إربد',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Cash',
+    parentAccountId: cashOnHand.id,
+  });
+  await createAccount({
+    code: '1111005',
+    name: 'Cash Drawer',
+    nameAr: 'درج الكاش',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Cash',
+    parentAccountId: cashOnHand.id,
+  });
+  await createAccount({
+    code: '1111006',
+    name: 'Cash in Transit',
+    nameAr: 'نقدية بالطريق',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Cash',
+    parentAccountId: cashOnHand.id,
   });
   const arabBank = await createAccount({
-    code: '1120001',
-    name: 'Arab Bank',
+    code: '1112001',
+    name: 'Arab Bank - JOD',
     nameAr: 'البنك العربي',
     type: 'ASSET',
     isPosting: true,
     subtype: 'Bank',
-    parentAccountId: cashAndBanks.id,
+    parentAccountId: bankAccounts.id,
   });
   const islamicBank = await createAccount({
-    code: '1130001',
-    name: 'Islamic Bank',
+    code: '1112002',
+    name: 'Islamic Bank - JOD',
     nameAr: 'البنك الاسلامي',
     type: 'ASSET',
     isPosting: true,
     subtype: 'Bank',
-    parentAccountId: cashAndBanks.id,
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112003',
+    name: 'Bank of Jordan - JOD',
+    nameAr: 'بنك الأردن - دينار',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112004',
+    name: 'Cairo Amman Bank - JOD',
+    nameAr: 'بنك القاهرة عمان - دينار',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112005',
+    name: 'Bank Account - USD',
+    nameAr: 'حساب بنكي - دولار',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112006',
+    name: 'Bank Account - EUR',
+    nameAr: 'حساب بنكي - يورو',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112007',
+    name: 'Bank Account - SAR',
+    nameAr: 'حساب بنكي - ريال سعودي',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1112008',
+    name: 'Bank Account - AED',
+    nameAr: 'حساب بنكي - درهم إماراتي',
+    type: 'ASSET',
+    isPosting: true,
+    subtype: 'Bank',
+    parentAccountId: bankAccounts.id,
+  });
+  await createAccount({
+    code: '1113001',
+    name: 'CliQ Wallet',
+    nameAr: 'محفظة كليك',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: digitalWallets.id,
+  });
+  await createAccount({
+    code: '1113002',
+    name: 'Zain Cash',
+    nameAr: 'زين كاش',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: digitalWallets.id,
+  });
+  await createAccount({
+    code: '1113003',
+    name: 'Orange Money',
+    nameAr: 'أورنج موني',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: digitalWallets.id,
+  });
+  await createAccount({
+    code: '1113004',
+    name: 'Digital Wallet - Other',
+    nameAr: 'محفظة إلكترونية أخرى',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: digitalWallets.id,
+  });
+  await createAccount({
+    code: '1114001',
+    name: 'Stripe',
+    nameAr: 'سترايب',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: paymentGateways.id,
+  });
+  await createAccount({
+    code: '1114002',
+    name: 'PayPal',
+    nameAr: 'باي بال',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: paymentGateways.id,
+  });
+  await createAccount({
+    code: '1114003',
+    name: 'HyperPay',
+    nameAr: 'هايبر باي',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: paymentGateways.id,
+  });
+  await createAccount({
+    code: '1114004',
+    name: 'Tap Payments',
+    nameAr: 'تاب',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: paymentGateways.id,
+  });
+  await createAccount({
+    code: '1114005',
+    name: 'Payment Gateway - Other',
+    nameAr: 'بوابة دفع أخرى',
+    type: 'ASSET',
+    isPosting: true,
+    parentAccountId: paymentGateways.id,
   });
   const customers = await createAccount({
     code: '1210001',
@@ -290,6 +493,46 @@ async function main() {
     subtype: 'Payable',
     parentAccountId: payables.id,
   });
+  const ownersEquity = await createAccount({
+    code: '3100000',
+    name: "Owner's Equity",
+    nameAr: 'حقوق المالك',
+    type: 'EQUITY',
+    isPosting: false,
+    parentAccountId: equity.id,
+  });
+  const partnersEquity = await createAccount({
+    code: '3200000',
+    name: "Partners' Equity",
+    nameAr: 'حقوق الشركاء',
+    type: 'EQUITY',
+    isPosting: false,
+    parentAccountId: equity.id,
+  });
+  const retainedEarnings = await createAccount({
+    code: '3300000',
+    name: 'Retained Earnings',
+    nameAr: 'الأرباح المحتجزة',
+    type: 'EQUITY',
+    isPosting: false,
+    parentAccountId: equity.id,
+  });
+  const openingBalances = await createAccount({
+    code: '3400000',
+    name: 'Opening Balances',
+    nameAr: 'الأرصدة الافتتاحية',
+    type: 'EQUITY',
+    isPosting: false,
+    parentAccountId: equity.id,
+  });
+  const reserves = await createAccount({
+    code: '3500000',
+    name: 'Reserves',
+    nameAr: 'الاحتياطيات',
+    type: 'EQUITY',
+    isPosting: false,
+    parentAccountId: equity.id,
+  });
   const ownerCapital = await createAccount({
     code: '3110001',
     name: 'Owner Capital',
@@ -297,7 +540,88 @@ async function main() {
     type: 'EQUITY',
     isPosting: true,
     subtype: 'Equity',
-    parentAccountId: equity.id,
+    parentAccountId: ownersEquity.id,
+  });
+  await createAccount({
+    code: '3120001',
+    name: 'Owner Withdrawals',
+    nameAr: 'مسحوبات المالك',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: ownersEquity.id,
+  });
+  await createAccount({
+    code: '3210001',
+    name: 'Partner A Capital',
+    nameAr: 'رأس مال الشريك أ',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: partnersEquity.id,
+  });
+  await createAccount({
+    code: '3220001',
+    name: 'Partner B Capital',
+    nameAr: 'رأس مال الشريك ب',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: partnersEquity.id,
+  });
+  await createAccount({
+    code: '3230001',
+    name: 'Partners Current Accounts',
+    nameAr: 'الحسابات الجارية للشركاء',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: partnersEquity.id,
+  });
+  await createAccount({
+    code: '3310001',
+    name: 'Retained Earnings - Prior Years',
+    nameAr: 'أرباح محتجزة - سنوات سابقة',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: retainedEarnings.id,
+  });
+  await createAccount({
+    code: '3320001',
+    name: 'Current Year Profit or Loss',
+    nameAr: 'ربح أو خسارة السنة الحالية',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: retainedEarnings.id,
+  });
+  await createAccount({
+    code: '3410001',
+    name: 'Opening Balance Equity',
+    nameAr: 'حساب الأرصدة الافتتاحية',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: openingBalances.id,
+  });
+  await createAccount({
+    code: '3510001',
+    name: 'Legal Reserve',
+    nameAr: 'الاحتياطي القانوني',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: reserves.id,
+  });
+  await createAccount({
+    code: '3520001',
+    name: 'General Reserve',
+    nameAr: 'الاحتياطي العام',
+    type: 'EQUITY',
+    isPosting: true,
+    subtype: 'Equity',
+    parentAccountId: reserves.id,
   });
   const salesRevenue = await createAccount({
     code: '4110001',

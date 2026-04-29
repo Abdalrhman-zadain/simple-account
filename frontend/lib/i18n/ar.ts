@@ -66,9 +66,9 @@ const arTranslations: Record<string, string> = {
   "bankCash.form.bankName": "اسم البنك / موقع الصندوق",
   "bankCash.form.accountNumber": "رقم الحساب / المرجع",
   "bankCash.form.currency": "العملة",
-  "bankCash.form.linkedAccount": "حساب الدليل المرتبط",
-  "bankCash.form.type": "نوع وسيلة الدفع",
-  "bankCash.form.typePlaceholder": "اختر نوع وسيلة الدفع",
+  "bankCash.form.linkedAccount": "الحساب المحاسبي المرتبط",
+  "bankCash.form.type": "نوع حساب الدفع",
+  "bankCash.form.typePlaceholder": "اختر نوع حساب الدفع",
   "bankCash.form.typeHelp":
     "تأتي وسائل الدفع من البيانات الأساسية. أضف بنك أو صندوق أو كليك أو محفظة أو أي وسيلة دفع أخرى هناك.",
   "bankCash.form.bankNameHelp":
@@ -233,7 +233,7 @@ const arTranslations: Record<string, string> = {
 
   "master.tab.accountSubtypes": "تصنيفات الحسابات",
   "master.tab.journalEntryTypes": "أنواع قيود اليومية",
-  "master.tab.paymentMethodTypes": "أنواع وسائل الدفع",
+  "master.tab.paymentMethodTypes": "أنواع حسابات الدفع",
   "master.section.accountSubtypes.title": "تصنيفات الحسابات (فئات فرعية)",
   "master.section.accountSubtypes.description":
     "أنشئ تصنيفات للحسابات مثل بنك، نقد، ذمم مدينة، ذمم دائنة، وغيرها.",
@@ -242,7 +242,7 @@ const arTranslations: Record<string, string> = {
   "master.section.journalEntryTypes.description":
     "أنشئ أنواعاً لقيود اليومية مثل دفع، فاتورة، تسوية، تحويل، وغيرها.",
   "master.section.journalEntryTypes.add": "إضافة نوع",
-  "master.section.paymentMethodTypes.title": "أنواع وسائل الدفع",
+  "master.section.paymentMethodTypes.title": "أنواع حسابات الدفع",
   "master.section.paymentMethodTypes.description":
     "أنشئ وسائل دفع مثل بنك، صندوق، كليك، محفظة، بطاقة، أو أي طريقة يدفع بها العميل.",
   "master.section.paymentMethodTypes.add": "إضافة وسيلة دفع",
