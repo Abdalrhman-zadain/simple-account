@@ -149,6 +149,8 @@ What else to check:
 - customer records must remain deactivatable without deleting history
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
+- sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, but `itemName`, `description`, and `revenueAccountId` must remain persisted on the quotation line so commercial history does not depend on future item-master edits
+- the quotation editor supports both `save draft` and immediate `approve quotation` from the same form; when approving a brand-new quotation, the UI should save first and then approve the created draft in the same flow
 - sales-order drafts must stay editable until confirmed, and confirmed orders must preserve quotation/invoice traceability
 - invoice and credit-note drafts must stay editable, but posted documents must be locked
 - posting must create a journal entry and use Phase 1 posting logic so ledger rows and balances remain consistent

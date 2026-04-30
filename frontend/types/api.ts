@@ -2209,7 +2209,12 @@ export type UpdateDebitNotePayload = Partial<CreateDebitNotePayload>;
 export type SalesLine = {
   id: string;
   lineNumber: number;
+  itemId?: string | null;
   itemName?: string | null;
+  item?: Pick<
+    InventoryItem,
+    "id" | "code" | "name" | "description" | "type" | "isActive" | "salesAccount"
+  > | null;
   description?: string | null;
   quantity: string;
   unitPrice: string;
@@ -2480,6 +2485,7 @@ export type UpdateCustomerPayload = Partial<{
 }>;
 
 export type SalesLinePayload = {
+  itemId?: string;
   itemName?: string;
   quantity?: number;
   unitPrice?: number;

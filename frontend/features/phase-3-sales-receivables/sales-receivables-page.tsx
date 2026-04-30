@@ -33,6 +33,7 @@ import {
   getCustomerReceipts,
   deactivateCustomer,
   getAccountOptions,
+  getAccountsTree,
   getAgingReport,
   getBankCashAccounts,
   getBankCashTransactions,
@@ -40,6 +41,7 @@ import {
   getCustomerBalance,
   getCustomerTransactions,
   getCustomers,
+  getInventoryItems,
   getSalesOrders,
   getSalesQuotations,
   getSalesInvoices,
@@ -57,6 +59,7 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AllocationStatus,
+  AccountTreeNode,
   Customer,
   CustomerReceipt,
   SalesInvoiceStatus,
@@ -66,6 +69,14 @@ import type {
 } from "@/types/api";
 import { Button, Card, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
+import {
+  createEmptyLine,
+  createEmptyQuotationEditor,
+  QuotationEditorModal,
+  type QuotationEditorState,
+  type SalesLineEditorState,
+  withCalculatedLineAmount,
+} from "./components/quotation-editor-modal";
 
 type SalesTab = "customers" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
 
@@ -81,34 +92,11 @@ type CustomerEditorState = {
   receivableAccountId: string;
 };
 
-type SalesLineEditorState = {
-  key: string;
-  itemName: string;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  discountAmount: string;
-  taxAmount: string;
-  lineAmount: string;
-  revenueAccountId: string;
-};
-
 type InvoiceEditorState = {
   id?: string;
   reference: string;
   invoiceDate: string;
   dueDate: string;
-  currencyCode: string;
-  customerId: string;
-  description: string;
-  lines: SalesLineEditorState[];
-};
-
-type QuotationEditorState = {
-  id?: string;
-  reference: string;
-  quotationDate: string;
-  validityDate: string;
   currencyCode: string;
   customerId: string;
   description: string;
@@ -159,16 +147,6 @@ const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
   creditLimit: "0",
   receivableAccountId: "",
 };
-
-const EMPTY_QUOTATION_EDITOR = (): QuotationEditorState => ({
-  reference: "",
-  quotationDate: new Date().toISOString().slice(0, 10),
-  validityDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  currencyCode: "JOD",
-  customerId: "",
-  description: "",
-  lines: [createEmptyLine()],
-});
 
 const EMPTY_ORDER_EDITOR = (): SalesOrderEditorState => ({
   reference: "",
@@ -229,7 +207,8 @@ export function SalesReceivablesPage() {
   const [quotationStatusFilter, setQuotationStatusFilter] = useState("");
   const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
   const [isQuotationEditorOpen, setIsQuotationEditorOpen] = useState(false);
-  const [quotationEditor, setQuotationEditor] = useState<QuotationEditorState>(EMPTY_QUOTATION_EDITOR);
+  const [quotationEditor, setQuotationEditor] = useState<QuotationEditorState>(createEmptyQuotationEditor);
+  const [quotationEditorClientError, setQuotationEditorClientError] = useState<string | null>(null);
 
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
@@ -272,15 +251,21 @@ export function SalesReceivablesPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const receivableAccountsQuery = useQuery({
-    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "ASSET", view: "selector" }),
-    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "ASSET" }, token),
+  const receivableAccountsTreeQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isActive: "true", type: "ASSET" }),
+    queryFn: () => getAccountsTree({ isActive: "true", type: "ASSET" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
   const revenueAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "REVENUE", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "REVENUE" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const inventoryItemsQuery = useQuery({
+    queryKey: queryKeys.inventoryItems(token, { isActive: "true", page: 1, limit: 100 }),
+    queryFn: () => getInventoryItems({ isActive: "true", page: 1, limit: 100 }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -373,7 +358,6 @@ export function SalesReceivablesPage() {
     mutationFn: () =>
       createCustomer(
         {
-          code: customerEditor.code || undefined,
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || undefined,
           taxInfo: customerEditor.taxInfo || undefined,
@@ -436,11 +420,8 @@ export function SalesReceivablesPage() {
         },
         token,
       ),
-    onSuccess: async (created) => {
+    onSuccess: async () => {
       await invalidateSalesReceivables(queryClient);
-      setSelectedQuotationId(created.id);
-      setIsQuotationEditorOpen(false);
-      setQuotationEditor(EMPTY_QUOTATION_EDITOR());
     },
   });
 
@@ -459,10 +440,8 @@ export function SalesReceivablesPage() {
         },
         token,
       ),
-    onSuccess: async (updated) => {
+    onSuccess: async () => {
       await invalidateSalesReceivables(queryClient);
-      setSelectedQuotationId(updated.id);
-      setIsQuotationEditorOpen(false);
     },
   });
 
@@ -481,6 +460,54 @@ export function SalesReceivablesPage() {
       setSelectedQuotationId(updated.id);
     },
   });
+
+  const saveQuotationDraft = async () => {
+    const validationError = validateQuotationEditorState(quotationEditor, t);
+    if (validationError) {
+      setQuotationEditorClientError(validationError);
+      return null;
+    }
+
+    setQuotationEditorClientError(null);
+
+    try {
+      const savedQuotation = quotationEditor.id
+        ? await updateQuotationMutation.mutateAsync()
+        : await createQuotationMutation.mutateAsync();
+
+      setSelectedQuotationId(savedQuotation.id);
+      setIsQuotationEditorOpen(false);
+      setQuotationEditorClientError(null);
+      setQuotationEditor(createEmptyQuotationEditor());
+      return savedQuotation;
+    } catch {
+      return null;
+    }
+  };
+
+  const approveQuotationFromEditor = async () => {
+    const validationError = validateQuotationEditorState(quotationEditor, t);
+    if (validationError) {
+      setQuotationEditorClientError(validationError);
+      return;
+    }
+
+    setQuotationEditorClientError(null);
+
+    try {
+      const savedQuotation = quotationEditor.id
+        ? await updateQuotationMutation.mutateAsync()
+        : await createQuotationMutation.mutateAsync();
+      const approvedQuotation = await approveQuotationMutation.mutateAsync(savedQuotation.id);
+
+      setSelectedQuotationId(approvedQuotation.id);
+      setIsQuotationEditorOpen(false);
+      setQuotationEditorClientError(null);
+      setQuotationEditor(createEmptyQuotationEditor());
+    } catch {
+      // Keep modal open and let mutation error surface in the existing error UI.
+    }
+  };
 
   const convertQuotationToOrderMutation = useMutation({
     mutationFn: (quotationId: string) => {
@@ -765,7 +792,24 @@ export function SalesReceivablesPage() {
   });
 
   const customers = customersQuery.data ?? [];
+  const receivableAccounts = useMemo(() => {
+    const tree = receivableAccountsTreeQuery.data ?? [];
+    const receivableRoot = findAccountTreeNode(
+      tree,
+      (node) =>
+        node.code === "1200000" ||
+        node.name.trim().toLowerCase() === "accounts receivable" ||
+        node.nameAr?.trim() === "الحسابات المدينة",
+    );
+
+    if (!receivableRoot) {
+      return [];
+    }
+
+    return flattenPostingAccounts(receivableRoot.children);
+  }, [receivableAccountsTreeQuery.data]);
   const activeCustomers = activeCustomersQuery.data ?? [];
+  const inventoryItems = (inventoryItemsQuery.data?.data ?? []).filter((item) => item.isActive);
   const quotations = quotationsQuery.data ?? [];
   const salesOrders = salesOrdersQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
@@ -794,6 +838,7 @@ export function SalesReceivablesPage() {
   );
 
   const currentError =
+    inventoryItemsQuery.error ??
     createCustomerMutation.error ??
     updateCustomerMutation.error ??
     deactivateCustomerMutation.error ??
@@ -1063,7 +1108,7 @@ export function SalesReceivablesPage() {
                 <option value="CONVERTED">{t("salesReceivables.status.converted")}</option>
                 <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
               </Select>
-              <Button onClick={() => { setQuotationEditor(EMPTY_QUOTATION_EDITOR()); setIsQuotationEditorOpen(true); }}>
+              <Button onClick={() => { setQuotationEditorClientError(null); setQuotationEditor(createEmptyQuotationEditor()); setIsQuotationEditorOpen(true); }}>
                 <CirclePlus className="mr-2 h-4 w-4" />
                 {t("salesReceivables.action.newQuotation")}
               </Button>
@@ -1105,6 +1150,7 @@ export function SalesReceivablesPage() {
                             {row.status === "DRAFT" ? (
                               <>
                                 <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => {
+                                  setQuotationEditorClientError(null);
                                   setQuotationEditor({ id: row.id, reference: row.reference, quotationDate: row.quotationDate.slice(0, 10), validityDate: row.validityDate.slice(0, 10), currencyCode: row.currencyCode, customerId: row.customer.id, description: row.description ?? "", lines: row.lines.map(mapLineToEditor) });
                                   setIsQuotationEditorOpen(true);
                                 }}>{t("salesReceivables.action.edit")}</button>
@@ -1937,13 +1983,6 @@ export function SalesReceivablesPage() {
       >
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.customerCode")} hint={t("salesReceivables.field.codeHint")}>
-              <Input
-                value={customerEditor.code}
-                disabled={Boolean(customerEditor.id)}
-                onChange={(event) => setCustomerEditor((current) => ({ ...current, code: event.target.value }))}
-              />
-            </Field>
             <Field label={t("salesReceivables.metric.creditLimit")}>
               <Input
                 type="number"
@@ -1980,9 +2019,9 @@ export function SalesReceivablesPage() {
           <Field label={t("salesReceivables.field.receivableAccount")}>
             <Select value={customerEditor.receivableAccountId} onChange={(event) => setCustomerEditor((current) => ({ ...current, receivableAccountId: event.target.value }))}>
               <option value="">{t("salesReceivables.empty.selectReceivableAccount")}</option>
-              {(receivableAccountsQuery.data ?? []).map((account) => (
+              {receivableAccounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.code} · {account.name}
+                  {account.code} - {account.name}
                 </option>
               ))}
             </Select>
@@ -1999,50 +2038,29 @@ export function SalesReceivablesPage() {
         </div>
       </SidePanel>
 
-      <SidePanel
+      <QuotationEditorModal
         isOpen={isQuotationEditorOpen}
-        onClose={() => setIsQuotationEditorOpen(false)}
+        onClose={() => {
+          setQuotationEditorClientError(null);
+          setIsQuotationEditorOpen(false);
+        }}
         title={quotationEditor.id ? t("salesReceivables.dialog.editQuotationDraft") : t("salesReceivables.dialog.newQuotation")}
-      >
-        <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.reference")}>
-              <Input value={quotationEditor.reference} onChange={(event) => setQuotationEditor((current) => ({ ...current, reference: event.target.value }))} />
-            </Field>
-            <Field label={t("salesReceivables.field.quotationDate")}>
-              <Input type="date" value={quotationEditor.quotationDate} onChange={(event) => setQuotationEditor((current) => ({ ...current, quotationDate: event.target.value }))} />
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.validUntil")}>
-              <Input type="date" value={quotationEditor.validityDate} onChange={(event) => setQuotationEditor((current) => ({ ...current, validityDate: event.target.value }))} />
-            </Field>
-            <Field label={t("salesReceivables.field.currency")}>
-              <Input value={quotationEditor.currencyCode} onChange={(event) => setQuotationEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} maxLength={3} />
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.customer")}>
-              <Select value={quotationEditor.customerId} onChange={(event) => setQuotationEditor((current) => ({ ...current, customerId: event.target.value }))}>
-                <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
-                {activeCustomers.map((row) => (
-                  <option key={row.id} value={row.id}>{row.code} · {row.name}</option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <Field label={t("salesReceivables.field.description")}>
-            <Textarea rows={3} value={quotationEditor.description} onChange={(event) => setQuotationEditor((current) => ({ ...current, description: event.target.value }))} />
-          </Field>
-          <DocumentLinesEditor lines={quotationEditor.lines} revenueAccounts={revenueAccountsQuery.data ?? []} onChange={(lines) => setQuotationEditor((current) => ({ ...current, lines }))} />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsQuotationEditorOpen(false)}>{t("salesReceivables.action.cancel")}</Button>
-            <Button onClick={() => (quotationEditor.id ? updateQuotationMutation.mutate() : createQuotationMutation.mutate())} disabled={createQuotationMutation.isPending || updateQuotationMutation.isPending}>
-              {quotationEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
-            </Button>
-          </div>
-        </div>
-      </SidePanel>
+        editor={quotationEditor}
+        validationError={quotationEditorClientError}
+        customers={activeCustomers}
+        inventoryItems={inventoryItems}
+        isInventoryItemsLoading={inventoryItemsQuery.isLoading}
+        revenueAccounts={revenueAccountsQuery.data ?? []}
+        isSavingDraft={createQuotationMutation.isPending || updateQuotationMutation.isPending}
+        isApproving={approveQuotationMutation.isPending}
+        onChange={setQuotationEditor}
+        onSaveDraft={() => {
+          void saveQuotationDraft();
+        }}
+        onApprove={() => {
+          void approveQuotationFromEditor();
+        }}
+      />
 
       <SidePanel
         isOpen={isOrderEditorOpen}
@@ -2364,6 +2382,21 @@ function DocumentLinesEditor({
   onChange: (lines: SalesLineEditorState[]) => void;
 }) {
   const { t } = useTranslation();
+  const updateLine = (
+    lineKey: string,
+    updater: (line: SalesLineEditorState) => SalesLineEditorState,
+  ) => {
+    onChange(
+      lines.map((item) => {
+        if (item.key !== lineKey) {
+          return item;
+        }
+
+        return withCalculatedLineAmount(updater(item));
+      }),
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -2394,13 +2427,13 @@ function DocumentLinesEditor({
               <Field label={t("salesReceivables.field.itemOrService")}>
                 <Input
                   value={line.itemName}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, itemName: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, itemName: event.target.value }))}
                 />
               </Field>
               <Field label={t("salesReceivables.field.revenueAccount")}>
                 <Select
                   value={line.revenueAccountId}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, revenueAccountId: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, revenueAccountId: event.target.value }))}
                 >
                   <option value="">{t("salesReceivables.empty.selectRevenueAccount")}</option>
                   {revenueAccounts.map((account) => (
@@ -2413,7 +2446,7 @@ function DocumentLinesEditor({
               <Field label={t("salesReceivables.field.description")}>
                 <Input
                   value={line.description}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, description: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, description: event.target.value }))}
                 />
               </Field>
             </div>
@@ -2424,7 +2457,7 @@ function DocumentLinesEditor({
                   min="0"
                   step="0.01"
                   value={line.discountAmount}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, discountAmount: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, discountAmount: event.target.value }))}
                 />
               </Field>
               <Field label={t("salesReceivables.field.taxAmount")}>
@@ -2433,7 +2466,7 @@ function DocumentLinesEditor({
                   min="0"
                   step="0.01"
                   value={line.taxAmount}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, taxAmount: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, taxAmount: event.target.value }))}
                 />
               </Field>
             </div>
@@ -2444,7 +2477,7 @@ function DocumentLinesEditor({
                   min="0.0001"
                   step="0.0001"
                   value={line.quantity}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, quantity: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, quantity: event.target.value }))}
                 />
               </Field>
               <Field label={t("salesReceivables.field.unitPrice")}>
@@ -2453,16 +2486,17 @@ function DocumentLinesEditor({
                   min="0"
                   step="0.01"
                   value={line.unitPrice}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, unitPrice: event.target.value } : item)))}
+                  onChange={(event) => updateLine(line.key, (item) => ({ ...item, unitPrice: event.target.value }))}
                 />
               </Field>
               <Field label={t("salesReceivables.field.lineAmount")}>
                 <Input
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   value={line.lineAmount}
-                  onChange={(event) => onChange(lines.map((item) => (item.key === line.key ? { ...item, lineAmount: event.target.value } : item)))}
+                  readOnly
+                  disabled
                 />
               </Field>
             </div>
@@ -2502,35 +2536,27 @@ function TableHead({
   return <th className={cn("px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600", className)}>{children}</th>;
 }
 
-function createEmptyLine(): SalesLineEditorState {
-  return {
-    key: Math.random().toString(36).slice(2, 10),
-    itemName: "",
-    description: "",
-    quantity: "1",
-    unitPrice: "",
-    discountAmount: "",
-    taxAmount: "",
-    lineAmount: "",
-    revenueAccountId: "",
-  };
-}
-
 function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
-  return lines.map((line) => ({
+  return lines.map((line) => {
+    const resolvedLine = withCalculatedLineAmount(line);
+
+    return {
+    itemId: line.itemId || undefined,
     itemName: line.itemName || undefined,
     description: line.description || undefined,
-    quantity: line.quantity ? Number(line.quantity) : undefined,
-    unitPrice: line.unitPrice ? Number(line.unitPrice) : undefined,
-    discountAmount: line.discountAmount ? Number(line.discountAmount) : undefined,
-    taxAmount: line.taxAmount ? Number(line.taxAmount) : undefined,
-    lineAmount: line.lineAmount ? Number(line.lineAmount) : undefined,
+    quantity: resolvedLine.quantity ? Number(resolvedLine.quantity) : undefined,
+    unitPrice: resolvedLine.unitPrice ? Number(resolvedLine.unitPrice) : undefined,
+    discountAmount: resolvedLine.discountAmount ? Number(resolvedLine.discountAmount) : undefined,
+    taxAmount: resolvedLine.taxAmount ? Number(resolvedLine.taxAmount) : undefined,
+    lineAmount: resolvedLine.lineAmount ? Number(resolvedLine.lineAmount) : undefined,
     revenueAccountId: line.revenueAccountId,
-  }));
+    };
+  });
 }
 
 function mapLineToEditor(line: {
   id: string;
+  itemId?: string | null;
   itemName?: string | null;
   description?: string | null;
   quantity: string;
@@ -2540,8 +2566,9 @@ function mapLineToEditor(line: {
   lineAmount: string;
   revenueAccount: { id: string } | null;
 }): SalesLineEditorState {
-  return {
+  return withCalculatedLineAmount({
     key: line.id,
+    itemId: line.itemId ?? "",
     itemName: line.itemName ?? "",
     description: line.description ?? "",
     quantity: line.quantity,
@@ -2550,10 +2577,11 @@ function mapLineToEditor(line: {
     taxAmount: line.taxAmount,
     lineAmount: line.lineAmount,
     revenueAccountId: line.revenueAccount?.id ?? "",
-  };
+  });
 }
 
 function mapLineForConversion(line: {
+  itemId?: string | null;
   itemName?: string | null;
   description?: string | null;
   quantity: string;
@@ -2564,6 +2592,7 @@ function mapLineForConversion(line: {
   revenueAccount: { id: string } | null;
 }): SalesLinePayload {
   return {
+    itemId: line.itemId ?? undefined,
     itemName: line.itemName ?? undefined,
     description: line.description ?? undefined,
     quantity: Number(line.quantity),
@@ -2577,6 +2606,53 @@ function mapLineForConversion(line: {
 
 function friendlyAllocationStatus(status: AllocationStatus) {
   return status.replaceAll("_", " ");
+}
+
+function validateQuotationEditorState(
+  editor: QuotationEditorState,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
+  if (!editor.customerId) {
+    return t("salesReceivables.validation.customerRequired");
+  }
+
+  if (!editor.lines.length) {
+    return t("salesReceivables.validation.lineRequired");
+  }
+
+  for (const [index, line] of editor.lines.entries()) {
+    const lineAmount = Number(line.lineAmount || 0);
+    if (!Number.isFinite(lineAmount) || lineAmount < 0.01) {
+      return t("salesReceivables.validation.lineAmountPositive", { index: index + 1 });
+    }
+  }
+
+  return null;
+}
+
+function findAccountTreeNode(
+  nodes: AccountTreeNode[],
+  predicate: (node: AccountTreeNode) => boolean,
+): AccountTreeNode | null {
+  for (const node of nodes) {
+    if (predicate(node)) {
+      return node;
+    }
+
+    const nestedMatch = findAccountTreeNode(node.children, predicate);
+    if (nestedMatch) {
+      return nestedMatch;
+    }
+  }
+
+  return null;
+}
+
+function flattenPostingAccounts(nodes: AccountTreeNode[]): AccountTreeNode[] {
+  return nodes.flatMap((node) => [
+    ...(node.isPosting ? [node] : []),
+    ...flattenPostingAccounts(node.children),
+  ]);
 }
 
 async function invalidateSalesReceivables(queryClient: ReturnType<typeof useQueryClient>) {

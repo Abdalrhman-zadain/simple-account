@@ -94,6 +94,10 @@ export class UpdateCustomerDto {
 export class SalesLineDto {
   @IsOptional()
   @IsString()
+  itemId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   itemName?: string;
 

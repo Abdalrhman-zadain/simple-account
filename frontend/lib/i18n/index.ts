@@ -680,6 +680,7 @@ Object.assign(enTranslations, {
   "salesReceivables.action.toOrder": "Convert to Order",
   "salesReceivables.action.toInvoice": "Convert to Invoice",
   "salesReceivables.action.cancel": "Cancel",
+  "salesReceivables.action.approveQuotation": "Approve Quotation",
   "salesReceivables.status.active": "Active",
   "salesReceivables.status.inactive": "Inactive",
   "salesReceivables.status.draft": "Draft",
@@ -748,6 +749,8 @@ Object.assign(enTranslations, {
   "salesReceivables.section.documentLines": "Document Lines",
   "salesReceivables.section.documentLinesDescription":
     "Each line needs a revenue account and either a unit price or line amount.",
+  "salesReceivables.section.quotationItemsDescription":
+    "Choose an item or service for each line. The description and revenue account can be filled automatically from the selected item.",
   "salesReceivables.empty.customers": "No customers match the current filters.",
   "salesReceivables.empty.customerContact": "No contact details",
   "salesReceivables.empty.notSet": "Not set",
@@ -778,8 +781,13 @@ Object.assign(enTranslations, {
   "salesReceivables.empty.selectReceivableAccount":
     "Select an active posting asset account",
   "salesReceivables.empty.selectRevenueAccount": "Select a revenue account",
+  "salesReceivables.empty.selectItemOrService": "Select an item or service",
   "salesReceivables.empty.selectBankCashAccount":
     "Select a bank / cash account",
+  "salesReceivables.state.loadingItems": "Loading items...",
+  "salesReceivables.validation.customerRequired": "Select a customer before saving the quotation.",
+  "salesReceivables.validation.lineRequired": "Add at least one quotation line.",
+  "salesReceivables.validation.lineAmountPositive": "Line {index} needs a total amount greater than zero.",
   "salesReceivables.empty.revenueAccountOptional": "Revenue account optional",
   "salesReceivables.empty.receipt": "Receipt",
   "salesReceivables.metric.currentBalance": "Current Balance",
@@ -829,6 +837,8 @@ Object.assign(enTranslations, {
   "salesReceivables.field.receiptDate": "Receipt Date",
   "salesReceivables.field.description": "Description",
   "salesReceivables.field.itemOrService": "Item / Service",
+  "salesReceivables.field.itemSnapshot": "Item Snapshot",
+  "salesReceivables.field.itemSnapshotPlaceholder": "Editable line title",
   "salesReceivables.field.linkedInvoice": "Linked Invoice",
   "salesReceivables.field.revenueAccount": "Revenue Account",
   "salesReceivables.field.quantity": "Quantity",
@@ -851,6 +861,9 @@ Object.assign(enTranslations, {
   "salesReceivables.field.creditNoteTotal": "Credit Note Total",
   "salesReceivables.field.agingDescription":
     "Aging uses posted invoices with outstanding balances and buckets them by invoice age.",
+  "salesReceivables.summary.subtotalBeforeTax": "Subtotal Before Tax",
+  "salesReceivables.summary.totalTax": "Total Tax",
+  "salesReceivables.summary.finalTotal": "Final Total",
   "salesReceivables.filters.searchQuotations": "Search quotations...",
   "salesReceivables.filters.searchOrders": "Search sales orders...",
   "salesReceivables.filters.searchReceipts": "Search receipts...",

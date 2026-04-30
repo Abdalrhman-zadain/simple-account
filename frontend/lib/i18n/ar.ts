@@ -2171,4 +2171,20 @@ Object.assign(arTranslations, {
   "fixedAssets.disposalMethod.OTHER": "أخرى",
 });
 
+Object.assign(arTranslations, {
+  "salesReceivables.action.approveQuotation": "اعتماد عرض السعر",
+  "salesReceivables.section.quotationItemsDescription":
+    "اختر صنفًا أو خدمة لكل سطر، وسيتم جلب الوصف وحساب الإيراد تلقائيًا من بيانات الصنف عند توفرها.",
+  "salesReceivables.empty.selectItemOrService": "اختر صنفًا أو خدمة",
+  "salesReceivables.state.loadingItems": "جارٍ تحميل الأصناف...",
+  "salesReceivables.validation.customerRequired": "اختر العميل قبل حفظ عرض السعر.",
+  "salesReceivables.validation.lineRequired": "أضف سطرًا واحدًا على الأقل في عرض السعر.",
+  "salesReceivables.validation.lineAmountPositive": "السطر {index} يحتاج إلى مبلغ إجمالي أكبر من صفر.",
+  "salesReceivables.field.itemSnapshot": "وصف السطر الظاهر",
+  "salesReceivables.field.itemSnapshotPlaceholder": "عنوان السطر القابل للتعديل",
+  "salesReceivables.summary.subtotalBeforeTax": "الإجمالي قبل الضريبة",
+  "salesReceivables.summary.totalTax": "إجمالي الضريبة",
+  "salesReceivables.summary.finalTotal": "الإجمالي النهائي",
+});
+
 export default arTranslations;

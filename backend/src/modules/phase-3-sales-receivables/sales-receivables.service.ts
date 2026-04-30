@@ -43,6 +43,7 @@ type ReceiptQuery = {
 };
 
 type ResolvedLine = {
+  itemId: string | null;
   itemName: string | null;
   description: string | null;
   revenueAccountId: string | null;
@@ -303,6 +304,7 @@ export class SalesReceivablesService {
       lines: dto.lines?.length
         ? dto.lines
         : quotation.lines.map((line) => ({
+            itemId: line.itemId ?? undefined,
             itemName: line.itemName ?? undefined,
             description: line.description ?? undefined,
             quantity: Number(line.quantity),
@@ -344,6 +346,7 @@ export class SalesReceivablesService {
       lines: dto.lines?.length
         ? dto.lines
         : quotation.lines.map((line) => ({
+            itemId: line.itemId ?? undefined,
             itemName: line.itemName ?? undefined,
             description: line.description ?? undefined,
             quantity: Number(line.quantity),
@@ -1469,6 +1472,28 @@ export class SalesReceivablesService {
     }
   }
 
+  private async ensureInventoryItem(itemId: string) {
+    const item = await this.prisma.inventoryItem.findUnique({
+      where: { id: itemId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isActive: true,
+        salesAccountId: true,
+      },
+    });
+
+    if (!item) {
+      throw new BadRequestException(`Inventory item ${itemId} was not found.`);
+    }
+    if (!item.isActive) {
+      throw new BadRequestException('Only active inventory items can be selected on quotation lines.');
+    }
+
+    return item;
+  }
+
   private async resolveAndValidateLines(
     lines: SalesLineDto[],
     options: { requireRevenueAccount: boolean },
@@ -1479,13 +1504,16 @@ export class SalesReceivablesService {
 
     const resolved: ResolvedLine[] = [];
     for (const [index, rawLine] of lines.entries()) {
+      const linkedItem = rawLine.itemId ? await this.ensureInventoryItem(rawLine.itemId) : null;
+      const resolvedRevenueAccountId = rawLine.revenueAccountId ?? linkedItem?.salesAccountId ?? null;
+
       if (options.requireRevenueAccount) {
-        if (!rawLine.revenueAccountId) {
+        if (!resolvedRevenueAccountId) {
           throw new BadRequestException(`Line ${index + 1} requires a revenue account.`);
         }
-        await this.ensureRevenueAccount(rawLine.revenueAccountId);
-      } else if (rawLine.revenueAccountId) {
-        await this.ensureRevenueAccount(rawLine.revenueAccountId);
+        await this.ensureRevenueAccount(resolvedRevenueAccountId);
+      } else if (resolvedRevenueAccountId) {
+        await this.ensureRevenueAccount(resolvedRevenueAccountId);
       }
 
       const quantity = rawLine.quantity ?? 1;
@@ -1522,9 +1550,10 @@ export class SalesReceivablesService {
       }
 
       resolved.push({
-        itemName: rawLine.itemName?.trim() || null,
-        description: rawLine.description?.trim() || null,
-        revenueAccountId: rawLine.revenueAccountId ?? null,
+        itemId: linkedItem?.id ?? null,
+        itemName: rawLine.itemName?.trim() || linkedItem?.name?.trim() || null,
+        description: rawLine.description?.trim() || linkedItem?.description?.trim() || null,
+        revenueAccountId: resolvedRevenueAccountId,
         quantity: Number(quantity.toFixed(4)),
         unitPrice: finalUnitPrice,
         discountAmount: Number(discountAmount.toFixed(2)),
@@ -1556,6 +1585,7 @@ export class SalesReceivablesService {
   ): Prisma.SalesQuotationLineUncheckedCreateWithoutSalesQuotationInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -1820,7 +1850,10 @@ export class SalesReceivablesService {
     return {
       customer: { include: { receivableAccount: { select: this.accountSummarySelect() } } },
       lines: {
-        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        include: {
+          revenueAccount: { select: this.accountSummarySelect() },
+          item: { select: this.inventoryItemSummarySelect() },
+        },
         orderBy: { lineNumber: 'asc' },
       },
     } satisfies Prisma.SalesQuotationInclude;
@@ -2006,7 +2039,9 @@ export class SalesReceivablesService {
     return {
       id: line.id,
       lineNumber: line.lineNumber,
+      itemId: line.itemId ?? null,
       itemName: line.itemName,
+      item: line.item ?? null,
       description: line.description,
       quantity: line.quantity.toString(),
       unitPrice: line.unitPrice.toString(),
@@ -2027,6 +2062,18 @@ export class SalesReceivablesService {
       currencyCode: true,
       isActive: true,
       isPosting: true,
+    };
+  }
+
+  private inventoryItemSummarySelect() {
+    return {
+      id: true,
+      code: true,
+      name: true,
+      description: true,
+      type: true,
+      isActive: true,
+      salesAccount: { select: this.accountSummarySelect() },
     };
   }
 
