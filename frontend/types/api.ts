@@ -1311,6 +1311,7 @@ export type BankCashAccount = {
     id: string;
     code: string;
     name: string;
+    nameAr?: string | null;
     type?: AccountType;
     currencyCode: string;
     isActive?: boolean;
@@ -1348,6 +1349,7 @@ export type BankCashTransaction = {
       id: string;
       code: string;
       name: string;
+      nameAr?: string | null;
       currencyCode: string;
     };
   } | null;
@@ -1361,6 +1363,7 @@ export type BankCashTransaction = {
       id: string;
       code: string;
       name: string;
+      nameAr?: string | null;
       currencyCode: string;
     };
   } | null;
@@ -1374,6 +1377,7 @@ export type BankCashTransaction = {
       id: string;
       code: string;
       name: string;
+      nameAr?: string | null;
       currencyCode: string;
     };
   } | null;
@@ -1381,6 +1385,7 @@ export type BankCashTransaction = {
     id: string;
     code: string;
     name: string;
+    nameAr?: string | null;
     currencyCode: string;
   } | null;
   journalEntryId?: string | null;

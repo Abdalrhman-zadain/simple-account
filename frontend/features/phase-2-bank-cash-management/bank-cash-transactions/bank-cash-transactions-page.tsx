@@ -66,7 +66,7 @@ const KIND_ROUTES: Array<{ kind: BankCashTransactionKind; href: string; icon: an
 
 export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKind }) {
   const { token } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -134,6 +134,18 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
       }),
     [postingAccounts, activeBankCashAccounts, selectedBankCashAccountId],
   );
+
+  const localizeAccountName = (account: { name: string; nameAr?: string | null }) =>
+    language === "ar" ? account.nameAr?.trim() || account.name : account.name?.trim() || account.nameAr?.trim() || "";
+
+  const formatPostingAccountLabel = (account: { code: string; name: string; nameAr?: string | null }) =>
+    `${localizeAccountName(account)} Â· ${account.code}`;
+
+  const formatBankCashAccountLabel = (account: BankCashAccount) =>
+    `${localizeAccountName(account.account)} Â· ${account.account.code}`;
+
+  const primaryLabel = (row: BankCashTransaction) => primaryAccountLabel(row, language);
+  const secondaryLabel = (row: BankCashTransaction) => secondaryAccountLabel(row, language);
 
   const totals = useMemo(
     () => ({
@@ -271,8 +283,8 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                         </button>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-900">{primaryAccountLabel(row)}</div>
-                        <div className="text-xs text-gray-500">{secondaryAccountLabel(row)}</div>
+                        <div className="font-semibold text-gray-900">{primaryLabel(row)}</div>
+                        <div className="text-xs text-gray-500">{secondaryLabel(row)}</div>
                       </td>
                       <td className="px-6 py-4 text-gray-700">{formatDate(row.transactionDate)}</td>
                       <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.amount)}</td>
@@ -336,12 +348,12 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
               {selected.journalReference ? (
                 <DetailRow label={t("bankCashTransactions.details.journal")} value={<span className="font-semibold text-gray-900">{selected.journalReference}</span>} />
               ) : null}
-              <DetailRow label={t("bankCashTransactions.details.primary")} value={<span className="font-semibold text-gray-900">{primaryAccountLabel(selected)}</span>} />
-              <DetailRow label={t("bankCashTransactions.details.secondary")} value={<span className="font-semibold text-gray-900">{secondaryAccountLabel(selected)}</span>} />
+              <DetailRow label={t("bankCashTransactions.details.primary")} value={<span className="font-semibold text-gray-900">{primaryLabel(selected)}</span>} />
+              <DetailRow label={t("bankCashTransactions.details.secondary")} value={<span className="font-semibold text-gray-900">{secondaryLabel(selected)}</span>} />
               {selected.counterpartyName ? (
                 <DetailRow label={t("bankCashTransactions.form.counterparty")} value={<span className="font-semibold text-gray-900">{selected.counterpartyName}</span>} />
               ) : null}
-              <DetailRow label={t("bankCashTransactions.form.description")} value={<span className="text-gray-700">{selected.description || "—"}</span>} />
+              <DetailRow label={t("bankCashTransactions.form.description")} value={<span className="text-gray-700">{selected.description || "â€”"}</span>} />
             </div>
           ) : (
             <div className="text-sm text-gray-500">{t("bankCashTransactions.details.empty")}</div>
@@ -381,7 +393,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                   <option value="">{t("bankCashTransactions.form.selectBankCashAccount")}</option>
                   {activeBankCashAccounts.map((row) => (
                     <option key={row.id} value={row.id}>
-                      {row.account.code} · {row.name}
+                      {formatBankCashAccountLabel(row)}
                     </option>
                   ))}
                 </Select>
@@ -394,7 +406,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                   <option value="">{t("bankCashTransactions.form.selectBankCashAccount")}</option>
                   {activeBankCashAccounts.map((row) => (
                     <option key={row.id} value={row.id}>
-                      {row.account.code} · {row.name}
+                      {formatBankCashAccountLabel(row)}
                     </option>
                   ))}
                 </Select>
@@ -411,7 +423,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                     <option value="">{t("bankCashTransactions.form.selectBankCashAccount")}</option>
                     {activeBankCashAccounts.map((row) => (
                       <option key={row.id} value={row.id}>
-                        {row.account.code} · {row.name}
+                        {formatBankCashAccountLabel(row)}
                       </option>
                     ))}
                   </Select>
@@ -424,7 +436,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                     <option value="">{t("bankCashTransactions.form.selectCounterAccount")}</option>
                     {filteredCounterAccounts.map((row) => (
                       <option key={row.id} value={row.id}>
-                        {row.code} · {row.name}
+                        {formatPostingAccountLabel(row)}
                       </option>
                     ))}
                   </Select>
@@ -481,20 +493,33 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function primaryAccountLabel(row: BankCashTransaction) {
-  if (row.kind === "TRANSFER") {
-    return row.sourceBankCashAccount ? `${row.sourceBankCashAccount.account.code} · ${row.sourceBankCashAccount.name}` : "—";
+function localizeName(name: string, nameAr: string | null | undefined, language: string) {
+  if (language === "ar") {
+    return nameAr?.trim() || name;
   }
-  return row.bankCashAccount ? `${row.bankCashAccount.account.code} · ${row.bankCashAccount.name}` : "—";
+
+  return name?.trim() || nameAr?.trim() || "";
 }
 
-function secondaryAccountLabel(row: BankCashTransaction) {
+function primaryAccountLabel(row: BankCashTransaction, language: string) {
+  if (row.kind === "TRANSFER") {
+    if (row.sourceBankCashAccount) {
+      return `${localizeName(row.sourceBankCashAccount.account.name, row.sourceBankCashAccount.account.nameAr, language)} Â· ${row.sourceBankCashAccount.account.code}`;
+    }
+    return "—";
+  }
+  return row.bankCashAccount
+    ? `${localizeName(row.bankCashAccount.account.name, row.bankCashAccount.account.nameAr, language)} · ${row.bankCashAccount.account.code}`
+    : "—";
+}
+
+function secondaryAccountLabel(row: BankCashTransaction, language: string) {
   if (row.kind === "TRANSFER") {
     return row.destinationBankCashAccount
-      ? `${row.destinationBankCashAccount.account.code} · ${row.destinationBankCashAccount.name}`
-      : "—";
+      ? `${row.destinationBankCashAccount.account.code} Â· ${row.destinationBankCashAccount.name}`
+      : "â€”";
   }
-  return row.counterAccount ? `${row.counterAccount.code} · ${row.counterAccount.name}` : "—";
+  return row.counterAccount ? `${row.counterAccount.code} Â· ${row.counterAccount.name}` : "â€”";
 }
 
 async function createTransaction(kind: BankCashTransactionKind, editor: EditorState, token?: string | null) {
@@ -588,3 +613,4 @@ function counterpartyHintKey(kind: BankCashTransactionKind) {
     ? "bankCashTransactions.form.counterpartyHint.receipt"
     : "bankCashTransactions.form.counterpartyHint.payment";
 }
+

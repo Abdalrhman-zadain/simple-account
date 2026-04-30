@@ -25,6 +25,7 @@ type BankCashAccountForPosting = {
   account: {
     id: string;
     name: string;
+    nameAr?: string | null;
     currencyCode: string;
     isActive: boolean;
     isPosting: boolean;
@@ -412,6 +413,7 @@ export class BankCashTransactionsService {
             id: row.counterAccount.id,
             code: row.counterAccount.code,
             name: row.counterAccount.name,
+            nameAr: row.counterAccount.nameAr ?? null,
             currencyCode: row.counterAccount.currencyCode,
           }
         : null,
@@ -429,7 +431,7 @@ export class BankCashTransactionsService {
     name: string;
     currencyCode: string;
     isActive: boolean;
-    account: { id: string; code: string; name: string; currencyCode: string };
+    account: { id: string; code: string; name: string; nameAr?: string | null; currencyCode: string };
   }) {
     return {
       id: row.id,
@@ -441,6 +443,7 @@ export class BankCashTransactionsService {
         id: row.account.id,
         code: row.account.code,
         name: row.account.name,
+        nameAr: row.account.nameAr ?? null,
         currencyCode: row.account.currencyCode,
       },
     };
@@ -462,6 +465,7 @@ export class BankCashTransactionsService {
       id: true,
       code: true,
       name: true,
+      nameAr: true,
       currencyCode: true,
     };
   }

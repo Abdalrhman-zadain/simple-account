@@ -37,6 +37,7 @@ export class BankCashAccountsService {
               { accountNumber: { contains: query.search, mode: 'insensitive' } },
               { account: { code: { contains: query.search, mode: 'insensitive' } } },
               { account: { name: { contains: query.search, mode: 'insensitive' } } },
+              { account: { nameAr: { contains: query.search, mode: 'insensitive' } } },
             ]
           : undefined,
       },
@@ -46,6 +47,7 @@ export class BankCashAccountsService {
             id: true,
             code: true,
             name: true,
+            nameAr: true,
             type: true,
             currentBalance: true,
             currencyCode: true,
@@ -187,6 +189,7 @@ export class BankCashAccountsService {
             id: true,
             code: true,
             name: true,
+            nameAr: true,
             type: true,
             currentBalance: true,
             currencyCode: true,
@@ -213,6 +216,7 @@ export class BankCashAccountsService {
             id: true,
             code: true,
             name: true,
+            nameAr: true,
             type: true,
             currentBalance: true,
             currencyCode: true,
@@ -295,6 +299,7 @@ export class BankCashAccountsService {
             id: true,
             code: true,
             name: true,
+            nameAr: true,
             type: true,
             currentBalance: true,
             currencyCode: true,
@@ -317,6 +322,7 @@ export class BankCashAccountsService {
             id: true,
             code: true,
             name: true,
+            nameAr: true,
             currentBalance: true,
             currencyCode: true,
           },
@@ -407,6 +413,7 @@ export class BankCashAccountsService {
         id: true,
         code: true,
         name: true,
+        nameAr: true,
         type: true,
         currentBalance: true,
         currencyCode: true,
@@ -708,6 +715,7 @@ export class BankCashAccountsService {
         id: string;
         code: string;
         name: string;
+        nameAr?: string | null;
         type?: string;
         currentBalance: { toString(): string } | string;
         currencyCode: string;
@@ -730,6 +738,7 @@ export class BankCashAccountsService {
         id: row.account.id,
         code: row.account.code,
         name: row.account.name,
+        nameAr: row.account.nameAr ?? null,
         type: row.account.type,
         currencyCode: row.account.currencyCode,
         isActive: row.account.isActive,
