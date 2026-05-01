@@ -4,18 +4,27 @@ import { cn } from "@/lib/utils";
 
 export function Field({
   label,
+  required,
   error,
   hint,
+  className,
+  labelClassName,
   children,
 }: {
   label: string;
+  required?: boolean;
   error?: string;
   hint?: string;
+  className?: string;
+  labelClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-semibold tracking-wide text-gray-900">{label}</span>
+    <label className={cn("block", className)}>
+      <span className={cn("mb-2 flex items-center gap-1 text-sm font-semibold tracking-wide text-gray-900", labelClassName)}>
+        <span>{label}</span>
+        {required ? <span className="text-base leading-none text-red-500">*</span> : null}
+      </span>
       {children}
       {error ? (
         <span className="mt-2 block text-sm font-medium text-red-400 arabic-auto">{error}</span>

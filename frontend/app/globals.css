@@ -55,6 +55,28 @@
     unicode-bidi: embed;
   }
 
+  .arabic-ui {
+    font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.65;
+  }
+
+  .arabic-ui-heading {
+    font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .arabic-ui::placeholder {
+    font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: #8a919d;
+    opacity: 1;
+  }
+
   html:lang(ar) .arabic-auto {
     font-family: "Noto Naskh Arabic", "Scheherazade New", "Tahoma", "Arial", sans-serif;
     font-weight: 600;

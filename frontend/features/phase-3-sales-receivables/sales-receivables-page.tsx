@@ -77,6 +77,10 @@ import {
   type SalesLineEditorState,
   withCalculatedLineAmount,
 } from "./components/quotation-editor-modal";
+import { CreditNoteEditorModal } from "./components/credit-note-editor-modal";
+import { ReceiptEditorModal } from "./components/receipt-editor-modal";
+import { SalesDocumentEditorModal } from "./components/sales-document-editor-modal";
+import { SalesOrderEditorModal } from "./components/sales-order-editor-modal";
 
 type SalesTab = "customers" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
 
@@ -2062,95 +2066,75 @@ export function SalesReceivablesPage() {
         }}
       />
 
-      <SidePanel
+      <SalesOrderEditorModal
         isOpen={isOrderEditorOpen}
         onClose={() => setIsOrderEditorOpen(false)}
         title={orderEditor.id ? t("salesReceivables.dialog.editOrderDraft") : t("salesReceivables.dialog.newOrder")}
-      >
-        <div className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.reference")}>
-              <Input value={orderEditor.reference} onChange={(event) => setOrderEditor((current) => ({ ...current, reference: event.target.value }))} />
-            </Field>
-            <Field label={t("salesReceivables.field.orderDate")}>
-              <Input type="date" value={orderEditor.orderDate} onChange={(event) => setOrderEditor((current) => ({ ...current, orderDate: event.target.value }))} />
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.promisedDate")}>
-              <Input type="date" value={orderEditor.promisedDate} onChange={(event) => setOrderEditor((current) => ({ ...current, promisedDate: event.target.value }))} />
-            </Field>
-            <Field label={t("salesReceivables.field.currency")}>
-              <Input value={orderEditor.currencyCode} onChange={(event) => setOrderEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} maxLength={3} />
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.customer")}>
-              <Select value={orderEditor.customerId} onChange={(event) => setOrderEditor((current) => ({ ...current, customerId: event.target.value, sourceQuotationId: "" }))}>
-                <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
-                {activeCustomers.map((row) => (
-                  <option key={row.id} value={row.id}>{row.code} · {row.name}</option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.sourceQuotation")}>
-              <Select value={orderEditor.sourceQuotationId} onChange={(event) => setOrderEditor((current) => ({ ...current, sourceQuotationId: event.target.value }))}>
-                <option value="">{t("salesReceivables.empty.manualOrder")}</option>
-                {matchingCustomerQuotations.map((row) => (
-                  <option key={row.id} value={row.id}>{row.reference}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t("salesReceivables.field.shippingDetails")}>
-              <Input value={orderEditor.shippingDetails} onChange={(event) => setOrderEditor((current) => ({ ...current, shippingDetails: event.target.value }))} />
-            </Field>
-          </div>
-          <Field label={t("salesReceivables.field.description")}>
-            <Textarea rows={3} value={orderEditor.description} onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))} />
-          </Field>
-          <DocumentLinesEditor lines={orderEditor.lines} revenueAccounts={revenueAccountsQuery.data ?? []} onChange={(lines) => setOrderEditor((current) => ({ ...current, lines }))} />
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsOrderEditorOpen(false)}>{t("salesReceivables.action.cancel")}</Button>
-            <Button onClick={() => (orderEditor.id ? updateOrderMutation.mutate() : createOrderMutation.mutate())} disabled={createOrderMutation.isPending || updateOrderMutation.isPending}>
-              {orderEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
-            </Button>
-          </div>
-        </div>
-      </SidePanel>
+        editor={orderEditor}
+        customers={activeCustomers}
+        quotations={matchingCustomerQuotations}
+        inventoryItems={inventoryItems}
+        isInventoryItemsLoading={inventoryItemsQuery.isLoading}
+        isSubmitting={createOrderMutation.isPending || updateOrderMutation.isPending}
+        onChange={setOrderEditor}
+        onSubmit={() => (orderEditor.id ? updateOrderMutation.mutate() : createOrderMutation.mutate())}
+      />
 
-      <SidePanel
+      <SalesDocumentEditorModal
         isOpen={isInvoiceEditorOpen}
         onClose={() => setIsInvoiceEditorOpen(false)}
         title={invoiceEditor.id ? t("salesReceivables.dialog.editInvoiceDraft") : t("salesReceivables.dialog.newSalesInvoice")}
-      >
-        <SalesDocumentEditor
-          reference={invoiceEditor.reference}
-          dateLabel={t("salesReceivables.field.invoiceDate")}
-          dateValue={invoiceEditor.invoiceDate}
-          secondaryDateLabel={t("salesReceivables.field.dueDate")}
-          secondaryDateValue={invoiceEditor.dueDate}
-          currencyCode={invoiceEditor.currencyCode}
-          customerId={invoiceEditor.customerId}
-          description={invoiceEditor.description}
-          lines={invoiceEditor.lines}
-          customers={activeCustomers}
-          revenueAccounts={revenueAccountsQuery.data ?? []}
-          onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
-          onDateChange={(value) => setInvoiceEditor((current) => ({ ...current, invoiceDate: value }))}
-          onSecondaryDateChange={(value) => setInvoiceEditor((current) => ({ ...current, dueDate: value }))}
-          onCurrencyChange={(value) => setInvoiceEditor((current) => ({ ...current, currencyCode: value.toUpperCase() }))}
-          onCustomerChange={(value) => setInvoiceEditor((current) => ({ ...current, customerId: value }))}
-          onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
-          onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
-          submitLabel={invoiceEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
-          isSubmitting={createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
-          onCancel={() => setIsInvoiceEditorOpen(false)}
-          onSubmit={() => (invoiceEditor.id ? updateInvoiceMutation.mutate() : createInvoiceMutation.mutate())}
-        />
-      </SidePanel>
+        introTitle={t("salesReceivables.dialog.newSalesInvoice")}
+        introDescription={t("salesReceivables.section.pipelineDescription")}
+        reference={invoiceEditor.reference}
+        dateLabel={t("salesReceivables.field.invoiceDate")}
+        dateValue={invoiceEditor.invoiceDate}
+        secondaryDateLabel={t("salesReceivables.field.dueDate")}
+        secondaryDateValue={invoiceEditor.dueDate}
+        currencyCode={invoiceEditor.currencyCode}
+        customerId={invoiceEditor.customerId}
+        description={invoiceEditor.description}
+        lines={invoiceEditor.lines}
+        customers={activeCustomers}
+        revenueAccounts={revenueAccountsQuery.data ?? []}
+        isSubmitting={createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
+        onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
+        onDateChange={(value) => setInvoiceEditor((current) => ({ ...current, invoiceDate: value }))}
+        onSecondaryDateChange={(value) => setInvoiceEditor((current) => ({ ...current, dueDate: value }))}
+        onCurrencyChange={(value) => setInvoiceEditor((current) => ({ ...current, currencyCode: value.toUpperCase() }))}
+        onCustomerChange={(value) => setInvoiceEditor((current) => ({ ...current, customerId: value }))}
+        onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
+        onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
+        onSubmit={() => (invoiceEditor.id ? updateInvoiceMutation.mutate() : createInvoiceMutation.mutate())}
+        submitLabel={invoiceEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
+      />
 
+      <CreditNoteEditorModal
+        isOpen={isCreditNoteEditorOpen}
+        onClose={() => setIsCreditNoteEditorOpen(false)}
+        title={creditNoteEditor.id ? t("salesReceivables.dialog.editCreditNoteDraft") : t("salesReceivables.dialog.newCreditNote")}
+        editor={creditNoteEditor}
+        customers={activeCustomers}
+        invoices={matchingCustomerInvoices}
+        revenueAccounts={revenueAccountsQuery.data ?? []}
+        isSubmitting={createCreditNoteMutation.isPending || updateCreditNoteMutation.isPending}
+        onChange={setCreditNoteEditor}
+        onSubmit={() => (creditNoteEditor.id ? updateCreditNoteMutation.mutate() : createCreditNoteMutation.mutate())}
+      />
+
+      <ReceiptEditorModal
+        isOpen={isReceiptEditorOpen}
+        onClose={() => setIsReceiptEditorOpen(false)}
+        title={t("salesReceivables.dialog.newReceipt")}
+        editor={receiptEditor}
+        customers={activeCustomers}
+        bankCashAccounts={bankCashAccountsQuery.data ?? []}
+        isSubmitting={createReceiptMutation.isPending}
+        onChange={setReceiptEditor}
+        onSubmit={() => createReceiptMutation.mutate()}
+      />
+
+      {false ? (
       <SidePanel
         isOpen={isCreditNoteEditorOpen}
         onClose={() => setIsCreditNoteEditorOpen(false)}
@@ -2217,7 +2201,9 @@ export function SalesReceivablesPage() {
           </div>
         </div>
       </SidePanel>
+      ) : null}
 
+      {false ? (
       <SidePanel
         isOpen={isReceiptEditorOpen}
         onClose={() => setIsReceiptEditorOpen(false)}
@@ -2267,6 +2253,7 @@ export function SalesReceivablesPage() {
           </div>
         </div>
       </SidePanel>
+      ) : null}
     </div>
   );
 }
@@ -2541,15 +2528,15 @@ function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
     const resolvedLine = withCalculatedLineAmount(line);
 
     return {
-    itemId: line.itemId || undefined,
-    itemName: line.itemName || undefined,
-    description: line.description || undefined,
-    quantity: resolvedLine.quantity ? Number(resolvedLine.quantity) : undefined,
-    unitPrice: resolvedLine.unitPrice ? Number(resolvedLine.unitPrice) : undefined,
-    discountAmount: resolvedLine.discountAmount ? Number(resolvedLine.discountAmount) : undefined,
-    taxAmount: resolvedLine.taxAmount ? Number(resolvedLine.taxAmount) : undefined,
-    lineAmount: resolvedLine.lineAmount ? Number(resolvedLine.lineAmount) : undefined,
-    revenueAccountId: line.revenueAccountId,
+      itemId: line.itemId || undefined,
+      itemName: line.itemName || undefined,
+      description: line.description || undefined,
+      quantity: resolvedLine.quantity ? Number(resolvedLine.quantity) : undefined,
+      unitPrice: resolvedLine.unitPrice ? Number(resolvedLine.unitPrice) : undefined,
+      discountAmount: resolvedLine.discountAmount ? Number(resolvedLine.discountAmount) : undefined,
+      taxAmount: resolvedLine.taxAmount ? Number(resolvedLine.taxAmount) : undefined,
+      lineAmount: resolvedLine.lineAmount ? Number(resolvedLine.lineAmount) : undefined,
+      revenueAccountId: line.revenueAccountId || undefined,
     };
   });
 }

@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import {
   LuCalendarDays as CalendarDays,
   LuCirclePlus as CirclePlus,
-  LuFileCheck2 as FileCheck2,
   LuFileText as FileText,
   LuPackage2 as Package2,
   LuSave as Save,
@@ -17,183 +16,98 @@ import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Customer, InventoryItem } from "@/types/api";
+import type { Customer } from "@/types/api";
+import {
+  calculateQuotationTotals,
+  createEmptyLine,
+  type SalesLineEditorState,
+  withCalculatedLineAmount,
+} from "./quotation-editor-modal";
 
-export type SalesLineEditorState = {
-  key: string;
-  itemId: string;
-  itemName: string;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  discountAmount: string;
-  taxAmount: string;
-  lineAmount: string;
-  revenueAccountId: string;
-};
+type RevenueAccountOption = { id: string; code: string; name: string };
 
-export type QuotationEditorState = {
-  id?: string;
+type SalesDocumentEditorModalProps = {
+  isOpen: boolean;
+  title: string;
+  introTitle: string;
+  introDescription: string;
   reference: string;
-  quotationDate: string;
-  validityDate: string;
+  dateLabel: string;
+  dateValue: string;
+  secondaryDateLabel?: string;
+  secondaryDateValue?: string;
   currencyCode: string;
   customerId: string;
   description: string;
   lines: SalesLineEditorState[];
-};
-
-type RevenueAccountOption = { id: string; code: string; name: string };
-
-type QuotationEditorModalProps = {
-  isOpen: boolean;
-  title: string;
-  editor: QuotationEditorState;
-  validationError?: string | null;
   customers: Customer[];
-  inventoryItems: InventoryItem[];
-  isInventoryItemsLoading: boolean;
   revenueAccounts: RevenueAccountOption[];
-  isSavingDraft: boolean;
-  isApproving: boolean;
+  isSubmitting: boolean;
   onClose: () => void;
-  onChange: (editor: QuotationEditorState) => void;
-  onSaveDraft: () => void;
-  onApprove: () => void;
+  onReferenceChange: (value: string) => void;
+  onDateChange: (value: string) => void;
+  onSecondaryDateChange?: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
+  onCustomerChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onLinesChange: (lines: SalesLineEditorState[]) => void;
+  onSubmit: () => void;
+  submitLabel: string;
 };
 
-export function createEmptyLine(): SalesLineEditorState {
-  return withCalculatedLineAmount({
-    key: Math.random().toString(36).slice(2, 10),
-    itemId: "",
-    itemName: "",
-    description: "",
-    quantity: "1",
-    unitPrice: "",
-    discountAmount: "",
-    taxAmount: "",
-    lineAmount: "",
-    revenueAccountId: "",
-  });
-}
-
-export function createEmptyQuotationEditor(): QuotationEditorState {
-  return {
-    reference: "",
-    quotationDate: new Date().toISOString().slice(0, 10),
-    validityDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    currencyCode: "JOD",
-    customerId: "",
-    description: "",
-    lines: [createEmptyLine()],
-  };
-}
-
-export function withCalculatedLineAmount(line: SalesLineEditorState): SalesLineEditorState {
-  return {
-    ...line,
-    lineAmount: calculateLineAmount(line),
-  };
-}
-
-export function calculateLineAmount(
-  line: Pick<SalesLineEditorState, "quantity" | "unitPrice" | "discountAmount" | "taxAmount">,
-) {
-  const quantity = toFiniteNumber(line.quantity);
-  const unitPrice = toFiniteNumber(line.unitPrice);
-  const discountAmount = toFiniteNumber(line.discountAmount) ?? 0;
-  const taxAmount = toFiniteNumber(line.taxAmount) ?? 0;
-
-  if (quantity === null || unitPrice === null) {
-    return "";
-  }
-
-  return (quantity * unitPrice - discountAmount + taxAmount).toFixed(2);
-}
-
-export function calculateQuotationTotals(lines: SalesLineEditorState[]) {
-  return lines.reduce(
-    (totals, line) => {
-      const quantity = toFiniteNumber(line.quantity) ?? 0;
-      const unitPrice = toFiniteNumber(line.unitPrice) ?? 0;
-      const discountAmount = toFiniteNumber(line.discountAmount) ?? 0;
-      const taxAmount = toFiniteNumber(line.taxAmount) ?? 0;
-      const subtotal = quantity * unitPrice - discountAmount;
-      const lineAmount = toFiniteNumber(line.lineAmount) ?? subtotal + taxAmount;
-
-      return {
-        subtotalAmount: totals.subtotalAmount + Math.max(subtotal, 0),
-        taxAmount: totals.taxAmount + taxAmount,
-        totalAmount: totals.totalAmount + Math.max(lineAmount, 0),
-      };
-    },
-    { subtotalAmount: 0, taxAmount: 0, totalAmount: 0 },
-  );
-}
-
-function toFiniteNumber(value: string) {
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function QuotationEditorModal({
+export function SalesDocumentEditorModal({
   isOpen,
   title,
-  editor,
-  validationError,
+  introTitle,
+  introDescription,
+  reference,
+  dateLabel,
+  dateValue,
+  secondaryDateLabel,
+  secondaryDateValue,
+  currencyCode,
+  customerId,
+  description,
+  lines,
   customers,
-  inventoryItems,
-  isInventoryItemsLoading,
   revenueAccounts,
-  isSavingDraft,
-  isApproving,
+  isSubmitting,
   onClose,
-  onChange,
-  onSaveDraft,
-  onApprove,
-}: QuotationEditorModalProps) {
+  onReferenceChange,
+  onDateChange,
+  onSecondaryDateChange,
+  onCurrencyChange,
+  onCustomerChange,
+  onDescriptionChange,
+  onLinesChange,
+  onSubmit,
+  submitLabel,
+}: SalesDocumentEditorModalProps) {
   const { t, language } = useTranslation();
   const isArabic = language === "ar";
-
-  const totals = useMemo(() => calculateQuotationTotals(editor.lines), [editor.lines]);
-
-  const updateEditor = (updater: (current: QuotationEditorState) => QuotationEditorState) => {
-    onChange(updater(editor));
-  };
+  const totals = useMemo(() => calculateQuotationTotals(lines), [lines]);
 
   const updateLine = (
     lineKey: string,
     updater: (line: SalesLineEditorState) => SalesLineEditorState,
   ) => {
-    updateEditor((current) => ({
-      ...current,
-      lines: current.lines.map((line) =>
+    onLinesChange(
+      lines.map((line) =>
         line.key === lineKey ? withCalculatedLineAmount(updater(line)) : line,
       ),
-    }));
+    );
   };
 
   const removeLine = (lineKey: string) => {
-    if (editor.lines.length === 1) {
+    if (lines.length === 1) {
       return;
     }
 
-    updateEditor((current) => ({
-      ...current,
-      lines: current.lines.filter((line) => line.key !== lineKey),
-    }));
+    onLinesChange(lines.filter((line) => line.key !== lineKey));
   };
 
   const addLine = () => {
-    updateEditor((current) => ({
-      ...current,
-      lines: [...current.lines, createEmptyLine()],
-    }));
+    onLinesChange([...lines, createEmptyLine()]);
   };
 
   if (!isOpen) {
@@ -221,14 +135,14 @@ export function QuotationEditorModal({
           </button>
           <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-              <FileCheck2 className="h-6 w-6" />
+              <FileText className="h-6 w-6" />
             </div>
             <div className="space-y-1">
               <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
                 {title}
               </div>
               <div className="text-sm text-slate-500">
-                {editor.reference || t("salesReceivables.field.referenceHint")}
+                {reference || t("salesReceivables.field.referenceHint")}
               </div>
             </div>
           </div>
@@ -236,12 +150,6 @@ export function QuotationEditorModal({
 
         <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
           <div className="space-y-5">
-            {validationError ? (
-              <div className="rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 shadow-[0_10px_24px_rgba(239,68,68,0.08)]">
-                {validationError}
-              </div>
-            ) : null}
-
             <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
               <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
@@ -249,58 +157,44 @@ export function QuotationEditorModal({
                 </div>
                 <div>
                   <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
-                    {t("salesReceivables.dialog.newQuotation")}
+                    {introTitle}
                   </div>
-                  <div className="text-sm text-slate-500">{t("salesReceivables.section.pipelineDescription")}</div>
+                  <div className="text-sm text-slate-500">{introDescription}</div>
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1.4fr_1fr]">
-                <Field label={t("salesReceivables.field.quotationDate")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+              <div className={cn("grid gap-4", secondaryDateLabel && onSecondaryDateChange ? "xl:grid-cols-[1fr_1fr_1.4fr_1fr_1fr]" : "xl:grid-cols-[1fr_1.4fr_1fr_1fr]")}>
+                <Field label={dateLabel} required labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <div className="relative">
                     <Input
                       type="date"
-                      value={editor.quotationDate}
-                      onChange={(event) =>
-                        updateEditor((current) => ({ ...current, quotationDate: event.target.value }))
-                      }
+                      value={dateValue}
+                      onChange={(event) => onDateChange(event.target.value)}
                       className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
                     />
-                    <CalendarDays
-                      className={cn(
-                        "pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400",
-                        isArabic ? "left-4" : "right-4",
-                      )}
-                    />
+                    <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
                   </div>
                 </Field>
 
-                <Field label={t("salesReceivables.field.validUntil")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={editor.validityDate}
-                      onChange={(event) =>
-                        updateEditor((current) => ({ ...current, validityDate: event.target.value }))
-                      }
-                      className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
-                    />
-                    <CalendarDays
-                      className={cn(
-                        "pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400",
-                        isArabic ? "left-4" : "right-4",
-                      )}
-                    />
-                  </div>
-                </Field>
+                {secondaryDateLabel && onSecondaryDateChange ? (
+                  <Field label={secondaryDateLabel} labelClassName={isArabic ? "arabic-ui" : undefined}>
+                    <div className="relative">
+                      <Input
+                        type="date"
+                        value={secondaryDateValue ?? ""}
+                        onChange={(event) => onSecondaryDateChange(event.target.value)}
+                        className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                      />
+                      <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                    </div>
+                  </Field>
+                ) : null}
 
                 <Field label={t("salesReceivables.field.customer")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <div className="relative">
                     <Select
-                      value={editor.customerId}
-                      onChange={(event) =>
-                        updateEditor((current) => ({ ...current, customerId: event.target.value }))
-                      }
+                      value={customerId}
+                      onChange={(event) => onCustomerChange(event.target.value)}
                       className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
                     >
                       <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
@@ -310,24 +204,14 @@ export function QuotationEditorModal({
                         </option>
                       ))}
                     </Select>
-                    <UserRound
-                      className={cn(
-                        "pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400",
-                        isArabic ? "left-4" : "right-4",
-                      )}
-                    />
+                    <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
                   </div>
                 </Field>
 
                 <Field label={t("salesReceivables.field.currency")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <Input
-                    value={editor.currencyCode}
-                    onChange={(event) =>
-                      updateEditor((current) => ({
-                        ...current,
-                        currencyCode: event.target.value.toUpperCase(),
-                      }))
-                    }
+                    value={currencyCode}
+                    onChange={(event) => onCurrencyChange(event.target.value.toUpperCase())}
                     maxLength={3}
                     className={cn("border-slate-200 bg-slate-50/70 uppercase", isArabic && "arabic-ui text-right")}
                   />
@@ -338,11 +222,8 @@ export function QuotationEditorModal({
                 <Field label={t("salesReceivables.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <Textarea
                     rows={3}
-                    value={editor.description}
-                    onChange={(event) =>
-                      updateEditor((current) => ({ ...current, description: event.target.value }))
-                    }
-                    placeholder={t("salesReceivables.field.description")}
+                    value={description}
+                    onChange={(event) => onDescriptionChange(event.target.value)}
                     className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                   />
                 </Field>
@@ -374,7 +255,7 @@ export function QuotationEditorModal({
               </div>
 
               <div className="space-y-4">
-                {editor.lines.map((line, index) => (
+                {lines.map((line, index) => (
                   <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
@@ -391,7 +272,7 @@ export function QuotationEditorModal({
                       <button
                         type="button"
                         onClick={() => removeLine(line.key)}
-                        disabled={editor.lines.length === 1}
+                        disabled={lines.length === 1}
                         className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -400,18 +281,18 @@ export function QuotationEditorModal({
                     </div>
 
                     <div className="overflow-x-auto">
-                      <div className="min-w-[1320px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                      <div className="min-w-[1240px]">
+                        <div className="mb-3 grid grid-cols-[0.55fr_1.6fr_1.6fr_1.35fr_0.85fr_0.95fr_1fr_1fr_1.2fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
-                            t("salesReceivables.field.itemSnapshot"),
                             t("salesReceivables.field.revenueAccount"),
+                            t("salesReceivables.field.description"),
                             t("salesReceivables.field.quantity"),
                             t("salesReceivables.field.unitPrice"),
                             t("salesReceivables.field.discountAmount"),
                             t("salesReceivables.field.taxAmount"),
-                            t("salesReceivables.field.description"),
+                            t("salesReceivables.field.lineAmount"),
                           ].map((label, labelIndex) => (
                             <div
                               key={`${line.key}-label-${labelIndex}`}
@@ -421,58 +302,23 @@ export function QuotationEditorModal({
                               )}
                             >
                               {label}
-                              {labelIndex > 0 &&
-                              labelIndex !== 2 &&
-                              labelIndex !== 3 &&
-                              labelIndex !== 6 &&
-                              labelIndex !== 7 &&
-                              labelIndex !== 8 ? (
+                              {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 3 && labelIndex !== 6 && labelIndex !== 7 ? (
                                 <span className="ms-1 text-red-500">*</span>
                               ) : null}
                             </div>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                        <div className="grid grid-cols-[0.55fr_1.6fr_1.6fr_1.35fr_0.85fr_0.95fr_1fr_1fr_1.2fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
-
-                          <Select
-                            value={line.itemId}
-                            onChange={(event) => {
-                              const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                itemId: item?.id ?? "",
-                                itemName: item?.name ?? current.itemName,
-                                description:
-                                  current.description.trim() || !item
-                                    ? current.description
-                                    : item.description ?? item.name,
-                                revenueAccountId: item?.salesAccount?.id ?? current.revenueAccountId,
-                              }));
-                            }}
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          >
-                            <option value="">
-                              {isInventoryItemsLoading
-                                ? t("salesReceivables.state.loadingItems")
-                                : t("salesReceivables.empty.selectItemOrService")}
-                            </option>
-                            {inventoryItems.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.code} · {item.name}
-                              </option>
-                            ))}
-                          </Select>
 
                           <Input
                             value={line.itemName}
                             onChange={(event) =>
                               updateLine(line.key, (current) => ({ ...current, itemName: event.target.value }))
                             }
-                            placeholder={t("salesReceivables.field.itemSnapshotPlaceholder")}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
@@ -493,6 +339,14 @@ export function QuotationEditorModal({
                               </option>
                             ))}
                           </Select>
+
+                          <Input
+                            value={line.description}
+                            onChange={(event) =>
+                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
+                            }
+                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                          />
 
                           <Input
                             type="number"
@@ -538,41 +392,19 @@ export function QuotationEditorModal({
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
-                          <Input
-                            value={line.description}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
-                          <div />
-                          <div />
-                          <div>
-                            <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
-                              {t("salesReceivables.field.lineAmount")}
-                            </div>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={line.lineAmount}
-                                readOnly
-                                disabled
-                                className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
-                              />
-                              <span
-                                className={cn(
-                                  "pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500",
-                                  isArabic ? "left-4" : "right-4",
-                                )}
-                              >
-                                {editor.currencyCode || "JOD"}
-                              </span>
-                            </div>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.lineAmount}
+                              readOnly
+                              disabled
+                              className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                            />
+                            <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
+                              {currencyCode || "JOD"}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -586,19 +418,19 @@ export function QuotationEditorModal({
               <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/80 p-5 shadow-[0_10px_24px_rgba(16,185,129,0.08)]">
                 <div className="text-sm font-bold text-emerald-700">{t("salesReceivables.metric.total")}</div>
                 <div className="mt-2 text-3xl font-black text-emerald-700">
-                  {editor.currencyCode || "JOD"} {totals.totalAmount.toFixed(2)}
+                  {currencyCode || "JOD"} {totals.totalAmount.toFixed(2)}
                 </div>
               </div>
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
                 <div className="text-sm font-bold text-slate-500">{t("salesReceivables.metric.subtotal")}</div>
                 <div className="mt-2 text-2xl font-black text-slate-900">
-                  {editor.currencyCode || "JOD"} {totals.subtotalAmount.toFixed(2)}
+                  {currencyCode || "JOD"} {totals.subtotalAmount.toFixed(2)}
                 </div>
               </div>
               <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
                 <div className="text-sm font-bold text-slate-500">{t("salesReceivables.metric.tax")}</div>
                 <div className="mt-2 text-2xl font-black text-slate-900">
-                  {editor.currencyCode || "JOD"} {totals.taxAmount.toFixed(2)}
+                  {currencyCode || "JOD"} {totals.taxAmount.toFixed(2)}
                 </div>
               </div>
             </section>
@@ -610,22 +442,9 @@ export function QuotationEditorModal({
             <Button variant="secondary" onClick={onClose} className="rounded-2xl px-6">
               {t("salesReceivables.action.cancel")}
             </Button>
-            <Button
-              variant="secondary"
-              onClick={onApprove}
-              disabled={isSavingDraft || isApproving}
-              className="rounded-2xl border-emerald-200 px-6 text-emerald-700 hover:bg-emerald-50"
-            >
-              <FileCheck2 className="h-4 w-4" />
-              {t("salesReceivables.action.approveQuotation")}
-            </Button>
-            <Button
-              onClick={onSaveDraft}
-              disabled={isSavingDraft || isApproving}
-              className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
-            >
+            <Button onClick={onSubmit} disabled={isSubmitting} className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700">
               <Save className="h-4 w-4" />
-              {t("salesReceivables.action.saveDraft")}
+              {submitLabel}
             </Button>
           </div>
         </div>

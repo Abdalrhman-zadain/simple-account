@@ -67,7 +67,7 @@ What this means for future edits:
 Current limitation:
 
 - the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace, but document export/printing and customer statement output are still not implemented.
-- the quotation editor now supports a richer item/service-driven layout and can auto-fill from active inventory items, but the same richer item-linked experience has not yet been generalized to sales orders, invoices, or printable quote outputs.
+- the quotation and sales-order editors now support a richer item/service-driven layout and can auto-fill from active inventory items, but the same richer item-linked experience has not yet been generalized to invoices or printable quote/order outputs.
 
 What this means for future edits:
 

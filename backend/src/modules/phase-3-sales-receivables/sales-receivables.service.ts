@@ -1604,6 +1604,7 @@ export class SalesReceivablesService {
   ): Prisma.SalesOrderLineUncheckedCreateWithoutSalesOrderInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -1865,7 +1866,10 @@ export class SalesReceivablesService {
       sourceQuotation: { select: { id: true, reference: true } },
       salesInvoices: { select: { id: true, reference: true, totalAmount: true, status: true } },
       lines: {
-        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        include: {
+          revenueAccount: { select: this.accountSummarySelect() },
+          item: { select: this.inventoryItemSummarySelect() },
+        },
         orderBy: { lineNumber: 'asc' },
       },
     } satisfies Prisma.SalesOrderInclude;
