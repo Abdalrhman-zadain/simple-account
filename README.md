@@ -53,72 +53,64 @@ frontend/
 
 From the project root:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account
+```bash
+# 1. Start the database
 docker compose up -d postgres
+
+# 2. Install all dependencies (root, backend, and frontend)
+npm run install:all
+
+# 3. Set up the backend environment file
 cd backend
-copy .env.example .env
-npm install
+cp .env.example .env   # Windows: copy .env.example .env
+# Edit backend/.env and set a strong JWT_SECRET before running in production
+
+# 4. Generate Prisma client and run migrations
 npm run prisma:generate
 npm run prisma:migrate
-cd ..\frontend
-npm install
+cd ..
 ```
 
 ### Every Time You Run The Project
 
-Open one terminal for the database:
+Start the database, then run both backend and frontend from the project root with a single command:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account
+```bash
+# Start the database (if not already running)
 docker compose up -d postgres
+
+# Start backend and frontend together from the project root
+npm run dev
 ```
 
-Open a second terminal for the backend:
+This uses `concurrently` to launch both services in the same terminal:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
-npm run prisma:generate
-npm run start:dev
+- **Backend** → `http://localhost:3003/api`
+- **Frontend** → `http://localhost:3000`
+- **Swagger docs** → `http://localhost:3003/api/docs`
+
+If you prefer to run each service in a separate terminal:
+
+```bash
+# Terminal 1 — backend
+cd backend && npm run start:dev
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
 ```
 
 If you need to sync schema changes locally and `npm run prisma:migrate` fails with `P3006` (shadow database replay), run:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+```bash
+cd backend
 npx prisma db push --skip-generate
-```
-
-The backend runs at:
-
-```text
-http://localhost:3003/api
-```
-
-Swagger docs are available at:
-
-```text
-http://localhost:3003/api/docs
-```
-
-Open a third terminal for the frontend:
-
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
-npm run dev
-```
-
-The frontend runs at:
-
-```text
-http://localhost:3000
 ```
 
 ### Database Only
 
 From the backend folder, you can also start PostgreSQL with:
 
-```powershell
+```bash
 cd backend
 npm run db:up
 ```
@@ -127,9 +119,9 @@ npm run db:up
 
 Use these after dependency or schema changes:
 
-```powershell
+```bash
 cd backend
-copy .env.example .env
+cp .env.example .env   # Windows: copy .env.example .env
 npm install
 npm run prisma:generate
 # Use migrate for normal migration workflow.
@@ -141,16 +133,21 @@ npm run start:dev
 
 If Next.js reports a stale `.next` cache or `readlink` error, stop the frontend server and run:
 
-```powershell
-Remove-Item -Recurse -Force .next
-npm run dev
+```bash
+# Linux/macOS
+rm -rf frontend/.next
+
+# Windows PowerShell
+Remove-Item -Recurse -Force frontend\.next
 ```
+
+Then restart with `npm run dev` from the project root (or `npm run dev` from inside `frontend/`).
 
 ### Prisma Studio
 
 Start the database first, then run Prisma Studio from the backend folder:
 
-```powershell
+```bash
 cd backend
 npm run prisma:studio
 ```
@@ -167,15 +164,15 @@ http://localhost:5555
 
 Run the backend Jest test suite from the backend folder:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+```bash
+cd backend
 npm test
 ```
 
 To keep the backend tests running while you edit code:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
+```bash
+cd backend
 npm run test:watch
 ```
 
@@ -183,20 +180,20 @@ npm run test:watch
 
 The frontend does not currently have a test runner script. Use TypeScript checking to validate frontend code:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
+```bash
+cd frontend
 npm run typecheck
 ```
 
 You can also run a production build check:
 
-```powershell
-cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\frontend
+```bash
+cd frontend
 npm run build
 ```
 
 ## Troubleshooting
 
-- If backend development startup fails with `EADDRINUSE`, check whether port `3002` is already in use before running `npm run start:dev`.
+- If backend development startup fails with `EADDRINUSE`, check whether port `3003` is already in use before running `npm run start:dev`.
 - The frontend production build currently succeeds, but it can still take noticeably longer on larger pages because Next.js compiles and validates the app during build.
 - In frontend development mode, page navigation can feel slower than production because Next.js compiles routes on demand.
