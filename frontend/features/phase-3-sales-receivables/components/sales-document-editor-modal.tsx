@@ -16,7 +16,7 @@ import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Customer } from "@/types/api";
+import type { Customer, InventoryItem } from "@/types/api";
 import {
   calculateQuotationTotals,
   createEmptyLine,
@@ -41,6 +41,8 @@ type SalesDocumentEditorModalProps = {
   description: string;
   lines: SalesLineEditorState[];
   customers: Customer[];
+  inventoryItems: InventoryItem[];
+  isInventoryItemsLoading: boolean;
   revenueAccounts: RevenueAccountOption[];
   isSubmitting: boolean;
   onClose: () => void;
@@ -70,6 +72,8 @@ export function SalesDocumentEditorModal({
   description,
   lines,
   customers,
+  inventoryItems,
+  isInventoryItemsLoading,
   revenueAccounts,
   isSubmitting,
   onClose,
@@ -281,18 +285,18 @@ export function SalesDocumentEditorModal({
                     </div>
 
                     <div className="overflow-x-auto">
-                      <div className="min-w-[1240px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_1.6fr_1.6fr_1.35fr_0.85fr_0.95fr_1fr_1fr_1.2fr] gap-3">
+                      <div className="min-w-[1320px]">
+                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
+                            t("salesReceivables.field.itemSnapshot"),
                             t("salesReceivables.field.revenueAccount"),
-                            t("salesReceivables.field.description"),
                             t("salesReceivables.field.quantity"),
                             t("salesReceivables.field.unitPrice"),
                             t("salesReceivables.field.discountAmount"),
                             t("salesReceivables.field.taxAmount"),
-                            t("salesReceivables.field.lineAmount"),
+                            t("salesReceivables.field.description"),
                           ].map((label, labelIndex) => (
                             <div
                               key={`${line.key}-label-${labelIndex}`}
@@ -302,23 +306,58 @@ export function SalesDocumentEditorModal({
                               )}
                             >
                               {label}
-                              {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 3 && labelIndex !== 6 && labelIndex !== 7 ? (
+                              {labelIndex > 0 &&
+                              labelIndex !== 2 &&
+                              labelIndex !== 3 &&
+                              labelIndex !== 6 &&
+                              labelIndex !== 7 &&
+                              labelIndex !== 8 ? (
                                 <span className="ms-1 text-red-500">*</span>
                               ) : null}
                             </div>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_1.6fr_1.6fr_1.35fr_0.85fr_0.95fr_1fr_1fr_1.2fr] gap-3">
+                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
+
+                          <Select
+                            value={line.itemId}
+                            onChange={(event) => {
+                              const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
+                              updateLine(line.key, (current) => ({
+                                ...current,
+                                itemId: item?.id ?? "",
+                                itemName: item?.name ?? current.itemName,
+                                description:
+                                  current.description.trim() || !item
+                                    ? current.description
+                                    : item.description ?? item.name,
+                                revenueAccountId: item?.salesAccount?.id ?? current.revenueAccountId,
+                              }));
+                            }}
+                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                          >
+                            <option value="">
+                              {isInventoryItemsLoading
+                                ? t("salesReceivables.state.loadingItems")
+                                : t("salesReceivables.empty.selectItemOrService")}
+                            </option>
+                            {inventoryItems.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.code} · {item.name}
+                              </option>
+                            ))}
+                          </Select>
 
                           <Input
                             value={line.itemName}
                             onChange={(event) =>
                               updateLine(line.key, (current) => ({ ...current, itemName: event.target.value }))
                             }
+                            placeholder={t("salesReceivables.field.itemSnapshotPlaceholder")}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
@@ -339,14 +378,6 @@ export function SalesDocumentEditorModal({
                               </option>
                             ))}
                           </Select>
-
-                          <Input
-                            value={line.description}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
 
                           <Input
                             type="number"
@@ -392,19 +423,36 @@ export function SalesDocumentEditorModal({
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={line.lineAmount}
-                              readOnly
-                              disabled
-                              className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
-                            />
-                            <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
-                              {currencyCode || "JOD"}
-                            </span>
+                          <Input
+                            value={line.description}
+                            onChange={(event) =>
+                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
+                            }
+                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                          />
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
+                          <div />
+                          <div />
+                          <div>
+                            <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
+                              {t("salesReceivables.field.lineAmount")}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={line.lineAmount}
+                                readOnly
+                                disabled
+                                className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                              />
+                              <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
+                                {currencyCode || "JOD"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>

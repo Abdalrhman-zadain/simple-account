@@ -22,7 +22,6 @@ type ReceiptEditorValue = {
   customerId: string;
   amount: string;
   bankCashAccountId: string;
-  settlementReference: string;
   description: string;
 };
 
@@ -106,7 +105,7 @@ export function ReceiptEditorModal({
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr_1fr_1fr]">
+              <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr_1fr]">
                 <Field label={t("salesReceivables.field.receiptDate")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <div className="relative">
                     <Input
@@ -148,13 +147,6 @@ export function ReceiptEditorModal({
                   />
                 </Field>
 
-                <Field label={t("salesReceivables.field.settlementReference")} labelClassName={isArabic ? "arabic-ui" : undefined}>
-                  <Input
-                    value={editor.settlementReference}
-                    onChange={(event) => onChange({ ...editor, settlementReference: event.target.value })}
-                    className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
-                  />
-                </Field>
               </div>
 
               <div className="mt-4 grid gap-4 xl:grid-cols-[1.2fr_1fr]">

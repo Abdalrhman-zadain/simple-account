@@ -151,6 +151,7 @@ What else to check:
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
 - sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, but `itemName`, `description`, and `revenueAccountId` must remain persisted on the quotation line so commercial history does not depend on future item-master edits
 - sales-order lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the order line so downstream invoice conversion keeps commercial traceability even if the item master changes later
+- sales-invoice lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the invoice line so posted commercial history stays readable even if the item master changes later
 - the quotation editor supports both `save draft` and immediate `approve quotation` from the same form; when approving a brand-new quotation, the UI should save first and then approve the created draft in the same flow
 - sales-order drafts must stay editable until confirmed, and confirmed orders must preserve quotation/invoice traceability
 - invoice and credit-note drafts must stay editable, but posted documents must be locked

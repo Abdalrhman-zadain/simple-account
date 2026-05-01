@@ -122,6 +122,7 @@ Key fields:
 - invoice `allocatedAmount`, `outstandingAmount`, and `allocationStatus`
 - quotation line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`/`lineTotalAmount`, and `revenueAccountId`
 - sales-order line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `revenueAccountId`
+- sales-invoice line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`, and `revenueAccountId`
 - customer receipt transactions `customerId`, settlement text, and links to posted receipt transactions
 - allocation `amount`, `allocatedAt`, and links to posted receipt transactions
 
@@ -131,6 +132,7 @@ Accounting meaning:
 - quotations and sales orders preserve commercial traceability before accounting is created
 - quotation lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so the commercial document remains readable even if the item master changes later
 - sales-order lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so downstream invoicing can inherit the item link without depending on future item-master edits
+- sales-invoice lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so posted invoice history stays linked to the item card without depending on future item-master edits
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
 - customer receipts are stored as Phase 2 posted receipt transactions and can be created from either the Sales module or the Bank & Cash module

@@ -137,7 +137,6 @@ type ReceiptEditorState = {
   customerId: string;
   amount: string;
   bankCashAccountId: string;
-  settlementReference: string;
   description: string;
 };
 
@@ -190,7 +189,6 @@ const EMPTY_RECEIPT_EDITOR = (): ReceiptEditorState => ({
   customerId: "",
   amount: "",
   bankCashAccountId: "",
-  settlementReference: "",
   description: "",
 });
 
@@ -766,7 +764,6 @@ export function SalesReceivablesPage() {
           customerId: receiptEditor.customerId,
           amount: Number(receiptEditor.amount || 0),
           bankCashAccountId: receiptEditor.bankCashAccountId,
-          settlementReference: receiptEditor.settlementReference || undefined,
           description: receiptEditor.description || undefined,
         },
         token,
@@ -2096,6 +2093,8 @@ export function SalesReceivablesPage() {
         description={invoiceEditor.description}
         lines={invoiceEditor.lines}
         customers={activeCustomers}
+        inventoryItems={inventoryItems}
+        isInventoryItemsLoading={inventoryItemsQuery.isLoading}
         revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
         onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
@@ -2239,9 +2238,6 @@ export function SalesReceivablesPage() {
                   <option key={row.id} value={row.id}>{row.name} · {row.type}</option>
                 ))}
               </Select>
-            </Field>
-            <Field label={t("salesReceivables.field.settlementReference")}>
-              <Input value={receiptEditor.settlementReference} onChange={(event) => setReceiptEditor((current) => ({ ...current, settlementReference: event.target.value }))} />
             </Field>
           </div>
           <Field label={t("salesReceivables.field.description")}>

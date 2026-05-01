@@ -613,6 +613,7 @@ model InventoryItem {
   adjustmentLines        InventoryAdjustmentLine[]
   salesQuotationLines    SalesQuotationLine[]
   salesOrderLines        SalesOrderLine[]
+  salesInvoiceLines      SalesInvoiceLine[]
   warehouseBalances      InventoryWarehouseBalance[]
   costLayers             InventoryCostLayer[]
   stockMovements         InventoryStockMovement[]
@@ -1739,6 +1740,8 @@ model SalesInvoiceLine {
   salesInvoiceId     String
   salesInvoice       SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
   lineNumber         Int
+  itemId             String?
+  item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String?
   quantity           Decimal      @default(1) @db.Decimal(18, 4)
@@ -1752,6 +1755,7 @@ model SalesInvoiceLine {
   createdAt          DateTime     @default(now())
 
   @@unique([salesInvoiceId, lineNumber])
+  @@index([itemId])
   @@index([revenueAccountId])
 }
 

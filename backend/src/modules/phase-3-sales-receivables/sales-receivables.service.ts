@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
 import {
   BankCashTransactionKind,
   BankCashTransactionStatus,
@@ -7,12 +11,12 @@ import {
   QuotationStatus,
   SalesInvoiceStatus,
   SalesOrderStatus,
-} from '../../generated/prisma';
+} from "../../generated/prisma";
 
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { BankCashTransactionsService } from '../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service';
-import { JournalEntriesService } from '../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service';
-import { PostingService } from '../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
+import { PrismaService } from "../../common/prisma/prisma.service";
+import { BankCashTransactionsService } from "../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service";
+import { JournalEntriesService } from "../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service";
+import { PostingService } from "../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service";
 import {
   AllocateReceiptDto,
   CreateCreditNoteDto,
@@ -27,7 +31,7 @@ import {
   UpdateSalesInvoiceDto,
   UpdateSalesOrderDto,
   UpdateSalesQuotationDto,
-} from './dto/sales-receivables.dto';
+} from "./dto/sales-receivables.dto";
 
 type DocumentQuery = {
   status?: string;
@@ -43,7 +47,6 @@ type ReceiptQuery = {
 };
 
 type ResolvedLine = {
-  itemId: string | null;
   itemName: string | null;
   description: string | null;
   revenueAccountId: string | null;
@@ -68,25 +71,30 @@ export class SalesReceivablesService {
     const search = query.search?.trim();
     return this.prisma.customer.findMany({
       where: {
-        isActive: query.isActive === undefined || query.isActive === '' ? undefined : query.isActive === 'true',
+        isActive:
+          query.isActive === undefined || query.isActive === ""
+            ? undefined
+            : query.isActive === "true",
         OR: search
           ? [
-              { name: { contains: search, mode: 'insensitive' } },
-              { code: { contains: search, mode: 'insensitive' } },
-              { contactInfo: { contains: search, mode: 'insensitive' } },
-              { taxInfo: { contains: search, mode: 'insensitive' } },
-              { salesRepresentative: { contains: search, mode: 'insensitive' } },
+              { name: { contains: search, mode: "insensitive" } },
+              { code: { contains: search, mode: "insensitive" } },
+              { contactInfo: { contains: search, mode: "insensitive" } },
+              { taxInfo: { contains: search, mode: "insensitive" } },
+              {
+                salesRepresentative: { contains: search, mode: "insensitive" },
+              },
             ]
           : undefined,
       },
       include: { receivableAccount: { select: this.accountSummarySelect() } },
-      orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
     });
   }
 
   async createCustomer(dto: CreateCustomerDto) {
     await this.ensureReceivableAccount(dto.receivableAccountId);
-    const code = dto.code?.trim() || this.generateReference('CUS');
+    const code = dto.code?.trim() || this.generateReference("CUS");
 
     try {
       return await this.prisma.customer.create({
@@ -103,8 +111,10 @@ export class SalesReceivablesService {
         include: { receivableAccount: { select: this.accountSummarySelect() } },
       });
     } catch (error) {
-      if (this.isUniqueConflict(error, 'code')) {
-        throw new ConflictException('A customer with this code already exists.');
+      if (this.isUniqueConflict(error, "code")) {
+        throw new ConflictException(
+          "A customer with this code already exists.",
+        );
       }
       throw error;
     }
@@ -113,7 +123,7 @@ export class SalesReceivablesService {
   async updateCustomer(id: string, dto: UpdateCustomerDto) {
     const current = await this.getCustomerOrThrow(id);
     if (!current.isActive) {
-      throw new BadRequestException('Deactivated customers cannot be edited.');
+      throw new BadRequestException("Deactivated customers cannot be edited.");
     }
     if (dto.receivableAccountId) {
       await this.ensureReceivableAccount(dto.receivableAccountId);
@@ -123,12 +133,24 @@ export class SalesReceivablesService {
       where: { id },
       data: {
         name: dto.name?.trim(),
-        contactInfo: dto.contactInfo === undefined ? undefined : dto.contactInfo.trim() || null,
-        taxInfo: dto.taxInfo === undefined ? undefined : dto.taxInfo.trim() || null,
+        contactInfo:
+          dto.contactInfo === undefined
+            ? undefined
+            : dto.contactInfo.trim() || null,
+        taxInfo:
+          dto.taxInfo === undefined ? undefined : dto.taxInfo.trim() || null,
         salesRepresentative:
-          dto.salesRepresentative === undefined ? undefined : dto.salesRepresentative.trim() || null,
-        paymentTerms: dto.paymentTerms === undefined ? undefined : dto.paymentTerms.trim() || null,
-        creditLimit: dto.creditLimit === undefined ? undefined : this.toAmount(dto.creditLimit),
+          dto.salesRepresentative === undefined
+            ? undefined
+            : dto.salesRepresentative.trim() || null,
+        paymentTerms:
+          dto.paymentTerms === undefined
+            ? undefined
+            : dto.paymentTerms.trim() || null,
+        creditLimit:
+          dto.creditLimit === undefined
+            ? undefined
+            : this.toAmount(dto.creditLimit),
         receivableAccountId: dto.receivableAccountId,
       },
       include: { receivableAccount: { select: this.accountSummarySelect() } },
@@ -153,15 +175,15 @@ export class SalesReceivablesService {
         quotationDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
         OR: search
           ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { customer: { name: { contains: search, mode: 'insensitive' } } },
-              { customer: { code: { contains: search, mode: 'insensitive' } } },
+              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { customer: { name: { contains: search, mode: "insensitive" } } },
+              { customer: { code: { contains: search, mode: "insensitive" } } },
             ]
           : undefined,
       },
       include: this.quotationInclude(),
-      orderBy: [{ quotationDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ quotationDate: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => this.mapQuotation(row));
@@ -169,9 +191,11 @@ export class SalesReceivablesService {
 
   async createQuotation(dto: CreateSalesQuotationDto) {
     const customer = await this.ensureActiveCustomer(dto.customerId);
-    const lines = await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: false });
+    const lines = await this.resolveAndValidateLines(dto.lines, {
+      requireRevenueAccount: false,
+    });
     const totals = this.computeTotals(lines);
-    const reference = dto.reference?.trim() || this.generateReference('QUO');
+    const reference = dto.reference?.trim() || this.generateReference("QUO");
 
     try {
       const created = await this.prisma.salesQuotation.create({
@@ -180,14 +204,18 @@ export class SalesReceivablesService {
           quotationDate: new Date(dto.quotationDate),
           validityDate: new Date(dto.validityDate),
           customerId: dto.customerId,
-          currencyCode: dto.currencyCode?.trim().toUpperCase() || customer.receivableAccount.currencyCode,
+          currencyCode:
+            dto.currencyCode?.trim().toUpperCase() ||
+            customer.receivableAccount.currencyCode,
           description: dto.description?.trim() || null,
           subtotalAmount: this.toAmount(totals.subtotalAmount),
           discountAmount: this.toAmount(totals.discountAmount),
           taxAmount: this.toAmount(totals.taxAmount),
           totalAmount: this.toAmount(totals.totalAmount),
           lines: {
-            create: lines.map((line, index) => this.buildQuotationLineCreateInput(line, index + 1)),
+            create: lines.map((line, index) =>
+              this.buildQuotationLineCreateInput(line, index + 1),
+            ),
           },
         },
         include: this.quotationInclude(),
@@ -195,8 +223,10 @@ export class SalesReceivablesService {
 
       return this.mapQuotation(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales quotation with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales quotation with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -205,37 +235,56 @@ export class SalesReceivablesService {
   async updateQuotation(id: string, dto: UpdateSalesQuotationDto) {
     const quotation = await this.getQuotationOrThrow(id);
     if (quotation.status !== QuotationStatus.DRAFT) {
-      throw new BadRequestException('Only draft quotations can be edited.');
+      throw new BadRequestException("Only draft quotations can be edited.");
     }
 
     const nextCustomerId = dto.customerId ?? quotation.customerId;
     await this.ensureActiveCustomer(nextCustomerId);
 
-    const lines = dto.lines ? await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: false }) : null;
+    const lines = dto.lines
+      ? await this.resolveAndValidateLines(dto.lines, {
+          requireRevenueAccount: false,
+        })
+      : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         if (lines) {
-          await tx.salesQuotationLine.deleteMany({ where: { salesQuotationId: id } });
+          await tx.salesQuotationLine.deleteMany({
+            where: { salesQuotationId: id },
+          });
         }
 
         return tx.salesQuotation.update({
           where: { id },
           data: {
             reference: dto.reference?.trim(),
-            quotationDate: dto.quotationDate ? new Date(dto.quotationDate) : undefined,
-            validityDate: dto.validityDate ? new Date(dto.validityDate) : undefined,
+            quotationDate: dto.quotationDate
+              ? new Date(dto.quotationDate)
+              : undefined,
+            validityDate: dto.validityDate
+              ? new Date(dto.validityDate)
+              : undefined,
             customerId: nextCustomerId,
             currencyCode: dto.currencyCode?.trim().toUpperCase(),
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
-            subtotalAmount: totals ? this.toAmount(totals.subtotalAmount) : undefined,
-            discountAmount: totals ? this.toAmount(totals.discountAmount) : undefined,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
+            subtotalAmount: totals
+              ? this.toAmount(totals.subtotalAmount)
+              : undefined,
+            discountAmount: totals
+              ? this.toAmount(totals.discountAmount)
+              : undefined,
             taxAmount: totals ? this.toAmount(totals.taxAmount) : undefined,
             totalAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
             lines: lines
               ? {
-                  create: lines.map((line, index) => this.buildQuotationLineCreateInput(line, index + 1)),
+                  create: lines.map((line, index) =>
+                    this.buildQuotationLineCreateInput(line, index + 1),
+                  ),
                 }
               : undefined,
           },
@@ -245,8 +294,10 @@ export class SalesReceivablesService {
 
       return this.mapQuotation(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales quotation with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales quotation with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -255,10 +306,13 @@ export class SalesReceivablesService {
   async approveQuotation(id: string) {
     const quotation = await this.getQuotationOrThrow(id);
     if (quotation.status !== QuotationStatus.DRAFT) {
-      throw new BadRequestException('Only draft quotations can be approved.');
+      throw new BadRequestException("Only draft quotations can be approved.");
     }
 
-    const nextStatus = quotation.validityDate < this.startOfToday() ? QuotationStatus.EXPIRED : QuotationStatus.APPROVED;
+    const nextStatus =
+      quotation.validityDate < this.startOfToday()
+        ? QuotationStatus.EXPIRED
+        : QuotationStatus.APPROVED;
     const updated = await this.prisma.salesQuotation.update({
       where: { id },
       data: { status: nextStatus },
@@ -270,7 +324,9 @@ export class SalesReceivablesService {
   async cancelQuotation(id: string) {
     const quotation = await this.getQuotationOrThrow(id);
     if (quotation.status === QuotationStatus.CONVERTED) {
-      throw new BadRequestException('Converted quotations cannot be cancelled.');
+      throw new BadRequestException(
+        "Converted quotations cannot be cancelled.",
+      );
     }
 
     const updated = await this.prisma.salesQuotation.update({
@@ -290,10 +346,12 @@ export class SalesReceivablesService {
       throw new BadRequestException(`Sales quotation ${id} was not found.`);
     }
     if (quotation.status !== QuotationStatus.APPROVED) {
-      throw new BadRequestException('Only approved quotations can be converted.');
+      throw new BadRequestException(
+        "Only approved quotations can be converted.",
+      );
     }
     if (quotation.validityDate < this.startOfToday()) {
-      throw new BadRequestException('Expired quotations cannot be converted.');
+      throw new BadRequestException("Expired quotations cannot be converted.");
     }
 
     const order = await this.createSalesOrder({
@@ -304,7 +362,6 @@ export class SalesReceivablesService {
       lines: dto.lines?.length
         ? dto.lines
         : quotation.lines.map((line) => ({
-            itemId: line.itemId ?? undefined,
             itemName: line.itemName ?? undefined,
             description: line.description ?? undefined,
             quantity: Number(line.quantity),
@@ -332,10 +389,12 @@ export class SalesReceivablesService {
       throw new BadRequestException(`Sales quotation ${id} was not found.`);
     }
     if (quotation.status !== QuotationStatus.APPROVED) {
-      throw new BadRequestException('Only approved quotations can be converted.');
+      throw new BadRequestException(
+        "Only approved quotations can be converted.",
+      );
     }
     if (quotation.validityDate < this.startOfToday()) {
-      throw new BadRequestException('Expired quotations cannot be converted.');
+      throw new BadRequestException("Expired quotations cannot be converted.");
     }
 
     const invoice = await this.createInvoice({
@@ -346,7 +405,6 @@ export class SalesReceivablesService {
       lines: dto.lines?.length
         ? dto.lines
         : quotation.lines.map((line) => ({
-            itemId: line.itemId ?? undefined,
             itemName: line.itemName ?? undefined,
             description: line.description ?? undefined,
             quantity: Number(line.quantity),
@@ -374,16 +432,16 @@ export class SalesReceivablesService {
         orderDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
         OR: search
           ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { shippingDetails: { contains: search, mode: 'insensitive' } },
-              { customer: { name: { contains: search, mode: 'insensitive' } } },
-              { customer: { code: { contains: search, mode: 'insensitive' } } },
+              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { shippingDetails: { contains: search, mode: "insensitive" } },
+              { customer: { name: { contains: search, mode: "insensitive" } } },
+              { customer: { code: { contains: search, mode: "insensitive" } } },
             ]
           : undefined,
       },
       include: this.salesOrderInclude(),
-      orderBy: [{ orderDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ orderDate: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => this.mapSalesOrder(row));
@@ -392,12 +450,17 @@ export class SalesReceivablesService {
   async createSalesOrder(dto: CreateSalesOrderDto) {
     const customer = await this.ensureActiveCustomer(dto.customerId);
     if (dto.sourceQuotationId) {
-      await this.ensureQuotationBelongsToCustomer(dto.sourceQuotationId, dto.customerId);
+      await this.ensureQuotationBelongsToCustomer(
+        dto.sourceQuotationId,
+        dto.customerId,
+      );
     }
 
-    const lines = await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: false });
+    const lines = await this.resolveAndValidateLines(dto.lines, {
+      requireRevenueAccount: false,
+    });
     const totals = this.computeTotals(lines);
-    const reference = dto.reference?.trim() || this.generateReference('SO');
+    const reference = dto.reference?.trim() || this.generateReference("SO");
 
     try {
       const created = await this.prisma.salesOrder.create({
@@ -406,7 +469,9 @@ export class SalesReceivablesService {
           orderDate: new Date(dto.orderDate),
           promisedDate: dto.promisedDate ? new Date(dto.promisedDate) : null,
           customerId: dto.customerId,
-          currencyCode: dto.currencyCode?.trim().toUpperCase() || customer.receivableAccount.currencyCode,
+          currencyCode:
+            dto.currencyCode?.trim().toUpperCase() ||
+            customer.receivableAccount.currencyCode,
           shippingDetails: dto.shippingDetails?.trim() || null,
           description: dto.description?.trim() || null,
           sourceQuotationId: dto.sourceQuotationId ?? null,
@@ -415,7 +480,9 @@ export class SalesReceivablesService {
           taxAmount: this.toAmount(totals.taxAmount),
           totalAmount: this.toAmount(totals.totalAmount),
           lines: {
-            create: lines.map((line, index) => this.buildSalesOrderLineCreateInput(line, index + 1)),
+            create: lines.map((line, index) =>
+              this.buildSalesOrderLineCreateInput(line, index + 1),
+            ),
           },
         },
         include: this.salesOrderInclude(),
@@ -423,8 +490,10 @@ export class SalesReceivablesService {
 
       return this.mapSalesOrder(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales order with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales order with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -433,16 +502,23 @@ export class SalesReceivablesService {
   async updateSalesOrder(id: string, dto: UpdateSalesOrderDto) {
     const order = await this.getSalesOrderOrThrow(id);
     if (order.status !== SalesOrderStatus.DRAFT) {
-      throw new BadRequestException('Only draft sales orders can be edited.');
+      throw new BadRequestException("Only draft sales orders can be edited.");
     }
 
     const nextCustomerId = dto.customerId ?? order.customerId;
     await this.ensureActiveCustomer(nextCustomerId);
     if (dto.sourceQuotationId) {
-      await this.ensureQuotationBelongsToCustomer(dto.sourceQuotationId, nextCustomerId);
+      await this.ensureQuotationBelongsToCustomer(
+        dto.sourceQuotationId,
+        nextCustomerId,
+      );
     }
 
-    const lines = dto.lines ? await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: false }) : null;
+    const lines = dto.lines
+      ? await this.resolveAndValidateLines(dto.lines, {
+          requireRevenueAccount: false,
+        })
+      : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
@@ -456,19 +532,39 @@ export class SalesReceivablesService {
           data: {
             reference: dto.reference?.trim(),
             orderDate: dto.orderDate ? new Date(dto.orderDate) : undefined,
-            promisedDate: dto.promisedDate === undefined ? undefined : dto.promisedDate ? new Date(dto.promisedDate) : null,
+            promisedDate:
+              dto.promisedDate === undefined
+                ? undefined
+                : dto.promisedDate
+                  ? new Date(dto.promisedDate)
+                  : null,
             customerId: nextCustomerId,
             currencyCode: dto.currencyCode?.trim().toUpperCase(),
-            shippingDetails: dto.shippingDetails === undefined ? undefined : dto.shippingDetails.trim() || null,
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
-            sourceQuotationId: dto.sourceQuotationId === undefined ? undefined : dto.sourceQuotationId || null,
-            subtotalAmount: totals ? this.toAmount(totals.subtotalAmount) : undefined,
-            discountAmount: totals ? this.toAmount(totals.discountAmount) : undefined,
+            shippingDetails:
+              dto.shippingDetails === undefined
+                ? undefined
+                : dto.shippingDetails.trim() || null,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
+            sourceQuotationId:
+              dto.sourceQuotationId === undefined
+                ? undefined
+                : dto.sourceQuotationId || null,
+            subtotalAmount: totals
+              ? this.toAmount(totals.subtotalAmount)
+              : undefined,
+            discountAmount: totals
+              ? this.toAmount(totals.discountAmount)
+              : undefined,
             taxAmount: totals ? this.toAmount(totals.taxAmount) : undefined,
             totalAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
             lines: lines
               ? {
-                  create: lines.map((line, index) => this.buildSalesOrderLineCreateInput(line, index + 1)),
+                  create: lines.map((line, index) =>
+                    this.buildSalesOrderLineCreateInput(line, index + 1),
+                  ),
                 }
               : undefined,
           },
@@ -478,8 +574,10 @@ export class SalesReceivablesService {
 
       return this.mapSalesOrder(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales order with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales order with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -488,7 +586,9 @@ export class SalesReceivablesService {
   async confirmSalesOrder(id: string) {
     const order = await this.getSalesOrderOrThrow(id);
     if (order.status !== SalesOrderStatus.DRAFT) {
-      throw new BadRequestException('Only draft sales orders can be confirmed.');
+      throw new BadRequestException(
+        "Only draft sales orders can be confirmed.",
+      );
     }
 
     const updated = await this.prisma.salesOrder.update({
@@ -501,8 +601,13 @@ export class SalesReceivablesService {
 
   async cancelSalesOrder(id: string) {
     const order = await this.getSalesOrderOrThrow(id);
-    if (order.status === SalesOrderStatus.PARTIALLY_INVOICED || order.status === SalesOrderStatus.FULLY_INVOICED) {
-      throw new BadRequestException('Invoiced sales orders cannot be cancelled.');
+    if (
+      order.status === SalesOrderStatus.PARTIALLY_INVOICED ||
+      order.status === SalesOrderStatus.FULLY_INVOICED
+    ) {
+      throw new BadRequestException(
+        "Invoiced sales orders cannot be cancelled.",
+      );
     }
 
     const updated = await this.prisma.salesOrder.update({
@@ -521,8 +626,13 @@ export class SalesReceivablesService {
     if (!order) {
       throw new BadRequestException(`Sales order ${id} was not found.`);
     }
-    if (order.status !== SalesOrderStatus.CONFIRMED && order.status !== SalesOrderStatus.PARTIALLY_INVOICED) {
-      throw new BadRequestException('Only confirmed sales orders can be converted to invoices.');
+    if (
+      order.status !== SalesOrderStatus.CONFIRMED &&
+      order.status !== SalesOrderStatus.PARTIALLY_INVOICED
+    ) {
+      throw new BadRequestException(
+        "Only confirmed sales orders can be converted to invoices.",
+      );
     }
 
     const invoice = await this.createInvoice({
@@ -530,7 +640,8 @@ export class SalesReceivablesService {
       customerId: order.customerId,
       currencyCode: dto.currencyCode || order.currencyCode,
       sourceSalesOrderId: order.id,
-      sourceQuotationId: dto.sourceQuotationId || order.sourceQuotationId || undefined,
+      sourceQuotationId:
+        dto.sourceQuotationId || order.sourceQuotationId || undefined,
       lines: dto.lines?.length
         ? dto.lines
         : order.lines.map((line) => ({
@@ -557,15 +668,15 @@ export class SalesReceivablesService {
         invoiceDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
         OR: search
           ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { customer: { name: { contains: search, mode: 'insensitive' } } },
-              { customer: { code: { contains: search, mode: 'insensitive' } } },
+              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { customer: { name: { contains: search, mode: "insensitive" } } },
+              { customer: { code: { contains: search, mode: "insensitive" } } },
             ]
           : undefined,
       },
       include: this.invoiceInclude(),
-      orderBy: [{ invoiceDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => this.mapInvoice(row));
@@ -573,16 +684,26 @@ export class SalesReceivablesService {
 
   async createInvoice(dto: CreateSalesInvoiceDto) {
     const customer = await this.ensureActiveCustomer(dto.customerId);
-    await this.ensureInvoiceSources(dto.sourceQuotationId, dto.sourceSalesOrderId, customer.id);
+    await this.ensureInvoiceSources(
+      dto.sourceQuotationId,
+      dto.sourceSalesOrderId,
+      customer.id,
+    );
 
-    const lines = await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: true });
+    const lines = await this.resolveAndValidateLines(dto.lines, {
+      requireRevenueAccount: true,
+    });
     const totals = this.computeTotals(lines);
     if (totals.totalAmount <= 0) {
-      throw new BadRequestException('Sales invoices require a total amount greater than zero.');
+      throw new BadRequestException(
+        "Sales invoices require a total amount greater than zero.",
+      );
     }
 
-    const dueDate = dto.dueDate ? new Date(dto.dueDate) : this.deriveDueDate(new Date(dto.invoiceDate), customer.paymentTerms);
-    const reference = dto.reference?.trim() || this.generateReference('INV');
+    const dueDate = dto.dueDate
+      ? new Date(dto.dueDate)
+      : this.deriveDueDate(new Date(dto.invoiceDate), customer.paymentTerms);
+    const reference = dto.reference?.trim() || this.generateReference("INV");
 
     try {
       const created = await this.prisma.salesInvoice.create({
@@ -591,7 +712,9 @@ export class SalesReceivablesService {
           invoiceDate: new Date(dto.invoiceDate),
           dueDate,
           customerId: customer.id,
-          currencyCode: dto.currencyCode?.trim().toUpperCase() || customer.receivableAccount.currencyCode,
+          currencyCode:
+            dto.currencyCode?.trim().toUpperCase() ||
+            customer.receivableAccount.currencyCode,
           description: dto.description?.trim() || null,
           sourceQuotationId: dto.sourceQuotationId ?? null,
           sourceSalesOrderId: dto.sourceSalesOrderId ?? null,
@@ -601,17 +724,23 @@ export class SalesReceivablesService {
           totalAmount: this.toAmount(totals.totalAmount),
           outstandingAmount: this.toAmount(totals.totalAmount),
           lines: {
-            create: lines.map((line, index) => this.buildSalesInvoiceLineCreateInput(line, index + 1)),
+            create: lines.map((line, index) =>
+              this.buildSalesInvoiceLineCreateInput(line, index + 1),
+            ),
           },
         },
         include: this.invoiceInclude(),
       });
 
-      await this.refreshSalesOrderStatus(created.sourceSalesOrderId ?? undefined);
+      await this.refreshSalesOrderStatus(
+        created.sourceSalesOrderId ?? undefined,
+      );
       return this.mapInvoice(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales invoice with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales invoice with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -620,52 +749,89 @@ export class SalesReceivablesService {
   async updateInvoice(id: string, dto: UpdateSalesInvoiceDto) {
     const invoice = await this.getInvoiceOrThrow(id);
     if (invoice.status !== SalesInvoiceStatus.DRAFT) {
-      throw new BadRequestException('Posted or settled invoices are locked and cannot be edited.');
+      throw new BadRequestException(
+        "Posted or settled invoices are locked and cannot be edited.",
+      );
     }
 
     const nextCustomerId = dto.customerId ?? invoice.customerId;
     const customer = await this.ensureActiveCustomer(nextCustomerId);
     await this.ensureInvoiceSources(
-      dto.sourceQuotationId === undefined ? invoice.sourceQuotationId ?? undefined : dto.sourceQuotationId || undefined,
-      dto.sourceSalesOrderId === undefined ? invoice.sourceSalesOrderId ?? undefined : dto.sourceSalesOrderId || undefined,
+      dto.sourceQuotationId === undefined
+        ? (invoice.sourceQuotationId ?? undefined)
+        : dto.sourceQuotationId || undefined,
+      dto.sourceSalesOrderId === undefined
+        ? (invoice.sourceSalesOrderId ?? undefined)
+        : dto.sourceSalesOrderId || undefined,
       nextCustomerId,
     );
 
-    const lines = dto.lines ? await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: true }) : null;
+    const lines = dto.lines
+      ? await this.resolveAndValidateLines(dto.lines, {
+          requireRevenueAccount: true,
+        })
+      : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
         if (lines) {
-          await tx.salesInvoiceLine.deleteMany({ where: { salesInvoiceId: id } });
+          await tx.salesInvoiceLine.deleteMany({
+            where: { salesInvoiceId: id },
+          });
         }
 
         const nextDueDate =
           dto.dueDate === undefined
-            ? invoice.dueDate ?? this.deriveDueDate(invoice.invoiceDate, customer.paymentTerms)
+            ? (invoice.dueDate ??
+              this.deriveDueDate(invoice.invoiceDate, customer.paymentTerms))
             : dto.dueDate
               ? new Date(dto.dueDate)
-              : this.deriveDueDate(dto.invoiceDate ? new Date(dto.invoiceDate) : invoice.invoiceDate, customer.paymentTerms);
+              : this.deriveDueDate(
+                  dto.invoiceDate
+                    ? new Date(dto.invoiceDate)
+                    : invoice.invoiceDate,
+                  customer.paymentTerms,
+                );
 
         return tx.salesInvoice.update({
           where: { id },
           data: {
             reference: dto.reference?.trim(),
-            invoiceDate: dto.invoiceDate ? new Date(dto.invoiceDate) : undefined,
+            invoiceDate: dto.invoiceDate
+              ? new Date(dto.invoiceDate)
+              : undefined,
             dueDate: nextDueDate,
             customerId: nextCustomerId,
             currencyCode: dto.currencyCode?.trim().toUpperCase(),
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
-            sourceQuotationId: dto.sourceQuotationId === undefined ? undefined : dto.sourceQuotationId || null,
-            sourceSalesOrderId: dto.sourceSalesOrderId === undefined ? undefined : dto.sourceSalesOrderId || null,
-            subtotalAmount: totals ? this.toAmount(totals.subtotalAmount) : undefined,
-            discountAmount: totals ? this.toAmount(totals.discountAmount) : undefined,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
+            sourceQuotationId:
+              dto.sourceQuotationId === undefined
+                ? undefined
+                : dto.sourceQuotationId || null,
+            sourceSalesOrderId:
+              dto.sourceSalesOrderId === undefined
+                ? undefined
+                : dto.sourceSalesOrderId || null,
+            subtotalAmount: totals
+              ? this.toAmount(totals.subtotalAmount)
+              : undefined,
+            discountAmount: totals
+              ? this.toAmount(totals.discountAmount)
+              : undefined,
             taxAmount: totals ? this.toAmount(totals.taxAmount) : undefined,
             totalAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
-            outstandingAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
+            outstandingAmount: totals
+              ? this.toAmount(totals.totalAmount)
+              : undefined,
             lines: lines
               ? {
-                  create: lines.map((line, index) => this.buildSalesInvoiceLineCreateInput(line, index + 1)),
+                  create: lines.map((line, index) =>
+                    this.buildSalesInvoiceLineCreateInput(line, index + 1),
+                  ),
                 }
               : undefined,
           },
@@ -673,11 +839,15 @@ export class SalesReceivablesService {
         });
       });
 
-      await this.refreshSalesOrderStatus(updated.sourceSalesOrderId ?? undefined);
+      await this.refreshSalesOrderStatus(
+        updated.sourceSalesOrderId ?? undefined,
+      );
       return this.mapInvoice(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A sales invoice with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A sales invoice with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -688,32 +858,42 @@ export class SalesReceivablesService {
       where: { id },
       include: {
         customer: { include: { receivableAccount: true } },
-        lines: { orderBy: { lineNumber: 'asc' } },
+        lines: { orderBy: { lineNumber: "asc" } },
       },
     });
     if (!invoice) {
       throw new BadRequestException(`Sales invoice ${id} was not found.`);
     }
     if (invoice.status !== SalesInvoiceStatus.DRAFT) {
-      throw new BadRequestException('Only draft invoices can be posted.');
+      throw new BadRequestException("Only draft invoices can be posted.");
     }
     if (!invoice.customer.isActive) {
-      throw new BadRequestException('Deactivated customers cannot be selected for new transactions.');
+      throw new BadRequestException(
+        "Deactivated customers cannot be selected for new transactions.",
+      );
     }
     if (Number(invoice.totalAmount) <= 0) {
-      throw new BadRequestException('Sales invoices require a total amount greater than zero.');
+      throw new BadRequestException(
+        "Sales invoices require a total amount greater than zero.",
+      );
     }
 
     const totalAmount = Number(invoice.totalAmount);
     if (
       Number(invoice.customer.creditLimit) > 0 &&
-      Number(invoice.customer.currentBalance) + totalAmount > Number(invoice.customer.creditLimit)
+      Number(invoice.customer.currentBalance) + totalAmount >
+        Number(invoice.customer.creditLimit)
     ) {
-      throw new BadRequestException('Posting this invoice exceeds the customer credit limit.');
+      throw new BadRequestException(
+        "Posting this invoice exceeds the customer credit limit.",
+      );
     }
 
-    const description = invoice.description ? `${invoice.reference} - ${invoice.description}` : invoice.reference;
-    const taxAccountId = Number(invoice.taxAmount) > 0 ? await this.getSalesTaxAccountId() : null;
+    const description = invoice.description
+      ? `${invoice.reference} - ${invoice.description}`
+      : invoice.reference;
+    const taxAccountId =
+      Number(invoice.taxAmount) > 0 ? await this.getSalesTaxAccountId() : null;
 
     const journal = await this.journalEntriesService.create({
       entryDate: invoice.invoiceDate.toISOString(),
@@ -751,7 +931,12 @@ export class SalesReceivablesService {
       await tx.salesInvoice.update({
         where: { id: invoice.id },
         data: {
-          status: this.deriveInvoiceStatus(totalAmount, 0, invoice.dueDate, postedAt),
+          status: this.deriveInvoiceStatus(
+            totalAmount,
+            0,
+            invoice.dueDate,
+            postedAt,
+          ),
           journalEntryId: posted.id,
           postedAt,
         },
@@ -777,15 +962,15 @@ export class SalesReceivablesService {
         noteDate: this.dateRangeFilter(query.dateFrom, query.dateTo),
         OR: search
           ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { customer: { name: { contains: search, mode: 'insensitive' } } },
-              { customer: { code: { contains: search, mode: 'insensitive' } } },
+              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { customer: { name: { contains: search, mode: "insensitive" } } },
+              { customer: { code: { contains: search, mode: "insensitive" } } },
             ]
           : undefined,
       },
       include: this.creditNoteInclude(),
-      orderBy: [{ noteDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ noteDate: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => this.mapCreditNote(row));
@@ -795,9 +980,11 @@ export class SalesReceivablesService {
     const customer = await this.ensureActiveCustomer(dto.customerId);
     await this.ensureCreditNoteInvoice(dto.salesInvoiceId, customer.id);
 
-    const lines = await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: true });
+    const lines = await this.resolveAndValidateLines(dto.lines, {
+      requireRevenueAccount: true,
+    });
     const totals = this.computeTotals(lines);
-    const reference = dto.reference?.trim() || this.generateReference('CN');
+    const reference = dto.reference?.trim() || this.generateReference("CN");
 
     try {
       const created = await this.prisma.creditNote.create({
@@ -806,14 +993,18 @@ export class SalesReceivablesService {
           noteDate: new Date(dto.noteDate),
           customerId: customer.id,
           salesInvoiceId: dto.salesInvoiceId ?? null,
-          currencyCode: dto.currencyCode?.trim().toUpperCase() || customer.receivableAccount.currencyCode,
+          currencyCode:
+            dto.currencyCode?.trim().toUpperCase() ||
+            customer.receivableAccount.currencyCode,
           description: dto.description?.trim() || null,
           subtotalAmount: this.toAmount(totals.subtotalAmount),
           discountAmount: this.toAmount(totals.discountAmount),
           taxAmount: this.toAmount(totals.taxAmount),
           totalAmount: this.toAmount(totals.totalAmount),
           lines: {
-            create: lines.map((line, index) => this.buildCreditNoteLineCreateInput(line, index + 1)),
+            create: lines.map((line, index) =>
+              this.buildCreditNoteLineCreateInput(line, index + 1),
+            ),
           },
         },
         include: this.creditNoteInclude(),
@@ -821,8 +1012,10 @@ export class SalesReceivablesService {
 
       return this.mapCreditNote(created);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A credit note with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A credit note with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -831,17 +1024,25 @@ export class SalesReceivablesService {
   async updateCreditNote(id: string, dto: UpdateCreditNoteDto) {
     const note = await this.getCreditNoteOrThrow(id);
     if (note.status !== CreditNoteStatus.DRAFT) {
-      throw new BadRequestException('Posted credit notes are locked and cannot be edited.');
+      throw new BadRequestException(
+        "Posted credit notes are locked and cannot be edited.",
+      );
     }
 
     const nextCustomerId = dto.customerId ?? note.customerId;
     await this.ensureActiveCustomer(nextCustomerId);
     await this.ensureCreditNoteInvoice(
-      dto.salesInvoiceId === undefined ? note.salesInvoiceId ?? undefined : dto.salesInvoiceId || undefined,
+      dto.salesInvoiceId === undefined
+        ? (note.salesInvoiceId ?? undefined)
+        : dto.salesInvoiceId || undefined,
       nextCustomerId,
     );
 
-    const lines = dto.lines ? await this.resolveAndValidateLines(dto.lines, { requireRevenueAccount: true }) : null;
+    const lines = dto.lines
+      ? await this.resolveAndValidateLines(dto.lines, {
+          requireRevenueAccount: true,
+        })
+      : null;
     const totals = lines ? this.computeTotals(lines) : null;
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
@@ -854,16 +1055,28 @@ export class SalesReceivablesService {
             reference: dto.reference?.trim(),
             noteDate: dto.noteDate ? new Date(dto.noteDate) : undefined,
             customerId: nextCustomerId,
-            salesInvoiceId: dto.salesInvoiceId === undefined ? undefined : dto.salesInvoiceId || null,
+            salesInvoiceId:
+              dto.salesInvoiceId === undefined
+                ? undefined
+                : dto.salesInvoiceId || null,
             currencyCode: dto.currencyCode?.trim().toUpperCase(),
-            description: dto.description === undefined ? undefined : dto.description.trim() || null,
-            subtotalAmount: totals ? this.toAmount(totals.subtotalAmount) : undefined,
-            discountAmount: totals ? this.toAmount(totals.discountAmount) : undefined,
+            description:
+              dto.description === undefined
+                ? undefined
+                : dto.description.trim() || null,
+            subtotalAmount: totals
+              ? this.toAmount(totals.subtotalAmount)
+              : undefined,
+            discountAmount: totals
+              ? this.toAmount(totals.discountAmount)
+              : undefined,
             taxAmount: totals ? this.toAmount(totals.taxAmount) : undefined,
             totalAmount: totals ? this.toAmount(totals.totalAmount) : undefined,
             lines: lines
               ? {
-                  create: lines.map((line, index) => this.buildCreditNoteLineCreateInput(line, index + 1)),
+                  create: lines.map((line, index) =>
+                    this.buildCreditNoteLineCreateInput(line, index + 1),
+                  ),
                 }
               : undefined,
           },
@@ -872,8 +1085,10 @@ export class SalesReceivablesService {
       });
       return this.mapCreditNote(updated);
     } catch (error) {
-      if (this.isUniqueConflict(error, 'reference')) {
-        throw new ConflictException('A credit note with this reference already exists.');
+      if (this.isUniqueConflict(error, "reference")) {
+        throw new ConflictException(
+          "A credit note with this reference already exists.",
+        );
       }
       throw error;
     }
@@ -884,31 +1099,40 @@ export class SalesReceivablesService {
       where: { id },
       include: {
         customer: { include: { receivableAccount: true } },
-        lines: { orderBy: { lineNumber: 'asc' } },
+        lines: { orderBy: { lineNumber: "asc" } },
       },
     });
     if (!note) {
       throw new BadRequestException(`Credit note ${id} was not found.`);
     }
     if (note.status !== CreditNoteStatus.DRAFT) {
-      throw new BadRequestException('Only draft credit notes can be posted.');
+      throw new BadRequestException("Only draft credit notes can be posted.");
     }
     if (!note.customer.isActive) {
-      throw new BadRequestException('Deactivated customers cannot be selected for new transactions.');
+      throw new BadRequestException(
+        "Deactivated customers cannot be selected for new transactions.",
+      );
     }
 
     if (note.salesInvoiceId) {
-      const invoice = await this.prisma.salesInvoice.findUnique({ where: { id: note.salesInvoiceId } });
+      const invoice = await this.prisma.salesInvoice.findUnique({
+        where: { id: note.salesInvoiceId },
+      });
       if (!invoice) {
-        throw new BadRequestException('Linked invoice was not found.');
+        throw new BadRequestException("Linked invoice was not found.");
       }
       if (Number(note.totalAmount) > Number(invoice.totalAmount)) {
-        throw new BadRequestException('Credit note amount cannot exceed the referenced invoice amount.');
+        throw new BadRequestException(
+          "Credit note amount cannot exceed the referenced invoice amount.",
+        );
       }
     }
 
-    const description = note.description ? `${note.reference} - ${note.description}` : note.reference;
-    const taxAccountId = Number(note.taxAmount) > 0 ? await this.getSalesTaxAccountId() : null;
+    const description = note.description
+      ? `${note.reference} - ${note.description}`
+      : note.reference;
+    const taxAccountId =
+      Number(note.taxAmount) > 0 ? await this.getSalesTaxAccountId() : null;
 
     const journal = await this.journalEntriesService.create({
       entryDate: note.noteDate.toISOString(),
@@ -946,14 +1170,20 @@ export class SalesReceivablesService {
       await tx.creditNote.update({
         where: { id: note.id },
         data: {
-          status: note.salesInvoiceId ? CreditNoteStatus.APPLIED : CreditNoteStatus.POSTED,
+          status: note.salesInvoiceId
+            ? CreditNoteStatus.APPLIED
+            : CreditNoteStatus.POSTED,
           journalEntryId: posted.id,
           postedAt,
         },
       });
       await tx.customer.update({
         where: { id: note.customerId },
-        data: { currentBalance: { decrement: this.toAmount(Number(note.totalAmount)) } },
+        data: {
+          currentBalance: {
+            decrement: this.toAmount(Number(note.totalAmount)),
+          },
+        },
       });
       if (note.salesInvoiceId) {
         await this.recomputeInvoiceAmounts(tx, note.salesInvoiceId);
@@ -972,23 +1202,28 @@ export class SalesReceivablesService {
         customerId: query.customerId,
         OR: search
           ? [
-              { reference: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-              { counterpartyName: { contains: search, mode: 'insensitive' } },
+              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+              { counterpartyName: { contains: search, mode: "insensitive" } },
             ]
           : undefined,
       },
       include: {
         customer: { select: { id: true, code: true, name: true } },
-        bankCashAccount: { include: { account: { select: this.accountSummarySelect() } } },
+        bankCashAccount: {
+          include: { account: { select: this.accountSummarySelect() } },
+        },
         receiptAllocations: { select: { amount: true } },
         journalEntry: { select: { id: true, reference: true } },
       },
-      orderBy: [{ transactionDate: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
     });
 
     return rows.map((row) => {
-      const allocatedAmount = row.receiptAllocations.reduce((sum, item) => sum + Number(item.amount), 0);
+      const allocatedAmount = row.receiptAllocations.reduce(
+        (sum, item) => sum + Number(item.amount),
+        0,
+      );
       const unappliedAmount = Math.max(0, Number(row.amount) - allocatedAmount);
       return {
         id: row.id,
@@ -1025,7 +1260,8 @@ export class SalesReceivablesService {
       bankCashAccountId: dto.bankCashAccountId,
       counterAccountId: customer.receivableAccountId,
       counterpartyName: customer.name,
-      description: dto.settlementReference?.trim() || dto.description?.trim() || undefined,
+      description:
+        dto.settlementReference?.trim() || dto.description?.trim() || undefined,
       customerId: customer.id,
     });
 
@@ -1048,23 +1284,35 @@ export class SalesReceivablesService {
       include: { customer: true },
     });
     if (!invoice) {
-      throw new BadRequestException('Sales invoice was not found.');
+      throw new BadRequestException("Sales invoice was not found.");
     }
-    if (invoice.status === SalesInvoiceStatus.DRAFT || invoice.status === SalesInvoiceStatus.CANCELLED) {
-      throw new BadRequestException('Receipt allocation is only allowed for posted invoices.');
+    if (
+      invoice.status === SalesInvoiceStatus.DRAFT ||
+      invoice.status === SalesInvoiceStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        "Receipt allocation is only allowed for posted invoices.",
+      );
     }
 
     const receipt = await this.prisma.bankCashTransaction.findUnique({
       where: { id: dto.receiptTransactionId },
     });
     if (!receipt) {
-      throw new BadRequestException('Receipt transaction was not found.');
+      throw new BadRequestException("Receipt transaction was not found.");
     }
-    if (receipt.kind !== BankCashTransactionKind.RECEIPT || receipt.status !== BankCashTransactionStatus.POSTED) {
-      throw new BadRequestException('Only posted receipt transactions can be allocated.');
+    if (
+      receipt.kind !== BankCashTransactionKind.RECEIPT ||
+      receipt.status !== BankCashTransactionStatus.POSTED
+    ) {
+      throw new BadRequestException(
+        "Only posted receipt transactions can be allocated.",
+      );
     }
     if (receipt.customerId && receipt.customerId !== invoice.customerId) {
-      throw new BadRequestException('Receipts can only be allocated to invoices for the same customer.');
+      throw new BadRequestException(
+        "Receipts can only be allocated to invoices for the same customer.",
+      );
     }
 
     const requestedAmount = Number(dto.amount.toFixed(2));
@@ -1072,19 +1320,28 @@ export class SalesReceivablesService {
       where: { bankCashTransactionId: dto.receiptTransactionId },
       select: { amount: true },
     });
-    const allocatedFromReceipt = receiptAllocations.reduce((sum, item) => sum + Number(item.amount), 0);
+    const allocatedFromReceipt = receiptAllocations.reduce(
+      (sum, item) => sum + Number(item.amount),
+      0,
+    );
     const receiptAvailable = Number(receipt.amount) - allocatedFromReceipt;
     if (requestedAmount > Number(receiptAvailable.toFixed(2))) {
-      throw new BadRequestException('Allocation amount exceeds available receipt balance.');
+      throw new BadRequestException(
+        "Allocation amount exceeds available receipt balance.",
+      );
     }
 
     await this.recomputeInvoiceAmounts(this.prisma, invoice.id);
-    const refreshedInvoice = await this.prisma.salesInvoice.findUnique({ where: { id: invoice.id } });
+    const refreshedInvoice = await this.prisma.salesInvoice.findUnique({
+      where: { id: invoice.id },
+    });
     if (!refreshedInvoice) {
-      throw new BadRequestException('Sales invoice was not found.');
+      throw new BadRequestException("Sales invoice was not found.");
     }
     if (requestedAmount > Number(refreshedInvoice.outstandingAmount)) {
-      throw new BadRequestException('Allocation amount exceeds invoice outstanding balance.');
+      throw new BadRequestException(
+        "Allocation amount exceeds invoice outstanding balance.",
+      );
     }
 
     const updatedAllocation = await this.prisma.$transaction(async (tx) => {
@@ -1123,7 +1380,8 @@ export class SalesReceivablesService {
       allocation: {
         id: updatedAllocation.allocation.id,
         salesInvoiceId: updatedAllocation.allocation.salesInvoiceId,
-        receiptTransactionId: updatedAllocation.allocation.bankCashTransactionId,
+        receiptTransactionId:
+          updatedAllocation.allocation.bankCashTransactionId,
         amount: updatedAllocation.allocation.amount.toString(),
         allocatedAt: updatedAllocation.allocation.allocatedAt.toISOString(),
       },
@@ -1189,7 +1447,10 @@ export class SalesReceivablesService {
         },
       }),
       this.prisma.creditNote.findMany({
-        where: { customerId, status: { in: [CreditNoteStatus.POSTED, CreditNoteStatus.APPLIED] } },
+        where: {
+          customerId,
+          status: { in: [CreditNoteStatus.POSTED, CreditNoteStatus.APPLIED] },
+        },
         select: {
           id: true,
           reference: true,
@@ -1203,7 +1464,9 @@ export class SalesReceivablesService {
         where: { salesInvoice: { customerId } },
         include: {
           salesInvoice: { select: { id: true, reference: true } },
-          bankCashTransaction: { select: { id: true, reference: true, transactionDate: true } },
+          bankCashTransaction: {
+            select: { id: true, reference: true, transactionDate: true },
+          },
         },
       }),
       this.prisma.bankCashTransaction.findMany({
@@ -1224,7 +1487,7 @@ export class SalesReceivablesService {
 
     return [
       ...invoices.map((item) => ({
-        type: 'INVOICE',
+        type: "INVOICE",
         id: item.id,
         reference: item.reference,
         date: item.invoiceDate.toISOString(),
@@ -1234,7 +1497,7 @@ export class SalesReceivablesService {
         description: item.description,
       })),
       ...creditNotes.map((item) => ({
-        type: 'CREDIT_NOTE',
+        type: "CREDIT_NOTE",
         id: item.id,
         reference: item.reference,
         date: item.noteDate.toISOString(),
@@ -1243,7 +1506,7 @@ export class SalesReceivablesService {
         description: item.description,
       })),
       ...receipts.map((item) => ({
-        type: 'RECEIPT',
+        type: "RECEIPT",
         id: item.id,
         reference: item.reference,
         date: item.transactionDate.toISOString(),
@@ -1251,7 +1514,7 @@ export class SalesReceivablesService {
         description: item.description,
       })),
       ...allocations.map((item) => ({
-        type: 'RECEIPT_ALLOCATION',
+        type: "RECEIPT_ALLOCATION",
         id: item.id,
         reference: item.bankCashTransaction.reference,
         date: item.allocatedAt.toISOString(),
@@ -1265,7 +1528,7 @@ export class SalesReceivablesService {
   async getAgingReport(asOfDate?: string) {
     const asOf = asOfDate ? new Date(asOfDate) : new Date();
     if (Number.isNaN(asOf.getTime())) {
-      throw new BadRequestException('Invalid aging date.');
+      throw new BadRequestException("Invalid aging date.");
     }
 
     const invoices = await this.prisma.salesInvoice.findMany({
@@ -1282,7 +1545,11 @@ export class SalesReceivablesService {
         invoiceDate: { lte: asOf },
       },
       include: { customer: { select: { id: true, code: true, name: true } } },
-      orderBy: [{ customerId: 'asc' }, { dueDate: 'asc' }, { invoiceDate: 'asc' }],
+      orderBy: [
+        { customerId: "asc" },
+        { dueDate: "asc" },
+        { invoiceDate: "asc" },
+      ],
     });
 
     const byCustomer = new Map<
@@ -1301,20 +1568,20 @@ export class SalesReceivablesService {
 
     for (const invoice of invoices) {
       const agingDate = invoice.dueDate ?? invoice.invoiceDate;
-      const days = Math.floor((asOf.getTime() - agingDate.getTime()) / (1000 * 60 * 60 * 24));
+      const days = Math.floor(
+        (asOf.getTime() - agingDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
       const amount = Number(invoice.outstandingAmount);
-      const currentRow =
-        byCustomer.get(invoice.customerId) ??
-        {
-          customerId: invoice.customer.id,
-          customerCode: invoice.customer.code,
-          customerName: invoice.customer.name,
-          current: 0,
-          bucket31To60: 0,
-          bucket61To90: 0,
-          over90: 0,
-          total: 0,
-        };
+      const currentRow = byCustomer.get(invoice.customerId) ?? {
+        customerId: invoice.customer.id,
+        customerCode: invoice.customer.code,
+        customerName: invoice.customer.name,
+        current: 0,
+        bucket31To60: 0,
+        bucket61To90: 0,
+        over90: 0,
+        total: 0,
+      };
 
       if (days <= 30) {
         currentRow.current += amount;
@@ -1377,7 +1644,9 @@ export class SalesReceivablesService {
   private async ensureActiveCustomer(id: string) {
     const customer = await this.getCustomerOrThrow(id);
     if (!customer.isActive) {
-      throw new BadRequestException('Deactivated customers cannot be selected for new transactions.');
+      throw new BadRequestException(
+        "Deactivated customers cannot be selected for new transactions.",
+      );
     }
     return customer;
   }
@@ -1441,11 +1710,19 @@ export class SalesReceivablesService {
     if (!account) {
       throw new BadRequestException(`Account ${accountId} was not found.`);
     }
-    if (!account.isActive || !account.isPosting || !account.allowManualPosting) {
-      throw new BadRequestException('Receivable account must be an active posting account that allows manual posting.');
+    if (
+      !account.isActive ||
+      !account.isPosting ||
+      !account.allowManualPosting
+    ) {
+      throw new BadRequestException(
+        "Receivable account must be an active posting account that allows manual posting.",
+      );
     }
-    if (account.type !== 'ASSET') {
-      throw new BadRequestException('Receivable account must be an Asset account.');
+    if (account.type !== "ASSET") {
+      throw new BadRequestException(
+        "Receivable account must be an Asset account.",
+      );
     }
   }
 
@@ -1462,36 +1739,22 @@ export class SalesReceivablesService {
     });
 
     if (!account) {
-      throw new BadRequestException(`Revenue account ${accountId} was not found.`);
+      throw new BadRequestException(
+        `Revenue account ${accountId} was not found.`,
+      );
     }
-    if (!account.isActive || !account.isPosting || !account.allowManualPosting) {
-      throw new BadRequestException('Revenue line account must be an active posting account.');
+    if (
+      !account.isActive ||
+      !account.isPosting ||
+      !account.allowManualPosting
+    ) {
+      throw new BadRequestException(
+        "Revenue line account must be an active posting account.",
+      );
     }
-    if (account.type !== 'REVENUE') {
-      throw new BadRequestException('Sales lines must use revenue accounts.');
+    if (account.type !== "REVENUE") {
+      throw new BadRequestException("Sales lines must use revenue accounts.");
     }
-  }
-
-  private async ensureInventoryItem(itemId: string) {
-    const item = await this.prisma.inventoryItem.findUnique({
-      where: { id: itemId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        isActive: true,
-        salesAccountId: true,
-      },
-    });
-
-    if (!item) {
-      throw new BadRequestException(`Inventory item ${itemId} was not found.`);
-    }
-    if (!item.isActive) {
-      throw new BadRequestException('Only active inventory items can be selected on quotation lines.');
-    }
-
-    return item;
   }
 
   private async resolveAndValidateLines(
@@ -1499,61 +1762,79 @@ export class SalesReceivablesService {
     options: { requireRevenueAccount: boolean },
   ): Promise<ResolvedLine[]> {
     if (!lines.length) {
-      throw new BadRequestException('At least one line is required.');
+      throw new BadRequestException("At least one line is required.");
     }
 
     const resolved: ResolvedLine[] = [];
     for (const [index, rawLine] of lines.entries()) {
-      const linkedItem = rawLine.itemId ? await this.ensureInventoryItem(rawLine.itemId) : null;
-      const resolvedRevenueAccountId = rawLine.revenueAccountId ?? linkedItem?.salesAccountId ?? null;
-
       if (options.requireRevenueAccount) {
-        if (!resolvedRevenueAccountId) {
-          throw new BadRequestException(`Line ${index + 1} requires a revenue account.`);
+        if (!rawLine.revenueAccountId) {
+          throw new BadRequestException(
+            `Line ${index + 1} requires a revenue account.`,
+          );
         }
-        await this.ensureRevenueAccount(resolvedRevenueAccountId);
-      } else if (resolvedRevenueAccountId) {
-        await this.ensureRevenueAccount(resolvedRevenueAccountId);
+        await this.ensureRevenueAccount(rawLine.revenueAccountId);
+      } else if (rawLine.revenueAccountId) {
+        await this.ensureRevenueAccount(rawLine.revenueAccountId);
       }
 
-      const quantity = rawLine.quantity ?? 1;
-      const unitPrice = rawLine.unitPrice;
+      const quantity = rawLine.quantity ?? 1; // Default quantity to 1 if not provided
+      const unitPrice = rawLine.unitPrice; //
       const discountAmount = rawLine.discountAmount ?? 0;
       const taxAmount = rawLine.taxAmount ?? 0;
       const lineAmount = rawLine.lineAmount;
 
       if (quantity <= 0) {
-        throw new BadRequestException(`Line ${index + 1} quantity must be greater than zero.`);
+        throw new BadRequestException(
+          `Line ${index + 1} quantity must be greater than zero.`,
+        );
       }
       if (discountAmount < 0 || taxAmount < 0) {
-        throw new BadRequestException(`Line ${index + 1} discount and tax amounts cannot be negative.`);
+        throw new BadRequestException(
+          `Line ${index + 1} discount and tax amounts cannot be negative.`,
+        );
       }
       if (unitPrice === undefined && lineAmount === undefined) {
-        throw new BadRequestException(`Line ${index + 1} requires unit price or line amount.`);
+        throw new BadRequestException(
+          `Line ${index + 1} requires unit price or line amount.`,
+        );
       }
 
       const computedSubtotal =
-        unitPrice !== undefined ? Number((quantity * unitPrice - discountAmount).toFixed(2)) : undefined;
-      const lineSubtotalAmount = computedSubtotal ?? Number(((lineAmount as number) - taxAmount).toFixed(2));
+        unitPrice !== undefined
+          ? Number((quantity * unitPrice - discountAmount).toFixed(2))
+          : undefined;
+      const lineSubtotalAmount =
+        computedSubtotal ??
+        Number(((lineAmount as number) - taxAmount).toFixed(2));
 
       if (lineSubtotalAmount < 0) {
-        throw new BadRequestException(`Line ${index + 1} discount cannot exceed the extended line amount.`);
+        throw new BadRequestException(
+          `Line ${index + 1} discount cannot exceed the extended line amount.`,
+        );
       }
 
       const finalLineTotalAmount =
-        lineAmount !== undefined ? Number(lineAmount.toFixed(2)) : Number((lineSubtotalAmount + taxAmount).toFixed(2));
+        lineAmount !== undefined
+          ? Number(lineAmount.toFixed(2))
+          : Number((lineSubtotalAmount + taxAmount).toFixed(2));
       const finalUnitPrice =
-        unitPrice !== undefined ? Number(unitPrice.toFixed(2)) : Number(((lineSubtotalAmount + discountAmount) / quantity).toFixed(2));
+        unitPrice !== undefined
+          ? Number(unitPrice.toFixed(2))
+          : Number(
+              ((lineSubtotalAmount + discountAmount) / quantity).toFixed(2),
+            );
 
       if (finalLineTotalAmount <= 0) {
-        throw new BadRequestException(`Line ${index + 1} amount must be greater than zero.`);
+        throw new BadRequestException(
+          `Line ${index + 1} amount must be greater than zero.`,
+        );
       }
 
       resolved.push({
-        itemId: linkedItem?.id ?? null,
-        itemName: rawLine.itemName?.trim() || linkedItem?.name?.trim() || null,
-        description: rawLine.description?.trim() || linkedItem?.description?.trim() || null,
-        revenueAccountId: resolvedRevenueAccountId,
+        itemName: rawLine.itemName?.trim() || null,
+        description: rawLine.description?.trim() || null,
+        revenueAccountId: rawLine.revenueAccountId ?? null,
         quantity: Number(quantity.toFixed(4)),
         unitPrice: finalUnitPrice,
         discountAmount: Number(discountAmount.toFixed(2)),
@@ -1585,7 +1866,6 @@ export class SalesReceivablesService {
   ): Prisma.SalesQuotationLineUncheckedCreateWithoutSalesQuotationInput {
     return {
       lineNumber,
-      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -1604,7 +1884,6 @@ export class SalesReceivablesService {
   ): Prisma.SalesOrderLineUncheckedCreateWithoutSalesOrderInput {
     return {
       lineNumber,
-      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -1653,13 +1932,20 @@ export class SalesReceivablesService {
     };
   }
 
-  private async ensureQuotationBelongsToCustomer(quotationId: string, customerId: string) {
-    const quotation = await this.prisma.salesQuotation.findUnique({ where: { id: quotationId } });
+  private async ensureQuotationBelongsToCustomer(
+    quotationId: string,
+    customerId: string,
+  ) {
+    const quotation = await this.prisma.salesQuotation.findUnique({
+      where: { id: quotationId },
+    });
     if (!quotation) {
-      throw new BadRequestException('Linked quotation was not found.');
+      throw new BadRequestException("Linked quotation was not found.");
     }
     if (quotation.customerId !== customerId) {
-      throw new BadRequestException('The selected quotation belongs to a different customer.');
+      throw new BadRequestException(
+        "The selected quotation belongs to a different customer.",
+      );
     }
   }
 
@@ -1672,27 +1958,38 @@ export class SalesReceivablesService {
       await this.ensureQuotationBelongsToCustomer(quotationId, customerId);
     }
     if (salesOrderId) {
-      const order = await this.prisma.salesOrder.findUnique({ where: { id: salesOrderId } });
+      const order = await this.prisma.salesOrder.findUnique({
+        where: { id: salesOrderId },
+      });
       if (!order) {
-        throw new BadRequestException('Linked sales order was not found.');
+        throw new BadRequestException("Linked sales order was not found.");
       }
       if (order.customerId !== customerId) {
-        throw new BadRequestException('The selected sales order belongs to a different customer.');
+        throw new BadRequestException(
+          "The selected sales order belongs to a different customer.",
+        );
       }
     }
   }
 
-  private async ensureCreditNoteInvoice(invoiceId: string | undefined, customerId: string) {
+  private async ensureCreditNoteInvoice(
+    invoiceId: string | undefined,
+    customerId: string,
+  ) {
     if (!invoiceId) {
       return;
     }
 
-    const invoice = await this.prisma.salesInvoice.findUnique({ where: { id: invoiceId } });
+    const invoice = await this.prisma.salesInvoice.findUnique({
+      where: { id: invoiceId },
+    });
     if (!invoice) {
-      throw new BadRequestException('Linked invoice was not found.');
+      throw new BadRequestException("Linked invoice was not found.");
     }
     if (invoice.customerId !== customerId) {
-      throw new BadRequestException('Credit notes and linked invoices must use the same customer.');
+      throw new BadRequestException(
+        "Credit notes and linked invoices must use the same customer.",
+      );
     }
   }
 
@@ -1709,8 +2006,16 @@ export class SalesReceivablesService {
     return match ? Number(match[1]) : 0;
   }
 
-  private deriveInvoiceStatus(totalAmount: number, allocatedAmount: number, dueDate: Date | null, asOf: Date) {
-    const outstanding = Math.max(0, Number((totalAmount - allocatedAmount).toFixed(2)));
+  private deriveInvoiceStatus(
+    totalAmount: number,
+    allocatedAmount: number,
+    dueDate: Date | null,
+    asOf: Date,
+  ) {
+    const outstanding = Math.max(
+      0,
+      Number((totalAmount - allocatedAmount).toFixed(2)),
+    );
     if (outstanding <= 0) {
       return SalesInvoiceStatus.FULLY_PAID;
     }
@@ -1723,18 +2028,33 @@ export class SalesReceivablesService {
     return SalesInvoiceStatus.POSTED;
   }
 
-  private async recomputeInvoiceAmounts(tx: Prisma.TransactionClient | PrismaService, invoiceId: string) {
+  private async recomputeInvoiceAmounts(
+    tx: Prisma.TransactionClient | PrismaService,
+    invoiceId: string,
+  ) {
     const invoice = await tx.salesInvoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, reference: true, totalAmount: true, dueDate: true, sourceSalesOrderId: true, status: true },
+      select: {
+        id: true,
+        reference: true,
+        totalAmount: true,
+        dueDate: true,
+        sourceSalesOrderId: true,
+        status: true,
+      },
     });
     if (!invoice) {
-      throw new BadRequestException(`Sales invoice ${invoiceId} was not found.`);
+      throw new BadRequestException(
+        `Sales invoice ${invoiceId} was not found.`,
+      );
     }
 
     const [creditNotes, allocations] = await Promise.all([
       tx.creditNote.aggregate({
-        where: { salesInvoiceId: invoiceId, status: { in: [CreditNoteStatus.POSTED, CreditNoteStatus.APPLIED] } },
+        where: {
+          salesInvoiceId: invoiceId,
+          status: { in: [CreditNoteStatus.POSTED, CreditNoteStatus.APPLIED] },
+        },
         _sum: { totalAmount: true },
       }),
       tx.receiptAllocation.aggregate({
@@ -1746,14 +2066,31 @@ export class SalesReceivablesService {
     const total = Number(invoice.totalAmount);
     const postedCredits = Number(creditNotes._sum.totalAmount ?? 0);
     const allocated = Number(allocations._sum.amount ?? 0);
-    const baseOutstanding = Math.max(0, Number((total - postedCredits).toFixed(2)));
-    const outstanding = Math.max(0, Number((baseOutstanding - allocated).toFixed(2)));
-    const allocationStatus = allocated <= 0 ? 'UNALLOCATED' : outstanding <= 0 ? 'FULLY_ALLOCATED' : 'PARTIAL';
+    const baseOutstanding = Math.max(
+      0,
+      Number((total - postedCredits).toFixed(2)),
+    );
+    const outstanding = Math.max(
+      0,
+      Number((baseOutstanding - allocated).toFixed(2)),
+    );
+    const allocationStatus =
+      allocated <= 0
+        ? "UNALLOCATED"
+        : outstanding <= 0
+          ? "FULLY_ALLOCATED"
+          : "PARTIAL";
 
     const nextStatus =
-      invoice.status === SalesInvoiceStatus.DRAFT || invoice.status === SalesInvoiceStatus.CANCELLED
+      invoice.status === SalesInvoiceStatus.DRAFT ||
+      invoice.status === SalesInvoiceStatus.CANCELLED
         ? invoice.status
-        : this.deriveInvoiceStatus(baseOutstanding, allocated, invoice.dueDate, new Date());
+        : this.deriveInvoiceStatus(
+            baseOutstanding,
+            allocated,
+            invoice.dueDate,
+            new Date(),
+          );
 
     const updated = await tx.salesInvoice.update({
       where: { id: invoiceId },
@@ -1803,7 +2140,10 @@ export class SalesReceivablesService {
       return;
     }
 
-    const invoicedAmount = order.salesInvoices.reduce((sum, invoice) => sum + Number(invoice.totalAmount), 0);
+    const invoicedAmount = order.salesInvoices.reduce(
+      (sum, invoice) => sum + Number(invoice.totalAmount),
+      0,
+    );
     const totalAmount = Number(order.totalAmount);
     const nextStatus =
       invoicedAmount <= 0
@@ -1825,23 +2165,25 @@ export class SalesReceivablesService {
   private async getSalesTaxAccountId() {
     const account = await this.prisma.account.findFirst({
       where: {
-        type: 'LIABILITY',
+        type: "LIABILITY",
         isActive: true,
         isPosting: true,
         allowManualPosting: true,
         OR: [
-          { subtype: { contains: 'tax', mode: 'insensitive' } },
-          { subtype: { contains: 'vat', mode: 'insensitive' } },
-          { name: { contains: 'tax', mode: 'insensitive' } },
-          { name: { contains: 'vat', mode: 'insensitive' } },
+          { subtype: { contains: "tax", mode: "insensitive" } },
+          { subtype: { contains: "vat", mode: "insensitive" } },
+          { name: { contains: "tax", mode: "insensitive" } },
+          { name: { contains: "vat", mode: "insensitive" } },
         ],
       },
       select: { id: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     if (!account) {
-      throw new BadRequestException('No active sales tax/VAT liability account is configured for posting tax amounts.');
+      throw new BadRequestException(
+        "No active sales tax/VAT liability account is configured for posting tax amounts.",
+      );
     }
 
     return account.id;
@@ -1849,40 +2191,42 @@ export class SalesReceivablesService {
 
   private quotationInclude() {
     return {
-      customer: { include: { receivableAccount: { select: this.accountSummarySelect() } } },
+      customer: {
+        include: { receivableAccount: { select: this.accountSummarySelect() } },
+      },
       lines: {
-        include: {
-          revenueAccount: { select: this.accountSummarySelect() },
-          item: { select: this.inventoryItemSummarySelect() },
-        },
-        orderBy: { lineNumber: 'asc' },
+        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        orderBy: { lineNumber: "asc" },
       },
     } satisfies Prisma.SalesQuotationInclude;
   }
 
   private salesOrderInclude() {
     return {
-      customer: { include: { receivableAccount: { select: this.accountSummarySelect() } } },
+      customer: {
+        include: { receivableAccount: { select: this.accountSummarySelect() } },
+      },
       sourceQuotation: { select: { id: true, reference: true } },
-      salesInvoices: { select: { id: true, reference: true, totalAmount: true, status: true } },
+      salesInvoices: {
+        select: { id: true, reference: true, totalAmount: true, status: true },
+      },
       lines: {
-        include: {
-          revenueAccount: { select: this.accountSummarySelect() },
-          item: { select: this.inventoryItemSummarySelect() },
-        },
-        orderBy: { lineNumber: 'asc' },
+        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        orderBy: { lineNumber: "asc" },
       },
     } satisfies Prisma.SalesOrderInclude;
   }
 
   private invoiceInclude() {
     return {
-      customer: { include: { receivableAccount: { select: this.accountSummarySelect() } } },
+      customer: {
+        include: { receivableAccount: { select: this.accountSummarySelect() } },
+      },
       sourceQuotation: { select: { id: true, reference: true } },
       sourceSalesOrder: { select: { id: true, reference: true } },
       lines: {
         include: { revenueAccount: { select: this.accountSummarySelect() } },
-        orderBy: { lineNumber: 'asc' },
+        orderBy: { lineNumber: "asc" },
       },
       journalEntry: { select: { id: true, reference: true } },
     } satisfies Prisma.SalesInvoiceInclude;
@@ -1890,11 +2234,13 @@ export class SalesReceivablesService {
 
   private creditNoteInclude() {
     return {
-      customer: { include: { receivableAccount: { select: this.accountSummarySelect() } } },
+      customer: {
+        include: { receivableAccount: { select: this.accountSummarySelect() } },
+      },
       salesInvoice: { select: { id: true, reference: true } },
       lines: {
         include: { revenueAccount: { select: this.accountSummarySelect() } },
-        orderBy: { lineNumber: 'asc' },
+        orderBy: { lineNumber: "asc" },
       },
       journalEntry: { select: { id: true, reference: true } },
     } satisfies Prisma.CreditNoteInclude;
@@ -1902,7 +2248,8 @@ export class SalesReceivablesService {
 
   private mapQuotation(row: any) {
     const effectiveStatus =
-      row.status === QuotationStatus.APPROVED && row.validityDate < this.startOfToday()
+      row.status === QuotationStatus.APPROVED &&
+      row.validityDate < this.startOfToday()
         ? QuotationStatus.EXPIRED
         : row.status;
 
@@ -2043,9 +2390,7 @@ export class SalesReceivablesService {
     return {
       id: line.id,
       lineNumber: line.lineNumber,
-      itemId: line.itemId ?? null,
       itemName: line.itemName,
-      item: line.item ?? null,
       description: line.description,
       quantity: line.quantity.toString(),
       unitPrice: line.unitPrice.toString(),
@@ -2069,18 +2414,6 @@ export class SalesReceivablesService {
     };
   }
 
-  private inventoryItemSummarySelect() {
-    return {
-      id: true,
-      code: true,
-      name: true,
-      description: true,
-      type: true,
-      isActive: true,
-      salesAccount: { select: this.accountSummarySelect() },
-    };
-  }
-
   private parseQuotationStatus(status?: string): QuotationStatus | undefined {
     if (!status) {
       return undefined;
@@ -2088,7 +2421,7 @@ export class SalesReceivablesService {
     if (status in QuotationStatus) {
       return status as QuotationStatus;
     }
-    throw new BadRequestException('Invalid quotation status.');
+    throw new BadRequestException("Invalid quotation status.");
   }
 
   private parseSalesOrderStatus(status?: string): SalesOrderStatus | undefined {
@@ -2098,17 +2431,19 @@ export class SalesReceivablesService {
     if (status in SalesOrderStatus) {
       return status as SalesOrderStatus;
     }
-    throw new BadRequestException('Invalid sales order status.');
+    throw new BadRequestException("Invalid sales order status.");
   }
 
-  private parseSalesInvoiceStatus(status?: string): SalesInvoiceStatus | undefined {
+  private parseSalesInvoiceStatus(
+    status?: string,
+  ): SalesInvoiceStatus | undefined {
     if (!status) {
       return undefined;
     }
     if (status in SalesInvoiceStatus) {
       return status as SalesInvoiceStatus;
     }
-    throw new BadRequestException('Invalid sales invoice status.');
+    throw new BadRequestException("Invalid sales invoice status.");
   }
 
   private parseCreditNoteStatus(status?: string): CreditNoteStatus | undefined {
@@ -2118,7 +2453,7 @@ export class SalesReceivablesService {
     if (status in CreditNoteStatus) {
       return status as CreditNoteStatus;
     }
-    throw new BadRequestException('Invalid credit note status.');
+    throw new BadRequestException("Invalid credit note status.");
   }
 
   private dateRangeFilter(dateFrom?: string, dateTo?: string) {
@@ -2139,8 +2474,9 @@ export class SalesReceivablesService {
   }
 
   private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const suffix =
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
   }
 
@@ -2152,7 +2488,7 @@ export class SalesReceivablesService {
   private isUniqueConflict(error: unknown, field: string) {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002' &&
+      error.code === "P2002" &&
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes(field)
     );

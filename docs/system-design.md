@@ -290,6 +290,7 @@ Resulting accounting meaning:
 - sales quotations move through draft, approval, expiry, conversion, and cancellation states
 - sales orders move through draft, confirmation, and invoicing traceability states before full invoicing
 - sales invoices and credit notes can be drafted, then posted with generated journal entries
+- quotation, sales-order, and sales-invoice editors can resolve lines from active inventory items while still storing invoice-line snapshot text and revenue-account context for auditability
 - invoices carry currency, due date, source quotation/order references, subtotal, discount, tax, and allocation-derived settlement status
 - customer receipts can be initiated from Sales while still using the Phase 2 bank/cash transaction posting flow underneath
 - posting updates customer running balance and links operational documents to journal references
