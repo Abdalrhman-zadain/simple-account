@@ -111,7 +111,7 @@ Need -> Purchase Request -> Approval -> Purchase Order -> Receipt/Invoice
 | REQ-PU-037 | The system shall require the user to select the payment date, supplier, payment amount, and paying bank or cash account. | يجب أن يطلب النظام من المستخدم تحديد تاريخ الدفع والمورد ومبلغ الدفع وحساب البنك أو الصندوق الدافع. |
 | REQ-PU-038 | The system shall allow the user to allocate one payment to one or multiple purchase invoices. | يجب أن يسمح النظام للمستخدم بتخصيص دفعة واحدة إلى فاتورة شراء واحدة أو عدة فواتير شراء. |
 | REQ-PU-039 | The system shall allow partial payment of a purchase invoice and shall update the remaining payable balance accordingly. | يجب أن يسمح النظام بالسداد الجزئي لفاتورة الشراء وأن يقوم بتحديث الرصيد المتبقي المستحق وفقًا لذلك. |
-| REQ-PU-040 | The system shall assign or require a unique reference number for each supplier payment. | يجب أن يقوم النظام بتوليد أو طلب رقم مرجع فريد لكل دفعة مورد. |
+| REQ-PU-040 | The system shall assign a unique reference number for each supplier payment. | يجب أن يقوم النظام بتوليد رقم مرجع فريد لكل دفعة مورد. |
 | REQ-PU-041 | The system shall allow the user to save supplier payments in draft status before posting. | يجب أن يسمح النظام للمستخدم بحفظ مدفوعات الموردين كمسودات قبل الترحيل. |
 | REQ-PU-042 | The system shall integrate supplier payments with the Bank & Cash module when payment is posted. | يجب أن يدمج النظام مدفوعات الموردين مع وحدة البنوك والصندوق عند ترحيل الدفعة. |
 

@@ -1252,6 +1252,8 @@ Object.assign(enTranslations, {
   "purchases.payments.section.summary": "Payment Summary",
   "purchases.payments.section.allocations": "Invoice Allocations",
   "purchases.payments.section.editorAllocations": "Allocations",
+  "purchases.payments.section.editorAllocationsHint":
+    "Allocate this supplier payment across posted purchase invoices.",
   "purchases.payments.metric.date": "Payment Date",
   "purchases.payments.metric.status": "Status",
   "purchases.payments.metric.amount": "Payment Amount",
@@ -1276,6 +1278,8 @@ Object.assign(enTranslations, {
   "purchases.payments.field.bankCash": "Paying Bank / Cash Account",
   "purchases.payments.field.description": "Description",
   "purchases.payments.field.purchaseInvoice": "Purchase Invoice",
+  "purchases.payments.field.invoiceDate": "Invoice Date",
+  "purchases.payments.field.invoiceTotal": "Invoice Total",
   "purchases.payments.field.allocationAmount": "Allocation Amount",
   "purchases.payments.allocation.label": "Allocation {index}",
   "purchases.payments.confirm.post": "Post this supplier payment now?",

@@ -1194,6 +1194,8 @@ Object.assign(arTranslations, {
   "purchases.payments.section.summary": "ملخص الدفعة",
   "purchases.payments.section.allocations": "تخصيصات الفواتير",
   "purchases.payments.section.editorAllocations": "التخصيصات",
+  "purchases.payments.section.editorAllocationsHint":
+    "خصص دفعة المورد على فواتير الشراء المرحلة.",
   "purchases.payments.metric.date": "تاريخ الدفعة",
   "purchases.payments.metric.status": "الحالة",
   "purchases.payments.metric.amount": "مبلغ الدفعة",
@@ -1217,6 +1219,8 @@ Object.assign(arTranslations, {
   "purchases.payments.field.bankCash": "حساب البنك / الصندوق الدافع",
   "purchases.payments.field.description": "الوصف",
   "purchases.payments.field.purchaseInvoice": "فاتورة الشراء",
+  "purchases.payments.field.invoiceDate": "تاريخ الفاتورة",
+  "purchases.payments.field.invoiceTotal": "إجمالي الفاتورة",
   "purchases.payments.field.allocationAmount": "مبلغ التخصيص",
   "purchases.payments.allocation.label": "التخصيص {index}",
   "purchases.payments.confirm.post": "هل تريد ترحيل دفعة المورد الآن؟",

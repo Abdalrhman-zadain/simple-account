@@ -818,7 +818,6 @@ export function PurchasesPage() {
     mutationFn: () =>
       createSupplierPayment(
         {
-          reference: paymentEditor.reference || undefined,
           paymentDate: paymentEditor.paymentDate,
           supplierId: paymentEditor.supplierId,
           amount: Number(paymentEditor.amount || 0),
@@ -840,7 +839,6 @@ export function PurchasesPage() {
       updateSupplierPayment(
         paymentEditor.id!,
         {
-          reference: paymentEditor.reference || undefined,
           paymentDate: paymentEditor.paymentDate,
           supplierId: paymentEditor.supplierId,
           amount: Number(paymentEditor.amount || 0),
@@ -983,6 +981,14 @@ export function PurchasesPage() {
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const inventoryItems = inventoryItemsQuery.data?.data ?? [];
   const purchaseInvoiceDebitAccounts = (invoiceAccountsQuery.data ?? []).filter(isPurchaseInvoiceDebitAccount);
+  const paymentEligibleInvoices = purchaseInvoices.filter(
+    (invoice) =>
+      (!paymentEditor.supplierId || invoice.supplier.id === paymentEditor.supplierId) &&
+      invoice.status !== "DRAFT" &&
+      invoice.status !== "CANCELLED",
+  );
+  const paymentAllocatedAmount = paymentEditor.allocations.reduce((sum, allocation) => sum + Number(allocation.amount || 0), 0);
+  const paymentUnallocatedAmount = Math.max(Number(paymentEditor.amount || 0) - paymentAllocatedAmount, 0);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
 
   const totalRequests = purchaseRequests.length;
@@ -3008,126 +3014,277 @@ export function PurchasesPage() {
           </div>
         ) : null}
 
-        <SidePanel
-          isOpen={isPaymentEditorOpen}
-          onClose={closePaymentEditor}
-          title={paymentEditor.id ? t("purchases.dialog.editPayment") : t("purchases.dialog.newPayment")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.payments.field.reference")} hint={t("purchases.payments.field.referenceHint")}>
-                <Input value={paymentEditor.reference} onChange={(event) => setPaymentEditor((current) => ({ ...current, reference: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.payments.field.paymentDate")}>
-                <Input type="date" value={paymentEditor.paymentDate} onChange={(event) => setPaymentEditor((current) => ({ ...current, paymentDate: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.payments.field.supplier")}>
-                <Select value={paymentEditor.supplierId} onChange={(event) => setPaymentEditor((current) => ({ ...current, supplierId: event.target.value }))}>
-                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
-                  {activeSuppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.code} · {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("purchases.payments.field.amount")}>
-                <Input type="number" min="0.01" step="0.01" value={paymentEditor.amount} onChange={(event) => setPaymentEditor((current) => ({ ...current, amount: event.target.value }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.payments.field.bankCash")}>
-              <Select value={paymentEditor.bankCashAccountId} onChange={(event) => setPaymentEditor((current) => ({ ...current, bankCashAccountId: event.target.value }))}>
-                <option value="">{t("purchases.payments.empty.selectBankCash")}</option>
-                {(bankCashAccountsQuery.data ?? []).map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name} · {row.type}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label={t("purchases.payments.field.description")}>
-              <Textarea rows={3} value={paymentEditor.description} onChange={(event) => setPaymentEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.payments.section.editorAllocations")}</div>
-                <Button variant="secondary" size="sm" onClick={addPaymentAllocation}>
-                  {t("purchases.action.addAllocation")}
-                </Button>
+        {isPaymentEditorOpen ? (
+          <div className="fixed inset-0 z-50 p-3 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={closePaymentEditor} />
+            <div
+              dir={isArabic ? "rtl" : "ltr"}
+              className={cn(
+                "relative mx-auto flex h-full max-w-[1480px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-[#fcfcfb] shadow-[0_30px_80px_rgba(15,23,42,0.18)]",
+                isArabic && "arabic-ui",
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur sm:px-8">
+                <button
+                  type="button"
+                  onClick={closePaymentEditor}
+                  className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  <span className="sr-only">{t("purchases.action.cancel")}</span>
+                  <X className="h-6 w-6" />
+                </button>
+                <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                    <ReceiptText className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
+                      {paymentEditor.id ? t("purchases.dialog.editPayment") : t("purchases.dialog.newPayment")}
+                    </div>
+                    <div className="text-sm text-slate-500">{paymentEditor.reference || t("purchases.payments.field.referenceHint")}</div>
+                  </div>
+                </div>
               </div>
 
-              {paymentEditor.allocations.map((allocation, index) => {
-                const supplierInvoices = purchaseInvoices.filter(
-                  (invoice) =>
-                    (!paymentEditor.supplierId || invoice.supplier.id === paymentEditor.supplierId) &&
-                    invoice.status !== "DRAFT" &&
-                    invoice.status !== "CANCELLED",
-                );
-                const selectedInvoice = supplierInvoices.find((invoice) => invoice.id === allocation.purchaseInvoiceId);
-
-                return (
-                  <div key={allocation.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-bold text-gray-900">{t("purchases.payments.allocation.label", { index: index + 1 })}</div>
-                      {paymentEditor.allocations.length > 1 ? (
-                        <Button variant="danger" size="sm" onClick={() => removePaymentAllocation(allocation.key)}>
-                          {t("purchases.action.remove")}
-                        </Button>
-                      ) : null}
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+                <div className="space-y-5">
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                        <ReceiptText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                          {t("purchases.payments.section.details")}
+                        </div>
+                        <div className="text-sm text-slate-500">{t("purchases.description.payments")}</div>
+                      </div>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label={t("purchases.payments.field.purchaseInvoice")}>
-                        <Select value={allocation.purchaseInvoiceId} onChange={(event) => updatePaymentAllocation(allocation.key, "purchaseInvoiceId", event.target.value)}>
-                          <option value="">{t("purchases.payments.empty.selectInvoice")}</option>
-                          {supplierInvoices.map((invoice) => (
-                            <option key={invoice.id} value={invoice.id}>
-                              {invoice.reference}
+
+                    <div className="grid gap-4 xl:grid-cols-[1fr_1.35fr_1fr_1.35fr]">
+                      <Field label={t("purchases.payments.field.paymentDate")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={paymentEditor.paymentDate}
+                            onChange={(event) => setPaymentEditor((current) => ({ ...current, paymentDate: event.target.value }))}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          />
+                          <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.payments.field.supplier")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <div className="relative">
+                          <Select
+                            value={paymentEditor.supplierId}
+                            onChange={(event) =>
+                              setPaymentEditor((current) => ({
+                                ...current,
+                                supplierId: event.target.value,
+                                allocations: current.allocations.map((allocation) => ({ ...allocation, purchaseInvoiceId: "" })),
+                              }))
+                            }
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          >
+                            <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                            {activeSuppliers.map((supplier) => (
+                              <option key={supplier.id} value={supplier.id}>
+                                {supplier.code} · {supplier.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.payments.field.amount")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={paymentEditor.amount}
+                          onChange={(event) => setPaymentEditor((current) => ({ ...current, amount: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        />
+                      </Field>
+
+                      <Field label={t("purchases.payments.field.bankCash")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Select
+                          value={paymentEditor.bankCashAccountId}
+                          onChange={(event) => setPaymentEditor((current) => ({ ...current, bankCashAccountId: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        >
+                          <option value="">{t("purchases.payments.empty.selectBankCash")}</option>
+                          {(bankCashAccountsQuery.data ?? []).map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {row.name} · {row.type}
                             </option>
                           ))}
                         </Select>
                       </Field>
-                      <Field label={t("purchases.payments.field.allocationAmount")}>
-                        <Input type="number" min="0.01" step="0.01" value={allocation.amount} onChange={(event) => updatePaymentAllocation(allocation.key, "amount", event.target.value)} />
+                    </div>
+
+                    <div className="mt-4">
+                      <Field label={t("purchases.payments.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Textarea
+                          rows={3}
+                          value={paymentEditor.description}
+                          onChange={(event) => setPaymentEditor((current) => ({ ...current, description: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        />
                       </Field>
                     </div>
-                    {selectedInvoice ? (
-                      <div className="text-xs text-gray-500">
-                        {t("purchases.payments.metric.remainingOnInvoice")}: {formatCurrency(selectedInvoice.outstandingAmount)}
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                            {t("purchases.payments.section.editorAllocations")}
+                          </div>
+                          <div className="text-sm text-slate-500">{t("purchases.payments.section.editorAllocationsHint")}</div>
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={addPaymentAllocation}
+                        className="rounded-2xl border-emerald-200 px-4 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <CirclePlus className="h-4 w-4" />
+                        {t("purchases.action.addAllocation")}
+                      </Button>
+                    </div>
 
-            {paymentFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {paymentFormError}
+                    <div className="overflow-x-auto rounded-[1.5rem] border border-slate-200">
+                      <table className="min-w-[1180px] w-full bg-white text-sm">
+                        <thead className="bg-slate-50 text-slate-600">
+                          <tr>
+                            <th className={cn("w-16 px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>#</th>
+                            <th className={cn("px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>
+                              {t("purchases.payments.field.purchaseInvoice")}
+                              <span className="ms-1 text-red-500">*</span>
+                            </th>
+                            <th className={cn("px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>{t("purchases.payments.field.invoiceDate")}</th>
+                            <th className={cn("px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>{t("purchases.payments.field.invoiceTotal")}</th>
+                            <th className={cn("px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>{t("purchases.payments.metric.remainingOnInvoice")}</th>
+                            <th className={cn("px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>
+                              {t("purchases.payments.field.allocationAmount")}
+                              <span className="ms-1 text-red-500">*</span>
+                            </th>
+                            <th className={cn("w-28 px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>{t("purchases.action.remove")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paymentEditor.allocations.map((allocation, index) => {
+                            const selectedInvoice = paymentEligibleInvoices.find((invoice) => invoice.id === allocation.purchaseInvoiceId);
+
+                            return (
+                              <tr key={allocation.key} className="border-t border-slate-100">
+                                <td className="px-4 py-3 font-extrabold text-slate-900">{index + 1}</td>
+                                <td className="px-4 py-3">
+                                  <Select
+                                    value={allocation.purchaseInvoiceId}
+                                    onChange={(event) => updatePaymentAllocation(allocation.key, "purchaseInvoiceId", event.target.value)}
+                                    className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                                  >
+                                    <option value="">{t("purchases.payments.empty.selectInvoice")}</option>
+                                    {paymentEligibleInvoices.map((invoice) => (
+                                      <option key={invoice.id} value={invoice.id}>
+                                        {invoice.reference}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </td>
+                                <td className="px-4 py-3 font-bold text-slate-700">
+                                  {selectedInvoice ? formatDate(selectedInvoice.invoiceDate) : "-"}
+                                </td>
+                                <td className="px-4 py-3 font-bold text-slate-700">
+                                  {selectedInvoice ? formatCurrency(selectedInvoice.totalAmount) : "-"}
+                                </td>
+                                <td className="px-4 py-3 font-bold text-emerald-700">
+                                  {selectedInvoice ? formatCurrency(selectedInvoice.outstandingAmount) : "-"}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    value={allocation.amount}
+                                    onChange={(event) => updatePaymentAllocation(allocation.key, "amount", event.target.value)}
+                                    className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => removePaymentAllocation(allocation.key)}
+                                    disabled={paymentEditor.allocations.length === 1}
+                                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-white p-3 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <section className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/80 p-5 shadow-[0_10px_24px_rgba(16,185,129,0.08)]">
+                      <div className="text-sm font-bold text-emerald-700">{t("purchases.payments.metric.amount")}</div>
+                      <div className="mt-2 text-3xl font-black text-emerald-700">{formatCurrency(paymentEditor.amount || 0)}</div>
+                    </div>
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
+                      <div className="text-sm font-bold text-slate-500">{t("purchases.payments.metric.allocated")}</div>
+                      <div className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(paymentAllocatedAmount)}</div>
+                    </div>
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
+                      <div className="text-sm font-bold text-slate-500">{t("purchases.payments.metric.unapplied")}</div>
+                      <div className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(paymentUnallocatedAmount)}</div>
+                    </div>
+                  </section>
+
+                  {paymentFormError ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      {paymentFormError}
+                    </div>
+                  ) : null}
+
+                  {paymentSaveError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {paymentSaveError}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            {paymentSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {paymentSaveError}
+              <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
+                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                  <Button variant="secondary" onClick={closePaymentEditor} className="rounded-2xl px-6">
+                    {t("purchases.action.cancel")}
+                  </Button>
+                  <Button
+                    onClick={() => (paymentEditor.id ? updateSupplierPaymentMutation.mutate() : createSupplierPaymentMutation.mutate())}
+                    disabled={Boolean(paymentFormError) || createSupplierPaymentMutation.isPending || updateSupplierPaymentMutation.isPending}
+                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    {paymentEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                  </Button>
+                </div>
               </div>
-            ) : null}
-
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closePaymentEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (paymentEditor.id ? updateSupplierPaymentMutation.mutate() : createSupplierPaymentMutation.mutate())} disabled={Boolean(paymentFormError) || createSupplierPaymentMutation.isPending || updateSupplierPaymentMutation.isPending}>
-                {paymentEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-              </Button>
             </div>
           </div>
-        </SidePanel>
+        ) : null}
 
         <SidePanel
           isOpen={isDebitNoteEditorOpen}
