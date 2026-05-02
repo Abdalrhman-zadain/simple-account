@@ -1148,46 +1148,59 @@ export function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                <table className="min-w-[1180px] w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
+                      <TableHead className="w-[190px]">{t("purchases.table.supplierCode")}</TableHead>
                       <TableHead>{t("purchases.table.supplier")}</TableHead>
                       <TableHead>{t("purchases.table.contact")}</TableHead>
-                      <TableHead>{t("purchases.table.currency")}</TableHead>
+                      <TableHead className="text-center">{t("purchases.table.currency")}</TableHead>
                       <TableHead>{t("purchases.table.payableAccount")}</TableHead>
-                      <TableHead>{t("purchases.table.outstanding")}</TableHead>
-                      <TableHead>{t("purchases.table.status")}</TableHead>
-                      <TableHead>{t("purchases.table.actions")}</TableHead>
+                      <TableHead className="text-end">{t("purchases.table.outstanding")}</TableHead>
+                      <TableHead className="text-center">{t("purchases.table.status")}</TableHead>
+                      <TableHead className="text-center">{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
                   <tbody>
                     {suppliers.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
                           {t("purchases.empty.suppliers")}
                         </td>
                       </tr>
                     ) : (
                       suppliers.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100", selectedSupplierId === row.id && "bg-gray-50/70")}>
-                          <td className="px-6 py-4 align-top">
-                            <div className="font-bold text-gray-900">{row.code} · {row.name}</div>
+                        <tr key={row.id} className={cn("border-t border-gray-100 transition-colors hover:bg-gray-50/60", selectedSupplierId === row.id && "bg-gray-50/70")}>
+                          <td dir="ltr" className="px-6 py-4 text-start align-top font-mono text-xs font-bold text-slate-700">
+                            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1">
+                              {row.code}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 align-top text-start">
+                            <div className="font-bold text-gray-900">{row.name}</div>
                             <div className="text-xs text-gray-500">{row.paymentTerms || t("purchases.empty.paymentTerms")}</div>
                           </td>
-                          <td className="px-6 py-4 align-top">
+                          <td className="px-6 py-4 align-top text-start">
                             <div className="text-gray-700">{row.phone || row.contactInfo || t("purchases.empty.phone")}</div>
                             <div className="text-xs text-gray-500">{row.email || t("purchases.empty.email")}</div>
                             <div className="text-xs text-gray-500">{row.address || t("purchases.empty.address")}</div>
                           </td>
-                          <td className="px-6 py-4 align-top">{row.defaultCurrency}</td>
-                          <td className="px-6 py-4 align-top">{row.payableAccount.code} · {row.payableAccount.name}</td>
-                          <td className="px-6 py-4 align-top">{formatCurrency(row.currentBalance)}</td>
-                          <td className="px-6 py-4 align-top">
+                          <td className="px-6 py-4 text-center align-top font-semibold text-gray-800">{row.defaultCurrency}</td>
+                          <td className="px-6 py-4 align-top text-start">
+                            <div className="font-medium text-gray-900">{row.payableAccount.name}</div>
+                            <div className="mt-1">
+                              <span dir="ltr" className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-600">
+                                {row.payableAccount.code}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-end align-top font-semibold tabular-nums text-gray-900">{formatCurrency(row.currentBalance)}</td>
+                          <td className="px-6 py-4 text-center align-top">
                             <StatusPill label={row.isActive ? t("purchases.status.active") : t("purchases.status.inactive")} tone={row.isActive ? "positive" : "warning"} />
                           </td>
                           <td className="px-6 py-4 align-top">
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap justify-center gap-2">
                               <Button variant="secondary" size="sm" onClick={() => setSelectedSupplierId(row.id)}>
                                 {t("purchases.action.view")}
                               </Button>
@@ -4152,8 +4165,8 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TableHead({ children }: { children: ReactNode }) {
-  return <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{children}</th>;
+function TableHead({ children, className }: { children: ReactNode; className?: string }) {
+  return <th className={cn("px-6 py-3 text-start text-[10px] font-bold uppercase tracking-widest text-gray-600", className)}>{children}</th>;
 }
 
 async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient>) {

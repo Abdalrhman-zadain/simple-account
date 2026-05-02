@@ -819,7 +819,7 @@ function SummarySection({ data, error, loading, t }: { data?: ReportingSummary; 
       <div className="grid gap-4 md:grid-cols-2">
         {primaryMetrics.map((metric) => (
           <Card key={metric.key} className="space-y-2 p-5">
-            <div className="text-xs font-bold uppercase tracking-widest text-gray-500">{metric.label}</div>
+            <div className="text-xs font-bold text-gray-500">{getSummaryMetricLabel(metric.key, metric.label, t)}</div>
             <div className="text-2xl font-black text-gray-900">{formatCurrency(metric.amount)}</div>
             <div className="text-sm text-gray-500">
               {t("reporting.metric.comparison")}: {formatCurrency(metric.comparisonAmount)}
@@ -833,7 +833,7 @@ function SummarySection({ data, error, loading, t }: { data?: ReportingSummary; 
       <div className="grid gap-4 md:grid-cols-3">
         {secondaryMetrics.map((metric) => (
           <Card key={metric.key} className="space-y-2 p-5">
-            <div className="text-xs font-bold uppercase tracking-widest text-gray-500">{metric.label}</div>
+            <div className="text-xs font-bold text-gray-500">{getSummaryMetricLabel(metric.key, metric.label, t)}</div>
             <div className="text-2xl font-black text-gray-900">{formatCurrency(metric.amount)}</div>
             <div className="text-sm text-gray-500">
               {t("reporting.metric.comparison")}: {formatCurrency(metric.comparisonAmount)}
@@ -845,8 +845,8 @@ function SummarySection({ data, error, loading, t }: { data?: ReportingSummary; 
         ))}
       </div>
       <Card className="grid gap-3 p-5 md:grid-cols-3">
-        <MiniStat label={t("reporting.summary.period")} value={data.period} />
-        <MiniStat label={t("reporting.summary.comparisonPeriod")} value={data.comparisonPeriod || t("reporting.value.none")} />
+        <MiniStat label={t("reporting.summary.period")} value={translateReportingValue(data.period, t)} />
+        <MiniStat label={t("reporting.summary.comparisonPeriod")} value={data.comparisonPeriod ? translateReportingValue(data.comparisonPeriod, t) : t("reporting.value.none")} />
         <MiniStat label={t("reporting.summary.generatedAt")} value={formatDate(data.generatedAt)} />
         <MiniStat label={t("reporting.summary.trialBalanceRows")} value={String(data.operational.trialBalanceRowCount)} />
         <MiniStat label={t("reporting.summary.cashAccounts")} value={String(data.operational.cashAccountCount)} />
@@ -1660,6 +1660,20 @@ function getReportLabel(reportType: string, t: TranslationFn) {
   }
 
   return reportType;
+}
+
+function getSummaryMetricLabel(key: string, fallback: string, t: TranslationFn) {
+  const translationKey = `reporting.summary.metric.${key}`;
+  const translated = t(translationKey);
+  return translated === translationKey ? fallback : translated;
+}
+
+function translateReportingValue(value: string, t: TranslationFn) {
+  if (value === "All posted periods") {
+    return t("reporting.value.allPostedPeriods");
+  }
+
+  return value;
 }
 
 function getAuditSourcePath(entry: ReportingActivityEntry) {

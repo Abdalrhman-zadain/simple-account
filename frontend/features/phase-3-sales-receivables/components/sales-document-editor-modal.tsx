@@ -145,9 +145,7 @@ export function SalesDocumentEditorModal({
               <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
                 {title}
               </div>
-              <div className="text-sm text-slate-500">
-                {reference || t("salesReceivables.field.referenceHint")}
-              </div>
+              {reference ? <div className="text-sm text-slate-500">{reference}</div> : null}
             </div>
           </div>
         </div>

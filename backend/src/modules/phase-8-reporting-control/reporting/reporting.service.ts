@@ -42,12 +42,13 @@ export class ReportingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary(query: ReportingQueryDto, user?: AuthUser, shouldLog = true) {
+    const canSeeAudit = user?.role === "ADMIN" || user?.role === "MANAGER";
     const [trialBalance, balanceSheet, profitLoss, cashMovement, audit, warnings] = await Promise.all([
       this.getTrialBalance(query, user, false),
       this.getBalanceSheet(query, user, false),
       this.getProfitLoss(query, user, false),
       this.getCashMovement(query, user, false),
-      this.getAudit({ ...query, limit: 50 }, user, false),
+      canSeeAudit ? this.getAudit({ ...query, limit: 50 }, user, false) : Promise.resolve({ totalEvents: 0 }),
       this.getWarnings(user),
     ]);
 

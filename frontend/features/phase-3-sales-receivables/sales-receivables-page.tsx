@@ -939,15 +939,23 @@ export function SalesReceivablesPage() {
                 <div className="text-xs text-gray-500">{t("salesReceivables.section.customerMasterRecordsDescription")}</div>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
+                <table className="w-full min-w-[980px] table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[230px]" />
+                    <col className="w-[210px]" />
+                    <col className="w-[150px]" />
+                    <col className="w-[150px]" />
+                    <col className="w-[115px]" />
+                    <col className="w-[155px]" />
+                  </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
-                      <TableHead>{t("common.table.code")}</TableHead>
+                      <TableHead className="text-center">{t("common.table.code")}</TableHead>
                       <TableHead>{t("common.table.name")}</TableHead>
                       <TableHead>{t("salesReceivables.field.terms")}</TableHead>
-                      <TableHead className="text-right">{t("salesReceivables.metric.creditLimit")}</TableHead>
+                      <TableHead className="text-end">{t("salesReceivables.metric.creditLimit")}</TableHead>
                       <TableHead className="text-center">{t("common.table.status")}</TableHead>
-                      <TableHead className="text-right">{t("common.table.actions")}</TableHead>
+                      <TableHead className="text-center">{t("common.table.actions")}</TableHead>
                     </tr>
                   </thead>
                   <tbody>
@@ -959,23 +967,27 @@ export function SalesReceivablesPage() {
                       </tr>
                     ) : (
                       customers.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", selectedCustomer?.id === row.id && "bg-gray-50")}>
-                          <td className="px-6 py-4">
-                            <button type="button" className="text-left font-bold text-gray-900" onClick={() => setSelectedCustomerId(row.id)}>
-                              {row.code}
+                        <tr key={row.id} className={cn("border-t border-gray-100 transition-colors hover:bg-gray-50", selectedCustomer?.id === row.id && "bg-gray-50")}>
+                          <td dir="ltr" className="px-4 py-4 text-center align-top">
+                            <button
+                              type="button"
+                              className="inline-flex max-w-full rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-700 transition hover:bg-slate-200"
+                              onClick={() => setSelectedCustomerId(row.id)}
+                            >
+                              <span className="truncate">{row.code}</span>
                             </button>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 align-top text-start">
                             <div className="font-semibold text-gray-900">{row.name}</div>
                             <div className="text-xs text-gray-500">{row.contactInfo || t("salesReceivables.empty.customerContact")}</div>
                           </td>
-                          <td className="px-6 py-4 text-gray-700">{row.paymentTerms || t("salesReceivables.empty.notSet")}</td>
-                          <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.creditLimit)}</td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-6 py-4 align-top text-start text-gray-700">{row.paymentTerms || t("salesReceivables.empty.notSet")}</td>
+                          <td className="px-6 py-4 text-end align-top font-mono font-bold tabular-nums text-gray-900">{formatCurrency(row.creditLimit)}</td>
+                          <td className="px-6 py-4 text-center align-top">
                             <StatusPill label={row.isActive ? t("salesReceivables.status.active") : t("salesReceivables.status.inactive")} tone={row.isActive ? "positive" : "neutral"} />
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex justify-end gap-2">
+                          <td className="px-4 py-4 align-top">
+                            <div className="flex flex-wrap justify-center gap-2">
                               {row.isActive ? (
                                 <>
                                   <button
@@ -2141,7 +2153,7 @@ export function SalesReceivablesPage() {
       >
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.reference")} hint={t("salesReceivables.field.referenceHint")}>
+            <Field label={t("salesReceivables.field.reference")}>
               <Input value={creditNoteEditor.reference} onChange={(event) => setCreditNoteEditor((current) => ({ ...current, reference: event.target.value }))} />
             </Field>
             <Field label={t("salesReceivables.field.creditNoteDate")}>
@@ -2305,7 +2317,7 @@ function SalesDocumentEditor({
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label={t("salesReceivables.field.reference")} hint={t("salesReceivables.field.referenceHint")}>
+        <Field label={t("salesReceivables.field.reference")}>
           <Input value={reference} onChange={(event) => onReferenceChange(event.target.value)} />
         </Field>
         <Field label={dateLabel}>
@@ -2516,7 +2528,7 @@ function TableHead({
   children: ReactNode;
   className?: string;
 }) {
-  return <th className={cn("px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600", className)}>{children}</th>;
+  return <th className={cn("px-6 py-3 text-start text-[10px] font-bold uppercase tracking-widest text-gray-600", className)}>{children}</th>;
 }
 
 function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {

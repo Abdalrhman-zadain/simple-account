@@ -805,6 +805,9 @@ Object.assign(enTranslations, {
   "salesReceivables.metric.creditLimit": "Credit Limit",
   "salesReceivables.metric.availableCredit": "Available Credit",
   "salesReceivables.metric.invoiceTotal": "Invoice Total",
+  "salesReceivables.metric.total": "Total",
+  "salesReceivables.metric.subtotal": "Subtotal",
+  "salesReceivables.metric.tax": "Tax",
   "salesReceivables.metric.allocated": "Allocated",
   "salesReceivables.metric.status": "Status",
   "salesReceivables.metric.creditNoteTotal": "Credit Note Total",
@@ -862,8 +865,6 @@ Object.assign(enTranslations, {
   "salesReceivables.field.settlementReference": "Settlement Reference",
   "salesReceivables.field.codeHint":
     "Leave blank to let the system generate a code.",
-  "salesReceivables.field.referenceHint":
-    "Leave blank to let the system generate a reference.",
   "salesReceivables.field.linkedInvoiceHint":
     "Optional. Linked invoices must belong to the same customer.",
   "salesReceivables.field.currentOutstandingBalance":
@@ -936,6 +937,7 @@ Object.assign(enTranslations, {
   "purchases.filters.activeOnly": "Active only",
   "purchases.filters.inactiveOnly": "Inactive only",
   "purchases.table.supplier": "Supplier",
+  "purchases.table.supplierCode": "Supplier Code",
   "purchases.table.contact": "Contact Details",
   "purchases.table.currency": "Currency",
   "purchases.table.payableAccount": "Default Payable Account",
@@ -1459,6 +1461,12 @@ Object.assign(enTranslations, {
   "reporting.summary.trialBalanceRows": "Trial balance rows",
   "reporting.summary.cashAccounts": "Cash accounts",
   "reporting.summary.auditEvents": "Audit events",
+  "reporting.summary.metric.assets": "Total assets",
+  "reporting.summary.metric.liabilities": "Total liabilities",
+  "reporting.summary.metric.equity": "Total equity",
+  "reporting.summary.metric.netIncome": "Net income",
+  "reporting.summary.metric.netCashMovement": "Net cash movement",
+  "reporting.summary.metric.trialBalanceDifference": "Trial balance difference",
   "reporting.metric.comparison": "Comparison",
   "reporting.metric.variance": "Variance",
   "reporting.trialBalance.total.debit": "Total debit",
@@ -1525,6 +1533,7 @@ Object.assign(enTranslations, {
   "reporting.side.CREDIT": "Credit",
   "reporting.side.ZERO": "Zero",
   "reporting.value.none": "None",
+  "reporting.value.allPostedPeriods": "All posted periods",
   "reporting.value.system": "System",
   "reporting.value.noRows": "No rows",
   "reporting.value.shared": "Shared",
