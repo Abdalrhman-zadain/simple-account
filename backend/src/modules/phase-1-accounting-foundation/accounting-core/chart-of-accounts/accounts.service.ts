@@ -10,6 +10,16 @@ import { UpdateAccountDto } from './dto/update-account.dto';
 type DbClient = Pick<PrismaClient, 'account' | 'accountSubtype' | '$queryRaw' | '$executeRaw'>;
 
 const ACCOUNT_CREATE_MAX_ATTEMPTS = 5;
+type AccountSelectorUsage = 'purchase-invoice-line';
+
+type AccountListQuery = {
+  type?: string;
+  isActive?: string;
+  isPosting?: string;
+  search?: string;
+  parentAccountId?: string | null;
+  usage?: AccountSelectorUsage;
+};
 
 @Injectable()
 export class AccountsService {
@@ -373,13 +383,7 @@ export class AccountsService {
     return parentPrefix + serialStr;
   }
 
-  async list(query?: {
-    type?: string;
-    isActive?: string;
-    isPosting?: string;
-    search?: string;
-    parentAccountId?: string | null;
-  }) {
+  async list(query?: AccountListQuery) {
     return this.prisma.account.findMany({
       where: this.buildAccountListWhere(query),
       include: {
@@ -394,13 +398,7 @@ export class AccountsService {
     });
   }
 
-  async listSelectorOptions(query?: {
-    type?: string;
-    isActive?: string;
-    isPosting?: string;
-    search?: string;
-    parentAccountId?: string | null;
-  }) {
+  async listSelectorOptions(query?: AccountListQuery) {
     return this.prisma.account.findMany({
       where: this.buildAccountListWhere(query),
       select: {
@@ -408,6 +406,10 @@ export class AccountsService {
         code: true,
         name: true,
         nameAr: true,
+        type: true,
+        subtype: true,
+        isPosting: true,
+        isActive: true,
         currentBalance: true,
         currencyCode: true,
       },
@@ -415,13 +417,7 @@ export class AccountsService {
     });
   }
 
-  async listTableRows(query?: {
-    type?: string;
-    isActive?: string;
-    isPosting?: string;
-    search?: string;
-    parentAccountId?: string | null;
-  }) {
+  async listTableRows(query?: AccountListQuery) {
     // 1. Fetch the requested accounts and their primary counts.
     const accounts = await this.prisma.account.findMany({
       where: this.buildAccountListWhere(query),
@@ -478,14 +474,8 @@ export class AccountsService {
     return results;
   }
 
-  private buildAccountListWhere(query?: {
-    type?: string;
-    isActive?: string;
-    isPosting?: string;
-    search?: string;
-    parentAccountId?: string | null;
-  }) {
-    return {
+  private buildAccountListWhere(query?: AccountListQuery) {
+    const where: Prisma.AccountWhereInput = {
       parentAccountId: query?.parentAccountId === 'null' ? null : query?.parentAccountId,
       type: query?.type as never,
       isActive: query?.isActive ? query.isActive === 'true' : undefined,
@@ -497,7 +487,22 @@ export class AccountsService {
           { nameAr: { contains: query.search, mode: 'insensitive' } },
         ]
         : undefined,
-    } satisfies Prisma.AccountWhereInput;
+    };
+
+    if (query?.usage === 'purchase-invoice-line') {
+      where.isPosting = true;
+      where.AND = [
+        {
+          OR: [
+            { type: 'ASSET', subtype: 'Inventory' },
+            { type: 'ASSET', subtype: 'FixedAsset' },
+            { type: 'EXPENSE' },
+          ],
+        },
+      ];
+    }
+
+    return where;
   }
 
   async hierarchy(query?: { type?: string; isActive?: string; isPosting?: string; search?: string }) {

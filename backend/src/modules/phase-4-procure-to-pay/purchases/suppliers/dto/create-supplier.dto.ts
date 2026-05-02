@@ -17,8 +17,22 @@ export class CreateSupplierDto {
 
   @IsOptional()
   @IsString()
+  @Length(0, 64)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
-  paymentTerms?: string;
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 255)
+  address?: string;
+
+  @IsString()
+  @Length(1, 120)
+  paymentTerms!: string;
 
   @IsOptional()
   @IsString()

@@ -1,7 +1,23 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LuCalendarDays as CalendarDays,
+  LuCirclePlus as CirclePlus,
+  LuFileMinus as FileMinus,
+  LuFilePlus2 as FilePlus,
+  LuFileText as FileText,
+  LuPackage2 as Package2,
+  LuReceiptText as ReceiptText,
+  LuSave as Save,
+  LuScrollText as ScrollText,
+  LuTrash2 as Trash2,
+  LuUsers as Users,
+  LuUserRound as UserRound,
+  LuX as X,
+} from "react-icons/lu";
 
 import {
   approvePurchaseRequest,
@@ -23,6 +39,7 @@ import {
   getAccountOptions,
   getDebitNoteById,
   getDebitNotes,
+  getInventoryItems,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
   getPurchaseOrderById,
@@ -57,17 +74,33 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { DebitNote, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
+import type { AccountOption, DebitNote, InventoryItem, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
 type Workspace = "suppliers" | "requests" | "orders" | "invoices" | "payments" | "notes";
+
+type WorkspaceTab = {
+  id: Workspace;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+};
+
+function isPurchaseInvoiceDebitAccount(account: AccountOption) {
+  if (!account.isPosting) return false;
+  if (account.type === "EXPENSE") return true;
+  if (account.type !== "ASSET") return false;
+  return account.subtype === "Inventory" || account.subtype === "FixedAsset";
+}
 
 type SupplierEditorState = {
   id?: string;
   code: string;
   name: string;
   contactInfo: string;
+  phone: string;
+  email: string;
+  address: string;
   paymentTerms: string;
   taxInfo: string;
   defaultCurrency: string;
@@ -143,6 +176,7 @@ type PurchaseReceiptEditorState = {
 
 type PurchaseInvoiceLineEditorState = {
   key: string;
+  itemId: string;
   itemName: string;
   description: string;
   quantity: string;
@@ -203,6 +237,9 @@ const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   code: "",
   name: "",
   contactInfo: "",
+  phone: "",
+  email: "",
+  address: "",
   paymentTerms: "",
   taxInfo: "",
   defaultCurrency: "JOD",
@@ -274,7 +311,8 @@ const EMPTY_DEBIT_NOTE_EDITOR = (): DebitNoteEditorState => ({
 
 export function PurchasesPage() {
   const { token } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isArabic = language === "ar";
   const queryClient = useQueryClient();
 
   const [workspace, setWorkspace] = useState<Workspace>("suppliers");
@@ -331,8 +369,14 @@ export function PurchasesPage() {
   });
 
   const invoiceAccountsQuery = useQuery({
-    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", view: "selector" }),
-    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true" }, token),
+    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", usage: "purchase-invoice-line", view: "selector" }),
+    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", usage: "purchase-invoice-line" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const inventoryItemsQuery = useQuery({
+    queryKey: queryKeys.inventoryItems(token, { isActive: "true" }),
+    queryFn: () => getInventoryItems({ isActive: "true" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -466,7 +510,10 @@ export function PurchasesPage() {
           code: supplierEditor.code || undefined,
           name: supplierEditor.name,
           contactInfo: supplierEditor.contactInfo || undefined,
-          paymentTerms: supplierEditor.paymentTerms || undefined,
+          phone: supplierEditor.phone || undefined,
+          email: supplierEditor.email || undefined,
+          address: supplierEditor.address || undefined,
+          paymentTerms: supplierEditor.paymentTerms,
           taxInfo: supplierEditor.taxInfo || undefined,
           defaultCurrency: supplierEditor.defaultCurrency || "JOD",
           payableAccountId: supplierEditor.payableAccountId,
@@ -487,6 +534,9 @@ export function PurchasesPage() {
         {
           name: supplierEditor.name,
           contactInfo: supplierEditor.contactInfo || "",
+          phone: supplierEditor.phone || "",
+          email: supplierEditor.email || "",
+          address: supplierEditor.address || "",
           paymentTerms: supplierEditor.paymentTerms || "",
           taxInfo: supplierEditor.taxInfo || "",
           defaultCurrency: supplierEditor.defaultCurrency || "JOD",
@@ -711,7 +761,6 @@ export function PurchasesPage() {
     mutationFn: () =>
       createPurchaseInvoice(
         {
-          reference: invoiceEditor.reference || undefined,
           invoiceDate: invoiceEditor.invoiceDate,
           supplierId: invoiceEditor.supplierId,
           currencyCode: invoiceEditor.currencyCode || undefined,
@@ -733,7 +782,6 @@ export function PurchasesPage() {
       updatePurchaseInvoice(
         invoiceEditor.id!,
         {
-          reference: invoiceEditor.reference || undefined,
           invoiceDate: invoiceEditor.invoiceDate,
           supplierId: invoiceEditor.supplierId,
           currencyCode: invoiceEditor.currencyCode || undefined,
@@ -933,6 +981,8 @@ export function PurchasesPage() {
     null;
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
+  const inventoryItems = inventoryItemsQuery.data?.data ?? [];
+  const purchaseInvoiceDebitAccounts = (invoiceAccountsQuery.data ?? []).filter(isPurchaseInvoiceDebitAccount);
   const totalOutstanding = suppliers.reduce((sum, row) => sum + Number(row.currentBalance), 0);
 
   const totalRequests = purchaseRequests.length;
@@ -1010,6 +1060,15 @@ export function PurchasesPage() {
     reverseSupplierPaymentMutation.isPending;
   const activeDebitNoteActionMutationPending =
     postDebitNoteMutation.isPending || cancelDebitNoteMutation.isPending || reverseDebitNoteMutation.isPending;
+  const invoiceTotals = useMemo(() => calculateInvoiceEditorTotals(invoiceEditor.lines), [invoiceEditor.lines]);
+  const workspaceTabs: WorkspaceTab[] = [
+    { id: "suppliers", label: t("purchases.workspace.suppliers"), icon: Users },
+    { id: "requests", label: t("purchases.workspace.requests"), icon: FilePlus },
+    { id: "orders", label: t("purchases.workspace.orders"), icon: ScrollText },
+    { id: "invoices", label: t("purchases.workspace.invoices"), icon: FileText },
+    { id: "payments", label: t("purchases.workspace.payments"), icon: ReceiptText },
+    { id: "notes", label: t("purchases.workspace.debitNotes"), icon: FileMinus },
+  ];
 
   return (
     <PageShell>
@@ -1046,26 +1105,27 @@ export function PurchasesPage() {
           }
         />
 
-        <Card className="flex flex-wrap gap-3 p-3">
-          <Button variant={workspace === "suppliers" ? "primary" : "secondary"} onClick={() => setWorkspace("suppliers")}>
-            {t("purchases.workspace.suppliers")}
-          </Button>
-          <Button variant={workspace === "requests" ? "primary" : "secondary"} onClick={() => setWorkspace("requests")}>
-            {t("purchases.workspace.requests")}
-          </Button>
-          <Button variant={workspace === "orders" ? "primary" : "secondary"} onClick={() => setWorkspace("orders")}>
-            {t("purchases.workspace.orders")}
-          </Button>
-          <Button variant={workspace === "invoices" ? "primary" : "secondary"} onClick={() => setWorkspace("invoices")}>
-            {t("purchases.workspace.invoices")}
-          </Button>
-          <Button variant={workspace === "payments" ? "primary" : "secondary"} onClick={() => setWorkspace("payments")}>
-            {t("purchases.workspace.payments")}
-          </Button>
-          <Button variant={workspace === "notes" ? "primary" : "secondary"} onClick={() => setWorkspace("notes")}>
-            {t("purchases.workspace.debitNotes")}
-          </Button>
-        </Card>
+        <div className="flex flex-wrap gap-3">
+          {workspaceTabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = tab.id === workspace;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setWorkspace(tab.id)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
+                  active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
         {workspace === "suppliers" ? (
           <>
@@ -1122,8 +1182,9 @@ export function PurchasesPage() {
                             <div className="text-xs text-gray-500">{row.paymentTerms || t("purchases.empty.paymentTerms")}</div>
                           </td>
                           <td className="px-6 py-4 align-top">
-                            <div className="text-gray-700">{row.contactInfo || t("purchases.empty.contactInfo")}</div>
-                            <div className="text-xs text-gray-500">{row.taxInfo || t("purchases.empty.taxInfo")}</div>
+                            <div className="text-gray-700">{row.phone || row.contactInfo || t("purchases.empty.phone")}</div>
+                            <div className="text-xs text-gray-500">{row.email || t("purchases.empty.email")}</div>
+                            <div className="text-xs text-gray-500">{row.address || t("purchases.empty.address")}</div>
                           </td>
                           <td className="px-6 py-4 align-top">{row.defaultCurrency}</td>
                           <td className="px-6 py-4 align-top">{row.payableAccount.code} · {row.payableAccount.name}</td>
@@ -2167,41 +2228,50 @@ export function PurchasesPage() {
         >
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.code")} hint={t("purchases.field.codeHint")}>
-                <Input value={supplierEditor.code} onChange={(event) => setSupplierEditor((current) => ({ ...current, code: event.target.value }))} disabled={Boolean(supplierEditor.id)} />
+              <Field label={t("purchases.field.name")} required>
+                <Input value={supplierEditor.name} placeholder={t("purchases.placeholder.name")} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
               </Field>
-              <Field label={t("purchases.field.name")}>
-                <Input value={supplierEditor.name} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.contactInfo")}>
-                <Textarea rows={3} value={supplierEditor.contactInfo} onChange={(event) => setSupplierEditor((current) => ({ ...current, contactInfo: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.field.taxInfo")}>
-                <Textarea rows={3} value={supplierEditor.taxInfo} onChange={(event) => setSupplierEditor((current) => ({ ...current, taxInfo: event.target.value }))} />
+              <Field label={t("purchases.field.defaultCurrency")} required>
+                <Select value={supplierEditor.defaultCurrency} onChange={(event) => setSupplierEditor((current) => ({ ...current, defaultCurrency: event.target.value.toUpperCase() }))}>
+                  <option value="JOD">{t("purchases.currency.jod")}</option>
+                </Select>
               </Field>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.paymentTerms")}>
-                <Input value={supplierEditor.paymentTerms} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTerms: event.target.value }))} />
+              <Field label={t("purchases.field.paymentTerms")} required>
+                <Select value={supplierEditor.paymentTerms} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTerms: event.target.value }))}>
+                  <option value="">{t("purchases.placeholder.paymentTerms")}</option>
+                  <option value={t("purchases.paymentTerms.cash")}>{t("purchases.paymentTerms.cash")}</option>
+                  <option value={t("purchases.paymentTerms.net7")}>{t("purchases.paymentTerms.net7")}</option>
+                  <option value={t("purchases.paymentTerms.net15")}>{t("purchases.paymentTerms.net15")}</option>
+                  <option value={t("purchases.paymentTerms.net30")}>{t("purchases.paymentTerms.net30")}</option>
+                  <option value={t("purchases.paymentTerms.net60")}>{t("purchases.paymentTerms.net60")}</option>
+                </Select>
               </Field>
-              <Field label={t("purchases.field.defaultCurrency")}>
-                <Input value={supplierEditor.defaultCurrency} maxLength={8} onChange={(event) => setSupplierEditor((current) => ({ ...current, defaultCurrency: event.target.value.toUpperCase() }))} />
+              <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
+                <Select value={supplierEditor.payableAccountId} onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}>
+                  <option value="">{t("purchases.empty.selectPayableAccount")}</option>
+                  {(payableAccountsQuery.data ?? []).map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.code} · {row.name} ({row.currencyCode})
+                    </option>
+                  ))}
+                </Select>
               </Field>
             </div>
 
-            <Field label={t("purchases.field.payableAccount")} hint={t("purchases.field.payableAccountHint")}>
-              <Select value={supplierEditor.payableAccountId} onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}>
-                <option value="">{t("purchases.empty.selectPayableAccount")}</option>
-                {(payableAccountsQuery.data ?? []).map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.code} · {row.name} ({row.currencyCode})
-                  </option>
-                ))}
-              </Select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.field.phone")}>
+                <Input dir="ltr" value={supplierEditor.phone} placeholder="07XXXXXXXX" onChange={(event) => setSupplierEditor((current) => ({ ...current, phone: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.field.email")}>
+                <Input dir="ltr" type="email" value={supplierEditor.email} placeholder={t("purchases.placeholder.email")} onChange={(event) => setSupplierEditor((current) => ({ ...current, email: event.target.value }))} />
+              </Field>
+            </div>
+
+            <Field label={t("purchases.field.address")}>
+              <Input value={supplierEditor.address} placeholder={t("purchases.placeholder.address")} onChange={(event) => setSupplierEditor((current) => ({ ...current, address: event.target.value }))} />
             </Field>
 
             {supplierFormError ? (
@@ -2566,155 +2636,377 @@ export function PurchasesPage() {
           </div>
         </SidePanel>
 
-        <SidePanel
-          isOpen={isInvoiceEditorOpen}
-          onClose={closeInvoiceEditor}
-          title={invoiceEditor.id ? t("purchases.dialog.editInvoice") : t("purchases.dialog.newInvoice")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.invoices.field.reference")} hint={t("purchases.invoices.field.referenceHint")}>
-                <Input value={invoiceEditor.reference} onChange={(event) => setInvoiceEditor((current) => ({ ...current, reference: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.invoices.field.invoiceDate")}>
-                <Input type="date" value={invoiceEditor.invoiceDate} onChange={(event) => setInvoiceEditor((current) => ({ ...current, invoiceDate: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.invoices.field.supplier")}>
-                <Select
-                  value={invoiceEditor.supplierId}
-                  onChange={(event) => {
-                    const supplierId = event.target.value;
-                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
-                    setInvoiceEditor((current) => ({
-                      ...current,
-                      supplierId,
-                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
-                    }));
-                  }}
+        {isInvoiceEditorOpen ? (
+          <div className="fixed inset-0 z-50 p-3 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={closeInvoiceEditor} />
+            <div
+              dir={isArabic ? "rtl" : "ltr"}
+              className={cn(
+                "relative mx-auto flex h-full max-w-[1480px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-[#fcfcfb] shadow-[0_30px_80px_rgba(15,23,42,0.18)]",
+                isArabic && "arabic-ui",
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur sm:px-8">
+                <button
+                  type="button"
+                  onClick={closeInvoiceEditor}
+                  className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
                 >
-                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
-                  {activeSuppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.code} · {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("purchases.invoices.field.currency")}>
-                <Input value={invoiceEditor.currencyCode} maxLength={8} onChange={(event) => setInvoiceEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.invoices.field.sourceOrder")}>
-              <Select value={invoiceEditor.sourcePurchaseOrderId} onChange={(event) => setInvoiceEditor((current) => ({ ...current, sourcePurchaseOrderId: event.target.value }))}>
-                <option value="">{t("purchases.invoices.empty.manual")}</option>
-                {purchaseOrders
-                  .filter((order) =>
-                    ["ISSUED", "PARTIALLY_RECEIVED", "FULLY_RECEIVED", "CLOSED"].includes(order.status),
-                  )
-                  .map((order) => (
-                    <option key={order.id} value={order.id}>
-                      {order.reference}
-                    </option>
-                  ))}
-              </Select>
-            </Field>
-
-            <Field label={t("purchases.invoices.field.description")}>
-              <Textarea rows={3} value={invoiceEditor.description} onChange={(event) => setInvoiceEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.editorLines")}</div>
-                <Button variant="secondary" size="sm" onClick={addInvoiceLine}>
-                  {t("purchases.action.addLine")}
-                </Button>
+                  <span className="sr-only">{t("purchases.action.cancel")}</span>
+                  <X className="h-6 w-6" />
+                </button>
+                <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                    <FileText className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
+                      {invoiceEditor.id ? t("purchases.dialog.editInvoice") : t("purchases.dialog.newInvoice")}
+                    </div>
+                    <div className="text-sm text-slate-500">{invoiceEditor.reference || t("purchases.invoices.field.referenceHint")}</div>
+                  </div>
+                </div>
               </div>
 
-              {invoiceEditor.lines.map((line, index) => {
-                const quantity = Number(line.quantity || 0);
-                const unitPrice = Number(line.unitPrice || 0);
-                const discountAmount = Number(line.discountAmount || 0);
-                const taxAmount = Number(line.taxAmount || 0);
-                const lineSubtotal = quantity * unitPrice;
-                const lineTotal = lineSubtotal - discountAmount + taxAmount;
-
-                return (
-                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-bold text-gray-900">{t("purchases.invoices.line.label", { index: index + 1 })}</div>
-                      {invoiceEditor.lines.length > 1 ? (
-                        <Button variant="danger" size="sm" onClick={() => removeInvoiceLine(line.key)}>
-                          {t("purchases.action.remove")}
-                        </Button>
-                      ) : null}
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+                <div className="space-y-5">
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                          {t("purchases.invoices.section.details")}
+                        </div>
+                        <div className="text-sm text-slate-500">{t("purchases.invoices.description")}</div>
+                      </div>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label={t("purchases.invoices.field.itemOrService")}>
-                        <Input value={line.itemName} onChange={(event) => updateInvoiceLine(line.key, "itemName", event.target.value)} />
+
+                    <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr_1fr_1fr]">
+                      <Field label={t("purchases.invoices.field.invoiceDate")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={invoiceEditor.invoiceDate}
+                            onChange={(event) => setInvoiceEditor((current) => ({ ...current, invoiceDate: event.target.value }))}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          />
+                          <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
                       </Field>
-                      <Field label={t("purchases.invoices.field.account")}>
-                        <Select value={line.accountId} onChange={(event) => updateInvoiceLine(line.key, "accountId", event.target.value)}>
-                          <option value="">{t("purchases.invoices.empty.selectAccount")}</option>
-                          {(invoiceAccountsQuery.data ?? []).map((account) => (
-                            <option key={account.id} value={account.id}>
-                              {account.code} · {account.name} ({account.currencyCode})
-                            </option>
-                          ))}
+
+                      <Field label={t("purchases.invoices.field.supplier")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <div className="relative">
+                          <Select
+                            value={invoiceEditor.supplierId}
+                            onChange={(event) => {
+                              const supplierId = event.target.value;
+                              const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                              setInvoiceEditor((current) => ({
+                                ...current,
+                                supplierId,
+                                currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                              }));
+                            }}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          >
+                            <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                            {activeSuppliers.map((supplier) => (
+                              <option key={supplier.id} value={supplier.id}>
+                                {supplier.code} · {supplier.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.invoices.field.currency")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Input
+                          value={invoiceEditor.currencyCode}
+                          maxLength={8}
+                          onChange={(event) => setInvoiceEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))}
+                          className={cn("border-slate-200 bg-slate-50/70 uppercase", isArabic && "arabic-ui text-right")}
+                        />
+                      </Field>
+
+                      <Field label={t("purchases.invoices.field.sourceOrder")} labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Select
+                          value={invoiceEditor.sourcePurchaseOrderId}
+                          onChange={(event) => setInvoiceEditor((current) => ({ ...current, sourcePurchaseOrderId: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        >
+                          <option value="">{t("purchases.invoices.empty.manual")}</option>
+                          {purchaseOrders
+                            .filter((order) => ["ISSUED", "PARTIALLY_RECEIVED", "FULLY_RECEIVED", "CLOSED"].includes(order.status))
+                            .map((order) => (
+                              <option key={order.id} value={order.id}>
+                                {order.reference}
+                              </option>
+                            ))}
                         </Select>
                       </Field>
                     </div>
-                    <Field label={t("purchases.invoices.field.lineDescription")}>
-                      <Textarea rows={2} value={line.description} onChange={(event) => updateInvoiceLine(line.key, "description", event.target.value)} />
-                    </Field>
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <Field label={t("purchases.invoices.field.quantity")}>
-                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateInvoiceLine(line.key, "quantity", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.invoices.field.unitPrice")}>
-                        <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateInvoiceLine(line.key, "unitPrice", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.invoices.field.discountAmount")}>
-                        <Input type="number" min="0" step="0.01" value={line.discountAmount} onChange={(event) => updateInvoiceLine(line.key, "discountAmount", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.invoices.field.taxAmount")}>
-                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateInvoiceLine(line.key, "taxAmount", event.target.value)} />
+
+                    <div className="mt-4">
+                      <Field label={t("purchases.invoices.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined}>
+                        <Textarea
+                          rows={3}
+                          value={invoiceEditor.description}
+                          onChange={(event) => setInvoiceEditor((current) => ({ ...current, description: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        />
                       </Field>
                     </div>
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                      {t("purchases.invoices.field.lineTotal")}: {formatCurrency(lineTotal)}
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                          <Package2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                            {t("purchases.invoices.section.editorLines")}
+                          </div>
+                          <div className="text-sm text-slate-500">{t("purchases.invoices.section.editorLinesDescription")}</div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={addInvoiceLine}
+                        className="rounded-2xl border-emerald-200 px-4 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <CirclePlus className="h-4 w-4" />
+                        {t("purchases.action.addLine")}
+                      </Button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
 
-            {invoiceFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {invoiceFormError}
+                    <div className="space-y-4">
+                      {invoiceEditor.lines.map((line, index) => {
+                        const lineTotal = calculateInvoiceLineTotal(line);
+
+                        return (
+                          <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                              <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                  <span className="text-sm font-extrabold">{index + 1}</span>
+                                </div>
+                                <div>
+                                  <div className={cn("text-sm text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                                    {t("purchases.invoices.line.label", { index: index + 1 })}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{formatCurrency(lineTotal)}</div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeInvoiceLine(line.key)}
+                                disabled={invoiceEditor.lines.length === 1}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {t("purchases.action.remove")}
+                              </button>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <div className="min-w-[1320px]">
+                                <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                                  {[
+                                    "#",
+                                    t("purchases.invoices.field.itemOrService"),
+                                    t("purchases.invoices.field.itemSnapshot"),
+                                    t("purchases.invoices.field.account"),
+                                    t("purchases.invoices.field.quantity"),
+                                    t("purchases.invoices.field.unitPrice"),
+                                    t("purchases.invoices.field.discountAmount"),
+                                    t("purchases.invoices.field.taxAmount"),
+                                    t("purchases.invoices.field.lineDescription"),
+                                  ].map((label, labelIndex) => (
+                                    <div
+                                      key={`${line.key}-label-${labelIndex}`}
+                                      className={cn("px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}
+                                    >
+                                      {label}
+                                      {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 6 && labelIndex !== 7 ? (
+                                        <span className="ms-1 text-red-500">*</span>
+                                      ) : null}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                                  <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
+                                    {index + 1}
+                                  </div>
+
+                                  <Select
+                                    value={line.itemId}
+                                    onChange={(event) => updateInvoiceLineFromItem(line.key, inventoryItems.find((item) => item.id === event.target.value) ?? null)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  >
+                                    <option value="">
+                                      {inventoryItemsQuery.isLoading ? t("purchases.invoices.state.loadingItems") : t("purchases.invoices.empty.selectItemOrService")}
+                                    </option>
+                                    {inventoryItems.map((item) => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.code} · {item.name}
+                                      </option>
+                                    ))}
+                                  </Select>
+
+                                  <Input
+                                    value={line.itemName}
+                                    onChange={(event) => updateInvoiceLine(line.key, "itemName", event.target.value)}
+                                    placeholder={t("purchases.invoices.field.itemSnapshotPlaceholder")}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+
+                                  <Select
+                                    value={line.accountId}
+                                    onChange={(event) => updateInvoiceLine(line.key, "accountId", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  >
+                                    <option value="">{t("purchases.invoices.empty.selectAccount")}</option>
+                                    {purchaseInvoiceDebitAccounts.map((account) => (
+                                      <option key={account.id} value={account.id}>
+                                        {account.code} · {account.name} ({account.currencyCode})
+                                      </option>
+                                    ))}
+                                  </Select>
+
+                                  <Input
+                                    type="number"
+                                    min="0.0001"
+                                    step="0.0001"
+                                    value={line.quantity}
+                                    onChange={(event) => updateInvoiceLine(line.key, "quantity", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.unitPrice}
+                                    onChange={(event) => updateInvoiceLine(line.key, "unitPrice", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.discountAmount}
+                                    onChange={(event) => updateInvoiceLine(line.key, "discountAmount", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.taxAmount}
+                                    onChange={(event) => updateInvoiceLine(line.key, "taxAmount", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+
+                                  <Input
+                                    value={line.description}
+                                    onChange={(event) => updateInvoiceLine(line.key, "description", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+                                </div>
+
+                                <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
+                                  <div />
+                                  <div />
+                                  <div>
+                                    <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
+                                      {t("purchases.invoices.field.lineTotal")}
+                                    </div>
+                                    <div className="relative">
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={lineTotal.toFixed(2)}
+                                        readOnly
+                                        disabled
+                                        className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                                      />
+                                      <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
+                                        {invoiceEditor.currencyCode || "JOD"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  <section className="grid gap-4 lg:grid-cols-[1.25fr_1fr_1fr]">
+                    <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/80 p-5 shadow-[0_10px_24px_rgba(16,185,129,0.08)]">
+                      <div className="text-sm font-bold text-emerald-700">{t("purchases.invoices.metric.total")}</div>
+                      <div className="mt-2 text-3xl font-black text-emerald-700">
+                        {invoiceEditor.currencyCode || "JOD"} {invoiceTotals.totalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
+                      <div className="text-sm font-bold text-slate-500">{t("purchases.invoices.metric.subtotal")}</div>
+                      <div className="mt-2 text-2xl font-black text-slate-900">
+                        {invoiceEditor.currencyCode || "JOD"} {invoiceTotals.subtotalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
+                      <div className="text-sm font-bold text-slate-500">{t("purchases.invoices.metric.tax")}</div>
+                      <div className="mt-2 text-2xl font-black text-slate-900">
+                        {invoiceEditor.currencyCode || "JOD"} {invoiceTotals.taxAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  </section>
+
+                  {invoiceFormError ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      {invoiceFormError}
+                    </div>
+                  ) : null}
+
+                  {invoiceSaveError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {invoiceSaveError}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            {invoiceSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {invoiceSaveError}
+              <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
+                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                  <Button variant="secondary" onClick={closeInvoiceEditor} className="rounded-2xl px-6">
+                    {t("purchases.action.cancel")}
+                  </Button>
+                  <Button
+                    onClick={() => (invoiceEditor.id ? updatePurchaseInvoiceMutation.mutate() : createPurchaseInvoiceMutation.mutate())}
+                    disabled={Boolean(invoiceFormError) || createPurchaseInvoiceMutation.isPending || updatePurchaseInvoiceMutation.isPending}
+                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    {invoiceEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                  </Button>
+                </div>
               </div>
-            ) : null}
-
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeInvoiceEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (invoiceEditor.id ? updatePurchaseInvoiceMutation.mutate() : createPurchaseInvoiceMutation.mutate())} disabled={Boolean(invoiceFormError) || createPurchaseInvoiceMutation.isPending || updatePurchaseInvoiceMutation.isPending}>
-                {invoiceEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-              </Button>
             </div>
           </div>
-        </SidePanel>
+        ) : null}
 
         <SidePanel
           isOpen={isPaymentEditorOpen}
@@ -2982,6 +3274,9 @@ export function PurchasesPage() {
       code: supplier.code,
       name: supplier.name,
       contactInfo: supplier.contactInfo ?? "",
+      phone: supplier.phone ?? "",
+      email: supplier.email ?? "",
+      address: supplier.address ?? "",
       paymentTerms: supplier.paymentTerms ?? "",
       taxInfo: supplier.taxInfo ?? "",
       defaultCurrency: supplier.defaultCurrency,
@@ -3206,6 +3501,7 @@ export function PurchasesPage() {
       sourcePurchaseOrderId: invoice.sourcePurchaseOrder?.id ?? "",
       lines: invoice.lines.map((line) => ({
         key: line.id,
+        itemId: line.itemId ?? line.item?.id ?? "",
         itemName: line.itemName ?? "",
         description: line.description,
         quantity: line.quantity,
@@ -3247,6 +3543,23 @@ export function PurchasesPage() {
     setInvoiceEditor((current) => ({
       ...current,
       lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+    }));
+  }
+
+  function updateInvoiceLineFromItem(key: string, item: InventoryItem | null) {
+    setInvoiceEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) =>
+        line.key === key
+          ? {
+              ...line,
+              itemId: item?.id ?? "",
+              itemName: item?.name ?? "",
+              description: line.description.trim() || !item ? line.description : item.description ?? item.name,
+              accountId: item?.inventoryAccount?.id ?? item?.adjustmentAccount?.id ?? line.accountId,
+            }
+          : line,
+      ),
     }));
   }
 
@@ -3423,6 +3736,9 @@ function getSupplierFormError(editor: SupplierEditorState) {
   if (!editor.name.trim()) {
     return "Supplier name is required. اسم المورد مطلوب.";
   }
+  if (!editor.paymentTerms.trim()) {
+    return "Payment terms are required. شروط الدفع مطلوبة.";
+  }
   if (!editor.payableAccountId) {
     return "Default payable account is required. حساب الدائنين الافتراضي مطلوب.";
   }
@@ -3526,6 +3842,9 @@ function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState) {
     return "At least one purchase invoice line is required. يجب إضافة سطر فاتورة شراء واحد على الأقل.";
   }
   for (const line of editor.lines) {
+    if (!line.itemId) {
+      return "Each invoice line needs an inventory item. كل سطر فاتورة شراء يحتاج إلى صنف من المخزون.";
+    }
     if (!line.description.trim()) {
       return "Each invoice line needs a description. كل سطر فاتورة شراء يحتاج إلى وصف.";
     }
@@ -3654,6 +3973,7 @@ function createEmptyOrderLine(): PurchaseOrderLineEditorState {
 function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
   return {
     key: randomKey(),
+    itemId: "",
     itemName: "",
     description: "",
     quantity: "1",
@@ -3662,6 +3982,33 @@ function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
     taxAmount: "0.00",
     accountId: "",
   };
+}
+
+function calculateInvoiceLineTotal(line: PurchaseInvoiceLineEditorState) {
+  const quantity = Number(line.quantity || 0);
+  const unitPrice = Number(line.unitPrice || 0);
+  const discountAmount = Number(line.discountAmount || 0);
+  const taxAmount = Number(line.taxAmount || 0);
+  return Number((quantity * unitPrice - discountAmount + taxAmount).toFixed(2));
+}
+
+function calculateInvoiceEditorTotals(lines: PurchaseInvoiceLineEditorState[]) {
+  return lines.reduce(
+    (totals, line) => {
+      const quantity = Number(line.quantity || 0);
+      const unitPrice = Number(line.unitPrice || 0);
+      const discountAmount = Number(line.discountAmount || 0);
+      const taxAmount = Number(line.taxAmount || 0);
+      const subtotal = Number((quantity * unitPrice).toFixed(2));
+      return {
+        subtotalAmount: Number((totals.subtotalAmount + subtotal).toFixed(2)),
+        discountAmount: Number((totals.discountAmount + discountAmount).toFixed(2)),
+        taxAmount: Number((totals.taxAmount + taxAmount).toFixed(2)),
+        totalAmount: Number((totals.totalAmount + subtotal - discountAmount + taxAmount).toFixed(2)),
+      };
+    },
+    { subtotalAmount: 0, discountAmount: 0, taxAmount: 0, totalAmount: 0 },
+  );
 }
 
 function createEmptyPaymentAllocation(): SupplierPaymentAllocationEditorState {
@@ -3705,6 +4052,7 @@ function mapOrderEditorLines(lines: PurchaseOrderLineEditorState[]) {
 
 function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
   return lines.map((line) => ({
+    itemId: line.itemId || undefined,
     itemName: line.itemName || undefined,
     description: line.description,
     quantity: Number(line.quantity),

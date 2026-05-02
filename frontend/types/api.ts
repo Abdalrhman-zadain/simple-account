@@ -1623,6 +1623,9 @@ export type Supplier = {
   code: string;
   name: string;
   contactInfo?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
   paymentTerms?: string | null;
   taxInfo?: string | null;
   defaultCurrency: string;
@@ -1651,7 +1654,10 @@ export type CreateSupplierPayload = {
   code?: string;
   name: string;
   contactInfo?: string;
-  paymentTerms?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  paymentTerms: string;
   taxInfo?: string;
   defaultCurrency: string;
   payableAccountId: string;
@@ -1958,6 +1964,8 @@ export type UpdatePurchaseReceiptPayload =
 export type PurchaseInvoiceLine = {
   id: string;
   lineNumber: number;
+  itemId?: string | null;
+  item?: Pick<InventoryItem, "id" | "code" | "name" | "unitOfMeasure"> | null;
   itemName?: string | null;
   description: string;
   quantity: string;
@@ -2024,6 +2032,7 @@ export type PurchaseInvoicesQuery = {
 };
 
 export type PurchaseInvoiceLinePayload = {
+  itemId?: string;
   itemName?: string;
   description: string;
   quantity: number;
@@ -2670,6 +2679,10 @@ export type AccountOption = Pick<
   | "code"
   | "name"
   | "nameAr"
+  | "type"
+  | "subtype"
+  | "isPosting"
+  | "isActive"
   | "currentBalance"
   | "currencyCode"
   | "segment3"
@@ -2704,6 +2717,7 @@ export type AccountsQuery = {
   search?: string;
   parentAccountId?: string | null;
   view?: "selector" | "table";
+  usage?: "purchase-invoice-line";
 };
 
 export type CreateAccountPayload = {

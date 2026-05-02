@@ -199,7 +199,7 @@ async function main() {
   const currentAssets = await createAccount({
     code: '1100000',
     name: 'Current Assets',
-    nameAr: 'النقدية والبنوك',
+    nameAr: 'الأصول المتداولة',
     type: 'ASSET',
     isPosting: false,
     parentAccountId: assets.id,
@@ -245,12 +245,36 @@ async function main() {
     parentAccountId: cashAndCashEquivalents.id,
   });
   const receivables = await createAccount({
-    code: '1200000',
+    code: '1120000',
     name: 'Accounts Receivable',
     nameAr: 'الذمم المدينة',
     type: 'ASSET',
     isPosting: false,
+    parentAccountId: currentAssets.id,
+  });
+  const inventory = await createAccount({
+    code: '1130000',
+    name: 'Inventory',
+    nameAr: 'المخزون',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: currentAssets.id,
+  });
+  const nonCurrentAssets = await createAccount({
+    code: '1200000',
+    name: 'Non-current Assets',
+    nameAr: 'الأصول غير المتداولة',
+    type: 'ASSET',
+    isPosting: false,
     parentAccountId: assets.id,
+  });
+  const fixedAssets = await createAccount({
+    code: '1210000',
+    name: 'Fixed Assets',
+    nameAr: 'الأصول الثابتة',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: nonCurrentAssets.id,
   });
   const payables = await createAccount({
     code: '2100000',
@@ -474,6 +498,42 @@ async function main() {
     type: 'ASSET',
     isPosting: true,
     parentAccountId: paymentGateways.id,
+  });
+  await createAccount({
+    code: '1131001',
+    name: 'Merchandise Inventory',
+    nameAr: 'مخزون بضاعة مشتراة لإعادة البيع',
+    type: 'ASSET',
+    subtype: 'Inventory',
+    isPosting: true,
+    parentAccountId: inventory.id,
+  });
+  await createAccount({
+    code: '1131002',
+    name: 'Raw Materials Inventory',
+    nameAr: 'مخزون مواد خام',
+    type: 'ASSET',
+    subtype: 'Inventory',
+    isPosting: true,
+    parentAccountId: inventory.id,
+  });
+  await createAccount({
+    code: '1131003',
+    name: 'Operating Supplies Inventory',
+    nameAr: 'مخزون مواد تشغيلية',
+    type: 'ASSET',
+    subtype: 'Inventory',
+    isPosting: true,
+    parentAccountId: inventory.id,
+  });
+  await createAccount({
+    code: '1131004',
+    name: 'Spare Parts Inventory',
+    nameAr: 'مخزون قطع غيار',
+    type: 'ASSET',
+    subtype: 'Inventory',
+    isPosting: true,
+    parentAccountId: inventory.id,
   });
   const customers = await createAccount({
     code: '1210001',

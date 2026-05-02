@@ -19,6 +19,7 @@ type PurchaseInvoiceListQuery = {
 };
 
 type ResolvedInvoiceLine = {
+  itemId: string | null;
   itemName: string | null;
   description: string;
   quantity: number;
@@ -28,6 +29,13 @@ type ResolvedInvoiceLine = {
   lineSubtotalAmount: number;
   lineTotalAmount: number;
   accountId: string;
+};
+
+type PurchaseInvoiceDebitAccount = {
+  id: string;
+  type: string;
+  subtype: string | null;
+  isPosting: boolean;
 };
 
 type PurchaseInvoiceWithRelations = Prisma.PurchaseInvoiceGetPayload<{
@@ -57,6 +65,14 @@ type PurchaseInvoiceWithRelations = Prisma.PurchaseInvoiceGetPayload<{
     };
     lines: {
       include: {
+        item: {
+          select: {
+            id: true;
+            code: true;
+            name: true;
+            unitOfMeasure: true;
+          };
+        };
         account: {
           select: {
             id: true;
@@ -427,15 +443,34 @@ export class PurchaseInvoicesService {
 
   private async resolveLines(lines: PurchaseInvoiceLineDto[]) {
     const accountIds = Array.from(new Set(lines.map((line) => line.accountId)));
-    const accounts = await this.prisma.account.findMany({
-      where: { id: { in: accountIds }, isActive: true, isPosting: true },
-      select: { id: true },
-    });
-    const validAccountIds = new Set(accounts.map((account) => account.id));
+    const itemIds = Array.from(new Set(lines.map((line) => line.itemId).filter(Boolean))) as string[];
+    const [accounts, items] = await Promise.all([
+      this.prisma.account.findMany({
+        where: { id: { in: accountIds }, isActive: true, isPosting: true },
+        select: { id: true, type: true, subtype: true, isPosting: true },
+      }),
+      itemIds.length
+        ? this.prisma.inventoryItem.findMany({
+            where: { id: { in: itemIds }, isActive: true },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const validAccountIds = new Set(
+      accounts
+        .filter((account) => this.isPurchaseInvoiceDebitAccount(account))
+        .map((account) => account.id),
+    );
+    const validItems = new Map(items.map((item) => [item.id, item]));
 
     return lines.map((line) => {
       if (!validAccountIds.has(line.accountId)) {
-        throw new BadRequestException('Each purchase invoice line must use an active posting account.');
+        throw new BadRequestException('Each purchase invoice line must use an active posting inventory, fixed asset, or expense account.');
+      }
+      const itemId = line.itemId?.trim() || null;
+      const item = itemId ? validItems.get(itemId) : null;
+      if (itemId && !item) {
+        throw new BadRequestException('Each linked purchase invoice item must reference an active inventory item.');
       }
 
       const quantity = Number(line.quantity);
@@ -450,7 +485,8 @@ export class PurchaseInvoicesService {
       }
 
       return {
-        itemName: line.itemName?.trim() || null,
+        itemId,
+        itemName: line.itemName?.trim() || item?.name || null,
         description: line.description.trim(),
         quantity,
         unitPrice,
@@ -461,6 +497,13 @@ export class PurchaseInvoicesService {
         accountId: line.accountId,
       } satisfies ResolvedInvoiceLine;
     });
+  }
+
+  private isPurchaseInvoiceDebitAccount(account: PurchaseInvoiceDebitAccount) {
+    if (!account.isPosting) return false;
+    if (account.type === 'EXPENSE') return true;
+    if (account.type !== 'ASSET') return false;
+    return account.subtype === 'Inventory' || account.subtype === 'FixedAsset';
   }
 
   private computeTotals(lines: ResolvedInvoiceLine[]) {
@@ -481,6 +524,7 @@ export class PurchaseInvoicesService {
   ): Prisma.PurchaseInvoiceLineUncheckedCreateWithoutPurchaseInvoiceInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -521,6 +565,14 @@ export class PurchaseInvoicesService {
       lines: {
         orderBy: { lineNumber: 'asc' },
         include: {
+          item: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              unitOfMeasure: true,
+            },
+          },
           account: {
             select: {
               id: true,
@@ -625,6 +677,8 @@ export class PurchaseInvoicesService {
       lines: row.lines.map((line) => ({
         id: line.id,
         lineNumber: line.lineNumber,
+        itemId: line.itemId,
+        item: line.item,
         itemName: line.itemName,
         description: line.description,
         quantity: line.quantity.toString(),

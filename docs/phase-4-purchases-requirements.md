@@ -46,7 +46,7 @@ This document captures the initial Phase 4 Purchases requirements baseline in th
 | Req ID | English Requirement | الترجمة العربية |
 | --- | --- | --- |
 | REQ-PU-001 | The system shall allow the user to create supplier master records. | يجب أن يسمح النظام للمستخدم بإنشاء بطاقات الموردين الأساسية. |
-| REQ-PU-002 | The system shall allow the user to store supplier details such as supplier name, code, contact information, payment terms, tax information, and status. | يجب أن يسمح النظام للمستخدم بحفظ بيانات المورد مثل اسم المورد والرمز وبيانات الاتصال وشروط الدفع والمعلومات الضريبية والحالة. |
+| REQ-PU-002 | The system shall allow the user to store supplier details such as supplier name, code, phone, email, address, payment terms, tax information, and status. | يجب أن يسمح النظام للمستخدم بحفظ بيانات المورد مثل اسم المورد والرمز ورقم الهاتف والبريد الإلكتروني والعنوان وشروط الدفع والمعلومات الضريبية والحالة. |
 | REQ-PU-003 | The system shall allow the user to define a default payable account for each supplier. | يجب أن يسمح النظام للمستخدم بتحديد حساب دائن افتراضي لكل مورد. |
 | REQ-PU-004 | The system shall allow the user to define a default currency for each supplier. | يجب أن يسمح النظام للمستخدم بتحديد عملة افتراضية لكل مورد. |
 | REQ-PU-005 | The system shall allow the user to edit supplier details before the supplier is deactivated. | يجب أن يسمح النظام للمستخدم بتعديل بيانات المورد قبل تعطيله. |
@@ -93,10 +93,11 @@ Need -> Purchase Request -> Approval -> Purchase Order -> Receipt/Invoice
 | REQ-PU-025 | The system shall allow the user to record purchase invoices received from suppliers. | يجب أن يسمح النظام للمستخدم بتسجيل فواتير الشراء المستلمة من الموردين. |
 | REQ-PU-026 | The system shall allow the user to create a purchase invoice directly or from an existing purchase order. | يجب أن يسمح النظام للمستخدم بإنشاء فاتورة شراء مباشرة أو من أمر شراء موجود. |
 | REQ-PU-027 | The system shall require supplier selection for every purchase invoice. | يجب أن يطلب النظام اختيار المورد لكل فاتورة شراء. |
+| REQ-PU-027A | The system shall allow purchase invoice lines to link to active inventory item cards while preserving the item name snapshot on the invoice line. | يجب أن يسمح النظام بربط بنود فاتورة الشراء ببطاقات الأصناف النشطة في المخزون مع حفظ اسم الصنف كلقطة داخل بند الفاتورة. |
 | REQ-PU-028 | The system shall require an invoice date for every purchase invoice. | يجب أن يطلب النظام تاريخ الفاتورة لكل فاتورة شراء. |
 | REQ-PU-029 | The system shall require at least one invoice line for every purchase invoice. | يجب أن يطلب النظام وجود سطر فاتورة واحد على الأقل لكل فاتورة شراء. |
 | REQ-PU-030 | The system shall allow the user to enter quantity, unit price, tax, discount, and description for each purchase invoice line. | يجب أن يسمح النظام للمستخدم بإدخال الكمية وسعر الوحدة والضريبة والخصم والوصف لكل سطر من فاتورة الشراء. |
-| REQ-PU-031 | The system shall allow the user to classify each purchase invoice line to an expense account, inventory account, or other valid account based on configuration. | يجب أن يسمح النظام للمستخدم بتصنيف كل سطر من فاتورة الشراء إلى حساب مصروف أو حساب مخزون أو أي حساب صالح آخر وفقًا للإعدادات. |
+| REQ-PU-031 | The system shall allow the user to classify each purchase invoice line only to an active posting expense account, inventory asset account, or fixed-asset account that can be debited by a purchase invoice. | يجب أن يسمح النظام للمستخدم بتصنيف كل سطر من فاتورة الشراء فقط إلى حساب مصروف نشط قابل للترحيل أو حساب أصل مخزون أو حساب أصل ثابت يمكن جعله طرفًا مدينًا في فاتورة الشراء. |
 | REQ-PU-032 | The system shall calculate invoice subtotal, tax amount, discounts, and total payable amount. | يجب أن يقوم النظام بحساب إجمالي الفاتورة قبل الضريبة وقيمة الضريبة والخصومات وإجمالي المبلغ المستحق. |
 | REQ-PU-033 | The system shall assign or require a unique reference number for each purchase invoice. | يجب أن يقوم النظام بتوليد أو طلب رقم مرجع فريد لكل فاتورة شراء. |
 | REQ-PU-034 | The system shall allow the user to save purchase invoices in draft status before posting. | يجب أن يسمح النظام للمستخدم بحفظ فواتير الشراء كمسودات قبل الترحيل. |

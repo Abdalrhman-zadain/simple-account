@@ -28,6 +28,10 @@ export function buildAccountQuery(params: AccountsQuery) {
     searchParams.set("parentAccountId", params.parentAccountId === null ? "null" : params.parentAccountId);
   }
 
+  if (params.usage) {
+    searchParams.set("usage", params.usage);
+  }
+
   if (params.view) {
     searchParams.set("view", params.view);
   }

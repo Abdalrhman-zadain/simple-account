@@ -160,14 +160,14 @@ Main models:
 
 Key fields:
 
-- supplier `code`, `name`, `contactInfo`, `paymentTerms`, `taxInfo`, `defaultCurrency`, `currentBalance`, and `isActive`
+- supplier `code`, `name`, legacy `contactInfo`, structured `phone` / `email` / `address`, required `paymentTerms`, `taxInfo`, `defaultCurrency`, `currentBalance`, and `isActive`
 - purchase request `reference`, `status`, `requestDate`, optional `description`, and linked request lines
 - request line `itemName`, `description`, `quantity`, `requestedDeliveryDate`, and `justification`
 - request status history `status`, `note`, and `changedAt`
 - purchase order `reference`, `status`, `orderDate`, `supplierId`, `currencyCode`, `sourcePurchaseRequestId`, and totals
 - purchase order line `itemName`, `description`, `quantity`, `unitPrice`, `taxAmount`, `lineTotalAmount`, and `requestedDeliveryDate`
 - purchase invoice `reference`, `status`, `invoiceDate`, `supplierId`, `currencyCode`, `sourcePurchaseOrderId`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, `allocatedAmount`, `outstandingAmount`, `allocationStatus`, and optional `journalEntryId`
-- purchase invoice line `itemName`, `description`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `accountId`
+- purchase invoice line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `accountId`
 - supplier payment `reference`, `status`, `paymentDate`, `supplierId`, `amount`, `allocatedAmount`, `unappliedAmount`, `bankCashAccountId`, and optional `bankCashTransactionId`
 - supplier payment allocation `amount`, `allocatedAt`, `purchaseInvoiceId`, and `supplierPaymentId`
 - debit note `reference`, `status`, `noteDate`, `supplierId`, optional `purchaseInvoiceId`, `currencyCode`, `subtotalAmount`, `taxAmount`, `totalAmount`, and optional `journalEntryId`
@@ -180,7 +180,7 @@ Accounting meaning:
 - request status transitions are stored separately so approval history remains auditable
 - approved purchase requests can open a draft purchase order while preserving source-request traceability
 - purchase orders now persist their own header and line lifecycle, including direct creation, request-linked creation, and operational statuses (`DRAFT`, `ISSUED`, `PARTIALLY_RECEIVED`, `FULLY_RECEIVED`, `CANCELLED`, `CLOSED`), but they still do not carry posting behavior or receipt/invoice matching
-- purchase invoices now persist supplier-linked draft headers and lines, including optional source purchase-order linkage, line-level posting-account classification, subtotal/discount/tax/total amounts, and allocation-aware statuses; they still do not yet generate their own purchase journal entries
+- purchase invoices now persist supplier-linked draft headers and lines, including optional source purchase-order linkage, line-level debit posting-account classification restricted to active posting inventory assets, fixed assets, or expenses, subtotal/discount/tax/total amounts, and allocation-aware statuses; they still do not yet generate their own purchase journal entries
 - supplier payments can be drafted, allocated across one or more purchase invoices, and posted through the Phase 2 Bank & Cash payment flow, which creates the underlying journal entry and bank/cash transaction link
 - posted supplier payments decrement supplier balances and recompute invoice allocated/outstanding amounts while preventing over-allocation
 - debit notes can be drafted, optionally linked to purchase invoices, then posted to reduce supplier balances and reduce the remaining payable amount of linked purchase invoices

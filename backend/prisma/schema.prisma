@@ -565,6 +565,9 @@ model Supplier {
   code             String            @unique
   name             String
   contactInfo      String?
+  phone            String?
+  email            String?
+  address          String?
   paymentTerms     String?
   taxInfo          String?
   defaultCurrency  String            @default("JOD")
@@ -614,6 +617,7 @@ model InventoryItem {
   salesQuotationLines    SalesQuotationLine[]
   salesOrderLines        SalesOrderLine[]
   salesInvoiceLines      SalesInvoiceLine[]
+  purchaseInvoiceLines   PurchaseInvoiceLine[]
   warehouseBalances      InventoryWarehouseBalance[]
   costLayers             InventoryCostLayer[]
   stockMovements         InventoryStockMovement[]
@@ -1507,6 +1511,8 @@ model PurchaseInvoiceLine {
   purchaseInvoiceId  String
   purchaseInvoice    PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
   lineNumber         Int
+  itemId             String?
+  item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String
   quantity           Decimal         @default(1) @db.Decimal(18, 4)
@@ -1520,6 +1526,7 @@ model PurchaseInvoiceLine {
   createdAt          DateTime        @default(now())
 
   @@unique([purchaseInvoiceId, lineNumber])
+  @@index([itemId])
   @@index([accountId])
 }
 

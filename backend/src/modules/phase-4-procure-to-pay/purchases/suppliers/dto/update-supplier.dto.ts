@@ -13,7 +13,22 @@ export class UpdateSupplierDto {
 
   @IsOptional()
   @IsString()
+  @Length(0, 64)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 255)
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
   paymentTerms?: string;
 
   @IsOptional()

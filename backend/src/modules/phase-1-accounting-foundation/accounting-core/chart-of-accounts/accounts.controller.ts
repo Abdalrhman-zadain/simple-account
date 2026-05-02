@@ -33,9 +33,10 @@ export class AccountsController {
     @Query('search') search?: string,
     @Query('parentAccountId') parentAccountId?: string,
     @Query('view') view?: string,
+    @Query('usage') usage?: 'purchase-invoice-line',
   ) {
     if (view === 'selector') {
-      return this.accountsService.listSelectorOptions({ type, isActive, isPosting, search, parentAccountId });
+      return this.accountsService.listSelectorOptions({ type, isActive, isPosting, search, parentAccountId, usage });
     }
     if (view === 'table') {
       return this.accountsService.listTableRows({ type, isActive, isPosting, search, parentAccountId });
