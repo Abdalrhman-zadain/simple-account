@@ -1,14 +1,18 @@
 "use client";
 
+import type { TranslationKey } from "@/lib/i18n";
+
 import { CommandSuggestion } from "../chart-of-accounts.types";
 
 export function AccountsSearchSuggestions({
   suggestions,
   title,
+  translate,
   onSelect,
 }: {
   suggestions: CommandSuggestion[];
   title: string;
+  translate: (key: TranslationKey) => string;
   onSelect: (value: string) => void;
 }) {
   return (
@@ -21,11 +25,13 @@ export function AccountsSearchSuggestions({
           <button
             key={suggestion.value}
             onClick={() => onSelect(suggestion.value)}
-            className="group flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-gray-100"
+            className="group flex w-full items-center justify-between px-4 py-2.5 text-start transition-colors hover:bg-gray-100"
           >
-            <span className="text-sm font-medium text-gray-900">{suggestion.label}</span>
+            <span className="text-sm font-medium text-gray-900">
+              {suggestion.labelKey ? translate(suggestion.labelKey) : suggestion.label}
+            </span>
             <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
-              {suggestion.category}
+              {suggestion.categoryKey ? translate(suggestion.categoryKey) : suggestion.category}
             </span>
           </button>
         ))}

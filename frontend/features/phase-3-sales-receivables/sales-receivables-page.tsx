@@ -922,11 +922,11 @@ export function SalesReceivablesPage() {
                 <option value="true">{t("salesReceivables.filters.activeOnly")}</option>
                 <option value="false">{t("salesReceivables.filters.inactiveOnly")}</option>
               </Select>
-              <Button onClick={() => {
+              <Button className="gap-2" onClick={() => {
                 setCustomerEditor(EMPTY_CUSTOMER_EDITOR);
                 setIsCustomerEditorOpen(true);
               }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newCustomer")}
               </Button>
             </div>
@@ -1109,8 +1109,8 @@ export function SalesReceivablesPage() {
                 <option value="CONVERTED">{t("salesReceivables.status.converted")}</option>
                 <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
               </Select>
-              <Button onClick={() => { setQuotationEditorClientError(null); setQuotationEditor(createEmptyQuotationEditor()); setIsQuotationEditorOpen(true); }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+              <Button className="gap-2" onClick={() => { setQuotationEditorClientError(null); setQuotationEditor(createEmptyQuotationEditor()); setIsQuotationEditorOpen(true); }}>
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newQuotation")}
               </Button>
             </div>
@@ -1227,8 +1227,8 @@ export function SalesReceivablesPage() {
                 <option value="FULLY_INVOICED">{t("salesReceivables.status.fullyInvoiced")}</option>
                 <option value="CANCELLED">{t("salesReceivables.status.cancelled")}</option>
               </Select>
-              <Button onClick={() => { setOrderEditor(EMPTY_ORDER_EDITOR()); setIsOrderEditorOpen(true); }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+              <Button className="gap-2" onClick={() => { setOrderEditor(EMPTY_ORDER_EDITOR()); setIsOrderEditorOpen(true); }}>
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newOrder")}
               </Button>
             </div>
@@ -1348,11 +1348,11 @@ export function SalesReceivablesPage() {
                   </option>
                 ))}
               </Select>
-              <Button onClick={() => {
+              <Button className="gap-2" onClick={() => {
                 setInvoiceEditor(EMPTY_INVOICE_EDITOR());
                 setIsInvoiceEditorOpen(true);
               }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newInvoice")}
               </Button>
             </div>
@@ -1514,8 +1514,8 @@ export function SalesReceivablesPage() {
           <Card className="p-5">
             <div className="grid gap-4 lg:grid-cols-[1.2fr_auto]">
               <Input value={receiptSearch} onChange={(event) => setReceiptSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchReceipts")} />
-              <Button onClick={() => { setReceiptEditor(EMPTY_RECEIPT_EDITOR()); setIsReceiptEditorOpen(true); }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+              <Button className="gap-2" onClick={() => { setReceiptEditor(EMPTY_RECEIPT_EDITOR()); setIsReceiptEditorOpen(true); }}>
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newReceipt")}
               </Button>
             </div>
@@ -1603,11 +1603,11 @@ export function SalesReceivablesPage() {
                   </option>
                 ))}
               </Select>
-              <Button onClick={() => {
+              <Button className="gap-2" onClick={() => {
                 setCreditNoteEditor(EMPTY_CREDIT_NOTE_EDITOR());
                 setIsCreditNoteEditorOpen(true);
               }}>
-                <CirclePlus className="mr-2 h-4 w-4" />
+                <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newCreditNote")}
               </Button>
             </div>

@@ -14,6 +14,7 @@ type PurchaseOrderListQuery = {
 };
 
 type ResolvedOrderLine = {
+  itemId: string | null;
   itemName: string | null;
   description: string;
   quantity: number;
@@ -108,7 +109,7 @@ export class PurchaseOrdersService {
     const supplier = await this.suppliersService.ensureActiveSupplier(dto.supplierId);
     const currencyCode = dto.currencyCode?.trim().toUpperCase() || supplier.defaultCurrency;
     const reference = dto.reference?.trim() || this.generateReference('PO');
-    const lines = this.resolveLines(dto.lines);
+    const lines = await this.resolveLines(dto.lines);
     const totals = this.computeTotals(lines);
 
     if (dto.sourcePurchaseRequestId) {
@@ -152,7 +153,7 @@ export class PurchaseOrdersService {
     const nextSupplierId = dto.supplierId ?? current.supplierId;
     const supplier = await this.suppliersService.ensureActiveSupplier(nextSupplierId);
     const currencyCode = dto.currencyCode?.trim().toUpperCase() || current.currencyCode;
-    const lines = dto.lines ? this.resolveLines(dto.lines) : null;
+    const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
@@ -251,15 +252,34 @@ export class PurchaseOrdersService {
     return this.mapPurchaseOrder(updated);
   }
 
-  private resolveLines(lines: PurchaseOrderLineDto[]) {
+  private async resolveLines(lines: PurchaseOrderLineDto[]) {
+    const itemIds = Array.from(new Set(lines.map((line) => line.itemId?.trim()).filter(Boolean))) as string[];
+    const validItems = new Map(
+      (
+        itemIds.length
+          ? await this.prisma.inventoryItem.findMany({
+              where: { id: { in: itemIds }, isActive: true },
+              select: { id: true, name: true },
+            })
+          : []
+      ).map((item) => [item.id, item]),
+    );
+
     return lines.map((line) => {
       const quantity = Number(line.quantity);
       const unitPrice = Number(line.unitPrice);
       const taxAmount = Number(line.taxAmount ?? 0);
       const lineTotalAmount = Number((quantity * unitPrice + taxAmount).toFixed(2));
+      const itemId = line.itemId?.trim() || null;
+      const item = itemId ? validItems.get(itemId) : null;
+
+      if (itemId && !item) {
+        throw new BadRequestException('Each linked purchase order item must reference an active inventory item.');
+      }
 
       return {
-        itemName: line.itemName?.trim() || null,
+        itemId,
+        itemName: line.itemName?.trim() || item?.name || null,
         description: line.description.trim(),
         quantity,
         unitPrice,
@@ -290,6 +310,7 @@ export class PurchaseOrdersService {
   ): Prisma.PurchaseOrderLineUncheckedCreateWithoutPurchaseOrderInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -383,6 +404,7 @@ export class PurchaseOrdersService {
       lines: row.lines.map((line) => ({
         id: line.id,
         lineNumber: line.lineNumber,
+        itemId: line.itemId,
         itemName: line.itemName,
         description: line.description,
         quantity: line.quantity.toString(),

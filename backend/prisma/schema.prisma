@@ -587,42 +587,44 @@ model Supplier {
 }
 
 model InventoryItem {
-  id                     String                      @id @default(cuid())
-  code                   String                      @unique
-  name                   String
-  description            String?
-  unitOfMeasure          String
-  category               String?
-  type                   InventoryItemType           @default(INVENTORY)
-  inventoryAccountId     String?
-  inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
-  cogsAccountId          String?
-  cogsAccount            Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
-  salesAccountId         String?
-  salesAccount           Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
-  adjustmentAccountId    String?
-  adjustmentAccount      Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
-  reorderLevel           Decimal                     @default(0) @db.Decimal(18, 4)
-  reorderQuantity        Decimal                     @default(0) @db.Decimal(18, 4)
-  preferredWarehouseId   String?
-  preferredWarehouse     InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
-  preferredWarehouseCode String?
-  isActive               Boolean                     @default(true)
-  onHandQuantity         Decimal                     @default(0) @db.Decimal(18, 4)
-  valuationAmount        Decimal                     @default(0) @db.Decimal(18, 2)
-  goodsReceiptLines      InventoryGoodsReceiptLine[]
-  goodsIssueLines        InventoryGoodsIssueLine[]
-  transferLines          InventoryTransferLine[]
-  adjustmentLines        InventoryAdjustmentLine[]
-  salesQuotationLines    SalesQuotationLine[]
-  salesOrderLines        SalesOrderLine[]
-  salesInvoiceLines      SalesInvoiceLine[]
-  purchaseInvoiceLines   PurchaseInvoiceLine[]
-  warehouseBalances      InventoryWarehouseBalance[]
-  costLayers             InventoryCostLayer[]
-  stockMovements         InventoryStockMovement[]
-  createdAt              DateTime                    @default(now())
-  updatedAt              DateTime                    @updatedAt
+  id                           String                      @id @default(cuid())
+  code                         String                      @unique
+  name                         String
+  description                  String?
+  unitOfMeasure                String
+  category                     String?
+  type                         InventoryItemType           @default(INVENTORY)
+  inventoryAccountId           String?
+  inventoryAccount             Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccountId                String?
+  cogsAccount                  Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  salesAccountId               String?
+  salesAccount                 Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  adjustmentAccountId          String?
+  adjustmentAccount            Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  reorderLevel                 Decimal                     @default(0) @db.Decimal(18, 4)
+  reorderQuantity              Decimal                     @default(0) @db.Decimal(18, 4)
+  preferredWarehouseId         String?
+  preferredWarehouse           InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
+  preferredWarehouseCode       String?
+  isActive                     Boolean                     @default(true)
+  onHandQuantity               Decimal                     @default(0) @db.Decimal(18, 4)
+  valuationAmount              Decimal                     @default(0) @db.Decimal(18, 2)
+  goodsReceiptLines            InventoryGoodsReceiptLine[]
+  goodsIssueLines              InventoryGoodsIssueLine[]
+  transferLines                InventoryTransferLine[]
+  adjustmentLines              InventoryAdjustmentLine[]
+  salesQuotationLines          SalesQuotationLine[]
+  salesOrderLines              SalesOrderLine[]
+  salesInvoiceLines            SalesInvoiceLine[]
+  purchaseRequestLines         PurchaseRequestLine[]       @relation("PurchaseRequestLineInventoryItem")
+  purchaseOrderLines           PurchaseOrderLine[]         @relation("PurchaseOrderLineInventoryItem")
+  purchaseInvoiceLines         PurchaseInvoiceLine[]
+  warehouseBalances            InventoryWarehouseBalance[]
+  costLayers                   InventoryCostLayer[]
+  stockMovements               InventoryStockMovement[]
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
 
   @@index([type, isActive])
   @@index([name])
@@ -1369,6 +1371,8 @@ model PurchaseRequestLine {
   purchaseRequestId     String
   purchaseRequest       PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   lineNumber            Int
+  itemId                String?
+  inventoryItem         InventoryItem?  @relation("PurchaseRequestLineInventoryItem", fields: [itemId], references: [id], onDelete: Restrict)
   itemName              String?
   description           String
   quantity              Decimal         @default(1) @db.Decimal(18, 4)
@@ -1381,6 +1385,7 @@ model PurchaseRequestLine {
   @@unique([purchaseRequestId, lineNumber])
   @@index([requestedDeliveryDate])
   @@index([expenseAccountId])
+  @@index([itemId])
 }
 
 model PurchaseRequestStatusHistory {
@@ -1424,6 +1429,8 @@ model PurchaseOrderLine {
   purchaseOrderId       String
   purchaseOrder         PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   lineNumber            Int
+  itemId                String?
+  inventoryItem         InventoryItem?        @relation("PurchaseOrderLineInventoryItem", fields: [itemId], references: [id], onDelete: Restrict)
   itemName              String?
   description           String
   quantity              Decimal               @default(1) @db.Decimal(18, 4)
@@ -1436,6 +1443,7 @@ model PurchaseOrderLine {
   createdAt             DateTime              @default(now())
 
   @@unique([purchaseOrderId, lineNumber])
+  @@index([itemId])
 }
 
 model PurchaseReceipt {

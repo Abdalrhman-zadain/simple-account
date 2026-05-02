@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
-import { AuditAction } from "../../../generated/prisma";
+import { AuditAction, Prisma } from "../../../generated/prisma";
 
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
@@ -41,7 +41,7 @@ export class ReportingService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSummary(query: ReportingQueryDto, user?: AuthUser) {
+  async getSummary(query: ReportingQueryDto, user?: AuthUser, shouldLog = true) {
     const [trialBalance, balanceSheet, profitLoss, cashMovement, audit, warnings] = await Promise.all([
       this.getTrialBalance(query, user, false),
       this.getBalanceSheet(query, user, false),
@@ -90,7 +90,7 @@ export class ReportingService {
       warnings,
     };
 
-    await this.logReportEvent(user, "ReportingSummary", "VIEW", { query, metricCount: payload.metrics.length });
+    if (shouldLog) await this.logReportEvent(user, "ReportingSummary", "VIEW", { query, metricCount: payload.metrics.length });
     return payload;
   }
 
@@ -686,23 +686,25 @@ export class ReportingService {
     this.ensureOwnsDefinition(existing, user!);
 
     const name = dto.name?.trim() || existing.name;
+    const reportType = dto.reportType?.trim() || existing.reportType;
     const parameters = this.normalizeStoredParameters(dto.parameters ?? existing.parameters);
     const isShared = dto.isShared === undefined ? existing.isShared : Boolean(dto.isShared && this.canShare(user!));
 
     await this.prisma.$executeRawUnsafe(
       `
       UPDATE "ReportDefinition"
-      SET name = $2, parameters = $3::jsonb, is_shared = $4, updated_by_id = $5, updated_at = NOW()
+      SET name = $2, report_type = $3, parameters = $4::jsonb, is_shared = $5, updated_by_id = $6, updated_at = NOW()
       WHERE id = $1
       `,
       id,
       name,
+      reportType,
       JSON.stringify(parameters),
       isShared,
       user!.userId,
     );
 
-    await this.logReportEvent(user, "ReportDefinition", "UPDATE", { id, reportType: existing.reportType, name });
+    await this.logReportEvent(user, "ReportDefinition", "UPDATE", { id, reportType, name });
     return this.getDefinitionById(id);
   }
 
@@ -1330,33 +1332,69 @@ export class ReportingService {
     if (process.env.REPORTING_ACTIVITY_LOG_ENABLED === "false") return;
     if (!user?.userId) return;
 
-    await this.prisma.auditLog.create({
-      data: {
-        userId: user.userId,
-        entity,
-        action,
-        details: details as never,
-      },
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { id: true },
     });
+    const userId = existingUser?.id ?? null;
+    const auditDetails = userId
+      ? details
+      : {
+          ...details,
+          skippedUserId: user.userId,
+          loggingWarning: "Audit log user reference was missing at write time.",
+        };
+
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          entity,
+          action,
+          details: auditDetails as never,
+        },
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      ) {
+        await this.prisma.auditLog.create({
+          data: {
+            userId: null,
+            entity,
+            action,
+            details: {
+              ...details,
+              skippedUserId: user.userId,
+              loggingWarning: "Audit log user reference was missing at write time.",
+            } as never,
+          },
+        });
+        return;
+      }
+
+      throw error;
+    }
   }
 
   private async generateReportByType(reportType: string, parameters: Record<string, unknown>, user?: AuthUser, shouldLog = false) {
     const query = this.toQueryDto(parameters);
     switch (reportType) {
       case "summary":
-        return this.getSummary(query, shouldLog ? user : undefined);
+        return this.getSummary(query, user, shouldLog);
       case "trialBalance":
-        return this.getTrialBalance(query, shouldLog ? user : undefined, shouldLog);
+        return this.getTrialBalance(query, user, shouldLog);
       case "balanceSheet":
-        return this.getBalanceSheet(query, shouldLog ? user : undefined, shouldLog);
+        return this.getBalanceSheet(query, user, shouldLog);
       case "profitLoss":
-        return this.getProfitLoss(query, shouldLog ? user : undefined, shouldLog);
+        return this.getProfitLoss(query, user, shouldLog);
       case "cashMovement":
-        return this.getCashMovement(query, shouldLog ? user : undefined, shouldLog);
+        return this.getCashMovement(query, user, shouldLog);
       case "generalLedger":
-        return this.getGeneralLedger(this.toLedgerQueryDto(parameters), shouldLog ? user : undefined, shouldLog);
+        return this.getGeneralLedger(this.toLedgerQueryDto(parameters), user, shouldLog);
       case "audit":
-        return this.getAudit(this.toAuditQueryDto(parameters), shouldLog ? user : undefined, shouldLog);
+        return this.getAudit(this.toAuditQueryDto(parameters), user, shouldLog);
       default:
         throw new BadRequestException(`Unsupported report type: ${reportType}`);
     }

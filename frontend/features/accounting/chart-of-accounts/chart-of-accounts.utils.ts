@@ -3,15 +3,69 @@ import { AccountTableRow } from "@/types/api";
 import { AccountsSearchFilters, ActiveFilterChip, ChartAccountType, CommandSuggestion } from "./chart-of-accounts.types";
 
 export const COMMANDS: CommandSuggestion[] = [
-  { label: "type: ASSET", value: "type:ASSET", category: "Filter" },
-  { label: "type: LIABILITY", value: "type:LIABILITY", category: "Filter" },
-  { label: "type: EQUITY", value: "type:EQUITY", category: "Filter" },
-  { label: "type: REVENUE", value: "type:REVENUE", category: "Filter" },
-  { label: "type: EXPENSE", value: "type:EXPENSE", category: "Filter" },
-  { label: "is: posting", value: "is:posting", category: "Filter" },
-  { label: "is: header", value: "is:header", category: "Filter" },
-  { label: "status: active", value: "status:active", category: "Filter" },
-  { label: "status: inactive", value: "status:inactive", category: "Filter" },
+  {
+    label: "type: ASSET",
+    labelKey: "accounts.suggestion.type.ASSET",
+    value: "type:ASSET",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "type: LIABILITY",
+    labelKey: "accounts.suggestion.type.LIABILITY",
+    value: "type:LIABILITY",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "type: EQUITY",
+    labelKey: "accounts.suggestion.type.EQUITY",
+    value: "type:EQUITY",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "type: REVENUE",
+    labelKey: "accounts.suggestion.type.REVENUE",
+    value: "type:REVENUE",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "type: EXPENSE",
+    labelKey: "accounts.suggestion.type.EXPENSE",
+    value: "type:EXPENSE",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "is: posting",
+    labelKey: "accounts.suggestion.role.posting",
+    value: "is:posting",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "is: header",
+    labelKey: "accounts.suggestion.role.header",
+    value: "is:header",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "status: active",
+    labelKey: "accounts.suggestion.status.active",
+    value: "status:active",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
+  {
+    label: "status: inactive",
+    labelKey: "accounts.suggestion.status.inactive",
+    value: "status:inactive",
+    category: "Filter",
+    categoryKey: "accounts.suggestion.category.filter",
+  },
 ];
 
 export const TYPE_STYLES: Record<ChartAccountType, { badge: string; dot: string; label: string }> = {
@@ -172,7 +226,11 @@ export function getActiveFilterChips(searchQuery: string): ActiveFilterChip[] {
     if (parsed?.prefix === "type") {
       const typeValue = parsed.value.toUpperCase() as ChartAccountType;
       if (Object.prototype.hasOwnProperty.call(TYPE_STYLES, typeValue)) {
-        chips.push({ label: `type: ${typeValue}`, remove: token });
+        chips.push({
+          label: `type: ${typeValue}`,
+          labelKey: `accounts.suggestion.type.${typeValue}`,
+          remove: token,
+        });
       }
       continue;
     }
@@ -180,7 +238,11 @@ export function getActiveFilterChips(searchQuery: string): ActiveFilterChip[] {
     if (parsed?.prefix === "status") {
       const value = parsed.value.toLowerCase();
       if (value === "active" || value === "inactive") {
-        chips.push({ label: `status: ${value}`, remove: token });
+        chips.push({
+          label: `status: ${value}`,
+          labelKey: `accounts.suggestion.status.${value}`,
+          remove: token,
+        });
       }
       continue;
     }
@@ -188,7 +250,11 @@ export function getActiveFilterChips(searchQuery: string): ActiveFilterChip[] {
     if (parsed?.prefix === "is") {
       const value = parsed.value.toLowerCase();
       if (value === "posting" || value === "header") {
-        chips.push({ label: `is: ${value}`, remove: token });
+        chips.push({
+          label: `is: ${value}`,
+          labelKey: `accounts.suggestion.role.${value}`,
+          remove: token,
+        });
       }
     }
   }

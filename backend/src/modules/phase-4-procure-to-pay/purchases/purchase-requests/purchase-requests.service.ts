@@ -18,6 +18,7 @@ type PurchaseRequestListQuery = {
 };
 
 type ResolvedPurchaseRequestLine = {
+  itemId: string | null;
   itemName: string | null;
   description: string;
   quantity: number;
@@ -92,7 +93,7 @@ export class PurchaseRequestsService {
 
   async create(dto: CreatePurchaseRequestDto) {
     const reference = dto.reference?.trim() || this.generateReference('PR');
-    const lines = this.resolveLines(dto.lines);
+    const lines = await this.resolveLines(dto.lines);
 
     try {
       const created = await this.prisma.purchaseRequest.create({
@@ -128,7 +129,7 @@ export class PurchaseRequestsService {
       throw new BadRequestException('Only draft or rejected purchase requests can be edited.');
     }
 
-    const lines = dto.lines ? this.resolveLines(dto.lines) : null;
+    const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
 
     try {
       const updated = await this.prisma.$transaction(async (tx) => {
@@ -224,6 +225,7 @@ export class PurchaseRequestsService {
             lines: {
               create: request.lines.map((line, index) => ({
                 lineNumber: index + 1,
+                itemId: line.itemId,
                 itemName: line.itemName,
                 description: line.description,
                 quantity: line.quantity,
@@ -307,14 +309,36 @@ export class PurchaseRequestsService {
     return this.mapPurchaseRequest(updated);
   }
 
-  private resolveLines(lines: PurchaseRequestLineDto[]): ResolvedPurchaseRequestLine[] {
-    return lines.map((line) => ({
-      itemName: line.itemName?.trim() || null,
-      description: line.description.trim(),
-      quantity: Number(line.quantity),
-      requestedDeliveryDate: line.requestedDeliveryDate ? new Date(line.requestedDeliveryDate) : null,
-      justification: line.justification?.trim() || null,
-    }));
+  private async resolveLines(lines: PurchaseRequestLineDto[]): Promise<ResolvedPurchaseRequestLine[]> {
+    const itemIds = Array.from(new Set(lines.map((line) => line.itemId?.trim()).filter(Boolean))) as string[];
+    const validItems = new Map(
+      (
+        itemIds.length
+          ? await this.prisma.inventoryItem.findMany({
+              where: { id: { in: itemIds }, isActive: true },
+              select: { id: true, name: true },
+            })
+          : []
+      ).map((item) => [item.id, item]),
+    );
+
+    return lines.map((line) => {
+      const itemId = line.itemId?.trim() || null;
+      const item = itemId ? validItems.get(itemId) : null;
+
+      if (itemId && !item) {
+        throw new BadRequestException('Each linked purchase request item must reference an active inventory item.');
+      }
+
+      return {
+        itemId,
+        itemName: line.itemName?.trim() || item?.name || null,
+        description: line.description.trim(),
+        quantity: Number(line.quantity),
+        requestedDeliveryDate: line.requestedDeliveryDate ? new Date(line.requestedDeliveryDate) : null,
+        justification: line.justification?.trim() || null,
+      };
+    });
   }
 
   private buildPurchaseRequestLineCreateInput(
@@ -323,6 +347,7 @@ export class PurchaseRequestsService {
   ): Prisma.PurchaseRequestLineUncheckedCreateWithoutPurchaseRequestInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -382,6 +407,7 @@ export class PurchaseRequestsService {
       lines: row.lines.map((line) => ({
         id: line.id,
         lineNumber: line.lineNumber,
+        itemId: line.itemId,
         itemName: line.itemName,
         description: line.description,
         quantity: line.quantity.toString(),

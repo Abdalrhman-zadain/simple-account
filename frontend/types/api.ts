@@ -1725,6 +1725,7 @@ export type DebitNoteStatus =
 export type PurchaseRequestLine = {
   id: string;
   lineNumber: number;
+  itemId?: string | null;
   itemName?: string | null;
   description: string;
   quantity: string;
@@ -1778,6 +1779,7 @@ export type PurchaseRequestsQuery = {
 };
 
 export type PurchaseRequestLinePayload = {
+  itemId?: string;
   itemName?: string;
   description: string;
   quantity: number;
@@ -1786,7 +1788,6 @@ export type PurchaseRequestLinePayload = {
 };
 
 export type CreatePurchaseRequestPayload = {
-  reference?: string;
   requestDate: string;
   description?: string;
   lines: PurchaseRequestLinePayload[];
@@ -1800,7 +1801,6 @@ export type PurchaseRequestStatusNotePayload = {
 };
 
 export type ConvertPurchaseRequestToOrderPayload = {
-  reference?: string;
   supplierId: string;
   orderDate: string;
   currencyCode?: string;
@@ -1826,6 +1826,7 @@ export type PurchaseRequestConversionResult = {
 export type PurchaseOrderLine = {
   id: string;
   lineNumber: number;
+  itemId?: string | null;
   itemName?: string | null;
   description: string;
   quantity: string;
@@ -1925,6 +1926,7 @@ export type PurchaseOrdersQuery = {
 };
 
 export type PurchaseOrderLinePayload = {
+  itemId?: string;
   itemName?: string;
   description: string;
   quantity: number;
@@ -1934,12 +1936,10 @@ export type PurchaseOrderLinePayload = {
 };
 
 export type CreatePurchaseOrderPayload = {
-  reference?: string;
   orderDate: string;
   supplierId: string;
   currencyCode?: string;
   description?: string;
-  sourcePurchaseRequestId?: string;
   lines: PurchaseOrderLinePayload[];
 };
 

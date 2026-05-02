@@ -98,6 +98,11 @@ export class UpdateReportDefinitionDto {
   name?: string;
 
   @IsOptional()
+  @IsString()
+  @Length(1, 60)
+  reportType?: string;
+
+  @IsOptional()
   parameters?: Record<string, unknown>;
 
   @IsOptional()

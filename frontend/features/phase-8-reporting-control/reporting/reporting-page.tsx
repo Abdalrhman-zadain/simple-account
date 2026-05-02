@@ -8,6 +8,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Card, PageShell, SectionHeading } from "@/components/ui";
 import {
+  LuSettings,
+  LuSave,
+  LuCamera,
+  LuPrinter,
+  LuChevronDown,
+  LuFileSpreadsheet,
+  LuFileText,
+  LuTrash2,
+  LuHistory,
+  LuLock,
+  LuLockOpen,
+} from "react-icons/lu";
+import {
   createReportingSnapshotVersion,
   createReportingDefinition,
   createReportingSnapshot,
@@ -95,6 +108,7 @@ export function ReportingPage() {
   const [shareDefinition, setShareDefinition] = useState(false);
   const [selectedDefinitionId, setSelectedDefinitionId] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusTone, setStatusTone] = useState<"success" | "error">("success");
   const [activeDateChip, setActiveDateChip] = useState<"dateFrom" | "dateTo" | "comparisonFrom" | "comparisonTo" | null>(null);
   const [activeSelectChip, setActiveSelectChip] = useState<"basis" | "accountId" | "accountType" | "currencyCode" | "segment3" | "segment4" | "segment5" | "journalEntryTypeId" | null>(null);
 
@@ -287,8 +301,13 @@ export function ReportingPage() {
     onSuccess: async (definition) => {
       setDefinitionName(definition.name);
       setSelectedDefinitionId(definition.id);
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.definitionSaved"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
@@ -311,8 +330,13 @@ export function ReportingPage() {
     },
     onSuccess: async (definition) => {
       setDefinitionName(definition.name);
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.definitionUpdated"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
@@ -324,8 +348,13 @@ export function ReportingPage() {
         setDefinitionName("");
         setShareDefinition(false);
       }
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.definitionArchived"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
@@ -343,24 +372,39 @@ export function ReportingPage() {
     },
     onSuccess: async (snapshot) => {
       setSnapshotName(snapshot.name);
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.snapshotSaved"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
   const lockSnapshotMutation = useMutation({
     mutationFn: async (id: string) => lockReportingSnapshot(id, token),
     onSuccess: async () => {
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.snapshotLocked"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
   const unlockSnapshotMutation = useMutation({
     mutationFn: async (id: string) => unlockReportingSnapshot(id, token),
     onSuccess: async () => {
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.snapshotUnlocked"));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
@@ -368,17 +412,22 @@ export function ReportingPage() {
     mutationFn: async (snapshot: ReportingSnapshot) =>
       createReportingSnapshotVersion(snapshot.id, { name: `${snapshot.name} v${snapshot.version + 1}` }, token),
     onSuccess: async (snapshot) => {
+      setStatusTone("success");
       setStatusMessage(t("reporting.status.snapshotVersioned", { version: snapshot.version }));
       await refreshControls();
+    },
+    onError: (error) => {
+      setStatusTone("error");
+      setStatusMessage(readErrorMessage(error));
     },
   });
 
   const exportMutation = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (overrideFormat?: ReportingExportFormat) =>
       exportReporting(
         {
           reportType: activeTab,
-          format: exportFormat,
+          format: overrideFormat || exportFormat,
           title: exportTitle.trim() || undefined,
           parameters: reportParameters,
         },
@@ -469,7 +518,15 @@ export function ReportingPage() {
     <PageShell>
       <SectionHeading title={t("reporting.title")} description={t("reporting.description")} />
 
-      {statusMessage ? <Card className="mb-6 border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{statusMessage}</Card> : null}
+      {statusMessage ? (
+        <Card
+          className={`mb-6 border p-4 text-sm ${
+            statusTone === "error" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {statusMessage}
+        </Card>
+      ) : null}
 
       <Card className="space-y-4 p-5">
         <div className="pb-1">
@@ -671,6 +728,7 @@ export function ReportingPage() {
                 setJournalEntryTypeId("");
                 setActiveDateChip(null);
                 setActiveSelectChip(null);
+                setStatusTone("success");
                 setStatusMessage("");
               }}
             >
@@ -680,143 +738,27 @@ export function ReportingPage() {
         </div>
       </Card>
 
+      <ReportToolbar
+        t={t}
+        isBusy={!token || isBusy}
+        definitions={definitionsQuery.data ?? []}
+        snapshots={snapshotsQuery.data ?? []}
+        onSaveDefinition={() => saveDefinitionMutation.mutate()}
+        onUpdateDefinition={() => updateDefinitionMutation.mutate()}
+        onDeactivateDefinition={(id) => deactivateDefinitionMutation.mutate(id)}
+        onApplyDefinition={applyDefinition}
+        onSaveSnapshot={() => snapshotMutation.mutate()}
+        onApplySnapshot={applySnapshot}
+        onLockSnapshot={(id) => lockSnapshotMutation.mutate(id)}
+        onUnlockSnapshot={(id) => unlockSnapshotMutation.mutate(id)}
+        onVersionSnapshot={(snap) => versionSnapshotMutation.mutate(snap)}
+        onPrint={() => exportMutation.mutate("PRINT")}
+        onExport={(format) => exportMutation.mutate(format)}
+        selectedDefinitionId={selectedDefinitionId}
+        permissions={activePermissions}
+      />
+
       {reportingWarnings.length ? <WarningsCard warnings={reportingWarnings} activeTab={activeTab} t={t} /> : null}
-
-      {activeTab === "summary" ? <SummarySection data={summaryQuery.data} loading={summaryQuery.isLoading} t={t} /> : null}
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        {activePermissions?.canSaveDefinition ? (
-          <Card className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-base font-bold text-gray-900">{t("reporting.control.definitionsTitle")}</div>
-                <div className="text-sm text-gray-500">{t("reporting.control.definitionsDescription")}</div>
-              </div>
-              <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(definitionsQuery.data ?? []).length}</div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("reporting.field.definitionName")}>
-                <input value={definitionName} onChange={(event) => setDefinitionName(event.target.value)} className={inputClassName} />
-              </Field>
-              <Field label={t("reporting.field.selectedDefinition")}>
-                <select
-                  value={selectedDefinitionId}
-                  onChange={(event) => {
-                    setSelectedDefinitionId(event.target.value);
-                    const nextDefinition = (definitionsQuery.data ?? []).find((row) => row.id === event.target.value);
-                    if (nextDefinition) {
-                      setDefinitionName(nextDefinition.name);
-                      setShareDefinition(nextDefinition.isShared);
-                    }
-                  }}
-                  className={inputClassName}
-                >
-                  <option value="">{t("reporting.value.none")}</option>
-                  {(definitionsQuery.data ?? []).map((definition) => (
-                    <option key={definition.id} value={definition.id}>
-                      {definition.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-              <input
-                checked={shareDefinition}
-                onChange={(event) => setShareDefinition(event.target.checked)}
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
-              />
-              {t("reporting.field.shareDefinition")}
-            </label>
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={() => saveDefinitionMutation.mutate()} disabled={!token || isBusy}>
-                {t("reporting.action.saveDefinition")}
-              </Button>
-              <Button variant="secondary" onClick={() => updateDefinitionMutation.mutate()} disabled={!token || !selectedDefinitionId || isBusy}>
-                {t("reporting.action.updateDefinition")}
-              </Button>
-            </div>
-            <DefinitionList
-              definitions={definitionsQuery.data ?? []}
-              onApply={applyDefinition}
-              onDeactivate={(definitionId) => deactivateDefinitionMutation.mutate(definitionId)}
-              selectedId={selectedDefinitionId}
-              t={t}
-            />
-          </Card>
-        ) : null}
-
-        {activePermissions?.canSnapshot ? (
-          <Card className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-base font-bold text-gray-900">{t("reporting.control.snapshotsTitle")}</div>
-                <div className="text-sm text-gray-500">{t("reporting.control.snapshotsDescription")}</div>
-              </div>
-              <div className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">{(snapshotsQuery.data ?? []).length}</div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
-              <Field label={t("reporting.field.snapshotName")}>
-                <input value={snapshotName} onChange={(event) => setSnapshotName(event.target.value)} className={inputClassName} />
-              </Field>
-              <div className="flex items-end">
-                <Button onClick={() => snapshotMutation.mutate()} disabled={!token || isBusy}>
-                  {t("reporting.action.captureSnapshot")}
-                </Button>
-              </div>
-            </div>
-            <SnapshotList
-              snapshots={snapshotsQuery.data ?? []}
-              onApply={applySnapshot}
-              onLock={(snapshotId) => lockSnapshotMutation.mutate(snapshotId)}
-              onUnlock={(snapshotId) => unlockSnapshotMutation.mutate(snapshotId)}
-              onCreateVersion={(snapshot) => versionSnapshotMutation.mutate(snapshot)}
-              t={t}
-            />
-          </Card>
-        ) : null}
-
-        {activePermissions?.canExport ? (
-          <Card className="space-y-4 p-5">
-            <div>
-              <div className="text-base font-bold text-gray-900">{t("reporting.control.exportTitle")}</div>
-              <div className="text-sm text-gray-500">{t("reporting.control.exportDescription")}</div>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("reporting.field.exportTitle")}>
-                <input value={exportTitle} onChange={(event) => setExportTitle(event.target.value)} className={inputClassName} />
-              </Field>
-              <Field label={t("reporting.field.exportFormat")}>
-                <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ReportingExportFormat)} className={inputClassName}>
-                  <option value="PRINT">{t("reporting.export.PRINT")}</option>
-                  <option value="PDF">{t("reporting.export.PDF")}</option>
-                  <option value="EXCEL">{t("reporting.export.EXCEL")}</option>
-                </select>
-              </Field>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{t("reporting.export.note")}</div>
-            <Button onClick={() => exportMutation.mutate()} disabled={!token || isBusy}>
-              {t("reporting.action.export")}
-            </Button>
-          </Card>
-        ) : null}
-
-        {user?.role !== "USER" ? (
-          <Card className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-base font-bold text-gray-900">{t("reporting.control.activityTitle")}</div>
-                <div className="text-sm text-gray-500">{t("reporting.control.activityDescription")}</div>
-              </div>
-              <Button variant="secondary" onClick={() => activityQuery.refetch()} disabled={!token || activityQuery.isFetching}>
-                {t("reporting.action.refreshActivity")}
-              </Button>
-            </div>
-            <ActivityList entries={activityQuery.data ?? []} t={t} />
-          </Card>
-        ) : null}
-      </div>
 
       <Card className="mt-6 flex flex-wrap gap-3 p-3">
         {visibleTabs.map((tab) => (
@@ -827,29 +769,47 @@ export function ReportingPage() {
       </Card>
 
       <div className="mt-6 space-y-6">
+        {activeTab === "summary" ? <SummarySection data={summaryQuery.data} error={summaryQuery.error} loading={summaryQuery.isLoading} t={t} /> : null}
         {activeTab === "trialBalance" ? (
-          <TrialBalanceSection data={trialBalanceQuery.data} loading={trialBalanceQuery.isLoading} t={t} onSelectAccount={setAccountId} />
+          <TrialBalanceSection data={trialBalanceQuery.data} error={trialBalanceQuery.error} loading={trialBalanceQuery.isLoading} t={t} onSelectAccount={setAccountId} />
         ) : null}
-        {activeTab === "balanceSheet" ? <BalanceSheetSection data={balanceSheetQuery.data} loading={balanceSheetQuery.isLoading} t={t} /> : null}
-        {activeTab === "profitLoss" ? <ProfitLossSection data={profitLossQuery.data} loading={profitLossQuery.isLoading} t={t} /> : null}
-        {activeTab === "cashMovement" ? <CashMovementSection data={cashMovementQuery.data} loading={cashMovementQuery.isLoading} t={t} /> : null}
+        {activeTab === "balanceSheet" ? <BalanceSheetSection data={balanceSheetQuery.data} error={balanceSheetQuery.error} loading={balanceSheetQuery.isLoading} t={t} /> : null}
+        {activeTab === "profitLoss" ? <ProfitLossSection data={profitLossQuery.data} error={profitLossQuery.error} loading={profitLossQuery.isLoading} t={t} /> : null}
+        {activeTab === "cashMovement" ? <CashMovementSection data={cashMovementQuery.data} error={cashMovementQuery.error} loading={cashMovementQuery.isLoading} t={t} /> : null}
         {activeTab === "generalLedger" ? (
           <GeneralLedgerSection
             data={generalLedgerQuery.data}
+            error={generalLedgerQuery.error}
             loading={generalLedgerQuery.isLoading}
             selectedAccount={selectedAccount}
             t={t}
           />
         ) : null}
-        {activeTab === "audit" ? <AuditSection data={auditQuery.data} loading={auditQuery.isLoading} t={t} /> : null}
+        {activeTab === "audit" ? <AuditSection data={auditQuery.data} error={auditQuery.error} loading={auditQuery.isLoading} t={t} /> : null}
       </div>
+
+      {user?.role !== "USER" ? (
+        <Card className="mt-12 space-y-4 p-5 opacity-80">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-base font-bold text-gray-900">{t("reporting.control.activityTitle")}</div>
+              <div className="text-sm text-gray-500">{t("reporting.control.activityDescription")}</div>
+            </div>
+            <Button variant="secondary" onClick={() => activityQuery.refetch()} disabled={!token || activityQuery.isFetching}>
+              {t("reporting.action.refreshActivity")}
+            </Button>
+          </div>
+          <ActivityList entries={activityQuery.data ?? []} t={t} />
+        </Card>
+      ) : null}
     </PageShell>
   );
 }
 
-function SummarySection({ data, loading, t }: { data?: ReportingSummary; loading: boolean; t: TranslationFn }) {
+function SummarySection({ data, error, loading, t }: { data?: ReportingSummary; error?: unknown; loading: boolean; t: TranslationFn }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   const primaryMetrics = data.metrics.slice(0, 2);
   const secondaryMetrics = data.metrics.slice(2);
@@ -898,17 +858,20 @@ function SummarySection({ data, loading, t }: { data?: ReportingSummary; loading
 
 function TrialBalanceSection({
   data,
+  error,
   loading,
   onSelectAccount,
   t,
 }: {
   data?: ReportingTrialBalanceReport;
+  error?: unknown;
   loading: boolean;
   onSelectAccount: (id: string) => void;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <>
@@ -931,6 +894,7 @@ function TrialBalanceSection({
             t("reporting.column.side"),
             t("reporting.column.action"),
           ]}
+          columnTypes={["code", "name", "amount", "amount", "amount", "amount", "side", "action"]}
           rows={data.rows.map((row) => [
             row.accountCode,
             row.accountName,
@@ -952,15 +916,18 @@ function TrialBalanceSection({
 
 function BalanceSheetSection({
   data,
+  error,
   loading,
   t,
 }: {
   data?: ReportingBalanceSheetReport;
+  error?: unknown;
   loading: boolean;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <div className="grid gap-6 xl:grid-cols-3">
@@ -979,15 +946,18 @@ function BalanceSheetSection({
 
 function ProfitLossSection({
   data,
+  error,
   loading,
   t,
 }: {
   data?: ReportingProfitLossReport;
+  error?: unknown;
   loading: boolean;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -1008,15 +978,18 @@ function ProfitLossSection({
 
 function CashMovementSection({
   data,
+  error,
   loading,
   t,
 }: {
   data?: ReportingCashMovementReport;
+  error?: unknown;
   loading: boolean;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <>
@@ -1079,18 +1052,21 @@ function CashMovementSection({
 
 function GeneralLedgerSection({
   data,
+  error,
   loading,
   selectedAccount,
   t,
 }: {
   data?: ReportingGeneralLedgerReport;
+  error?: unknown;
   loading: boolean;
   selectedAccount: AccountOption | null;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
   if (!selectedAccount) return <EmptyCard label={t("reporting.generalLedger.selectAccount")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <>
@@ -1137,15 +1113,18 @@ function GeneralLedgerSection({
 
 function AuditSection({
   data,
+  error,
   loading,
   t,
 }: {
   data?: ReportingAuditReport;
+  error?: unknown;
   loading: boolean;
   t: TranslationFn;
 }) {
   if (loading) return <LoadingCard label={t("reporting.loading")} />;
-  if (!data) return <EmptyCard label={t("reporting.empty")} />;
+  if (error) return <ErrorCard error={error} t={t} />;
+  if (!data) return <EmptyCard label={t("reporting.empty")} detail={t("reporting.emptyPostedHint")} />;
 
   return (
     <>
@@ -1388,14 +1367,26 @@ function AmountTable({
   );
 }
 
-function Table({ headers, rows, emptyLabel }: { headers: string[]; rows: Array<Array<ReactNode>>; emptyLabel: string }) {
+type TableColumnType = "text" | "code" | "name" | "amount" | "side" | "action";
+
+function Table({
+  headers,
+  rows,
+  emptyLabel,
+  columnTypes = [],
+}: {
+  headers: string[];
+  rows: Array<Array<ReactNode>>;
+  emptyLabel: string;
+  columnTypes?: TableColumnType[];
+}) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 text-sm">
+      <table className="min-w-full table-auto divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>
-            {headers.map((header) => (
-              <th key={header} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500">
+            {headers.map((header, index) => (
+              <th key={header} className={getTableHeaderClassName(columnTypes[index])}>
                 {header}
               </th>
             ))}
@@ -1410,9 +1401,9 @@ function Table({ headers, rows, emptyLabel }: { headers: string[]; rows: Array<A
             </tr>
           ) : (
             rows.map((row, index) => (
-              <tr key={index}>
+              <tr key={index} className="transition-colors hover:bg-gray-50/70">
                 {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-4 py-3 text-gray-700">
+                  <td key={cellIndex} className={getTableCellClassName(columnTypes[cellIndex])}>
                     {cell}
                   </td>
                 ))}
@@ -1423,6 +1414,44 @@ function Table({ headers, rows, emptyLabel }: { headers: string[]; rows: Array<A
       </table>
     </div>
   );
+}
+
+function getTableHeaderClassName(type: TableColumnType = "text") {
+  const base = "whitespace-nowrap px-3 py-3 text-xs font-bold uppercase text-gray-500";
+
+  switch (type) {
+    case "amount":
+      return `${base} min-w-[9rem] text-end tabular-nums`;
+    case "code":
+      return `${base} w-28 text-start`;
+    case "name":
+      return `${base} min-w-[14rem] text-start`;
+    case "side":
+      return `${base} w-24 text-center`;
+    case "action":
+      return `${base} w-28 text-center`;
+    default:
+      return `${base} text-start`;
+  }
+}
+
+function getTableCellClassName(type: TableColumnType = "text") {
+  const base = "whitespace-nowrap px-3 py-3 align-middle text-gray-700";
+
+  switch (type) {
+    case "amount":
+      return `${base} text-end font-medium tabular-nums text-slate-900`;
+    case "code":
+      return `${base} text-start font-mono text-xs text-slate-700`;
+    case "name":
+      return `${base} text-start font-medium text-slate-800`;
+    case "side":
+      return `${base} text-center`;
+    case "action":
+      return `${base} text-center`;
+    default:
+      return `${base} text-start`;
+  }
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
@@ -1438,8 +1467,23 @@ function LoadingCard({ label }: { label: string }) {
   return <Card className="p-6 text-sm text-gray-600">{label}</Card>;
 }
 
-function EmptyCard({ label }: { label: string }) {
-  return <Card className="p-6 text-sm text-gray-500">{label}</Card>;
+function EmptyCard({ label, detail }: { label: string; detail?: string }) {
+  return (
+    <Card className="space-y-2 p-6 text-sm text-gray-500">
+      <div>{label}</div>
+      {detail ? <div className="text-xs text-gray-400">{detail}</div> : null}
+    </Card>
+  );
+}
+
+function ErrorCard({ error, t }: { error: unknown; t: TranslationFn }) {
+  return (
+    <Card className="space-y-2 border-rose-200 bg-rose-50 p-6 text-sm text-rose-900">
+      <div className="font-semibold">{t("reporting.error")}</div>
+      <div>{readErrorMessage(error)}</div>
+      <div className="text-xs text-rose-700">{t("reporting.errorHint")}</div>
+    </Card>
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -1449,6 +1493,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
+}
+
+function readErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Unexpected reporting error.";
 }
 
 interface DateFilterChipProps {
@@ -1682,6 +1734,289 @@ function applyStoredParameters(
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function ReportToolbar({
+  t,
+  isBusy,
+  definitions,
+  snapshots,
+  onSaveDefinition,
+  onUpdateDefinition,
+  onDeactivateDefinition,
+  onApplyDefinition,
+  onSaveSnapshot,
+  onApplySnapshot,
+  onLockSnapshot,
+  onUnlockSnapshot,
+  onVersionSnapshot,
+  onPrint,
+  onExport,
+  selectedDefinitionId,
+  permissions,
+}: {
+  t: TranslationFn;
+  isBusy: boolean;
+  definitions: ReportingDefinition[];
+  snapshots: ReportingSnapshot[];
+  onSaveDefinition: () => void;
+  onUpdateDefinition: () => void;
+  onDeactivateDefinition: (id: string) => void;
+  onApplyDefinition: (d: ReportingDefinition) => void;
+  onSaveSnapshot: () => void;
+  onApplySnapshot: (s: ReportingSnapshot) => void;
+  onLockSnapshot: (id: string) => void;
+  onUnlockSnapshot: (id: string) => void;
+  onVersionSnapshot: (s: ReportingSnapshot) => void;
+  onPrint: () => void;
+  onExport: (f: ReportingExportFormat) => void;
+  selectedDefinitionId?: string;
+  permissions?: ReportingCatalogItem;
+}) {
+  const [openDropdown, setOpenDropdown] = useState<"definitions" | "snapshots" | "export" | null>(null);
+
+  // Default to true if permissions haven't loaded yet to avoid "nothing work" feeling
+  const canSaveDef = permissions ? permissions.canSaveDefinition : true;
+  const canSnap = permissions ? permissions.canSnapshot : true;
+  const canExp = permissions ? permissions.canExport : true;
+
+  return (
+    <div className="mt-6 w-full app-surface p-3 flex flex-wrap items-center justify-between shadow-lg bg-white rounded-2xl border-gray-100 relative z-30 overflow-visible isolate">
+      <div className="flex items-center gap-3 px-4 py-2 border-l border-gray-100 ml-2">
+        <LuSettings className="h-5 w-5 text-emerald-600" />
+        <span className="text-sm font-bold text-gray-900 whitespace-nowrap">{t("reporting.toolbar.title")}</span>
+      </div>
+
+      <div className="flex flex-1 flex-wrap items-center gap-4">
+        {canSaveDef && (
+          <div className="flex items-center gap-2">
+            {selectedDefinitionId ? (
+              <ToolbarButton
+                label={t("reporting.action.updateDefinition")}
+                icon={<LuSave className="h-4 w-4 text-emerald-600" />}
+                onClick={onUpdateDefinition}
+                disabled={isBusy}
+              />
+            ) : (
+              <ToolbarButton
+                label={t("reporting.toolbar.saveDefinition")}
+                icon={<LuSave className="h-4 w-4 text-emerald-600" />}
+                onClick={onSaveDefinition}
+                disabled={isBusy}
+              />
+            )}
+            <ToolbarDropdown
+              label={t("reporting.toolbar.selectDefinition")}
+              isOpen={openDropdown === "definitions"}
+              onToggle={() => setOpenDropdown(openDropdown === "definitions" ? null : "definitions")}
+            >
+              <div className="space-y-1 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
+                {definitions.length === 0 ? (
+                  <div className="p-3 text-xs text-gray-500 text-center">{t("reporting.control.emptyDefinitions")}</div>
+                ) : (
+                  definitions.map((def) => (
+                    <div
+                      key={def.id}
+                      onClick={() => {
+                        onApplyDefinition(def);
+                        setOpenDropdown(null);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      className={`w-full text-right px-4 py-2.5 rounded-xl text-sm text-gray-700 flex items-center justify-between group transition-colors cursor-pointer ${selectedDefinitionId === def.id ? "bg-emerald-50 border border-emerald-100" : "hover:bg-emerald-50"}`}
+                    >
+                      <div className="flex flex-col items-start pointer-events-none">
+                        <span className="font-medium">{def.name}</span>
+                        <span className="text-[10px] text-gray-400">{formatDate(def.updatedAt)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeactivateDefinition(def.id);
+                          }}
+                          className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                        >
+                          <LuTrash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ToolbarDropdown>
+          </div>
+        )}
+
+        {(canSaveDef || canSnap) && <div className="h-8 w-px bg-gray-100 hidden md:block" />}
+
+        {canSnap && (
+          <div className="flex items-center gap-2">
+            <ToolbarButton
+              label={t("reporting.toolbar.saveSnapshot")}
+              icon={<LuCamera className="h-4 w-4 text-emerald-600" />}
+              onClick={onSaveSnapshot}
+              disabled={isBusy}
+            />
+            <ToolbarDropdown
+              label={t("reporting.toolbar.viewSnapshots")}
+              isOpen={openDropdown === "snapshots"}
+              onToggle={() => setOpenDropdown(openDropdown === "snapshots" ? null : "snapshots")}
+            >
+              <div className="space-y-1 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
+                {snapshots.length === 0 ? (
+                  <div className="p-3 text-xs text-gray-500 text-center">{t("reporting.control.emptySnapshots")}</div>
+                ) : (
+                  snapshots.map((snap) => (
+                    <div
+                      key={snap.id}
+                      onClick={() => {
+                        onApplySnapshot(snap);
+                        setOpenDropdown(null);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      className="w-full text-right px-4 py-2.5 hover:bg-emerald-50 rounded-xl text-sm text-gray-700 flex items-center justify-between group transition-colors cursor-pointer"
+                    >
+                      <div className="flex flex-col items-start pointer-events-none">
+                        <span className="font-medium text-right w-full">{snap.name}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                          <span>v{snap.version}</span>
+                          <span>·</span>
+                          <span>{formatDate(snap.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onVersionSnapshot(snap);
+                          }}
+                          className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-500 rounded-lg transition-colors"
+                        >
+                          <LuHistory className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            snap.isLocked ? onUnlockSnapshot(snap.id) : onLockSnapshot(snap.id);
+                          }}
+                          className="p-1.5 hover:bg-amber-50 text-gray-400 hover:text-amber-500 rounded-lg transition-colors"
+                        >
+                          {snap.isLocked ? <LuLock className="h-3.5 w-3.5" /> : <LuLockOpen className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ToolbarDropdown>
+          </div>
+        )}
+
+        {canExp && <div className="h-8 w-px bg-gray-100 hidden md:block" />}
+
+        {canExp && (
+          <div className="flex items-center gap-2">
+            <ToolbarButton
+              label={t("reporting.toolbar.print")}
+              icon={<LuPrinter className="h-4 w-4 text-emerald-600" />}
+              onClick={onPrint}
+              disabled={isBusy}
+            />
+            <ToolbarDropdown
+              label={t("reporting.toolbar.export")}
+              isOpen={openDropdown === "export"}
+              onToggle={() => setOpenDropdown(openDropdown === "export" ? null : "export")}
+            >
+              <div className="p-1 space-y-1">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    onExport("PDF");
+                    setOpenDropdown(null);
+                  }}
+                  className="w-full text-right px-4 py-2.5 hover:bg-emerald-50 rounded-xl text-sm text-gray-700 flex items-center gap-3 transition-colors cursor-pointer"
+                >
+                  <LuFileText className="h-4 w-4 text-emerald-500" />
+                  <span className="pointer-events-none">{t("reporting.export.PDF")}</span>
+                </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    onExport("EXCEL");
+                    setOpenDropdown(null);
+                  }}
+                  className="w-full text-right px-4 py-2.5 hover:bg-emerald-50 rounded-xl text-sm text-gray-700 flex items-center gap-3 transition-colors cursor-pointer"
+                >
+                  <LuFileSpreadsheet className="h-4 w-4 text-emerald-500" />
+                  <span className="pointer-events-none">{t("reporting.export.EXCEL")}</span>
+                </div>
+              </div>
+            </ToolbarDropdown>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ToolbarButton({ label, icon, onClick, disabled }: { label: string; icon?: ReactNode; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
+      disabled={disabled}
+      className="flex h-[42px] items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-bold text-slate-900 shadow-sm transition-all hover:bg-gray-50 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 whitespace-nowrap cursor-pointer pointer-events-auto"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ToolbarDropdown({ label, isOpen, onToggle, children }: { label: string; isOpen: boolean; onToggle: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onToggle();
+      }
+    };
+    document.addEventListener("mousedown", handleClick, true);
+    return () => document.removeEventListener("mousedown", handleClick, true);
+  }, [isOpen, onToggle]);
+
+  return (
+    <div ref={ref} className="relative overflow-visible">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          onToggle();
+        }}
+        className="flex h-[42px] items-center gap-2 rounded-full border border-gray-200 bg-white px-5 text-sm font-bold text-slate-900 shadow-sm transition-all hover:bg-gray-50 hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap cursor-pointer pointer-events-auto"
+      >
+        <span>{label}</span>
+        <LuChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-full z-[100] mt-2 min-w-[300px] rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 type TranslationFn = (key: string, vars?: Record<string, string | number>) => string;

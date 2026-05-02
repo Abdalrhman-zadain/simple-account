@@ -190,6 +190,7 @@ What else to check:
 
 - keep the purchases module split by subdomain ownership such as suppliers, requests, orders, invoices, payments, debit notes, posting/accounting, and validation/control
 - route files must stay thin and compose the owning Phase 4 feature page
+- purchase-request and purchase-order lines may now optionally link to active inventory items for UI-assisted selection, and `itemName` plus line description must remain persisted on the line so operational history does not depend on future item-master edits
 - posting must reuse Phase 1 journal-entry and posting services instead of writing ledger effects directly
 - supplier payments that affect bank/cash must integrate with the existing Phase 2 bank/cash module rather than duplicating payment posting behavior
 - Arabic and English terminology must stay aligned when new purchase workflows or statuses are added
@@ -329,6 +330,7 @@ What else to check:
 - keep the reporting module split by ownership such as filters/definitions, financial statements, ledger inquiry, audit inquiry, comparison logic, and validation/control
 - route files must stay thin and compose the owning Phase 8 feature page
 - official financial reports must use posted data only and must not read draft journals or draft operational documents as report balances
+- reporting empty states should distinguish between genuine no-data conditions and API/load failures so users are not shown an "empty" message when the report request actually failed
 - trial balance, balance sheet, profit and loss, and general-ledger inquiry should stay reconcilable to the same posted ledger source for the same filters/period
 - cash movement reporting should continue to derive from the linked bank/cash posting accounts rather than inventing a parallel balance store
 - Arabic and English terminology must stay aligned when adding report names, column labels, filters, export labels, and drill-down actions

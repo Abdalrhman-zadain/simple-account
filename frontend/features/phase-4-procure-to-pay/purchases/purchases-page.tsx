@@ -109,6 +109,7 @@ type SupplierEditorState = {
 
 type PurchaseRequestLineEditorState = {
   key: string;
+  itemId: string;
   itemName: string;
   description: string;
   quantity: string;
@@ -118,7 +119,6 @@ type PurchaseRequestLineEditorState = {
 
 type PurchaseRequestEditorState = {
   id?: string;
-  reference: string;
   requestDate: string;
   description: string;
   lines: PurchaseRequestLineEditorState[];
@@ -127,13 +127,13 @@ type PurchaseRequestEditorState = {
 type PurchaseRequestConversionState = {
   supplierId: string;
   orderDate: string;
-  reference: string;
   currencyCode: string;
   description: string;
 };
 
 type PurchaseOrderLineEditorState = {
   key: string;
+  itemId: string;
   itemName: string;
   description: string;
   quantity: string;
@@ -144,12 +144,10 @@ type PurchaseOrderLineEditorState = {
 
 type PurchaseOrderEditorState = {
   id?: string;
-  reference: string;
   orderDate: string;
   supplierId: string;
   currencyCode: string;
   description: string;
-  sourcePurchaseRequestId: string;
   lines: PurchaseOrderLineEditorState[];
 };
 
@@ -247,7 +245,6 @@ const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
 };
 
 const EMPTY_REQUEST_EDITOR = (): PurchaseRequestEditorState => ({
-  reference: "",
   requestDate: todayValue(),
   description: "",
   lines: [createEmptyRequestLine()],
@@ -256,18 +253,15 @@ const EMPTY_REQUEST_EDITOR = (): PurchaseRequestEditorState => ({
 const EMPTY_CONVERSION_EDITOR = (): PurchaseRequestConversionState => ({
   supplierId: "",
   orderDate: todayValue(),
-  reference: "",
   currencyCode: "JOD",
   description: "",
 });
 
 const EMPTY_ORDER_EDITOR = (): PurchaseOrderEditorState => ({
-  reference: "",
   orderDate: todayValue(),
   supplierId: "",
   currencyCode: "JOD",
   description: "",
-  sourcePurchaseRequestId: "",
   lines: [createEmptyOrderLine()],
 });
 
@@ -563,7 +557,6 @@ export function PurchasesPage() {
     mutationFn: () =>
       createPurchaseRequest(
         {
-          reference: requestEditor.reference || undefined,
           requestDate: requestEditor.requestDate,
           description: requestEditor.description || undefined,
           lines: mapRequestEditorLines(requestEditor.lines),
@@ -582,7 +575,6 @@ export function PurchasesPage() {
       updatePurchaseRequest(
         requestEditor.id!,
         {
-          reference: requestEditor.reference || undefined,
           requestDate: requestEditor.requestDate,
           description: requestEditor.description || undefined,
           lines: mapRequestEditorLines(requestEditor.lines),
@@ -635,7 +627,6 @@ export function PurchasesPage() {
         {
           supplierId: conversionEditor.supplierId,
           orderDate: conversionEditor.orderDate,
-          reference: conversionEditor.reference || undefined,
           currencyCode: conversionEditor.currencyCode || undefined,
           description: conversionEditor.description || undefined,
         },
@@ -652,12 +643,10 @@ export function PurchasesPage() {
     mutationFn: () =>
       createPurchaseOrder(
         {
-          reference: orderEditor.reference || undefined,
           orderDate: orderEditor.orderDate,
           supplierId: orderEditor.supplierId,
           currencyCode: orderEditor.currencyCode || undefined,
           description: orderEditor.description || undefined,
-          sourcePurchaseRequestId: orderEditor.sourcePurchaseRequestId || undefined,
           lines: mapOrderEditorLines(orderEditor.lines),
         },
         token,
@@ -674,7 +663,6 @@ export function PurchasesPage() {
       updatePurchaseOrder(
         orderEditor.id!,
         {
-          reference: orderEditor.reference || undefined,
           orderDate: orderEditor.orderDate,
           supplierId: orderEditor.supplierId,
           currencyCode: orderEditor.currencyCode || undefined,
@@ -2303,88 +2291,226 @@ export function PurchasesPage() {
           </div>
         </SidePanel>
 
-        <SidePanel
-          isOpen={isRequestEditorOpen}
-          onClose={closeRequestEditor}
-          title={requestEditor.id ? t("purchases.dialog.editRequest") : t("purchases.dialog.newRequest")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.requests.field.reference")} hint={t("purchases.requests.field.referenceHint")}>
-                <Input value={requestEditor.reference} onChange={(event) => setRequestEditor((current) => ({ ...current, reference: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.requests.field.requestDate")}>
-                <Input type="date" value={requestEditor.requestDate} onChange={(event) => setRequestEditor((current) => ({ ...current, requestDate: event.target.value }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.requests.field.description")}>
-              <Textarea rows={3} value={requestEditor.description} onChange={(event) => setRequestEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.requests.section.editorLines")}</div>
-                <Button variant="secondary" size="sm" onClick={addRequestLine}>
-                  {t("purchases.action.addLine")}
-                </Button>
-              </div>
-
-              {requestEditor.lines.map((line, index) => (
-                <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-bold text-gray-900">{t("purchases.requests.line.label", { index: index + 1 })}</div>
-                    {requestEditor.lines.length > 1 ? (
-                      <Button variant="danger" size="sm" onClick={() => removeRequestLine(line.key)}>
-                        {t("purchases.action.remove")}
-                      </Button>
-                    ) : null}
+        {isRequestEditorOpen ? (
+          <div className="fixed inset-0 z-50 p-3 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={closeRequestEditor} />
+            <div
+              dir={isArabic ? "rtl" : "ltr"}
+              className={cn(
+                "relative mx-auto flex h-full max-w-[1480px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-[#fcfcfb] shadow-[0_30px_80px_rgba(15,23,42,0.18)]",
+                isArabic && "arabic-ui",
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur sm:px-8">
+                <button
+                  type="button"
+                  onClick={closeRequestEditor}
+                  className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                >
+                  <span className="sr-only">{t("purchases.action.cancel")}</span>
+                  <X className="h-6 w-6" />
+                </button>
+                <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                    <ScrollText className="h-6 w-6" />
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label={t("purchases.requests.field.itemOrService")}>
-                      <Input value={line.itemName} onChange={(event) => updateRequestLine(line.key, "itemName", event.target.value)} />
-                    </Field>
-                    <Field label={t("purchases.requests.field.quantity")}>
-                      <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateRequestLine(line.key, "quantity", event.target.value)} />
-                    </Field>
-                  </div>
-                  <Field label={t("purchases.requests.field.lineDescription")}>
-                    <Textarea rows={2} value={line.description} onChange={(event) => updateRequestLine(line.key, "description", event.target.value)} />
-                  </Field>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label={t("purchases.requests.field.deliveryDate")}>
-                      <Input type="date" value={line.requestedDeliveryDate} onChange={(event) => updateRequestLine(line.key, "requestedDeliveryDate", event.target.value)} />
-                    </Field>
-                    <Field label={t("purchases.requests.field.justification")}>
-                      <Textarea rows={2} value={line.justification} onChange={(event) => updateRequestLine(line.key, "justification", event.target.value)} />
-                    </Field>
+                  <div className="space-y-1">
+                    <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
+                      {requestEditor.id ? t("purchases.dialog.editRequest") : t("purchases.dialog.newRequest")}
+                    </div>
+                    <div className="text-sm text-slate-500">{t("purchases.requests.section.description")}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {requestFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {requestFormError}
               </div>
-            ) : null}
 
-            {requestSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {requestSaveError}
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+                <div className="space-y-5">
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                        <ScrollText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                          {t("purchases.requests.section.details")}
+                        </div>
+                        <div className="text-sm text-slate-500">{t("purchases.requests.description")}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Field label={t("purchases.requests.field.requestDate")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={requestEditor.requestDate}
+                            onChange={(event) => setRequestEditor((current) => ({ ...current, requestDate: event.target.value }))}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          />
+                          <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+                    </div>
+
+                    <div className="mt-4">
+                      <Field label={t("purchases.requests.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <Textarea
+                          rows={3}
+                          value={requestEditor.description}
+                          onChange={(event) => setRequestEditor((current) => ({ ...current, description: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                          <Package2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                            {t("purchases.requests.section.editorLines")}
+                          </div>
+                          <div className="text-sm text-slate-500">{t("purchases.requests.section.editorLinesDescription")}</div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={addRequestLine}
+                        className="rounded-2xl border-blue-200 px-4 text-blue-700 hover:bg-blue-50"
+                      >
+                        <CirclePlus className="h-4 w-4" />
+                        {t("purchases.action.addLine")}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {requestEditor.lines.map((line, index) => (
+                        <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                <span className="text-sm font-extrabold">{index + 1}</span>
+                              </div>
+                              <div>
+                                <div className={cn("text-sm text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                                  {t("purchases.requests.line.label", { index: index + 1 })}
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeRequestLine(line.key)}
+                              disabled={requestEditor.lines.length === 1}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t("purchases.action.remove")}
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="grid gap-4 xl:grid-cols-4">
+                              <Field label={t("purchases.requests.field.itemOrService")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                <Select
+                                  value={line.itemId}
+                                  onChange={(event) => {
+                                    const itemId = event.target.value;
+                                    const item = inventoryItems.find((i) => i.id === itemId);
+                                    updateRequestLine(line.key, "itemId", itemId);
+                                    updateRequestLine(line.key, "itemName", item?.name ?? "");
+                                  }}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                >
+                                  <option value="">
+                                    {inventoryItemsQuery.isLoading ? t("purchases.requests.state.loadingItems") : t("purchases.requests.empty.selectItemOrService")}
+                                  </option>
+                                  {inventoryItems.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.code} · {item.name}
+                                    </option>
+                                  ))}
+                                </Select>
+                              </Field>
+                              <Field label={t("purchases.requests.field.quantity")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                <Input
+                                  type="number"
+                                  min="0.0001"
+                                  step="0.0001"
+                                  value={line.quantity}
+                                  onChange={(event) => updateRequestLine(line.key, "quantity", event.target.value)}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+                              </Field>
+                              <Field label={t("purchases.requests.field.deliveryDate")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                <Input
+                                  type="date"
+                                  value={line.requestedDeliveryDate}
+                                  onChange={(event) => updateRequestLine(line.key, "requestedDeliveryDate", event.target.value)}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+                              </Field>
+
+                              <Field label={t("purchases.requests.field.justification")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                <Textarea
+                                  rows={2}
+                                  value={line.justification}
+                                  onChange={(event) => updateRequestLine(line.key, "justification", event.target.value)}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+                              </Field>
+                            </div>
+
+                            <Field label={t("purchases.requests.field.lineDescription")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                              <Textarea
+                                rows={2}
+                                value={line.description}
+                                onChange={(event) => updateRequestLine(line.key, "description", event.target.value)}
+                                className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {requestFormError ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      {requestFormError}
+                    </div>
+                  ) : null}
+
+                  {requestSaveError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {requestSaveError}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeRequestEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (requestEditor.id ? updatePurchaseRequestMutation.mutate() : createPurchaseRequestMutation.mutate())} disabled={Boolean(requestFormError) || createPurchaseRequestMutation.isPending || updatePurchaseRequestMutation.isPending}>
-                {requestEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-              </Button>
+              <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
+                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                  <Button variant="secondary" onClick={closeRequestEditor} className="rounded-2xl px-6">
+                    {t("purchases.action.cancel")}
+                  </Button>
+                  <Button
+                    onClick={() => (requestEditor.id ? updatePurchaseRequestMutation.mutate() : createPurchaseRequestMutation.mutate())}
+                    disabled={Boolean(requestFormError) || createPurchaseRequestMutation.isPending || updatePurchaseRequestMutation.isPending}
+                    className="rounded-2xl bg-blue-600 px-6 hover:bg-blue-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    {requestEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </SidePanel>
+        ) : null}
 
         <SidePanel
           isOpen={isConversionOpen}
@@ -2411,10 +2537,6 @@ export function PurchasesPage() {
                 <Input value={conversionEditor.currencyCode} maxLength={8} onChange={(event) => setConversionEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
               </Field>
             </div>
-
-            <Field label={t("purchases.requests.field.orderReference")} hint={t("purchases.requests.field.orderReferenceHint")}>
-              <Input value={conversionEditor.reference} onChange={(event) => setConversionEditor((current) => ({ ...current, reference: event.target.value }))} />
-            </Field>
 
             <Field label={t("purchases.requests.field.orderDescription")}>
               <Textarea rows={3} value={conversionEditor.description} onChange={(event) => setConversionEditor((current) => ({ ...current, description: event.target.value }))} />
@@ -2443,141 +2565,307 @@ export function PurchasesPage() {
           </div>
         </SidePanel>
 
-        <SidePanel
-          isOpen={isOrderEditorOpen}
-          onClose={closeOrderEditor}
-          title={orderEditor.id ? t("purchases.dialog.editOrder") : t("purchases.dialog.newOrder")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.orders.field.reference")} hint={t("purchases.orders.field.referenceHint")}>
-                <Input value={orderEditor.reference} onChange={(event) => setOrderEditor((current) => ({ ...current, reference: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.orders.field.orderDate")}>
-                <Input type="date" value={orderEditor.orderDate} onChange={(event) => setOrderEditor((current) => ({ ...current, orderDate: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.orders.field.supplier")}>
-                <Select
-                  value={orderEditor.supplierId}
-                  onChange={(event) => {
-                    const supplierId = event.target.value;
-                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
-                    setOrderEditor((current) => ({
-                      ...current,
-                      supplierId,
-                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
-                    }));
-                  }}
+        {isOrderEditorOpen ? (
+          <div className="fixed inset-0 z-50 p-3 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={closeOrderEditor} />
+            <div
+              dir={isArabic ? "rtl" : "ltr"}
+              className={cn(
+                "relative mx-auto flex h-full max-w-[1480px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-[#fcfcfb] shadow-[0_30px_80px_rgba(15,23,42,0.18)]",
+                isArabic && "arabic-ui",
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur sm:px-8">
+                <button
+                  type="button"
+                  onClick={closeOrderEditor}
+                  className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
                 >
-                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
-                  {activeSuppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.code} · {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("purchases.orders.field.currency")}>
-                <Input value={orderEditor.currencyCode} maxLength={8} onChange={(event) => setOrderEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.orders.field.sourceRequest")}>
-              <Select value={orderEditor.sourcePurchaseRequestId} onChange={(event) => setOrderEditor((current) => ({ ...current, sourcePurchaseRequestId: event.target.value }))} disabled={Boolean(orderEditor.id)}>
-                <option value="">{t("purchases.orders.empty.manual")}</option>
-                {purchaseRequests
-                  .filter((request) => request.status === "APPROVED" || request.status === "CLOSED")
-                  .map((request) => (
-                    <option key={request.id} value={request.id}>
-                      {request.reference}
-                    </option>
-                  ))}
-              </Select>
-            </Field>
-
-            <Field label={t("purchases.orders.field.description")}>
-              <Textarea rows={3} value={orderEditor.description} onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.orders.section.editorLines")}</div>
-                <Button variant="secondary" size="sm" onClick={addOrderLine}>
-                  {t("purchases.action.addLine")}
-                </Button>
-              </div>
-
-              {orderEditor.lines.map((line, index) => {
-                const quantity = Number(line.quantity || 0);
-                const unitPrice = Number(line.unitPrice || 0);
-                const taxAmount = Number(line.taxAmount || 0);
-                const lineTotal = quantity * unitPrice + taxAmount;
-
-                return (
-                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-bold text-gray-900">{t("purchases.orders.line.label", { index: index + 1 })}</div>
-                      {orderEditor.lines.length > 1 ? (
-                        <Button variant="danger" size="sm" onClick={() => removeOrderLine(line.key)}>
-                          {t("purchases.action.remove")}
-                        </Button>
-                      ) : null}
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label={t("purchases.orders.field.itemOrService")}>
-                        <Input value={line.itemName} onChange={(event) => updateOrderLine(line.key, "itemName", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.orders.field.deliveryDate")}>
-                        <Input type="date" value={line.requestedDeliveryDate} onChange={(event) => updateOrderLine(line.key, "requestedDeliveryDate", event.target.value)} />
-                      </Field>
-                    </div>
-                    <Field label={t("purchases.orders.field.lineDescription")}>
-                      <Textarea rows={2} value={line.description} onChange={(event) => updateOrderLine(line.key, "description", event.target.value)} />
-                    </Field>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <Field label={t("purchases.orders.field.quantity")}>
-                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateOrderLine(line.key, "quantity", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.orders.field.unitPrice")}>
-                        <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(event) => updateOrderLine(line.key, "unitPrice", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.orders.field.taxAmount")}>
-                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateOrderLine(line.key, "taxAmount", event.target.value)} />
-                      </Field>
-                    </div>
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                      {t("purchases.orders.field.lineTotal")}: {formatCurrency(lineTotal)}
-                    </div>
+                  <span className="sr-only">{t("purchases.action.cancel")}</span>
+                  <X className="h-6 w-6" />
+                </button>
+                <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                    <FilePlus className="h-6 w-6" />
                   </div>
-                );
-              })}
-            </div>
-
-            {orderFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {orderFormError}
+                  <div className="space-y-1">
+                    <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
+                      {orderEditor.id ? t("purchases.dialog.editOrder") : t("purchases.dialog.newOrder")}
+                    </div>
+                    <div className="text-sm text-slate-500">{t("purchases.orders.section.description")}</div>
+                  </div>
+                </div>
               </div>
-            ) : null}
 
-            {orderSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {orderSaveError}
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+                <div className="space-y-5">
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                        <FilePlus className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                          {t("purchases.orders.section.details")}
+                        </div>
+                        <div className="text-sm text-slate-500">{t("purchases.orders.description")}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr_1fr]">
+                      <Field label={t("purchases.orders.field.orderDate")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={orderEditor.orderDate}
+                            onChange={(event) => setOrderEditor((current) => ({ ...current, orderDate: event.target.value }))}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          />
+                          <CalendarDays className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.orders.field.supplier")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <div className="relative">
+                          <Select
+                            value={orderEditor.supplierId}
+                            onChange={(event) => {
+                              const supplierId = event.target.value;
+                              const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                              setOrderEditor((current) => ({
+                                ...current,
+                                supplierId,
+                                currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                              }));
+                            }}
+                            className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
+                          >
+                            <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                            {activeSuppliers.map((supplier) => (
+                              <option key={supplier.id} value={supplier.id}>
+                                {supplier.code} · {supplier.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.orders.field.currency")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <Input
+                          value={orderEditor.currencyCode}
+                          maxLength={8}
+                          onChange={(event) => setOrderEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))}
+                          className={cn("border-slate-200 bg-slate-50/70 uppercase", isArabic && "arabic-ui text-right")}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="mt-4">
+                      <Field label={t("purchases.orders.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                        <Textarea
+                          rows={3}
+                          value={orderEditor.description}
+                          onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))}
+                          className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                          <Package2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                            {t("purchases.orders.section.editorLines")}
+                          </div>
+                          <div className="text-sm text-slate-500">{t("purchases.orders.section.editorLinesDescription")}</div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={addOrderLine}
+                        className="rounded-2xl border-emerald-200 px-4 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <CirclePlus className="h-4 w-4" />
+                        {t("purchases.action.addLine")}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {orderEditor.lines.map((line, index) => {
+                        const quantity = Number(line.quantity || 0);
+                        const unitPrice = Number(line.unitPrice || 0);
+                        const taxAmount = Number(line.taxAmount || 0);
+                        const lineTotal = quantity * unitPrice + taxAmount;
+
+                        return (
+                          <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                              <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                  <span className="text-sm font-extrabold">{index + 1}</span>
+                                </div>
+                                <div>
+                                  <div className={cn("text-sm text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                                    {t("purchases.orders.line.label", { index: index + 1 })}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{formatCurrency(lineTotal)}</div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeOrderLine(line.key)}
+                                disabled={orderEditor.lines.length === 1}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                {t("purchases.action.remove")}
+                              </button>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="grid gap-4 xl:grid-cols-5">
+                                <Field label={t("purchases.orders.field.itemOrService")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                  <Select
+                                    value={line.itemId}
+                                    onChange={(event) => {
+                                      const itemId = event.target.value;
+                                      const item = inventoryItems.find((i) => i.id === itemId);
+                                      updateOrderLine(line.key, "itemId", itemId);
+                                      updateOrderLine(line.key, "itemName", item?.name ?? "");
+                                    }}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  >
+                                    <option value="">
+                                      {inventoryItemsQuery.isLoading ? t("purchases.orders.state.loadingItems") : t("purchases.orders.empty.selectItemOrService")}
+                                    </option>
+                                    {inventoryItems.map((item) => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.code} · {item.name}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </Field>
+
+                                <Field label={t("purchases.orders.field.deliveryDate")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                  <Input
+                                    type="date"
+                                    value={line.requestedDeliveryDate}
+                                    onChange={(event) => updateOrderLine(line.key, "requestedDeliveryDate", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+                                </Field>
+
+                                <Field label={t("purchases.orders.field.quantity")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                  <Input
+                                    type="number"
+                                    min="0.0001"
+                                    step="0.0001"
+                                    value={line.quantity}
+                                    onChange={(event) => updateOrderLine(line.key, "quantity", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+                                </Field>
+
+                                <Field label={t("purchases.orders.field.unitPrice")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.unitPrice}
+                                    onChange={(event) => updateOrderLine(line.key, "unitPrice", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+                                </Field>
+
+                                <Field label={t("purchases.orders.field.taxAmount")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.taxAmount}
+                                    onChange={(event) => updateOrderLine(line.key, "taxAmount", event.target.value)}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  />
+                                </Field>
+                              </div>
+
+                              <Field label={t("purchases.orders.field.lineDescription")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
+                                <Textarea
+                                  rows={2}
+                                  value={line.description}
+                                  onChange={(event) => updateOrderLine(line.key, "description", event.target.value)}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+                              </Field>
+
+                              <div className="grid grid-cols-[1fr_1fr] gap-3">
+                                <div />
+                                <div>
+                                  <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
+                                    {t("purchases.orders.field.lineTotal")}
+                                  </div>
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={lineTotal.toFixed(2)}
+                                      readOnly
+                                      disabled
+                                      className={cn("border-slate-200 bg-slate-100 text-purple-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                                    />
+                                    <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
+                                      {orderEditor.currencyCode || "JOD"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {orderFormError ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      {orderFormError}
+                    </div>
+                  ) : null}
+
+                  {orderSaveError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {orderSaveError}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeOrderEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (orderEditor.id ? updatePurchaseOrderMutation.mutate() : createPurchaseOrderMutation.mutate())} disabled={Boolean(orderFormError) || createPurchaseOrderMutation.isPending || updatePurchaseOrderMutation.isPending}>
-                {orderEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-              </Button>
+              <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
+                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                  <Button variant="secondary" onClick={closeOrderEditor} className="rounded-2xl px-6">
+                    {t("purchases.action.cancel")}
+                  </Button>
+                  <Button
+                    onClick={() => (orderEditor.id ? updatePurchaseOrderMutation.mutate() : createPurchaseOrderMutation.mutate())}
+                    disabled={Boolean(orderFormError) || createPurchaseOrderMutation.isPending || updatePurchaseOrderMutation.isPending}
+                    className="rounded-2xl bg-purple-600 px-6 hover:bg-purple-700"
+                  >
+                    <Save className="h-4 w-4" />
+                    {orderEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </SidePanel>
+        ) : null}
 
         <SidePanel
           isOpen={isReceiptEditorOpen}
@@ -3461,11 +3749,11 @@ export function PurchasesPage() {
     updatePurchaseRequestMutation.reset();
     setRequestEditor({
       id: request.id,
-      reference: request.reference,
       requestDate: request.requestDate.slice(0, 10),
       description: request.description ?? "",
       lines: request.lines.map((line) => ({
         key: line.id,
+        itemId: line.itemId ?? "",
         itemName: line.itemName ?? "",
         description: line.description,
         quantity: line.quantity,
@@ -3514,7 +3802,6 @@ export function PurchasesPage() {
     setConversionEditor({
       supplierId: defaultSupplier?.id ?? "",
       orderDate: todayValue(),
-      reference: "",
       currencyCode: defaultSupplier?.defaultCurrency ?? "JOD",
       description: selectedPurchaseRequest?.description ?? "",
     });
@@ -3544,14 +3831,13 @@ export function PurchasesPage() {
     updatePurchaseOrderMutation.reset();
     setOrderEditor({
       id: order.id,
-      reference: order.reference,
       orderDate: order.orderDate.slice(0, 10),
       supplierId: order.supplier.id,
       currencyCode: order.currencyCode,
       description: order.description ?? "",
-      sourcePurchaseRequestId: order.sourcePurchaseRequest?.id ?? "",
       lines: order.lines.map((line) => ({
         key: line.id,
+        itemId: line.itemId ?? "",
         itemName: line.itemName ?? "",
         description: line.description,
         quantity: line.quantity,
@@ -3913,6 +4199,9 @@ function getPurchaseRequestFormError(editor: PurchaseRequestEditorState) {
     return "At least one request line is required. يجب إضافة سطر طلب واحد على الأقل.";
   }
   for (const line of editor.lines) {
+    if (!line.itemId) {
+      return "Each request line needs an inventory item. كل سطر طلب يحتاج إلى صنف من المخزون.";
+    }
     if (!line.description.trim()) {
       return "Each request line needs a description. كل سطر طلب يحتاج إلى وصف.";
     }
@@ -3947,6 +4236,9 @@ function getPurchaseOrderFormError(editor: PurchaseOrderEditorState) {
     return "At least one purchase order line is required. يجب إضافة سطر أمر شراء واحد على الأقل.";
   }
   for (const line of editor.lines) {
+    if (!line.itemId) {
+      return "Each order line needs an inventory item. كل سطر أمر شراء يحتاج إلى صنف من المخزون.";
+    }
     if (!line.description.trim()) {
       return "Each order line needs a description. كل سطر أمر شراء يحتاج إلى وصف.";
     }
@@ -4107,6 +4399,7 @@ function getMutationErrorMessage(error: unknown) {
 function createEmptyRequestLine(): PurchaseRequestLineEditorState {
   return {
     key: randomKey(),
+    itemId: "",
     itemName: "",
     description: "",
     quantity: "1",
@@ -4118,6 +4411,7 @@ function createEmptyRequestLine(): PurchaseRequestLineEditorState {
 function createEmptyOrderLine(): PurchaseOrderLineEditorState {
   return {
     key: randomKey(),
+    itemId: "",
     itemName: "",
     description: "",
     quantity: "1",
@@ -4188,6 +4482,7 @@ function createEmptyDebitNoteLine(): DebitNoteLineEditorState {
 
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
   return lines.map((line) => ({
+    itemId: line.itemId || undefined,
     itemName: line.itemName || undefined,
     description: line.description,
     quantity: Number(line.quantity),
@@ -4198,6 +4493,7 @@ function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
 
 function mapOrderEditorLines(lines: PurchaseOrderLineEditorState[]) {
   return lines.map((line) => ({
+    itemId: line.itemId || undefined,
     itemName: line.itemName || undefined,
     description: line.description,
     quantity: Number(line.quantity),

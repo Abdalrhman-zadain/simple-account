@@ -9,6 +9,7 @@ export function Field({
   hint,
   className,
   labelClassName,
+  labelAlign,
   children,
 }: {
   label: string;
@@ -17,11 +18,19 @@ export function Field({
   hint?: string;
   className?: string;
   labelClassName?: string;
+  labelAlign?: "start" | "end";
   children: ReactNode;
 }) {
   return (
     <label className={cn("block", className)}>
-      <span className={cn("mb-2 flex items-center gap-1 text-sm font-semibold tracking-wide text-gray-900", labelClassName)}>
+      <span
+        className={cn(
+          "mb-2 flex w-full items-center gap-1 text-sm font-semibold tracking-wide text-gray-900",
+          labelAlign === "end" && "justify-end text-right",
+          labelAlign === "start" && "justify-start text-left",
+          labelClassName,
+        )}
+      >
         <span>{label}</span>
         {required ? <span className="text-base leading-none text-red-500">*</span> : null}
       </span>

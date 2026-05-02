@@ -64,6 +64,7 @@ This document captures the initial Phase 4 Purchases requirements baseline in th
 | REQ-PU-010 | The system shall allow the user to save purchase requests in draft status before submission or approval. | يجب أن يسمح النظام للمستخدم بحفظ طلبات الشراء كمسودات قبل التقديم أو الاعتماد. |
 | REQ-PU-011 | The system shall require a request date for every purchase request. | يجب أن يطلب النظام تاريخ الطلب لكل طلب شراء. |
 | REQ-PU-012 | The system shall allow the user to enter one or multiple requested items or services in a purchase request. | يجب أن يسمح النظام للمستخدم بإدخال بند واحد أو عدة بنود من المواد أو الخدمات في طلب الشراء. |
+| REQ-PU-012A | The system shall allow purchase-request lines to link to active inventory item cards while preserving the item name snapshot on the request line. | يجب أن يسمح النظام بربط بنود طلب الشراء ببطاقات الأصناف النشطة في المخزون مع حفظ اسم الصنف كلقطة داخل سطر الطلب. |
 | REQ-PU-013 | The system shall allow the user to enter quantity, description, requested delivery date, and justification for each request line. | يجب أن يسمح النظام للمستخدم بإدخال الكمية والوصف وتاريخ التسليم المطلوب والمبرر لكل سطر من طلب الشراء. |
 | REQ-PU-014 | The system shall assign or require a unique reference number for each purchase request. | يجب أن يقوم النظام بتوليد أو طلب رقم مرجع فريد لكل طلب شراء. |
 | REQ-PU-015 | The system shall allow an approved purchase request to be converted into a purchase order. | يجب أن يسمح النظام بتحويل طلب الشراء المعتمد إلى أمر شراء. |
@@ -82,6 +83,7 @@ Need -> Purchase Request -> Approval -> Purchase Order -> Receipt/Invoice
 | REQ-PU-019 | The system shall require supplier selection for every purchase order. | يجب أن يطلب النظام اختيار المورد لكل أمر شراء. |
 | REQ-PU-020 | The system shall require a purchase order date for every purchase order. | يجب أن يطلب النظام تاريخ أمر الشراء لكل أمر شراء. |
 | REQ-PU-021 | The system shall allow the user to enter one or multiple order lines with item or service description, quantity, unit price, tax, and line total. | يجب أن يسمح النظام للمستخدم بإدخال سطر واحد أو عدة سطور لأمر الشراء تشمل وصف الصنف أو الخدمة والكمية وسعر الوحدة والضريبة وإجمالي السطر. |
+| REQ-PU-021A | The system shall allow purchase-order lines to link to active inventory item cards while preserving the item name snapshot on the order line. | يجب أن يسمح النظام بربط بنود أمر الشراء ببطاقات الأصناف النشطة في المخزون مع حفظ اسم الصنف كلقطة داخل سطر الأمر. |
 | REQ-PU-022 | The system shall assign or require a unique reference number for each purchase order. | يجب أن يقوم النظام بتوليد أو طلب رقم مرجع فريد لكل أمر شراء. |
 | REQ-PU-023 | The system shall allow the user to save purchase orders in draft status before confirmation. | يجب أن يسمح النظام للمستخدم بحفظ أوامر الشراء كمسودات قبل التأكيد. |
 | REQ-PU-024 | The system shall maintain the status of each purchase order, including draft, issued, partially received, fully received, cancelled, and closed. | يجب أن يحتفظ النظام بحالة كل أمر شراء بما يشمل مسودة وصادر ومستلم جزئيًا ومستلم بالكامل وملغى ومغلق. |

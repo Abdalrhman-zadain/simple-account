@@ -221,8 +221,8 @@ export function BankCashAccountsPage() {
         title={t("bankCash.title")}
         description={t("bankCash.description")}
         action={
-          <Button onClick={openCreate}>
-            <CirclePlus className="mr-2 h-4 w-4" />
+          <Button onClick={openCreate} className="gap-2">
+            <CirclePlus className="h-4 w-4 shrink-0" />
             {t("bankCash.button.new")}
           </Button>
         }

@@ -162,10 +162,10 @@ Key fields:
 
 - supplier `code`, `name`, legacy `contactInfo`, structured `phone` / `email` / `address`, required `paymentTerms`, `taxInfo`, `defaultCurrency`, `currentBalance`, and `isActive`
 - purchase request `reference`, `status`, `requestDate`, optional `description`, and linked request lines
-- request line `itemName`, `description`, `quantity`, `requestedDeliveryDate`, and `justification`
+- request line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `requestedDeliveryDate`, and `justification`
 - request status history `status`, `note`, and `changedAt`
 - purchase order `reference`, `status`, `orderDate`, `supplierId`, `currencyCode`, `sourcePurchaseRequestId`, and totals
-- purchase order line `itemName`, `description`, `quantity`, `unitPrice`, `taxAmount`, `lineTotalAmount`, and `requestedDeliveryDate`
+- purchase order line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `taxAmount`, `lineTotalAmount`, and `requestedDeliveryDate`
 - purchase invoice `reference`, `status`, `invoiceDate`, `supplierId`, `currencyCode`, `sourcePurchaseOrderId`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, `allocatedAmount`, `outstandingAmount`, `allocationStatus`, and optional `journalEntryId`
 - purchase invoice line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `accountId`
 - supplier payment `reference`, `status`, `paymentDate`, `supplierId`, `amount`, `allocatedAmount`, `unappliedAmount`, `bankCashAccountId`, and optional `bankCashTransactionId`

@@ -14,6 +14,10 @@ import {
 export class PurchaseRequestLineDto {
   @IsOptional()
   @IsString()
+  itemId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   itemName?: string;
 

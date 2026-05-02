@@ -83,7 +83,7 @@ export const AccountsSearchBar = forwardRef<
                   key={chip.remove}
                   className="inline-flex items-center gap-1.5 rounded-full border border-teal-500/20 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-300"
                 >
-                  {chip.label}
+                  {chip.labelKey ? t(chip.labelKey) : chip.label}
                   <button onClick={() => onRemoveFilter(chip.remove)} className="ml-0.5 transition-colors hover:text-gray-900">
                     <X className="h-3 w-3" />
                   </button>
@@ -96,6 +96,7 @@ export const AccountsSearchBar = forwardRef<
             <AccountsSearchSuggestions
               suggestions={suggestions}
               title={t("accounts.suggestions.title")}
+              translate={t}
               onSelect={onSelectSuggestion}
             />
           )}
