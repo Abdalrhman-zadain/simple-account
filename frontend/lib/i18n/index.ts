@@ -420,6 +420,9 @@ const enTranslations: Record<string, string> = {
   "journal.list.loading": "Loading entries...",
   "journal.list.empty": "No journal entries yet.",
   "journal.entry.noDescription": "No description",
+  "journal.status.DRAFT": "Draft",
+  "journal.status.POSTED": "Posted",
+  "journal.status.REVERSED": "Reversed",
   "journal.action.post": "Post",
   "journal.action.reverse": "Reverse",
   "journal.confirm.post": "Post this entry?",
@@ -870,6 +873,29 @@ Object.assign(enTranslations, {
   "salesReceivables.field.currentOutstandingBalance":
     "Current outstanding balance: {amount}",
   "salesReceivables.field.creditNoteTotal": "Credit Note Total",
+  "salesReceivables.creditNote.section.noticeData": "Credit Note Data",
+  "salesReceivables.creditNote.reason": "Description (Discount Reason)",
+  "salesReceivables.creditNote.reasonPlaceholder":
+    "Special customer discount on invoice {invoice}",
+  "salesReceivables.creditNote.type": "Credit Note Type",
+  "salesReceivables.creditNote.postSaleDiscount": "Post-sale discount",
+  "salesReceivables.creditNote.postSaleDiscountHint":
+    "Issue a credit note to discount part of a sales invoice.",
+  "salesReceivables.creditNote.availableDiscount":
+    "Available discount balance: {amount}",
+  "salesReceivables.creditNote.discountDetails": "Discount Details",
+  "salesReceivables.creditNote.defaultDiscountLabel": "Post-sale discount 5%",
+  "salesReceivables.creditNote.discountType": "Discount Type / Description",
+  "salesReceivables.creditNote.amountBeforeTax": "Discount Amount (Before Tax)",
+  "salesReceivables.creditNote.summary": "Credit Note Summary",
+  "salesReceivables.creditNote.totalDiscount": "Total Credit Note Discount",
+  "salesReceivables.creditNote.postingHint":
+    "This credit note will be posted against the linked invoice.",
+  "salesReceivables.creditNote.journalAtApproval": "Accounting entry on approval:",
+  "salesReceivables.creditNote.journalDebit": "Debit / {account}",
+  "salesReceivables.creditNote.journalCredit": "Credit / {account}",
+  "salesReceivables.creditNote.addDiscountLine": "Add discount line",
+  "salesReceivables.creditNote.approveAndIssue": "Approve and issue credit note",
   "salesReceivables.field.agingDescription":
     "Aging uses posted invoices with outstanding balances and buckets them by invoice age.",
   "salesReceivables.summary.subtotalBeforeTax": "Subtotal Before Tax",
@@ -1350,6 +1376,43 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.field.amount": "Amount",
   "purchases.debitNotes.field.taxAmount": "Tax Amount",
   "purchases.debitNotes.field.lineTotal": "Line Total",
+  "purchases.debitNotes.discountNotice.noticeData": "Debit Note Data",
+  "purchases.debitNotes.discountNotice.noticeType": "Debit Note Type",
+  "purchases.debitNotes.discountNotice.supplierDiscount": "Supplier discount debit note",
+  "purchases.debitNotes.discountNotice.supplierDiscountHint":
+    "Used to reduce the amount due on a purchase invoice.",
+  "purchases.debitNotes.discountNotice.selectRelatedInvoice": "Select related purchase invoice",
+  "purchases.debitNotes.discountNotice.availableDiscount": "Available discount balance: {amount}",
+  "purchases.debitNotes.discountNotice.description": "Description / Discount reason",
+  "purchases.debitNotes.discountNotice.descriptionPlaceholder":
+    "Supplier discount on purchase invoice {invoice}",
+  "purchases.debitNotes.discountNotice.discountDetails": "Discount Details",
+  "purchases.debitNotes.discountNotice.discountDetailsHint":
+    "Enter the discount details and the account that will be reduced.",
+  "purchases.debitNotes.discountNotice.discountAccount": "System Offset Account",
+  "purchases.debitNotes.discountNotice.amountBeforeTax": "Discount Amount Before Tax",
+  "purchases.debitNotes.discountNotice.defaultReason": "Post-purchase discount",
+  "purchases.debitNotes.discountNotice.priceCorrection": "Purchase price correction",
+  "purchases.debitNotes.discountNotice.purchaseReturn": "Purchase return",
+  "purchases.debitNotes.discountNotice.linkedInvoiceDistributionAccount":
+    "Linked invoice line accounts",
+  "purchases.debitNotes.discountNotice.standaloneAdjustmentAccount":
+    "Purchase adjustment account",
+  "purchases.debitNotes.discountNotice.addDiscountLine": "Add line",
+  "purchases.debitNotes.discountNotice.linesTotal": "Lines total",
+  "purchases.debitNotes.discountNotice.journalPreview": "Accounting entry preview on approval",
+  "purchases.debitNotes.discountNotice.postingHint":
+    "This debit note will be posted as a discount against the linked invoice.",
+  "purchases.debitNotes.discountNotice.journalDebit": "Debit / Suppliers (payable account)",
+  "purchases.debitNotes.discountNotice.journalCreditLinked":
+    "Credit / linked purchase-invoice line accounts",
+  "purchases.debitNotes.discountNotice.journalCreditStandalone":
+    "Credit / purchase adjustment account",
+  "purchases.debitNotes.discountNotice.subtotalBeforeTax": "Subtotal Before Tax",
+  "purchases.debitNotes.discountNotice.totalDiscount": "Total Debit Note Discount",
+  "purchases.debitNotes.discountNotice.supplierBalanceWarning":
+    "The amount due to the supplier will be reduced according to this discount.",
+  "purchases.debitNotes.discountNotice.approveAndIssue": "Approve and issue debit note",
   "purchases.debitNotes.line.label": "Line {index}",
   "purchases.debitNotes.line.qtyAmount": "Qty {quantity} · Base {amount}",
   "purchases.debitNotes.status.applied": "Applied",

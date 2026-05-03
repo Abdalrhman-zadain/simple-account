@@ -702,6 +702,16 @@ export function SalesReceivablesPage() {
     },
   });
 
+  const mapCreditNoteLines = () =>
+    mapSalesLines(
+      creditNoteEditor.lines.map((line) => ({
+        ...line,
+        itemName: line.itemName || t("salesReceivables.creditNote.defaultDiscountLabel"),
+        quantity: line.quantity || "1",
+        discountAmount: line.discountAmount || "",
+      })),
+    );
+
   const createCreditNoteMutation = useMutation({
     mutationFn: () =>
       createCreditNote(
@@ -712,7 +722,7 @@ export function SalesReceivablesPage() {
           customerId: creditNoteEditor.customerId,
           salesInvoiceId: creditNoteEditor.salesInvoiceId || undefined,
           description: creditNoteEditor.description || undefined,
-          lines: mapSalesLines(creditNoteEditor.lines),
+          lines: mapCreditNoteLines(),
         },
         token,
       ),
@@ -735,7 +745,7 @@ export function SalesReceivablesPage() {
           customerId: creditNoteEditor.customerId,
           salesInvoiceId: creditNoteEditor.salesInvoiceId || undefined,
           description: creditNoteEditor.description || undefined,
-          lines: mapSalesLines(creditNoteEditor.lines),
+          lines: mapCreditNoteLines(),
         },
         token,
       ),
@@ -861,6 +871,16 @@ export function SalesReceivablesPage() {
     allocateReceiptMutation.error;
 
   const errorMessage = currentError instanceof Error ? currentError.message : null;
+  const saveAndPostCreditNote = async () => {
+    const saved = creditNoteEditor.id
+      ? await updateCreditNoteMutation.mutateAsync()
+      : await createCreditNoteMutation.mutateAsync();
+
+    await postCreditNoteMutation.mutateAsync(saved.id);
+    setIsCreditNoteEditorOpen(false);
+    setCreditNoteEditor(EMPTY_CREDIT_NOTE_EDITOR());
+  };
+
   const tabs: Array<{ id: SalesTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "customers", label: t("salesReceivables.tab.customers"), icon: Users },
     { id: "quotations", label: t("salesReceivables.tab.quotations"), icon: FilePlus },
@@ -2128,9 +2148,10 @@ export function SalesReceivablesPage() {
         customers={activeCustomers}
         invoices={matchingCustomerInvoices}
         revenueAccounts={revenueAccountsQuery.data ?? []}
-        isSubmitting={createCreditNoteMutation.isPending || updateCreditNoteMutation.isPending}
+        isSubmitting={createCreditNoteMutation.isPending || updateCreditNoteMutation.isPending || postCreditNoteMutation.isPending}
         onChange={setCreditNoteEditor}
         onSubmit={() => (creditNoteEditor.id ? updateCreditNoteMutation.mutate() : createCreditNoteMutation.mutate())}
+        onSubmitAndPost={saveAndPostCreditNote}
       />
 
       <ReceiptEditorModal

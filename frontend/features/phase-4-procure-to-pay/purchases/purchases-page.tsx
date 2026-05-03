@@ -5,14 +5,17 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LuCalendarDays as CalendarDays,
+  LuCheck as Check,
   LuCirclePlus as CirclePlus,
   LuFileMinus as FileMinus,
   LuFilePlus2 as FilePlus,
   LuFileText as FileText,
+  LuInfo as Info,
   LuPackage2 as Package2,
   LuReceiptText as ReceiptText,
   LuSave as Save,
   LuScrollText as ScrollText,
+  LuTag as Tag,
   LuTrash2 as Trash2,
   LuUsers as Users,
   LuUserRound as UserRound,
@@ -1055,6 +1058,18 @@ export function PurchasesPage() {
   const activeDebitNoteActionMutationPending =
     postDebitNoteMutation.isPending || cancelDebitNoteMutation.isPending || reverseDebitNoteMutation.isPending;
   const invoiceTotals = useMemo(() => calculateInvoiceEditorTotals(invoiceEditor.lines), [invoiceEditor.lines]);
+  const debitNoteTotals = useMemo(() => calculateDebitNoteEditorTotals(debitNoteEditor.lines), [debitNoteEditor.lines]);
+  const selectedDebitNoteSupplier = activeSuppliers.find((supplier) => supplier.id === debitNoteEditor.supplierId);
+  const selectedDebitNoteInvoice = purchaseInvoices.find((invoice) => invoice.id === debitNoteEditor.purchaseInvoiceId);
+  const debitNoteCurrency = debitNoteEditor.currencyCode || selectedDebitNoteSupplier?.defaultCurrency || selectedDebitNoteInvoice?.currencyCode || "JOD";
+  const debitNoteAvailableDiscount = selectedDebitNoteInvoice ? Number(selectedDebitNoteInvoice.outstandingAmount) : null;
+  const saveAndPostDebitNote = async () => {
+    const saved = debitNoteEditor.id
+      ? await updateDebitNoteMutation.mutateAsync()
+      : await createDebitNoteMutation.mutateAsync();
+
+    await postDebitNoteMutation.mutateAsync(saved.id);
+  };
   const workspaceTabs: WorkspaceTab[] = [
     { id: "suppliers", label: t("purchases.workspace.suppliers"), icon: Users },
     { id: "requests", label: t("purchases.workspace.requests"), icon: FilePlus },
@@ -3587,132 +3602,326 @@ export function PurchasesPage() {
           </div>
         ) : null}
 
-        <SidePanel
-          isOpen={isDebitNoteEditorOpen}
-          onClose={closeDebitNoteEditor}
-          title={debitNoteEditor.id ? t("purchases.dialog.editDebitNote") : t("purchases.dialog.newDebitNote")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.debitNotes.field.reference")} hint={t("purchases.debitNotes.field.referenceHint")}>
-                <Input value={debitNoteEditor.reference} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, reference: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.debitNotes.field.noteDate")}>
-                <Input type="date" value={debitNoteEditor.noteDate} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, noteDate: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.debitNotes.field.supplier")}>
-                <Select
-                  value={debitNoteEditor.supplierId}
-                  onChange={(event) => {
-                    const supplierId = event.target.value;
-                    const supplier = activeSuppliers.find((row) => row.id === supplierId);
-                    setDebitNoteEditor((current) => ({
-                      ...current,
-                      supplierId,
-                      purchaseInvoiceId: "",
-                      currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
-                    }));
-                  }}
+        {isDebitNoteEditorOpen ? (
+          <div className="fixed inset-0 z-50 p-3 sm:p-6">
+            <div className="absolute inset-0 bg-slate-950/35 backdrop-blur-sm" onClick={closeDebitNoteEditor} />
+            <div
+              dir={isArabic ? "rtl" : "ltr"}
+              className={cn(
+                "relative mx-auto flex h-full max-w-[1480px] flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-[#fcfcfb] shadow-[0_30px_80px_rgba(15,23,42,0.18)]",
+                isArabic && "arabic-ui",
+              )}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur sm:px-8">
+                <button
+                  type="button"
+                  onClick={closeDebitNoteEditor}
+                  className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
                 >
-                  <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
-                  {activeSuppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.code} Â· {supplier.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("purchases.debitNotes.field.currency")}>
-                <Input value={debitNoteEditor.currencyCode} maxLength={8} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.debitNotes.field.purchaseInvoice")}>
-              <Select value={debitNoteEditor.purchaseInvoiceId} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, purchaseInvoiceId: event.target.value }))}>
-                <option value="">{t("purchases.debitNotes.empty.standalone")}</option>
-                {purchaseInvoices
-                  .filter((invoice) => !debitNoteEditor.supplierId || invoice.supplier.id === debitNoteEditor.supplierId)
-                  .filter((invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED")
-                  .map((invoice) => (
-                    <option key={invoice.id} value={invoice.id}>
-                      {invoice.reference}
-                    </option>
-                  ))}
-              </Select>
-            </Field>
-
-            <Field label={t("purchases.debitNotes.field.description")}>
-              <Textarea rows={3} value={debitNoteEditor.description} onChange={(event) => setDebitNoteEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.editorLines")}</div>
-                <Button variant="secondary" size="sm" onClick={addDebitNoteLine}>
-                  {t("purchases.action.addLine")}
-                </Button>
-              </div>
-
-              {debitNoteEditor.lines.map((line, index) => {
-                const lineTotal = Number(line.amount || 0) + Number(line.taxAmount || 0);
-
-                return (
-                  <div key={line.key} className="space-y-4 rounded-2xl border border-gray-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-bold text-gray-900">{t("purchases.debitNotes.line.label", { index: index + 1 })}</div>
-                      {debitNoteEditor.lines.length > 1 ? (
-                        <Button variant="danger" size="sm" onClick={() => removeDebitNoteLine(line.key)}>
-                          {t("purchases.action.remove")}
-                        </Button>
-                      ) : null}
-                    </div>
-                    <Field label={t("purchases.debitNotes.field.reason")}>
-                      <Textarea rows={2} value={line.reason} onChange={(event) => updateDebitNoteLine(line.key, "reason", event.target.value)} />
-                    </Field>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <Field label={t("purchases.debitNotes.field.quantity")}>
-                        <Input type="number" min="0.0001" step="0.0001" value={line.quantity} onChange={(event) => updateDebitNoteLine(line.key, "quantity", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.debitNotes.field.amount")}>
-                        <Input type="number" min="0" step="0.01" value={line.amount} onChange={(event) => updateDebitNoteLine(line.key, "amount", event.target.value)} />
-                      </Field>
-                      <Field label={t("purchases.debitNotes.field.taxAmount")}>
-                        <Input type="number" min="0" step="0.01" value={line.taxAmount} onChange={(event) => updateDebitNoteLine(line.key, "taxAmount", event.target.value)} />
-                      </Field>
-                    </div>
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                      {t("purchases.debitNotes.field.lineTotal")}: {formatCurrency(lineTotal)}
-                    </div>
+                  <span className="sr-only">{t("purchases.action.cancel")}</span>
+                  <X className="h-6 w-6" />
+                </button>
+                <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                    <FileMinus className="h-6 w-6" />
                   </div>
-                );
-              })}
-            </div>
-
-            {debitNoteFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {debitNoteFormError}
+                  <div className="space-y-1">
+                    <div className={cn("text-3xl text-slate-900", isArabic ? "arabic-ui-heading" : "font-black tracking-tight")}>
+                      {debitNoteEditor.id ? t("purchases.dialog.editDebitNote") : t("purchases.dialog.newDebitNote")}
+                    </div>
+                    {debitNoteEditor.reference ? <div className="text-sm text-slate-500">{debitNoteEditor.reference}</div> : null}
+                  </div>
+                </div>
               </div>
-            ) : null}
 
-            {debitNoteSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {debitNoteSaveError}
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+                <div className="space-y-5">
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className={cn("mb-5 text-lg text-slate-950", isArabic ? "arabic-ui-heading text-right" : "font-black")}>
+                      {t("purchases.debitNotes.discountNotice.noticeData")}
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.15fr_1fr]">
+                      <Field label={t("purchases.debitNotes.field.noteDate")} required labelAlign={isArabic ? "end" : "start"}>
+                        <div className="relative">
+                          <Input
+                            type="date"
+                            value={debitNoteEditor.noteDate}
+                            onChange={(event) => setDebitNoteEditor((current) => ({ ...current, noteDate: event.target.value }))}
+                            className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
+                          />
+                          <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.debitNotes.field.reference")} labelAlign={isArabic ? "end" : "start"}>
+                        <Input
+                          value={debitNoteEditor.reference}
+                          onChange={(event) => setDebitNoteEditor((current) => ({ ...current, reference: event.target.value }))}
+                          placeholder={t("purchases.debitNotes.field.referenceHint")}
+                          className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                        />
+                      </Field>
+
+                      <Field label={t("purchases.debitNotes.field.supplier")} required labelAlign={isArabic ? "end" : "start"}>
+                        <div className="relative">
+                          <Select
+                            value={debitNoteEditor.supplierId}
+                            onChange={(event) => {
+                              const supplierId = event.target.value;
+                              const supplier = activeSuppliers.find((row) => row.id === supplierId);
+                              setDebitNoteEditor((current) => ({
+                                ...current,
+                                supplierId,
+                                purchaseInvoiceId: "",
+                                currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
+                              }));
+                            }}
+                            className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
+                          >
+                            <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
+                            {activeSuppliers.map((supplier) => (
+                              <option key={supplier.id} value={supplier.id}>
+                                {supplier.code} - {supplier.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <UserRound className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        </div>
+                      </Field>
+
+                      <Field label={t("purchases.debitNotes.field.currency")} labelAlign={isArabic ? "end" : "start"}>
+                        <Input
+                          value={debitNoteCurrency}
+                          maxLength={8}
+                          onChange={(event) => setDebitNoteEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))}
+                          className={cn("h-12 border-slate-200 bg-white font-bold uppercase", isArabic && "text-right")}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                      <div className="space-y-3">
+                        <Field label={t("purchases.debitNotes.field.purchaseInvoice")} required labelAlign={isArabic ? "end" : "start"}>
+                          <Select
+                            value={debitNoteEditor.purchaseInvoiceId}
+                            onChange={(event) => {
+                              const invoice = purchaseInvoices.find((row) => row.id === event.target.value);
+                              setDebitNoteEditor((current) => ({
+                                ...current,
+                                purchaseInvoiceId: event.target.value,
+                                currencyCode: invoice?.currencyCode || current.currencyCode,
+                              }));
+                            }}
+                            className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                          >
+                            <option value="">{t("purchases.debitNotes.discountNotice.selectRelatedInvoice")}</option>
+                            {purchaseInvoices
+                              .filter((invoice) => !debitNoteEditor.supplierId || invoice.supplier.id === debitNoteEditor.supplierId)
+                              .filter((invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED")
+                              .map((invoice) => (
+                                <option key={invoice.id} value={invoice.id}>
+                                  {invoice.reference}
+                                </option>
+                              ))}
+                          </Select>
+                        </Field>
+                        {debitNoteAvailableDiscount !== null ? (
+                          <div className={cn("flex items-center gap-2 text-sm font-bold text-emerald-700", isArabic ? "justify-end text-right" : "")}>
+                            <Info className="h-4 w-4" />
+                            {t("purchases.debitNotes.discountNotice.availableDiscount", {
+                              amount: `${debitNoteCurrency} ${debitNoteAvailableDiscount.toFixed(3)}`,
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div>
+                        <div className={cn("mb-2 text-sm font-semibold text-slate-900", isArabic && "text-right")}>
+                          {t("purchases.debitNotes.discountNotice.noticeType")}
+                        </div>
+                        <div className="flex min-h-[110px] items-center justify-between gap-4 rounded-xl border border-emerald-400 bg-emerald-50/40 px-5 py-4">
+                          <div className={cn("space-y-2", isArabic ? "text-right" : "text-left")}>
+                            <div className="text-base font-bold text-slate-950">{t("purchases.debitNotes.discountNotice.supplierDiscount")}</div>
+                            <div className="text-sm font-medium text-slate-500">{t("purchases.debitNotes.discountNotice.supplierDiscountHint")}</div>
+                          </div>
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                            <Tag className="h-5 w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <Field label={t("purchases.debitNotes.discountNotice.description")} required labelAlign={isArabic ? "end" : "start"}>
+                        <Textarea
+                          rows={4}
+                          value={debitNoteEditor.description}
+                          onChange={(event) => setDebitNoteEditor((current) => ({ ...current, description: event.target.value }))}
+                          placeholder={t("purchases.debitNotes.discountNotice.descriptionPlaceholder", {
+                            invoice: selectedDebitNoteInvoice?.reference ?? "PI-2026-0045",
+                          })}
+                          className={cn("min-h-[112px] resize-none border-slate-200 bg-white", isArabic && "text-right")}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className={cn("space-y-1", isArabic ? "text-right" : "text-left")}>
+                        <div className={cn("text-lg text-slate-950", isArabic ? "arabic-ui-heading" : "font-black")}>
+                          {t("purchases.debitNotes.discountNotice.discountDetails")}
+                        </div>
+                        <div className="text-sm font-medium text-slate-500">{t("purchases.debitNotes.discountNotice.discountDetailsHint")}</div>
+                      </div>
+                      <Button variant="secondary" size="sm" onClick={addDebitNoteLine} className="rounded-2xl border-emerald-200 px-4 text-emerald-700 hover:bg-emerald-50">
+                        <CirclePlus className="h-4 w-4" />
+                        {t("purchases.debitNotes.discountNotice.addDiscountLine")}
+                      </Button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[980px]">
+                        <div className="mb-3 grid grid-cols-[0.45fr_1.25fr_1.6fr_1.15fr_1fr_0.55fr] gap-3 px-1 text-sm font-bold text-slate-900">
+                          <div className="text-center">#</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.field.reason")}</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.discountNotice.discountAccount")}</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.discountNotice.amountBeforeTax")}</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.field.lineTotal")}</div>
+                          <div>{t("purchases.action.remove")}</div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {debitNoteEditor.lines.map((line, index) => {
+                            const lineTotal = Number(line.amount || 0);
+
+                            return (
+                              <div key={line.key} className="grid grid-cols-[0.45fr_1.25fr_1.6fr_1.15fr_1fr_0.55fr] gap-3">
+                                <Input value={`${index + 1}`} readOnly className="h-12 border-slate-200 bg-white text-center font-bold" />
+                                <Select
+                                  value={line.reason || t("purchases.debitNotes.discountNotice.defaultReason")}
+                                  onChange={(event) => updateDebitNoteLine(line.key, "reason", event.target.value)}
+                                  className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                >
+                                  <option value={t("purchases.debitNotes.discountNotice.defaultReason")}>{t("purchases.debitNotes.discountNotice.defaultReason")}</option>
+                                  <option value={t("purchases.debitNotes.discountNotice.priceCorrection")}>{t("purchases.debitNotes.discountNotice.priceCorrection")}</option>
+                                  <option value={t("purchases.debitNotes.discountNotice.purchaseReturn")}>{t("purchases.debitNotes.discountNotice.purchaseReturn")}</option>
+                                </Select>
+                                <Input
+                                  value={
+                                    selectedDebitNoteInvoice
+                                      ? t("purchases.debitNotes.discountNotice.linkedInvoiceDistributionAccount")
+                                      : t("purchases.debitNotes.discountNotice.standaloneAdjustmentAccount")
+                                  }
+                                  readOnly
+                                  className={cn("h-12 border-slate-200 bg-slate-50 text-slate-700", isArabic && "text-right")}
+                                />
+                                <CurrencyInput
+                                  currencyCode={debitNoteCurrency}
+                                  value={line.amount}
+                                  onChange={(value) => updateDebitNoteLine(line.key, "amount", value)}
+                                  isArabic={isArabic}
+                                />
+                                <CurrencyInput
+                                  currencyCode={debitNoteCurrency}
+                                  value={lineTotal.toFixed(3)}
+                                  readOnly
+                                  isArabic={isArabic}
+                                  className="font-bold text-slate-950"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeDebitNoteLine(line.key)}
+                                  disabled={debitNoteEditor.lines.length === 1}
+                                  className="inline-flex h-12 items-center justify-center rounded-xl border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                                >
+                                  <span className="sr-only">{t("purchases.action.remove")}</span>
+                                  <Trash2 className="h-5 w-5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/70 px-5 py-4">
+                      <span className="font-black text-emerald-700">{debitNoteCurrency} {debitNoteTotals.totalAmount.toFixed(3)}</span>
+                      <span className="ms-3 text-sm font-bold text-slate-700">{t("purchases.debitNotes.discountNotice.linesTotal")}</span>
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/45 p-5">
+                      <div className={cn("mb-4 flex items-center gap-2 text-sm font-bold text-slate-700", isArabic ? "justify-end text-right" : "text-left")}>
+                        <Info className="h-5 w-5 text-blue-500" />
+                        {t("purchases.debitNotes.discountNotice.journalPreview")}
+                      </div>
+                      <div className={cn("space-y-2 text-sm text-slate-700", isArabic ? "text-right" : "text-left")}>
+                        <div>{t("purchases.debitNotes.discountNotice.postingHint")}</div>
+                        <PostingPreviewRow label={t("purchases.debitNotes.discountNotice.journalDebit")} value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(3)}`} isArabic={isArabic} />
+                        <PostingPreviewRow
+                          label={
+                            selectedDebitNoteInvoice
+                              ? t("purchases.debitNotes.discountNotice.journalCreditLinked")
+                              : t("purchases.debitNotes.discountNotice.journalCreditStandalone")
+                          }
+                          value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(3)}`}
+                          isArabic={isArabic}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                      <MetricCard label={t("purchases.debitNotes.discountNotice.subtotalBeforeTax")} value={`${debitNoteCurrency} ${debitNoteTotals.subtotalAmount.toFixed(2)}`} />
+                      <MetricCard label={t("purchases.debitNotes.discountNotice.totalDiscount")} value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(2)}`} highlight />
+                    </div>
+
+                    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
+                      {t("purchases.debitNotes.discountNotice.supplierBalanceWarning")}
+                    </div>
+                  </section>
+
+                  {debitNoteFormError ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      {debitNoteFormError}
+                    </div>
+                  ) : null}
+
+                  {debitNoteSaveError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {debitNoteSaveError}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeDebitNoteEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (debitNoteEditor.id ? updateDebitNoteMutation.mutate() : createDebitNoteMutation.mutate())} disabled={Boolean(debitNoteFormError) || createDebitNoteMutation.isPending || updateDebitNoteMutation.isPending}>
-                {debitNoteEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-              </Button>
+              <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
+                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                  <Button variant="secondary" onClick={closeDebitNoteEditor} className="rounded-2xl px-6">
+                    {t("purchases.action.cancel")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => (debitNoteEditor.id ? updateDebitNoteMutation.mutate() : createDebitNoteMutation.mutate())}
+                    disabled={Boolean(debitNoteFormError) || createDebitNoteMutation.isPending || updateDebitNoteMutation.isPending || postDebitNoteMutation.isPending}
+                    className="rounded-2xl border-emerald-200 px-6 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    {t("purchases.action.saveDraft")}
+                  </Button>
+                  <Button
+                    onClick={saveAndPostDebitNote}
+                    disabled={Boolean(debitNoteFormError) || createDebitNoteMutation.isPending || updateDebitNoteMutation.isPending || postDebitNoteMutation.isPending}
+                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                  >
+                    <Check className="h-4 w-4" />
+                    {t("purchases.debitNotes.discountNotice.approveAndIssue")}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </SidePanel>
+        ) : null}
       </div>
     </PageShell>
   );
@@ -4105,7 +4314,7 @@ export function PurchasesPage() {
             key: line.id,
             quantity: line.quantity,
             amount: line.amount,
-            taxAmount: line.taxAmount,
+            taxAmount: "0.00",
             reason: line.reason,
           }))
         : [createEmptyDebitNoteLine()],
@@ -4161,6 +4370,62 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-gray-200 px-4 py-4">
       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
       <div className="mt-2 text-base font-bold text-gray-900">{value}</div>
+    </div>
+  );
+}
+
+function CurrencyInput({
+  currencyCode,
+  value,
+  onChange,
+  readOnly,
+  isArabic,
+  className,
+}: {
+  currencyCode: string;
+  value: string;
+  onChange?: (value: string) => void;
+  readOnly?: boolean;
+  isArabic: boolean;
+  className?: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type="number"
+        min="0"
+        step="0.001"
+        value={value}
+        readOnly={readOnly}
+        disabled={readOnly}
+        onChange={(event) => onChange?.(event.target.value)}
+        className={cn(
+          "h-12 border-slate-200 bg-white disabled:opacity-100",
+          isArabic ? "pe-4 ps-16 text-right" : "ps-16",
+          className,
+        )}
+      />
+      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
+        {currencyCode}
+      </span>
+    </div>
+  );
+}
+
+function PostingPreviewRow({ label, value, isArabic }: { label: string; value: string; isArabic: boolean }) {
+  return (
+    <div className={cn("grid gap-3 sm:grid-cols-[1fr_150px]", isArabic && "sm:grid-cols-[150px_1fr]")}>
+      <div className={cn("font-semibold text-slate-700", isArabic && "sm:order-2")}>{label}</div>
+      <div className={cn("font-bold text-slate-900", isArabic && "sm:order-1")}>{value}</div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-xl border bg-white p-5 shadow-sm", highlight ? "border-emerald-300 bg-emerald-50/60" : "border-slate-200")}>
+      <div className="text-sm font-bold text-slate-600">{label}</div>
+      <div className={cn("mt-3 text-2xl font-black", highlight ? "text-emerald-700" : "text-slate-950")}>{value}</div>
     </div>
   );
 }
@@ -4392,9 +4657,6 @@ function getDebitNoteFormError(editor: DebitNoteEditorState) {
     if (line.amount === "" || Number(line.amount) < 0) {
       return "Each debit note line needs a valid amount.";
     }
-    if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
-      return "Each debit note line needs a valid tax amount.";
-    }
   }
   return null;
 }
@@ -4489,8 +4751,23 @@ function createEmptyDebitNoteLine(): DebitNoteLineEditorState {
     quantity: "1",
     amount: "0.00",
     taxAmount: "0.00",
-    reason: "",
+    reason: "خصم بعد الشراء",
   };
+}
+
+function calculateDebitNoteEditorTotals(lines: DebitNoteLineEditorState[]) {
+  return lines.reduce(
+    (totals, line) => {
+      const amount = Number(line.amount || 0);
+
+      return {
+        subtotalAmount: Number((totals.subtotalAmount + amount).toFixed(2)),
+        taxAmount: 0,
+        totalAmount: Number((totals.totalAmount + amount).toFixed(2)),
+      };
+    },
+    { subtotalAmount: 0, taxAmount: 0, totalAmount: 0 },
+  );
 }
 
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
@@ -4542,7 +4819,7 @@ function mapDebitNoteEditorLines(lines: DebitNoteLineEditorState[]) {
   return lines.map((line) => ({
     quantity: Number(line.quantity),
     amount: Number(line.amount),
-    taxAmount: Number(line.taxAmount),
+    taxAmount: 0,
     reason: line.reason,
   }));
 }

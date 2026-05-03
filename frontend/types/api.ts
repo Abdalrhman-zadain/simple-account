@@ -2758,6 +2758,7 @@ export type JournalEntryLine = {
   accountId: string;
   accountCode?: string;
   accountName?: string;
+  accountNameAr?: string | null;
   lineNumber: number;
   description?: string | null;
   debitAmount: string;

@@ -3,6 +3,7 @@ type JournalEntryLineResponse = {
   accountId: string;
   accountCode?: string;
   accountName?: string;
+  accountNameAr?: string | null;
   description: string | null;
   lineNumber: number;
   debitAmount: string;

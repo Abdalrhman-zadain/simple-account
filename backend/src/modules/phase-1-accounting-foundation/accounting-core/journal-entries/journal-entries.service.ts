@@ -82,7 +82,7 @@ export class JournalEntriesService {
             : undefined,
       },
       include: {
-        lines: includeLines ? { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } } : false,
+        lines: includeLines ? { include: { account: { select: { code: true, name: true, nameAr: true } } }, orderBy: { lineNumber: 'asc' } } : false,
         journalEntryType: { select: { id: true, name: true } },
       },
       orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
@@ -95,7 +95,7 @@ export class JournalEntriesService {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
       include: {
-        lines: { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } },
+        lines: { include: { account: { select: { code: true, name: true, nameAr: true } } }, orderBy: { lineNumber: 'asc' } },
         journalEntryType: { select: { id: true, name: true } },
       },
     });
@@ -150,7 +150,7 @@ export class JournalEntriesService {
     const entry = await this.prisma.journalEntry.findUnique({
       where: { id },
       include: {
-        lines: { include: { account: { select: { code: true, name: true } } }, orderBy: { lineNumber: 'asc' } },
+        lines: { include: { account: { select: { code: true, name: true, nameAr: true } } }, orderBy: { lineNumber: 'asc' } },
         journalEntryType: { select: { id: true, name: true } },
       },
     });
@@ -297,6 +297,7 @@ export class JournalEntriesService {
           accountId: line.accountId,
           accountCode: (line as any).account?.code,
           accountName: (line as any).account?.name,
+          accountNameAr: (line as any).account?.nameAr ?? null,
           description: line.description,
           lineNumber: line.lineNumber,
           debitAmount: line.debitAmount.toString(),

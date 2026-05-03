@@ -22,9 +22,11 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 
 function JournalStatusPill({ status }: { status: string }) {
+    const { t } = useTranslation();
+
     return (
         <StatusPill
-            label={status}
+            label={t(`journal.status.${status}`)}
             tone={status === "POSTED" ? "positive" : status === "DRAFT" ? "warning" : "neutral"}
         />
     );
@@ -218,7 +220,8 @@ function AccountAutocomplete({
 export function JournalEntriesPage() {
     const { token } = useAuth();
     const queryClient = useQueryClient();
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
+    const isArabic = language === "ar";
     const [showCreate, setShowCreate] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -322,7 +325,7 @@ export function JournalEntriesPage() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none">
+        <div dir={isArabic ? "rtl" : "ltr"} className={cn("space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none", isArabic && "arabic-ui")}>
             <SectionHeading
                 title={t("journal.title")}
                 description={t("journal.description")}
@@ -538,7 +541,11 @@ export function JournalEntriesPage() {
                             >
                                 <div className="flex items-center gap-4">
                                     <button className="text-gray-600 hover:text-gray-900">
-                                        {expandedId === entry.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                        {expandedId === entry.id ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                        ) : (
+                                            <ChevronRight className={cn("h-4 w-4", isArabic && "rotate-180")} />
+                                        )}
                                     </button>
                                     <div>
                                         <span className="font-mono text-sm font-bold text-teal-400">{entry.reference}</span>
@@ -575,44 +582,48 @@ export function JournalEntriesPage() {
                             </div>
 
                             {expandedId === entry.id && (
-                                <div className="bg-black/20 px-16 py-4">
-                                    <table className="w-full text-xs">
-                                        <thead>
-                                            <tr className="border-b border-gray-200 text-gray-600 uppercase tracking-wider">
-                                                <th className="pb-2 text-left font-bold">Account</th>
-                                                <th className="pb-2 text-left font-bold">Description</th>
-                                                <th className="pb-2 text-right font-bold w-32">Debit</th>
-                                                <th className="pb-2 text-right font-bold w-32">Credit</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {expandedEntryQuery.isLoading ? (
-                                                <tr>
-                                                    <td colSpan={4} className="py-4 text-center text-xs text-gray-600">
-                                                        {t("journal.list.loading")}
-                                                    </td>
+                                <div className="border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-10">
+                                    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                        <table className="w-full min-w-[760px] text-xs">
+                                            <thead className="bg-slate-100">
+                                                <tr className="border-b border-slate-200 text-slate-600">
+                                                    <th className="px-5 py-3 text-start font-black uppercase tracking-wider">{t("journal.lines.account")}</th>
+                                                    <th className="px-5 py-3 text-start font-black uppercase tracking-wider">{t("journal.lines.description")}</th>
+                                                    <th className="w-36 px-5 py-3 text-end font-black uppercase tracking-wider">{t("journal.lines.debit")}</th>
+                                                    <th className="w-36 px-5 py-3 text-end font-black uppercase tracking-wider">{t("journal.lines.credit")}</th>
                                                 </tr>
-                                            ) : (expandedEntryQuery.data?.lines ?? []).map((line: JournalEntryLine) => (
-                                                <tr key={line.id} className="hover:bg-gray-100">
-                                                    <td className="py-2 text-gray-900">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-bold">{line.accountName}</span>
-                                                            <span className="font-mono text-[10px] text-gray-400">
-                                                                {line.accountCode}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-2 text-gray-500">{line.description || "—"}</td>
-                                                    <td className="py-2 text-right tabular-nums text-teal-400 font-bold">
-                                                        {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}
-                                                    </td>
-                                                    <td className="py-2 text-right tabular-nums text-orange-400 font-bold">
-                                                        {parseFloat(line.creditAmount) > 0 ? formatCurrency(line.creditAmount) : "—"}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {expandedEntryQuery.isLoading ? (
+                                                    <tr>
+                                                        <td colSpan={4} className="py-6 text-center text-xs text-gray-600">
+                                                            {t("journal.list.loading")}
+                                                        </td>
+                                                    </tr>
+                                                ) : (expandedEntryQuery.data?.lines ?? []).map((line: JournalEntryLine) => (
+                                                    <tr key={line.id} className="hover:bg-slate-50">
+                                                        <td className="px-5 py-3 text-slate-900">
+                                                            <div className={cn("flex flex-col", isArabic ? "items-end text-right" : "items-start text-left")}>
+                                                                <span className="font-bold">
+                                                                    {isArabic ? line.accountNameAr || line.accountName : line.accountName}
+                                                                </span>
+                                                                <span className="font-mono text-[11px] text-slate-400">
+                                                                    {line.accountCode}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-3 text-start text-slate-500">{line.description || "—"}</td>
+                                                        <td className="px-5 py-3 text-end tabular-nums text-teal-500 font-black">
+                                                            {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}
+                                                        </td>
+                                                        <td className="px-5 py-3 text-end tabular-nums text-orange-500 font-black">
+                                                            {parseFloat(line.creditAmount) > 0 ? formatCurrency(line.creditAmount) : "—"}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
                         </div>
