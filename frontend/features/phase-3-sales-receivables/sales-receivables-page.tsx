@@ -105,6 +105,8 @@ type InvoiceEditorState = {
   customerId: string;
   description: string;
   lines: SalesLineEditorState[];
+  sourceQuotationId: string;
+  sourceSalesOrderId: string;
 };
 
 type SalesOrderEditorState = {
@@ -171,6 +173,8 @@ const EMPTY_INVOICE_EDITOR = (): InvoiceEditorState => ({
   customerId: "",
   description: "",
   lines: [createEmptyLine()],
+  sourceQuotationId: "",
+  sourceSalesOrderId: "",
 });
 
 const EMPTY_CREDIT_NOTE_EDITOR = (): CreditNoteEditorState => ({
@@ -223,6 +227,7 @@ export function SalesReceivablesPage() {
   const [invoiceCustomerFilter, setInvoiceCustomerFilter] = useState("");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
+  const [isInvoiceSaving, setIsInvoiceSaving] = useState(false);
   const [invoiceEditor, setInvoiceEditor] = useState<InvoiceEditorState>(EMPTY_INVOICE_EDITOR);
 
   const [creditNoteSearch, setCreditNoteSearch] = useState("");
@@ -511,6 +516,105 @@ export function SalesReceivablesPage() {
     }
   };
 
+  const openInvoiceEditorFromQuotation = (quotationId: string) => {
+    const quotation = quotations.find((row) => row.id === quotationId);
+    if (!quotation) {
+      return;
+    }
+
+    setInvoiceEditor({
+      id: undefined,
+      reference: "",
+      invoiceDate: new Date().toISOString().slice(0, 10),
+      dueDate: "",
+      currencyCode: quotation.currencyCode,
+      customerId: quotation.customer.id,
+      description: quotation.description ?? "",
+      lines: quotation.lines.length ? quotation.lines.map(mapLineToEditor) : [createEmptyLine()],
+      sourceQuotationId: quotation.id,
+      sourceSalesOrderId: "",
+    });
+    setIsInvoiceEditorOpen(true);
+    setActiveTab("invoices");
+  };
+
+  const openInvoiceEditorFromOrder = (orderId: string) => {
+    const order = salesOrders.find((row) => row.id === orderId);
+    if (!order) {
+      return;
+    }
+
+    setInvoiceEditor({
+      id: undefined,
+      reference: "",
+      invoiceDate: new Date().toISOString().slice(0, 10),
+      dueDate: "",
+      currencyCode: order.currencyCode,
+      customerId: order.customer.id,
+      description: order.description ?? "",
+      lines: order.lines.length ? order.lines.map(mapLineToEditor) : [createEmptyLine()],
+      sourceQuotationId: order.sourceQuotation?.id ?? "",
+      sourceSalesOrderId: order.id,
+    });
+    setIsInvoiceEditorOpen(true);
+    setActiveTab("invoices");
+  };
+
+  const saveInvoiceFromEditor = async () => {
+    setIsInvoiceSaving(true);
+
+    try {
+      if (invoiceEditor.id) {
+        const updated = await updateInvoiceMutation.mutateAsync();
+        await invalidateSalesReceivables(queryClient);
+        setSelectedInvoiceId(updated.id);
+        setIsInvoiceEditorOpen(false);
+        setInvoiceEditor(EMPTY_INVOICE_EDITOR());
+        return;
+      }
+
+      const payload = {
+        reference: invoiceEditor.reference || undefined,
+        invoiceDate: invoiceEditor.invoiceDate,
+        dueDate: invoiceEditor.dueDate || undefined,
+        currencyCode: invoiceEditor.currencyCode || undefined,
+        customerId: invoiceEditor.customerId,
+        description: invoiceEditor.description || undefined,
+        lines: mapSalesLines(invoiceEditor.lines),
+      };
+
+      const savedInvoice = invoiceEditor.sourceSalesOrderId
+        ? await convertSalesOrderToInvoice(
+            invoiceEditor.sourceSalesOrderId,
+            {
+              ...payload,
+              sourceQuotationId: invoiceEditor.sourceQuotationId || undefined,
+              sourceSalesOrderId: invoiceEditor.sourceSalesOrderId,
+            },
+            token,
+          )
+        : invoiceEditor.sourceQuotationId
+          ? await convertQuotationToInvoice(
+              invoiceEditor.sourceQuotationId,
+              {
+                ...payload,
+                sourceQuotationId: invoiceEditor.sourceQuotationId,
+              },
+              token,
+            )
+          : await createInvoiceMutation.mutateAsync();
+
+      await invalidateSalesReceivables(queryClient);
+      setSelectedInvoiceId(savedInvoice.id);
+      setIsInvoiceEditorOpen(false);
+      setInvoiceEditor(EMPTY_INVOICE_EDITOR());
+    } catch {
+      // Keep the editor open so the user can fix line revenue accounts or other validation issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  };
+
   const convertQuotationToOrderMutation = useMutation({
     mutationFn: (quotationId: string) => {
       const quotation = quotations.find((row) => row.id === quotationId);
@@ -518,7 +622,6 @@ export function SalesReceivablesPage() {
         quotationId,
         {
           orderDate: new Date().toISOString().slice(0, 10),
-          promisedDate: "",
           customerId: quotation?.customer.id ?? "",
           currencyCode: quotation?.currencyCode ?? "JOD",
           sourceQuotationId: quotationId,
@@ -533,30 +636,6 @@ export function SalesReceivablesPage() {
       await invalidateSalesReceivables(queryClient);
       setSelectedOrderId(created.id);
       setActiveTab("orders");
-    },
-  });
-
-  const convertQuotationToInvoiceMutation = useMutation({
-    mutationFn: (quotationId: string) => {
-      const quotation = quotations.find((row) => row.id === quotationId);
-      return convertQuotationToInvoice(
-        quotationId,
-        {
-          invoiceDate: new Date().toISOString().slice(0, 10),
-          dueDate: "",
-          customerId: quotation?.customer.id ?? "",
-          currencyCode: quotation?.currencyCode ?? "JOD",
-          sourceQuotationId: quotationId,
-          description: quotation?.description ?? "",
-          lines: (quotation?.lines ?? []).map(mapLineForConversion),
-        },
-        token,
-      );
-    },
-    onSuccess: async (created) => {
-      await invalidateSalesReceivables(queryClient);
-      setSelectedInvoiceId(created.id);
-      setActiveTab("invoices");
     },
   });
 
@@ -631,7 +710,6 @@ export function SalesReceivablesPage() {
         orderId,
         {
           invoiceDate: new Date().toISOString().slice(0, 10),
-          dueDate: "",
           customerId: order?.customer.id ?? "",
           currencyCode: order?.currencyCode ?? "JOD",
           sourceQuotationId: order?.sourceQuotation?.id,
@@ -857,6 +935,7 @@ export function SalesReceivablesPage() {
     updateQuotationMutation.error ??
     approveQuotationMutation.error ??
     cancelQuotationMutation.error ??
+    convertQuotationToOrderMutation.error ??
     createOrderMutation.error ??
     updateOrderMutation.error ??
     confirmOrderMutation.error ??
@@ -1189,13 +1268,11 @@ export function SalesReceivablesPage() {
                                 }}>{t("salesReceivables.action.edit")}</button>
                                 <button type="button" className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100" onClick={() => approveQuotationMutation.mutate(row.id)}>{t("salesReceivables.action.approve")}</button>
                                 <button type="button" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" onClick={() => cancelQuotationMutation.mutate(row.id)}>{t("salesReceivables.action.cancelDocument")}</button>
-                                <button type="button" className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100" onClick={() => convertQuotationToOrderMutation.mutate(row.id)}>{t("salesReceivables.action.toOrder")}</button>
-                                <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertQuotationToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
                               </>
                             ) : row.status === "APPROVED" ? (
                               <>
                                 <button type="button" className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100" onClick={() => convertQuotationToOrderMutation.mutate(row.id)}>{t("salesReceivables.action.toOrder")}</button>
-                                <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertQuotationToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
+                                <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => openInvoiceEditorFromQuotation(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
                               </>
                             ) : <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => setSelectedQuotationId(row.id)}>{t("salesReceivables.action.view")}</button>}
                           </div>
@@ -1307,7 +1384,7 @@ export function SalesReceivablesPage() {
                                 <button type="button" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" onClick={() => cancelOrderMutation.mutate(row.id)}>{t("salesReceivables.action.cancelDocument")}</button>
                               </>
                             ) : row.status === "CONFIRMED" || row.status === "PARTIALLY_INVOICED" ? (
-                              <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => convertOrderToInvoiceMutation.mutate(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
+                              <button type="button" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100" onClick={() => openInvoiceEditorFromOrder(row.id)}>{t("salesReceivables.action.toInvoice")}</button>
                             ) : <button type="button" className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50" onClick={() => setSelectedOrderId(row.id)}>{t("salesReceivables.action.view")}</button>}
                           </div>
                         </td>
@@ -1455,6 +1532,8 @@ export function SalesReceivablesPage() {
                                         customerId: row.customer.id,
                                         description: row.description ?? "",
                                         lines: row.lines.map(mapLineToEditor),
+                                        sourceQuotationId: row.sourceQuotation?.id ?? "",
+                                        sourceSalesOrderId: row.sourceSalesOrder?.id ?? "",
                                       });
                                       setIsInvoiceEditorOpen(true);
                                     }}
@@ -2112,8 +2191,18 @@ export function SalesReceivablesPage() {
       <SalesDocumentEditorModal
         isOpen={isInvoiceEditorOpen}
         onClose={() => setIsInvoiceEditorOpen(false)}
-        title={invoiceEditor.id ? t("salesReceivables.dialog.editInvoiceDraft") : t("salesReceivables.dialog.newSalesInvoice")}
-        introTitle={t("salesReceivables.dialog.newSalesInvoice")}
+        title={
+          invoiceEditor.id
+            ? t("salesReceivables.dialog.editInvoiceDraft")
+            : invoiceEditor.sourceQuotationId || invoiceEditor.sourceSalesOrderId
+              ? t("salesReceivables.action.toInvoice")
+              : t("salesReceivables.dialog.newSalesInvoice")
+        }
+        introTitle={
+          invoiceEditor.sourceQuotationId || invoiceEditor.sourceSalesOrderId
+            ? t("salesReceivables.action.toInvoice")
+            : t("salesReceivables.dialog.newSalesInvoice")
+        }
         introDescription={t("salesReceivables.section.pipelineDescription")}
         reference={invoiceEditor.reference}
         dateLabel={t("salesReceivables.field.invoiceDate")}
@@ -2128,7 +2217,7 @@ export function SalesReceivablesPage() {
         inventoryItems={inventoryItems}
         isInventoryItemsLoading={inventoryItemsQuery.isLoading}
         revenueAccounts={revenueAccountsQuery.data ?? []}
-        isSubmitting={createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
+        isSubmitting={isInvoiceSaving || createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
         onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
         onDateChange={(value) => setInvoiceEditor((current) => ({ ...current, invoiceDate: value }))}
         onSecondaryDateChange={(value) => setInvoiceEditor((current) => ({ ...current, dueDate: value }))}
@@ -2136,8 +2225,16 @@ export function SalesReceivablesPage() {
         onCustomerChange={(value) => setInvoiceEditor((current) => ({ ...current, customerId: value }))}
         onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
         onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
-        onSubmit={() => (invoiceEditor.id ? updateInvoiceMutation.mutate() : createInvoiceMutation.mutate())}
-        submitLabel={invoiceEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.saveDraft")}
+        onSubmit={() => {
+          void saveInvoiceFromEditor();
+        }}
+        submitLabel={
+          invoiceEditor.id
+            ? t("salesReceivables.action.saveChanges")
+            : invoiceEditor.sourceQuotationId || invoiceEditor.sourceSalesOrderId
+              ? t("salesReceivables.action.toInvoice")
+              : t("salesReceivables.action.saveDraft")
+        }
       />
 
       <CreditNoteEditorModal

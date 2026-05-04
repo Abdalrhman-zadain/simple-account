@@ -892,8 +892,9 @@ export class SalesReceivablesService {
     const description = invoice.description
       ? `${invoice.reference} - ${invoice.description}`
       : invoice.reference;
+    const taxAmount = Number(invoice.taxAmount);
     const taxAccountId =
-      Number(invoice.taxAmount) > 0 ? await this.getSalesTaxAccountId() : null;
+      taxAmount > 0 ? await this.getSalesTaxAccountId() : null;
 
     const journal = await this.journalEntriesService.create({
       entryDate: invoice.invoiceDate.toISOString(),
@@ -909,7 +910,7 @@ export class SalesReceivablesService {
           accountId: line.revenueAccountId,
           description: line.description ?? description,
           debitAmount: 0,
-          creditAmount: Number(line.lineSubtotalAmount),
+          creditAmount: Number(line.lineSubtotalAmount) + (taxAccountId ? 0 : Number(line.taxAmount)),
         })),
         ...(taxAccountId
           ? [
@@ -917,7 +918,7 @@ export class SalesReceivablesService {
                 accountId: taxAccountId,
                 description: `${description} tax`,
                 debitAmount: 0,
-                creditAmount: Number(invoice.taxAmount),
+                creditAmount: taxAmount,
               },
             ]
           : []),
@@ -2180,13 +2181,7 @@ export class SalesReceivablesService {
       orderBy: { createdAt: "asc" },
     });
 
-    if (!account) {
-      throw new BadRequestException(
-        "No active sales tax/VAT liability account is configured for posting tax amounts.",
-      );
-    }
-
-    return account.id;
+    return account?.id ?? null;
   }
 
   private quotationInclude() {

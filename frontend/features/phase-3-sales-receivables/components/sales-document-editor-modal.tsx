@@ -306,7 +306,6 @@ export function SalesDocumentEditorModal({
                               {label}
                               {labelIndex > 0 &&
                               labelIndex !== 2 &&
-                              labelIndex !== 3 &&
                               labelIndex !== 6 &&
                               labelIndex !== 7 &&
                               labelIndex !== 8 ? (

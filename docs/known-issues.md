@@ -68,6 +68,7 @@ Current limitation:
 
 - the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace, but document export/printing and customer statement output are still not implemented.
 - printable quote/order/invoice outputs and customer statement output are still not implemented.
+- sales invoice posting can proceed without a configured sales tax/VAT liability account; when no dedicated tax account exists, the tax portion is folded into the revenue credits at posting time instead of blocking the post action.
 
 What this means for future edits:
 
