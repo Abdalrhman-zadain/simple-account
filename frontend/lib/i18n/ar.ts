@@ -1395,16 +1395,16 @@ Object.assign(arTranslations, {
 });
 
 Object.assign(arTranslations, {
-  "purchases.action.reverseInvoice": "Ø¹ÙƒØ³ Ø§Ù„ÙØ§ØªÙˆØ±Ø©",
-  "purchases.action.reversePayment": "Ø¹ÙƒØ³ Ø§Ù„Ø¯ÙØ¹Ø©",
-  "purchases.action.reverseDebitNote": "Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ…",
+  "purchases.action.reverseInvoice": "عكس فاتورة الشراء",
+  "purchases.action.reversePayment": "عكس الدفعة",
+  "purchases.action.reverseDebitNote": "عكس إشعار الخصم",
   "purchases.invoices.confirm.reverse":
-    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ø´Ø±Ø§Ø¡ Ø§Ù„Ø¢Ù†ØŸ",
+    "هل تريد عكس فاتورة الشراء الآن؟",
   "purchases.payments.confirm.reverse":
-    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¯ÙØ¹Ø© Ø§Ù„Ù…ÙˆØ±Ø¯ Ø§Ù„Ø¢Ù†ØŸ",
+    "هل تريد عكس دفعة المورد الآن؟",
   "purchases.debitNotes.confirm.reverse":
-    "Ù‡Ù„ ØªØ±ÙŠØ¯ Ø¹ÙƒØ³ Ø¥Ø´Ø¹Ø§Ø± Ø§Ù„Ø®ØµÙ… Ø§Ù„Ø¢Ù†ØŸ",
-  "purchases.status.reversed": "Ù…Ø¹ÙƒÙˆØ³",
+    "هل تريد عكس إشعار الخصم الآن؟",
+  "purchases.status.reversed": "معكوس",
 });
 
 Object.assign(arTranslations, {

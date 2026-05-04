@@ -83,6 +83,7 @@ Current limitation:
 - purchase orders now support draft/issue/receipt/cancel/close lifecycle management and now store operational purchase-receipt records, but they still do not create inventory or accounting journal entries from receipt posting.
 - purchase invoices, supplier payments, and debit notes now provide explicit reverse-document workflows that create reversal journal entries and mark the source documents as `REVERSED`.
 - the purchase debit-note editor currently captures supplier discount notes without a tax field and submits tax as zero; tax-bearing debit notes still depend on configured purchase tax/VAT posting accounts at the backend level.
+- purchase invoice posting no longer requires a dedicated purchase tax/VAT account; line tax amounts are posted with the line debit accounts instead of a separate tax line.
 - purchase transaction audit history now includes reversed purchase invoices, supplier payments, and debit notes, but purchase receipts still do not yet have their own reversal flow.
 
 What this means for future edits:

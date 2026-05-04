@@ -297,7 +297,6 @@ export class PurchaseInvoicesService {
     }
 
     const description = invoice.description ? `${invoice.reference} - ${invoice.description}` : invoice.reference;
-    const taxAccountId = Number(invoice.taxAmount) > 0 ? await this.getPurchaseTaxAccountId() : null;
 
     const journal = await this.journalEntriesService.create({
       entryDate: invoice.invoiceDate.toISOString(),
@@ -307,20 +306,10 @@ export class PurchaseInvoicesService {
           .map((line) => ({
             accountId: line.accountId,
             description: line.description || description,
-            debitAmount: Number((Number(line.lineSubtotalAmount) - Number(line.discountAmount)).toFixed(2)),
+            debitAmount: Number(Number(line.lineTotalAmount).toFixed(2)),
             creditAmount: 0,
           }))
           .filter((line) => line.debitAmount > 0),
-        ...(taxAccountId
-          ? [
-              {
-                accountId: taxAccountId,
-                description: `${description} tax`,
-                debitAmount: Number(invoice.taxAmount),
-                creditAmount: 0,
-              },
-            ]
-          : []),
         {
           accountId: invoice.supplier.payableAccountId,
           description,
@@ -614,31 +603,6 @@ export class PurchaseInvoicesService {
       throw new BadRequestException('Only issued or received purchase orders can be linked to purchase invoices.');
     }
     return order;
-  }
-
-  private async getPurchaseTaxAccountId() {
-    const account = await this.prisma.account.findFirst({
-      where: {
-        isActive: true,
-        isPosting: true,
-        allowManualPosting: true,
-        type: { in: ['ASSET', 'EXPENSE'] as any },
-        OR: [
-          { subtype: { contains: 'tax', mode: 'insensitive' } },
-          { subtype: { contains: 'vat', mode: 'insensitive' } },
-          { name: { contains: 'tax', mode: 'insensitive' } },
-          { name: { contains: 'vat', mode: 'insensitive' } },
-        ],
-      },
-      select: { id: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (!account) {
-      throw new BadRequestException('No active purchase tax/VAT account is configured for posting tax amounts.');
-    }
-
-    return account.id;
   }
 
   private mapPurchaseInvoice(row: PurchaseInvoiceWithRelations) {

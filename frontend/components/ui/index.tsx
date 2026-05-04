@@ -67,7 +67,7 @@ export function StatusPill({
   };
 
   return (
-    <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium shadow-sm", tones[tone])}>
+    <span dir="auto" className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-medium shadow-sm arabic-auto", tones[tone])}>
       {label}
     </span>
   );
