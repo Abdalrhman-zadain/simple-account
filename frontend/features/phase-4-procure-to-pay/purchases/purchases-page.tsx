@@ -75,7 +75,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { AccountOption, DebitNote, InventoryItem, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
@@ -1203,7 +1203,7 @@ export function PurchasesPage() {
                           </td>
                           <td className="px-6 py-4 text-center align-top font-semibold text-gray-800">{row.defaultCurrency}</td>
                           <td className="px-6 py-4 align-top text-start">
-                            <div className="font-medium text-gray-900">{row.payableAccount.name}</div>
+                            <div className="font-medium text-gray-900">{cleanDisplayName(row.payableAccount.name)}</div>
                             <div className="mt-1">
                               <span dir="ltr" className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs font-semibold text-slate-600">
                                 {row.payableAccount.code}
@@ -1878,7 +1878,7 @@ export function PurchasesPage() {
                             </div>
                             <div className="mt-2 text-sm text-gray-600">{line.description}</div>
                             <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-                              <span>{t("purchases.invoices.field.account")}: {line.account.code} · {line.account.name}</span>
+                              <span>{t("purchases.invoices.field.account")}: {line.account.code} · {cleanDisplayName(line.account.name)}</span>
                               <span>{t("purchases.invoices.field.discountAmount")}: {formatCurrency(line.discountAmount)}</span>
                               <span>{t("purchases.invoices.field.taxAmount")}: {formatCurrency(line.taxAmount)}</span>
                               <span>{t("purchases.invoices.field.lineTotal")}: {formatCurrency(line.lineTotalAmount)}</span>
@@ -1945,7 +1945,7 @@ export function PurchasesPage() {
                         <tr key={row.id} className={cn("border-t border-gray-100", selectedSupplierPaymentId === row.id && "bg-gray-50/70")}>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
-                            <div className="text-xs text-gray-500">{row.bankCashAccount.name}</div>
+                            <div className="text-xs text-gray-500">{cleanDisplayName(row.bankCashAccount.name)}</div>
                           </td>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.supplier.code} · {row.supplier.name}</div>
@@ -2025,11 +2025,11 @@ export function PurchasesPage() {
                       <div className="space-y-3 text-sm text-gray-700">
                         <div className="rounded-2xl border border-gray-200 px-4 py-4">
                           <div className="font-bold text-gray-900">{selectedSupplierPayment.supplier.code} · {selectedSupplierPayment.supplier.name}</div>
-                          <div className="mt-1 text-xs text-gray-500">{selectedSupplierPayment.bankCashAccount.name} · {selectedSupplierPayment.bankCashAccount.type}</div>
+                          <div className="mt-1 text-xs text-gray-500">{cleanDisplayName(selectedSupplierPayment.bankCashAccount.name)} · {selectedSupplierPayment.bankCashAccount.type}</div>
                         </div>
                         <div className="rounded-2xl border border-gray-200 px-4 py-4">
                           <div>{t("purchases.payments.field.description")}: {selectedSupplierPayment.description || t("purchases.requests.empty.noDescription")}</div>
-                          <div className="mt-2">{t("purchases.payments.field.bankCash")}: {selectedSupplierPayment.bankCashAccount.account.code} · {selectedSupplierPayment.bankCashAccount.account.name}</div>
+                            <div className="mt-2">{t("purchases.payments.field.bankCash")}: {selectedSupplierPayment.bankCashAccount.account.code} · {cleanDisplayName(selectedSupplierPayment.bankCashAccount.account.name)}</div>
                         </div>
                         <div className="grid gap-3 md:grid-cols-3">
                           <MiniMetric label={t("purchases.payments.metric.amount")} value={formatCurrency(selectedSupplierPayment.amount)} />
@@ -2339,7 +2339,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600">
                     <ScrollText className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -2351,7 +2351,7 @@ export function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
+              <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
                 <div className="space-y-5">
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
@@ -2395,7 +2395,7 @@ export function PurchasesPage() {
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-600">
                           <Package2 className="h-5 w-5" />
                         </div>
                         <div>
@@ -2409,7 +2409,7 @@ export function PurchasesPage() {
                         variant="secondary"
                         size="sm"
                         onClick={addRequestLine}
-                        className="rounded-2xl border-blue-200 px-4 text-blue-700 hover:bg-blue-50"
+                        className="rounded-2xl border-green-200 px-4 text-green-700 hover:bg-green-50"
                       >
                         <CirclePlus className="h-4 w-4" />
                         {t("purchases.action.addLine")}
@@ -2467,8 +2467,8 @@ export function PurchasesPage() {
                               <Field label={t("purchases.requests.field.quantity")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
                                 <Input
                                   type="number"
-                                  min="0.0001"
-                                  step="0.0001"
+                                  min="0"
+                                  step="1"
                                   value={line.quantity}
                                   onChange={(event) => updateRequestLine(line.key, "quantity", event.target.value)}
                                   className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
@@ -2529,7 +2529,7 @@ export function PurchasesPage() {
                   <Button
                     onClick={() => (requestEditor.id ? updatePurchaseRequestMutation.mutate() : createPurchaseRequestMutation.mutate())}
                     disabled={Boolean(requestFormError) || createPurchaseRequestMutation.isPending || updatePurchaseRequestMutation.isPending}
-                    className="rounded-2xl bg-blue-600 px-6 hover:bg-blue-700"
+                    className="rounded-2xl bg-green-600 px-6 hover:bg-green-700"
                   >
                     <Save className="h-4 w-4" />
                     {requestEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
@@ -2793,8 +2793,8 @@ export function PurchasesPage() {
                                 <Field label={t("purchases.orders.field.quantity")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
                                   <Input
                                     type="number"
-                                    min="0.0001"
-                                    step="0.0001"
+                                    min="0"
+                                    step="1"
                                     value={line.quantity}
                                     onChange={(event) => updateOrderLine(line.key, "quantity", event.target.value)}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
@@ -2847,7 +2847,7 @@ export function PurchasesPage() {
                                       value={lineTotal.toFixed(2)}
                                       readOnly
                                       disabled
-                                      className={cn("border-slate-200 bg-slate-100 text-purple-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                                      className={cn("border-slate-200 bg-slate-100 text-green-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
                                     />
                                     <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
                                       {orderEditor.currencyCode || "JOD"}
@@ -2884,7 +2884,7 @@ export function PurchasesPage() {
                   <Button
                     onClick={() => (orderEditor.id ? updatePurchaseOrderMutation.mutate() : createPurchaseOrderMutation.mutate())}
                     disabled={Boolean(orderFormError) || createPurchaseOrderMutation.isPending || updatePurchaseOrderMutation.isPending}
-                    className="rounded-2xl bg-purple-600 px-6 hover:bg-purple-700"
+                    className="rounded-2xl bg-green-600 px-6 hover:bg-green-700"
                   >
                     <Save className="h-4 w-4" />
                     {orderEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
@@ -2929,7 +2929,7 @@ export function PurchasesPage() {
                     <MiniMetric label={t("purchases.receipts.field.remainingQuantity")} value={line.remainingQuantity} />
                   </div>
                   <Field label={t("purchases.receipts.field.quantityReceivedNow")}>
-                    <Input type="number" min="0" max={line.remainingQuantity} step="0.0001" value={line.quantityReceivedNow} onChange={(event) => updateReceiptLine(line.key, event.target.value)} />
+                    <Input type="number" min="0" max={line.remainingQuantity} step="1" value={line.quantityReceivedNow} onChange={(event) => updateReceiptLine(line.key, event.target.value)} />
                   </Field>
                 </div>
               ))}
@@ -3197,15 +3197,15 @@ export function PurchasesPage() {
                                     <option value="">{t("purchases.invoices.empty.selectAccount")}</option>
                                     {purchaseInvoiceDebitAccounts.map((account) => (
                                       <option key={account.id} value={account.id}>
-                                        {account.code} · {account.name} ({account.currencyCode})
+                                        {account.code} · {account.name?.replace(/^أ:\s*/, "") || account.name} ({account.currencyCode})
                                       </option>
                                     ))}
                                   </Select>
 
                                   <Input
                                     type="number"
-                                    min="0.0001"
-                                    step="0.0001"
+                                    min="0"
+                                    step="1"
                                     value={line.quantity}
                                     onChange={(event) => updateInvoiceLine(line.key, "quantity", event.target.value)}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
@@ -3851,9 +3851,9 @@ export function PurchasesPage() {
                       <span className="ms-3 text-sm font-bold text-slate-700">{t("purchases.debitNotes.discountNotice.linesTotal")}</span>
                     </div>
 
-                    <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/45 p-5">
+                    <div className="mt-5 rounded-xl border border-green-200 bg-green-50/45 p-5">
                       <div className={cn("mb-4 flex items-center gap-2 text-sm font-bold text-slate-700", isArabic ? "justify-end text-right" : "text-left")}>
-                        <Info className="h-5 w-5 text-blue-500" />
+                        <Info className="h-5 w-5 text-green-500" />
                         {t("purchases.debitNotes.discountNotice.journalPreview")}
                       </div>
                       <div className={cn("space-y-2 text-sm text-slate-700", isArabic ? "text-right" : "text-left")}>

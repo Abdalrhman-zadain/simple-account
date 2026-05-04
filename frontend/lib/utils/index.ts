@@ -55,3 +55,9 @@ export function formatDate(value: string) {
     day: "numeric",
   }).format(new Date(value));
 }
+
+export function cleanDisplayName(name?: string | null) {
+  if (!name) return "";
+  // Remove leading garbage characters (like Â or other control prefixes) and optional colon/space
+  return name.replace(/^[^0-9A-Za-z\u0600-\u06FF]+:?\s*/, "").trim();
+}

@@ -55,7 +55,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AllocationStatus,
@@ -1144,7 +1144,7 @@ export function SalesReceivablesPage() {
               <div>
                 <div className="text-lg font-bold text-gray-900">{selectedCustomer?.name ?? t("salesReceivables.section.customerDetails")}</div>
                 <div className="text-sm text-gray-500">
-                  {selectedCustomer ? `${selectedCustomer.code} · ${selectedCustomer.receivableAccount.code} ${selectedCustomer.receivableAccount.name}` : t("salesReceivables.section.customerDetailsEmpty")}
+                  {selectedCustomer ? `${selectedCustomer.code} · ${selectedCustomer.receivableAccount.code} ${cleanDisplayName(selectedCustomer.receivableAccount.name)}` : t("salesReceivables.section.customerDetailsEmpty")}
                 </div>
               </div>
 
@@ -2587,8 +2587,8 @@ function DocumentLinesEditor({
               <Field label={t("salesReceivables.field.quantity")}>
                 <Input
                   type="number"
-                  min="0.0001"
-                  step="0.0001"
+                  min="0"
+                  step="1"
                   value={line.quantity}
                   onChange={(event) => updateLine(line.key, (item) => ({ ...item, quantity: event.target.value }))}
                 />

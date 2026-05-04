@@ -18,7 +18,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   BankReconciliation,
@@ -261,7 +261,7 @@ export function BankReconciliationsPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-bold text-gray-900">{row.bankCashAccount.name}</div>
+                      <div className="font-bold text-gray-900">{cleanDisplayName(row.bankCashAccount.name)}</div>
                       <div className="text-xs text-gray-500">
                         {row.bankCashAccount.account.code} · {formatDate(row.statementDate)}
                       </div>
@@ -289,7 +289,7 @@ export function BankReconciliationsPage() {
             <>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <div className="text-lg font-bold text-gray-900">{detail.bankCashAccount.name}</div>
+                  <div className="text-lg font-bold text-gray-900">{cleanDisplayName(detail.bankCashAccount.name)}</div>
                   <div className="text-sm text-gray-500">
                     {detail.bankCashAccount.account.code} · {formatDate(detail.statementDate)}
                   </div>

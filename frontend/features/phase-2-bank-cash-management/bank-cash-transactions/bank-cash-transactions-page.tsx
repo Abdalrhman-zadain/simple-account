@@ -23,7 +23,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AccountOption,
@@ -136,13 +136,13 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
   );
 
   const localizeAccountName = (account: { name: string; nameAr?: string | null }) =>
-    language === "ar" ? account.nameAr?.trim() || account.name : account.name?.trim() || account.nameAr?.trim() || "";
+    cleanDisplayName(language === "ar" ? account.nameAr?.trim() || account.name : account.name?.trim() || account.nameAr?.trim() || "");
 
   const formatPostingAccountLabel = (account: { code: string; name: string; nameAr?: string | null }) =>
-    `${localizeAccountName(account)} Â· ${account.code}`;
+    `${localizeAccountName(account)} · ${account.code}`;
 
   const formatBankCashAccountLabel = (account: BankCashAccount) =>
-    `${localizeAccountName(account.account)} Â· ${account.account.code}`;
+    `${localizeAccountName(account.account)} · ${account.account.code}`;
 
   const primaryLabel = (row: BankCashTransaction) => primaryAccountLabel(row, language);
   const secondaryLabel = (row: BankCashTransaction) => secondaryAccountLabel(row, language);

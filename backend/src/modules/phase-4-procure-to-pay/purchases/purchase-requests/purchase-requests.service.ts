@@ -96,6 +96,13 @@ export class PurchaseRequestsService {
     const lines = await this.resolveLines(dto.lines);
 
     try {
+      console.error("DEBUG createPurchaseRequest - resolved lines:",
+        JSON.stringify(lines.map(l => ({
+          itemId: l.itemId,
+          itemName: l.itemName,
+          quantity: l.quantity,
+        })), null, 2)
+      );
       const created = await this.prisma.purchaseRequest.create({
         data: {
           reference,
@@ -211,6 +218,14 @@ export class PurchaseRequestsService {
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
+        console.error("DEBUG convertPurchaseRequestToOrder - request.lines:",
+          JSON.stringify(request.lines.map(l => ({
+            id: l.id,
+            itemId: l.itemId,
+            itemName: l.itemName,
+            quantity: l.quantity,
+          })), null, 2)
+        );
         const order = await tx.purchaseOrder.create({
           data: {
             reference,

@@ -494,8 +494,8 @@ export function QuotationEditorModal({
 
                           <Input
                             type="number"
-                            min="0.0001"
-                            step="0.0001"
+                            min="0"
+                            step="1"
                             value={line.quantity}
                             onChange={(event) =>
                               updateLine(line.key, (current) => ({ ...current, quantity: event.target.value }))

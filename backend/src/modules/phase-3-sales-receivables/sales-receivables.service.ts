@@ -463,6 +463,21 @@ export class SalesReceivablesService {
     const reference = dto.reference?.trim() || this.generateReference("SO");
 
     try {
+      try {
+        const dump = JSON.stringify(
+          lines.map((l) => ({
+            itemName: l.itemName,
+            revenueAccountId: l.revenueAccountId,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+          })),
+          null,
+          2,
+        );
+        process.stderr.write(`DEBUG createSalesOrder - resolved lines: ${new Date().toISOString()}\n` + dump + "\n");
+      } catch (e) {
+        process.stderr.write(`DEBUG createSalesOrder - failed to stringify lines: ${String(e)}\n`);
+      }
       const created = await this.prisma.salesOrder.create({
         data: {
           reference,
@@ -490,6 +505,20 @@ export class SalesReceivablesService {
 
       return this.mapSalesOrder(created);
     } catch (error) {
+      try {
+        process.stderr.write(
+          `ERROR createSalesOrder - ${new Date().toISOString()} - error: ${String(error)}\n`,
+        );
+        try {
+          process.stderr.write(
+            `ERROR createSalesOrder - last resolved lines: ${JSON.stringify(lines, null, 2)}\n`,
+          );
+        } catch (e) {
+          process.stderr.write(`ERROR createSalesOrder - failed to stringify lines: ${String(e)}\n`);
+        }
+      } catch (e) {
+        // ignore logging failures
+      }
       if (this.isUniqueConflict(error, "reference")) {
         throw new ConflictException(
           "A sales order with this reference already exists.",
@@ -1768,15 +1797,17 @@ export class SalesReceivablesService {
 
     const resolved: ResolvedLine[] = [];
     for (const [index, rawLine] of lines.entries()) {
+      const revenueAccountId = rawLine.revenueAccountId?.trim() || null;
+
       if (options.requireRevenueAccount) {
-        if (!rawLine.revenueAccountId) {
+        if (!revenueAccountId) {
           throw new BadRequestException(
             `Line ${index + 1} requires a revenue account.`,
           );
         }
-        await this.ensureRevenueAccount(rawLine.revenueAccountId);
-      } else if (rawLine.revenueAccountId) {
-        await this.ensureRevenueAccount(rawLine.revenueAccountId);
+        await this.ensureRevenueAccount(revenueAccountId);
+      } else if (revenueAccountId) {
+        await this.ensureRevenueAccount(revenueAccountId);
       }
 
       const quantity = rawLine.quantity ?? 1; // Default quantity to 1 if not provided
@@ -1835,7 +1866,7 @@ export class SalesReceivablesService {
       resolved.push({
         itemName: rawLine.itemName?.trim() || null,
         description: rawLine.description?.trim() || null,
-        revenueAccountId: rawLine.revenueAccountId ?? null,
+        revenueAccountId: revenueAccountId,
         quantity: Number(quantity.toFixed(4)),
         unitPrice: finalUnitPrice,
         discountAmount: Number(discountAmount.toFixed(2)),

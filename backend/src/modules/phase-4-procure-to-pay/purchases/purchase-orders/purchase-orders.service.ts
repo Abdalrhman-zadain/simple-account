@@ -117,6 +117,14 @@ export class PurchaseOrdersService {
     }
 
     try {
+      console.error("DEBUG createPurchaseOrder - resolved lines:",
+        JSON.stringify(lines.map(l => ({
+          itemId: l.itemId,
+          itemName: l.itemName,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+        })), null, 2)
+      );
       const created = await this.prisma.purchaseOrder.create({
         data: {
           reference,
