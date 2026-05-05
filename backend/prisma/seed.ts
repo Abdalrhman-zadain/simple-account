@@ -837,6 +837,61 @@ async function main() {
     parentAccountId: operatingExpenses.id,
   });
 
+  // Payment Terms seed data
+  await prisma.paymentTerm.createMany({
+    data: [
+      {
+        name: 'Cash',
+        nameAr: 'نقدًا',
+        calculationMethod: 'IMMEDIATE',
+        numberOfDays: 0,
+        isActive: true,
+      },
+      {
+        name: 'Net 7',
+        nameAr: 'خلال 7 أيام',
+        calculationMethod: 'DAYS_AFTER',
+        numberOfDays: 7,
+        isActive: true,
+      },
+      {
+        name: 'Net 15',
+        nameAr: 'خلال 15 يومًا',
+        calculationMethod: 'DAYS_AFTER',
+        numberOfDays: 15,
+        isActive: true,
+      },
+      {
+        name: 'Net 30',
+        nameAr: 'خلال 30 يومًا',
+        calculationMethod: 'DAYS_AFTER',
+        numberOfDays: 30,
+        isActive: true,
+      },
+      {
+        name: 'Net 60',
+        nameAr: 'خلال 60 يومًا',
+        calculationMethod: 'DAYS_AFTER',
+        numberOfDays: 60,
+        isActive: true,
+      },
+      {
+        name: 'End of Month',
+        nameAr: 'نهاية الشهر',
+        calculationMethod: 'END_OF_MONTH',
+        numberOfDays: null,
+        isActive: true,
+      },
+      {
+        name: 'By Agreement',
+        nameAr: 'حسب الاتفاق',
+        calculationMethod: 'MANUAL',
+        numberOfDays: null,
+        isActive: true,
+      },
+    ],
+  });
+
   const cashRegister = await prisma.bankCashAccount.create({
     data: {
       type: 'Cash',

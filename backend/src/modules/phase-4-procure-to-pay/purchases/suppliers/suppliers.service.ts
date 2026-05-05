@@ -23,6 +23,16 @@ type SupplierWithPayableAccount = Prisma.SupplierGetPayload<{
         isPosting: true;
       };
     };
+    paymentTerm: {
+      select: {
+        id: true;
+        name: true;
+        nameAr: true;
+        calculationMethod: true;
+        numberOfDays: true;
+        isActive: true;
+      };
+    };
   };
 }>;
 
@@ -61,6 +71,16 @@ export class SuppliersService {
             isPosting: true,
           },
         },
+        paymentTerm: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            calculationMethod: true,
+            numberOfDays: true,
+            isActive: true,
+          },
+        },
       },
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -86,7 +106,7 @@ export class SuppliersService {
           phone: dto.phone?.trim() || null,
           email: dto.email?.trim() || null,
           address: dto.address?.trim() || null,
-          paymentTerms: dto.paymentTerms?.trim() || null,
+          paymentTermId: dto.paymentTermId || null,
           taxInfo: dto.taxInfo?.trim() || null,
           defaultCurrency,
           payableAccountId: payableAccount.id,
@@ -101,6 +121,16 @@ export class SuppliersService {
               currencyCode: true,
               isActive: true,
               isPosting: true,
+            },
+          },
+          paymentTerm: {
+            select: {
+              id: true,
+              name: true,
+              nameAr: true,
+              calculationMethod: true,
+              numberOfDays: true,
+              isActive: true,
             },
           },
         },
@@ -137,7 +167,7 @@ export class SuppliersService {
         phone: dto.phone === undefined ? undefined : dto.phone.trim() || null,
         email: dto.email === undefined ? undefined : dto.email.trim() || null,
         address: dto.address === undefined ? undefined : dto.address.trim() || null,
-        paymentTerms: dto.paymentTerms === undefined ? undefined : dto.paymentTerms.trim() || null,
+        paymentTermId: dto.paymentTermId === undefined ? undefined : dto.paymentTermId || null,
         taxInfo: dto.taxInfo === undefined ? undefined : dto.taxInfo.trim() || null,
         defaultCurrency: nextCurrency,
         payableAccountId: nextPayableAccountId,
@@ -152,6 +182,16 @@ export class SuppliersService {
             currencyCode: true,
             isActive: true,
             isPosting: true,
+          },
+        },
+        paymentTerm: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            calculationMethod: true,
+            numberOfDays: true,
+            isActive: true,
           },
         },
       },
@@ -175,6 +215,16 @@ export class SuppliersService {
             currencyCode: true,
             isActive: true,
             isPosting: true,
+          },
+        },
+        paymentTerm: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            calculationMethod: true,
+            numberOfDays: true,
+            isActive: true,
           },
         },
       },
@@ -306,7 +356,32 @@ export class SuppliersService {
   }
 
   private async getSupplierOrThrow(id: string) {
-    const supplier = await this.prisma.supplier.findUnique({ where: { id } });
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id },
+      include: {
+        payableAccount: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            currencyCode: true,
+            isActive: true,
+            isPosting: true,
+          },
+        },
+        paymentTerm: {
+          select: {
+            id: true,
+            name: true,
+            nameAr: true,
+            calculationMethod: true,
+            numberOfDays: true,
+            isActive: true,
+          },
+        },
+      },
+    });
     if (!supplier) {
       throw new BadRequestException(`Supplier ${id} was not found.`);
     }
@@ -322,7 +397,8 @@ export class SuppliersService {
       phone: row.phone,
       email: row.email,
       address: row.address,
-      paymentTerms: row.paymentTerms,
+      paymentTermId: row.paymentTermId,
+      paymentTerm: row.paymentTerm,
       taxInfo: row.taxInfo,
       defaultCurrency: row.defaultCurrency,
       currentBalance: row.currentBalance.toString(),

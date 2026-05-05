@@ -142,6 +142,29 @@ export type CreateTaxPayload = {
 
 export type UpdateTaxPayload = Partial<CreateTaxPayload>;
 
+export type DueDateCalculationMethod = "IMMEDIATE" | "DAYS_AFTER" | "END_OF_MONTH" | "MANUAL";
+
+export type PaymentTerm = {
+  id: string;
+  name: string;
+  nameAr?: string | null;
+  calculationMethod: DueDateCalculationMethod;
+  numberOfDays?: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatePaymentTermPayload = {
+  name: string;
+  nameAr?: string;
+  calculationMethod: DueDateCalculationMethod;
+  numberOfDays?: number;
+  isActive?: boolean;
+};
+
+export type UpdatePaymentTermPayload = Partial<CreatePaymentTermPayload>;
+
 export type InventoryItemType =
   | "INVENTORY"
   | "NON_STOCK"
@@ -1657,7 +1680,8 @@ export type Supplier = {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
-  paymentTerms?: string | null;
+  paymentTermId?: string | null;
+  paymentTerm?: PaymentTerm | null;
   taxInfo?: string | null;
   defaultCurrency: string;
   currentBalance: string;
@@ -1688,7 +1712,7 @@ export type CreateSupplierPayload = {
   phone?: string;
   email?: string;
   address?: string;
-  paymentTerms: string;
+  paymentTermId?: string;
   taxInfo?: string;
   defaultCurrency: string;
   payableAccountId: string;

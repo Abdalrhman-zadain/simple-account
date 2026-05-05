@@ -30,9 +30,9 @@ export class CreateSupplierDto {
   @Length(0, 255)
   address?: string;
 
+  @IsOptional()
   @IsString()
-  @Length(1, 120)
-  paymentTerms!: string;
+  paymentTermId?: string;
 
   @IsOptional()
   @IsString()

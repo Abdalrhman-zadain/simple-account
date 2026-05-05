@@ -6,11 +6,13 @@ import { PurchaseReceiptsModule } from './purchase-receipts/purchase-receipts.mo
 import { PurchaseRequestsModule } from './purchase-requests/purchase-requests.module';
 import { SupplierPaymentsModule } from './supplier-payments/supplier-payments.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
+import { PaymentTermsController } from './payment-terms.controller';
+import { PaymentTermsService } from './payment-terms.service';
 
 @Module({
   imports: [SuppliersModule, PurchaseRequestsModule, PurchaseOrdersModule, PurchaseReceiptsModule, PurchaseInvoicesModule, SupplierPaymentsModule, DebitNotesModule],
-  controllers: [],
-  providers: [],
-  exports: [],
+  controllers: [PaymentTermsController],
+  providers: [PaymentTermsService],
+  exports: [PaymentTermsService],
 })
 export class PurchasesModule {}

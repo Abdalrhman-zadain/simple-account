@@ -28,8 +28,7 @@ export class UpdateSupplierDto {
 
   @IsOptional()
   @IsString()
-  @Length(1, 120)
-  paymentTerms?: string;
+  paymentTermId?: string;
 
   @IsOptional()
   @IsString()

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban, LuWallet as Wallet, LuPercent as Percent, LuTrash2 as Trash2 } from "react-icons/lu";
+import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban, LuWallet as Wallet, LuPercent as Percent, LuTrash2 as Trash2, LuCreditCard } from "react-icons/lu";
 import {
     createTax,
     createAccountSubtype,
@@ -18,6 +18,7 @@ import {
     getAccountOptions,
     getJournalEntryTypes,
     getPaymentMethodTypes,
+    getPaymentTerms,
     getSegmentDefinitions,
     getTaxes,
     updateAccountSubtype,
@@ -32,8 +33,9 @@ import { AccountOption, AccountSubtype, JournalEntryType, PaymentMethodType, Seg
 import { SectionHeading, StatusPill, Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
+import { PaymentTermsTab } from "./payment-terms-tab";
 
-const SEGMENT_ICONS = [Building2, BookMarked, Users2, MapPin, FolderKanban];
+const SEGMENT_ICONS = [Building2, BookMarked, Users2, MapPin, FolderKanban, Wallet];
 const SEGMENT_COLORS = [
     "text-violet-400 bg-violet-400/10 border-violet-400/20",
     "text-teal-400 bg-teal-400/10 border-teal-400/20",
@@ -114,6 +116,11 @@ export function MasterDataPage() {
     const { data: taxes = [], isLoading: isLoadingTaxes, isError: isTaxesError, error: taxesError } = useQuery({
         queryKey: ["taxes", token],
         queryFn: () => getTaxes(token),
+    });
+
+    const { data: paymentTerms = [], isLoading: isLoadingPaymentTerms } = useQuery({
+        queryKey: ["payment-terms", token],
+        queryFn: () => getPaymentTerms(token),
     });
 
     const { data: taxAccounts = [] } = useQuery({
@@ -240,6 +247,7 @@ export function MasterDataPage() {
         { kind: "account-subtypes" as const, def: null },
         { kind: "journal-entry-types" as const, def: null },
         { kind: "payment-method-types" as const, def: null },
+        { kind: "payment-terms" as const, def: null },
         { kind: "taxes" as const, def: null },
     ];
 
@@ -282,9 +290,10 @@ export function MasterDataPage() {
                     const isSubtypeTab = tab.kind === "account-subtypes";
                     const isTypeTab = tab.kind === "journal-entry-types";
                     const isPaymentMethodTypeTab = tab.kind === "payment-method-types";
+                    const isPaymentTermsTab = tab.kind === "payment-terms";
                     const isTaxTab = tab.kind === "taxes";
                     const def = tab.def as SegmentDefinition | null;
-                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : isPaymentMethodTypeTab ? Wallet : isTaxTab ? Percent : (SEGMENT_ICONS[i] ?? Building2);
+                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : isPaymentMethodTypeTab ? Wallet : isPaymentTermsTab ? LuCreditCard : isTaxTab ? Percent : (SEGMENT_ICONS[i] ?? Building2);
                     const color =
                         isSubtypeTab
                             ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/20"
@@ -292,12 +301,14 @@ export function MasterDataPage() {
                                 ? "text-indigo-400 bg-indigo-400/10 border-indigo-400/20"
                                 : isPaymentMethodTypeTab
                                     ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20"
-                                    : isTaxTab
-                                        ? "text-green-400 bg-green-400/10 border-green-400/20"
-                                        : (SEGMENT_COLORS[i] ?? SEGMENT_COLORS[0]);
+                                    : isPaymentTermsTab
+                                        ? "text-purple-400 bg-purple-400/10 border-purple-400/20"
+                                        : isTaxTab
+                                            ? "text-green-400 bg-green-400/10 border-green-400/20"
+                                            : (SEGMENT_COLORS[i] ?? SEGMENT_COLORS[0]);
                     return (
                         <button
-                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : isPaymentMethodTypeTab ? "payment-method-types" : isTaxTab ? "taxes" : def!.id}
+                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : isPaymentMethodTypeTab ? "payment-method-types" : isPaymentTermsTab ? "payment-terms" : isTaxTab ? "taxes" : def!.id}
                             onClick={() => {
                                 setActiveTab(i);
                                 setShowAddSegmentValue(false);
@@ -316,7 +327,7 @@ export function MasterDataPage() {
                             )}
                         >
                             <Icon className="h-4 w-4" />
-                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : isPaymentMethodTypeTab ? t("master.tab.paymentMethodTypes") : isTaxTab ? t("master.tab.taxes") : def!.name}
+                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : isPaymentMethodTypeTab ? t("master.tab.paymentMethodTypes") : isPaymentTermsTab ? t("master.tab.paymentTerms") : isTaxTab ? t("master.tab.taxes") : def!.name}
                             <span className={cn(
                                 "ml-1 rounded-full px-2 py-0.5 text-[10px] font-black",
                                 activeTab === i ? "bg-gray-100" : "bg-gray-100"
@@ -327,9 +338,11 @@ export function MasterDataPage() {
                                         ? journalEntryTypes.filter((t) => t.isActive).length
                                         : isPaymentMethodTypeTab
                                             ? paymentMethodTypes.filter((t) => t.isActive).length
-                                            : isTaxTab
-                                                ? taxes.filter((tax) => tax.isActive).length
-                                                : def!.values.filter(v => v.isActive).length}
+                                            : isPaymentTermsTab
+                                                ? paymentTerms.filter((t) => t.isActive).length
+                                                : isTaxTab
+                                                    ? taxes.filter((tax) => tax.isActive).length
+                                                    : def!.values.filter(v => v.isActive).length}
                             </span>
                         </button>
                     );
@@ -772,6 +785,8 @@ export function MasterDataPage() {
                     </table>
                 </Card>
             )}
+
+            {active?.kind === "payment-terms" && <PaymentTermsTab />}
 
             {active?.kind === "taxes" && (
                 <Card className="p-0 border border-gray-200 bg-panel/40 overflow-hidden">

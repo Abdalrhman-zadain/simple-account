@@ -282,6 +282,13 @@ enum FixedAssetDisposalMethod {
   OTHER
 }
 
+enum DueDateCalculationMethod {
+  IMMEDIATE
+  DAYS_AFTER
+  END_OF_MONTH
+  MANUAL
+}
+
 model Account {
   id          String      @id @default(cuid())
   code        String      @unique
@@ -593,6 +600,20 @@ model Customer {
   @@index([isActive, name])
 }
 
+model PaymentTerm {
+  id                   String                      @id @default(cuid())
+  name                 String                      @unique
+  nameAr               String?
+  calculationMethod    DueDateCalculationMethod    @default(DAYS_AFTER)
+  numberOfDays         Int?
+  isActive             Boolean                     @default(true)
+  suppliers            Supplier[]
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  @@index([isActive, name])
+}
+
 model Supplier {
   id               String            @id @default(cuid())
   code             String            @unique
@@ -601,7 +622,9 @@ model Supplier {
   phone            String?
   email            String?
   address          String?
-  paymentTerms     String?
+  paymentTerms     String?           // Deprecated - use paymentTermId
+  paymentTermId    String?
+  paymentTerm      PaymentTerm?      @relation(fields: [paymentTermId], references: [id], onDelete: SetNull)
   taxInfo          String?
   defaultCurrency  String            @default("JOD")
   currentBalance   Decimal           @default(0) @db.Decimal(18, 2)

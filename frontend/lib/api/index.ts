@@ -97,11 +97,13 @@ import {
   CreateJournalEntryPayload,
   CreateJournalEntryTypePayload,
   CreatePaymentMethodTypePayload,
+  CreatePaymentTermPayload,
   CreateSegmentValuePayload,
   FiscalPeriod,
   FiscalYear,
   DebitNote,
   DebitNotesQuery,
+  DueDateCalculationMethod,
   JournalEntriesQuery,
   JournalEntry,
   JournalEntryType,
@@ -165,6 +167,7 @@ import {
   Supplier,
   SupplierBalance,
   Tax,
+  PaymentTerm,
   PurchaseRequestStatusNotePayload,
   SupplierTransactionsResponse,
   SuppliersQuery,
@@ -204,6 +207,7 @@ import {
   UpdateSupplierPaymentPayload,
   UpdateSupplierPayload,
   UpdateTaxPayload,
+  UpdatePaymentTermPayload,
   UpdateSegmentValuePayload,
 } from "@/types/api";
 
@@ -2667,6 +2671,39 @@ export async function updateTax(id: string, payload: UpdateTaxPayload, token?: s
 
 export async function deleteTax(id: string, token?: string | null) {
   return apiRequest<Tax>(`/taxes/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+// ─── Payment Terms ───────────────────────────────────────────────────────────
+
+export async function getPaymentTerms(token?: string | null) {
+  return apiRequest<PaymentTerm[]>("/payment-terms", { token });
+}
+
+export async function getActivePaymentTerms(token?: string | null) {
+  return apiRequest<PaymentTerm[]>("/payment-terms/active", { token });
+}
+
+export async function createPaymentTerm(payload: CreatePaymentTermPayload, token?: string | null) {
+  return apiRequest<PaymentTerm>("/payment-terms", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updatePaymentTerm(id: string, payload: UpdatePaymentTermPayload, token?: string | null) {
+  return apiRequest<PaymentTerm>(`/payment-terms/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deletePaymentTerm(id: string, token?: string | null) {
+  return apiRequest<PaymentTerm>(`/payment-terms/${id}`, {
     method: "DELETE",
     token,
   });

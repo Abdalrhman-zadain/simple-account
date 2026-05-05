@@ -31,6 +31,7 @@ import {
   cancelSupplierPayment,
   convertPurchaseRequestToOrder,
   createDebitNote,
+  createPaymentTerm,
   createPurchaseInvoice,
   createPurchaseOrder,
   createPurchaseReceipt,
@@ -38,6 +39,7 @@ import {
   createSupplierPayment,
   createSupplier,
   deactivateSupplier,
+  getActivePaymentTerms,
   getBankCashAccounts,
   getAccountOptions,
   getDebitNoteById,
@@ -78,7 +80,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { AccountOption, DebitNote, InventoryItem, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
+import type { AccountOption, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
@@ -105,7 +107,7 @@ type SupplierEditorState = {
   phone: string;
   email: string;
   address: string;
-  paymentTerms: string;
+  paymentTermId: string;
   taxInfo: string;
   defaultCurrency: string;
   payableAccountId: string;
@@ -248,7 +250,7 @@ const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   phone: "",
   email: "",
   address: "",
-  paymentTerms: "",
+  paymentTermId: "",
   taxInfo: "",
   defaultCurrency: "JOD",
   payableAccountId: "",
@@ -360,6 +362,8 @@ export function PurchasesPage() {
   const [selectedDebitNoteId, setSelectedDebitNoteId] = useState<string | null>(null);
   const [isDebitNoteEditorOpen, setIsDebitNoteEditorOpen] = useState(false);
   const [debitNoteEditor, setDebitNoteEditor] = useState<DebitNoteEditorState>(EMPTY_DEBIT_NOTE_EDITOR);
+  const [isPaymentTermCreatorOpen, setIsPaymentTermCreatorOpen] = useState(false);
+  const [paymentTermCreator, setPaymentTermCreator] = useState<{ name: string; nameAr: string; calculationMethod: DueDateCalculationMethod; numberOfDays: string }>({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" });
 
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
@@ -396,6 +400,13 @@ export function PurchasesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const activeTaxes = taxesQuery.data ?? [];
+
+  const paymentTermsQuery = useQuery({
+    queryKey: ["payment-terms", "active", token],
+    queryFn: () => getActivePaymentTerms(token),
+    staleTime: 5 * 60 * 1000,
+  });
+  const activePaymentTerms = paymentTermsQuery.data ?? [];
 
   const supplierBalanceQuery = useQuery({
     queryKey: queryKeys.purchaseSupplierBalance(token, selectedSupplierId),
@@ -524,7 +535,7 @@ export function PurchasesPage() {
           phone: supplierEditor.phone || undefined,
           email: supplierEditor.email || undefined,
           address: supplierEditor.address || undefined,
-          paymentTerms: supplierEditor.paymentTerms,
+          paymentTermId: supplierEditor.paymentTermId || undefined,
           taxInfo: supplierEditor.taxInfo || undefined,
           defaultCurrency: supplierEditor.defaultCurrency || "JOD",
           payableAccountId: supplierEditor.payableAccountId,
@@ -548,7 +559,7 @@ export function PurchasesPage() {
           phone: supplierEditor.phone || "",
           email: supplierEditor.email || "",
           address: supplierEditor.address || "",
-          paymentTerms: supplierEditor.paymentTerms || "",
+          paymentTermId: supplierEditor.paymentTermId || "",
           taxInfo: supplierEditor.taxInfo || "",
           defaultCurrency: supplierEditor.defaultCurrency || "JOD",
           payableAccountId: supplierEditor.payableAccountId,
@@ -567,6 +578,26 @@ export function PurchasesPage() {
     onSuccess: async (updated) => {
       await invalidatePurchases(queryClient);
       setSelectedSupplierId(updated.id);
+    },
+  });
+
+  const createPaymentTermMutation = useMutation({
+    mutationFn: () =>
+      createPaymentTerm(
+        {
+          name: paymentTermCreator.name.trim(),
+          nameAr: paymentTermCreator.nameAr.trim(),
+          calculationMethod: paymentTermCreator.calculationMethod,
+          numberOfDays: paymentTermCreator.calculationMethod === "DAYS_AFTER" ? Number(paymentTermCreator.numberOfDays) : undefined,
+          isActive: true,
+        },
+        token,
+      ),
+    onSuccess: async (created) => {
+      queryClient.invalidateQueries({ queryKey: ["payment-terms", "active", token] });
+      setSupplierEditor((current) => ({ ...current, paymentTermId: created.id }));
+      setIsPaymentTermCreatorOpen(false);
+      setPaymentTermCreator({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" });
     },
   });
 
@@ -1208,7 +1239,7 @@ export function PurchasesPage() {
                           </td>
                           <td className="px-6 py-4 align-top text-start">
                             <div className="font-bold text-gray-900">{row.name}</div>
-                            <div className="text-xs text-gray-500">{row.paymentTerms || t("purchases.empty.paymentTerms")}</div>
+                            <div className="text-xs text-gray-500">{row.paymentTerm ? (isArabic ? row.paymentTerm.nameAr || row.paymentTerm.name : row.paymentTerm.name) : t("purchases.empty.paymentTerms")}</div>
                           </td>
                           <td className="px-6 py-4 align-top text-start">
                             <div className="text-gray-700">{row.phone || row.contactInfo || t("purchases.empty.phone")}</div>
@@ -2275,15 +2306,27 @@ export function PurchasesPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.paymentTerms")} required>
-                <Select value={supplierEditor.paymentTerms} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTerms: event.target.value }))}>
-                  <option value="">{t("purchases.placeholder.paymentTerms")}</option>
-                  <option value={t("purchases.paymentTerms.cash")}>{t("purchases.paymentTerms.cash")}</option>
-                  <option value={t("purchases.paymentTerms.net7")}>{t("purchases.paymentTerms.net7")}</option>
-                  <option value={t("purchases.paymentTerms.net15")}>{t("purchases.paymentTerms.net15")}</option>
-                  <option value={t("purchases.paymentTerms.net30")}>{t("purchases.paymentTerms.net30")}</option>
-                  <option value={t("purchases.paymentTerms.net60")}>{t("purchases.paymentTerms.net60")}</option>
-                </Select>
+              <Field label={t("purchases.field.paymentTerms")}>
+                <div className="flex gap-2">
+                  <Select value={supplierEditor.paymentTermId} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTermId: event.target.value }))}>
+                    <option value="">{t("purchases.placeholder.paymentTerms")}</option>
+                    {activePaymentTerms.map((term) => (
+                      <option key={term.id} value={term.id}>
+                        {isArabic ? term.nameAr || term.name : term.name}
+                      </option>
+                    ))}
+                    <option value="__add_new__" disabled>
+                      ─ {t("purchases.addNewPaymentTerm")} ─
+                    </option>
+                  </Select>
+                  <button
+                    onClick={() => setIsPaymentTermCreatorOpen(true)}
+                    className="px-3 py-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 text-sm font-medium transition-colors"
+                    title={t("purchases.addNewPaymentTerm")}
+                  >
+                    <CirclePlus className="h-4 w-4" />
+                  </button>
+                </div>
               </Field>
               <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
                 <Select value={supplierEditor.payableAccountId} onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}>
@@ -2332,6 +2375,73 @@ export function PurchasesPage() {
             </div>
           </div>
         </SidePanel>
+
+        {/* Payment Term Creator Modal */}
+        {isPaymentTermCreatorOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <h3 className="text-base font-bold text-gray-900">{t("purchases.addNewPaymentTerm")}</h3>
+                <button onClick={() => { setIsPaymentTermCreatorOpen(false); setPaymentTermCreator({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" }); }} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="grid gap-4 px-6 py-5">
+                <Field label={t("master.paymentTerms.nameEnglish")} required>
+                  <input
+                    value={paymentTermCreator.name}
+                    onChange={(event) => setPaymentTermCreator((current) => ({ ...current, name: event.target.value }))}
+                    placeholder={t("master.paymentTerms.nameEnglishPlaceholder")}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                  />
+                </Field>
+                <Field label={t("master.paymentTerms.nameArabic")} required>
+                  <input
+                    value={paymentTermCreator.nameAr}
+                    onChange={(event) => setPaymentTermCreator((current) => ({ ...current, nameAr: event.target.value }))}
+                    placeholder={t("master.paymentTerms.nameArabicPlaceholder")}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                    dir="rtl"
+                  />
+                </Field>
+                <Field label={t("master.paymentTerms.calculationMethod")} required>
+                  <select
+                    value={paymentTermCreator.calculationMethod}
+                    onChange={(event) => setPaymentTermCreator((current) => ({ ...current, calculationMethod: event.target.value as any, numberOfDays: "" }))}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                  >
+                    <option value="IMMEDIATE">{t("master.paymentTerms.method.immediate")}</option>
+                    <option value="DAYS_AFTER">{t("master.paymentTerms.method.daysAfter")}</option>
+                    <option value="END_OF_MONTH">{t("master.paymentTerms.method.endOfMonth")}</option>
+                    <option value="MANUAL">{t("master.paymentTerms.method.manual")}</option>
+                  </select>
+                </Field>
+                {paymentTermCreator.calculationMethod === "DAYS_AFTER" && (
+                  <Field label={t("master.paymentTerms.numberOfDays")} required>
+                    <input
+                      type="number"
+                      min={0}
+                      value={paymentTermCreator.numberOfDays}
+                      onChange={(event) => setPaymentTermCreator((current) => ({ ...current, numberOfDays: event.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                    />
+                  </Field>
+                )}
+              </div>
+              {createPaymentTermMutation.isError && (
+                <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {(createPaymentTermMutation.error as Error).message || t("master.paymentTerms.saveError")}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                <Button variant="secondary" onClick={() => { setIsPaymentTermCreatorOpen(false); setPaymentTermCreator({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" }); }}>{t("common.action.cancel")}</Button>
+                <Button onClick={() => createPaymentTermMutation.mutate()} disabled={!paymentTermCreator.name.trim() || !paymentTermCreator.nameAr.trim() || (paymentTermCreator.calculationMethod === "DAYS_AFTER" && !paymentTermCreator.numberOfDays) || createPaymentTermMutation.isPending}>
+                  <Check className="h-4 w-4 mr-2" /> {t("common.action.save")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isRequestEditorOpen ? (
           <div className="fixed inset-0 z-50 p-3 sm:p-6">
@@ -3962,7 +4072,7 @@ export function PurchasesPage() {
       phone: supplier.phone ?? "",
       email: supplier.email ?? "",
       address: supplier.address ?? "",
-      paymentTerms: supplier.paymentTerms ?? "",
+      paymentTermId: supplier.paymentTermId ?? "",
       taxInfo: supplier.taxInfo ?? "",
       defaultCurrency: supplier.defaultCurrency,
       payableAccountId: supplier.payableAccount.id,
@@ -4522,9 +4632,6 @@ async function invalidatePurchases(queryClient: ReturnType<typeof useQueryClient
 function getSupplierFormError(editor: SupplierEditorState) {
   if (!editor.name.trim()) {
     return "Supplier name is required. اسم المورد مطلوب.";
-  }
-  if (!editor.paymentTerms.trim()) {
-    return "Payment terms are required. شروط الدفع مطلوبة.";
   }
   if (!editor.payableAccountId) {
     return "Default payable account is required. حساب الدائنين الافتراضي مطلوب.";
