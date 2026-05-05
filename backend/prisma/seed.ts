@@ -563,6 +563,103 @@ async function main() {
     parentAccountId: payables.id,
   });
 
+  // Current Liabilities Section
+  const currentLiabilities = await createAccount({
+    code: '2200000',
+    name: 'Current Liabilities',
+    nameAr: 'الالتزامات المتداولة',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: liabilities.id,
+  });
+
+  // Sales Tax Payables by Rate
+  const salesTaxByRate = await createAccount({
+    code: '2300000',
+    name: 'Sales Tax Payables',
+    nameAr: 'أمانات ضريبة المبيعات',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: currentLiabilities.id,
+  });
+
+  // Sales Tax Payables by Rate - 16%
+  await createAccount({
+    code: '2300001',
+    name: 'Sales Tax Payable 16%',
+    nameAr: 'أمانات ضريبة المبيعات 16%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 10%
+  await createAccount({
+    code: '2300002',
+    name: 'Sales Tax Payable 10%',
+    nameAr: 'أمانات ضريبة المبيعات 10%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 8%
+  await createAccount({
+    code: '2300003',
+    name: 'Sales Tax Payable 8%',
+    nameAr: 'أمانات ضريبة المبيعات 8%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 5%
+  await createAccount({
+    code: '2300004',
+    name: 'Sales Tax Payable 5%',
+    nameAr: 'أمانات ضريبة المبيعات 5%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 4%
+  await createAccount({
+    code: '2300005',
+    name: 'Sales Tax Payable 4%',
+    nameAr: 'أمانات ضريبة المبيعات 4%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 2%
+  await createAccount({
+    code: '2300006',
+    name: 'Sales Tax Payable 2%',
+    nameAr: 'أمانات ضريبة المبيعات 2%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
+  // Sales Tax Payables by Rate - 1%
+  await createAccount({
+    code: '2300007',
+    name: 'Sales Tax Payable 1%',
+    nameAr: 'أمانات ضريبة المبيعات 1%',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: salesTaxByRate.id,
+  });
+
   await prisma.tax.createMany({
     data: [
       {
