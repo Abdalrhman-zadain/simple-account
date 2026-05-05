@@ -68,7 +68,7 @@ Current limitation:
 
 - the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace, but document export/printing and customer statement output are still not implemented.
 - printable quote/order/invoice outputs and customer statement output are still not implemented.
-- sales invoice posting can proceed without a configured sales tax/VAT liability account; when no dedicated tax account exists, the tax portion is folded into the revenue credits at posting time instead of blocking the post action.
+- sales invoice posting still uses the legacy sales tax/VAT liability-account lookup for journal posting; document entry can now select a `Tax` master record and store `taxId`, but posting has not yet been fully refactored to post each line against that tax record's mapped account.
 
 What this means for future edits:
 
@@ -83,7 +83,7 @@ Current limitation:
 - purchase orders now support draft/issue/receipt/cancel/close lifecycle management and now store operational purchase-receipt records, but they still do not create inventory or accounting journal entries from receipt posting.
 - purchase invoices, supplier payments, and debit notes now provide explicit reverse-document workflows that create reversal journal entries and mark the source documents as `REVERSED`.
 - the purchase debit-note editor currently captures supplier discount notes without a tax field and submits tax as zero; tax-bearing debit notes still depend on configured purchase tax/VAT posting accounts at the backend level.
-- purchase invoice posting no longer requires a dedicated purchase tax/VAT account; line tax amounts are posted with the line debit accounts instead of a separate tax line.
+- purchase invoice posting no longer requires a dedicated purchase tax/VAT account; line tax amounts are posted with the line debit accounts instead of a separate tax line. Purchase document entry can now store `taxId`, but posting has not yet been fully refactored to use each tax record's mapped account.
 - purchase transaction audit history now includes reversed purchase invoices, supplier payments, and debit notes, but purchase receipts still do not yet have their own reversal flow.
 
 What this means for future edits:

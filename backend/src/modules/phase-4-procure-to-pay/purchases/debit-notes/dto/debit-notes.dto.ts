@@ -27,6 +27,10 @@ export class DebitNoteLineDto {
   @Min(0)
   taxAmount!: number;
 
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
   @IsString()
   @Length(1, 255)
   reason!: string;

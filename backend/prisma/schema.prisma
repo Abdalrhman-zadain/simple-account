@@ -248,6 +248,14 @@ enum PayrollAdjustmentType {
   REVERSAL
 }
 
+enum TaxType {
+  SALES
+  PURCHASE
+  ZERO_RATED
+  EXEMPT
+  OUT_OF_SCOPE
+}
+
 enum FixedAssetStatus {
   ACTIVE
   INACTIVE
@@ -303,40 +311,41 @@ model Account {
   segment4 String? // Branch
   segment5 String? // Project
 
-  currencyCode                    String                @default("JOD")
-  isActive                        Boolean               @default(true)
-  allowManualPosting              Boolean               @default(true)
-  currentBalance                  Decimal               @default(0) @db.Decimal(18, 2)
-  parentAccountId                 String?
-  parentAccount                   Account?              @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
-  childAccounts                   Account[]             @relation("AccountHierarchy")
-  journalLines                    JournalEntryLine[]
-  ledgerLines                     LedgerTransaction[]
-  bankCashAccount                 BankCashAccount?
-  bankCashCounterpartTransactions BankCashTransaction[] @relation("BankCashCounterAccount")
-  customerReceivables             Customer[]            @relation("CustomerReceivableAccount")
-  supplierPayables                Supplier[]            @relation("SupplierPayableAccount")
-  purchaseRequestExpenseLines     PurchaseRequestLine[] @relation("PurchaseRequestExpenseAccount")
-  purchaseInvoiceAccountLines     PurchaseInvoiceLine[] @relation("PurchaseInvoiceClassificationAccount")
-  salesQuotationRevenueLines      SalesQuotationLine[]  @relation("SalesQuotationRevenueAccount")
-  salesOrderRevenueLines          SalesOrderLine[]      @relation("SalesOrderRevenueAccount")
-  salesInvoiceRevenueLines        SalesInvoiceLine[]    @relation("SalesInvoiceRevenueAccount")
-  creditNoteRevenueLines          CreditNoteLine[]      @relation("CreditNoteRevenueAccount")
-  inventoryDefaultItems           InventoryItem[]       @relation("InventoryItemInventoryAccount")
-  inventoryCogsItems              InventoryItem[]       @relation("InventoryItemCogsAccount")
-  inventorySalesItems             InventoryItem[]       @relation("InventoryItemSalesAccount")
-  inventoryAdjustmentItems        InventoryItem[]       @relation("InventoryItemAdjustmentAccount")
-  payrollExpenseComponents        PayrollComponent[]    @relation("PayrollComponentExpenseAccount")
-  payrollLiabilityComponents      PayrollComponent[]    @relation("PayrollComponentLiabilityAccount")
-  payrollPeriodPayables           PayrollPeriod[]       @relation("PayrollPeriodPayableAccount")
-  fixedAssetCategoryAssetAccounts FixedAssetCategory[]  @relation("FixedAssetCategoryAssetAccount")
-  fixedAssetCategoryAccumAccounts FixedAssetCategory[]  @relation("FixedAssetCategoryAccumulatedDepreciationAccount")
-  fixedAssetCategoryExpenseAccounts FixedAssetCategory[] @relation("FixedAssetCategoryDepreciationExpenseAccount")
-  fixedAssetCategoryGainAccounts  FixedAssetCategory[]  @relation("FixedAssetCategoryDisposalGainAccount")
-  fixedAssetCategoryLossAccounts  FixedAssetCategory[]  @relation("FixedAssetCategoryDisposalLossAccount")
-  fixedAssetAcquisitionClearingAccounts FixedAssetAcquisition[] @relation("FixedAssetAcquisitionClearingAccount")
-  fixedAssetDisposalProceedsAccounts FixedAssetDisposal[] @relation("FixedAssetDisposalProceedsAccount")
-  fixedAssetDisposalExpenseClearingAccounts FixedAssetDisposal[] @relation("FixedAssetDisposalExpenseClearingAccount")
+  currencyCode                              String                  @default("JOD")
+  isActive                                  Boolean                 @default(true)
+  allowManualPosting                        Boolean                 @default(true)
+  currentBalance                            Decimal                 @default(0) @db.Decimal(18, 2)
+  parentAccountId                           String?
+  parentAccount                             Account?                @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts                             Account[]               @relation("AccountHierarchy")
+  journalLines                              JournalEntryLine[]
+  ledgerLines                               LedgerTransaction[]
+  bankCashAccount                           BankCashAccount?
+  bankCashCounterpartTransactions           BankCashTransaction[]   @relation("BankCashCounterAccount")
+  customerReceivables                       Customer[]              @relation("CustomerReceivableAccount")
+  supplierPayables                          Supplier[]              @relation("SupplierPayableAccount")
+  purchaseRequestExpenseLines               PurchaseRequestLine[]   @relation("PurchaseRequestExpenseAccount")
+  purchaseInvoiceAccountLines               PurchaseInvoiceLine[]   @relation("PurchaseInvoiceClassificationAccount")
+  salesQuotationRevenueLines                SalesQuotationLine[]    @relation("SalesQuotationRevenueAccount")
+  salesOrderRevenueLines                    SalesOrderLine[]        @relation("SalesOrderRevenueAccount")
+  salesInvoiceRevenueLines                  SalesInvoiceLine[]      @relation("SalesInvoiceRevenueAccount")
+  creditNoteRevenueLines                    CreditNoteLine[]        @relation("CreditNoteRevenueAccount")
+  inventoryDefaultItems                     InventoryItem[]         @relation("InventoryItemInventoryAccount")
+  inventoryCogsItems                        InventoryItem[]         @relation("InventoryItemCogsAccount")
+  inventorySalesItems                       InventoryItem[]         @relation("InventoryItemSalesAccount")
+  inventoryAdjustmentItems                  InventoryItem[]         @relation("InventoryItemAdjustmentAccount")
+  payrollExpenseComponents                  PayrollComponent[]      @relation("PayrollComponentExpenseAccount")
+  payrollLiabilityComponents                PayrollComponent[]      @relation("PayrollComponentLiabilityAccount")
+  payrollPeriodPayables                     PayrollPeriod[]         @relation("PayrollPeriodPayableAccount")
+  fixedAssetCategoryAssetAccounts           FixedAssetCategory[]    @relation("FixedAssetCategoryAssetAccount")
+  fixedAssetCategoryAccumAccounts           FixedAssetCategory[]    @relation("FixedAssetCategoryAccumulatedDepreciationAccount")
+  fixedAssetCategoryExpenseAccounts         FixedAssetCategory[]    @relation("FixedAssetCategoryDepreciationExpenseAccount")
+  fixedAssetCategoryGainAccounts            FixedAssetCategory[]    @relation("FixedAssetCategoryDisposalGainAccount")
+  fixedAssetCategoryLossAccounts            FixedAssetCategory[]    @relation("FixedAssetCategoryDisposalLossAccount")
+  fixedAssetAcquisitionClearingAccounts     FixedAssetAcquisition[] @relation("FixedAssetAcquisitionClearingAccount")
+  fixedAssetDisposalProceedsAccounts        FixedAssetDisposal[]    @relation("FixedAssetDisposalProceedsAccount")
+  fixedAssetDisposalExpenseClearingAccounts FixedAssetDisposal[]    @relation("FixedAssetDisposalExpenseClearingAccount")
+  taxes                                     Tax[]                   @relation("TaxAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -479,6 +488,30 @@ model PaymentMethodType {
   @@index([isActive])
 }
 
+model Tax {
+  id                   String                @id @default(cuid())
+  taxCode              String                @unique
+  taxName              String
+  rate                 Decimal               @db.Decimal(5, 2)
+  taxType              TaxType
+  taxAccountId         String?
+  taxAccount           Account?              @relation("TaxAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
+  isActive             Boolean               @default(true)
+  purchaseOrderLines   PurchaseOrderLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  debitNoteLines       DebitNoteLine[]
+  salesQuotationLines  SalesQuotationLine[]
+  salesOrderLines      SalesOrderLine[]
+  salesInvoiceLines    SalesInvoiceLine[]
+  creditNoteLines      CreditNoteLine[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@index([isActive])
+  @@index([taxType])
+  @@index([taxAccountId])
+}
+
 model JournalEntryType {
   id        String         @id @default(cuid())
   name      String         @unique
@@ -504,26 +537,26 @@ model JournalEntry {
   fiscalPeriodId String?
   fiscalPeriod   FiscalPeriod? @relation(fields: [fiscalPeriodId], references: [id])
 
-  reversalOfId          String?                @unique
-  reversalOf            JournalEntry?          @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
-  reversedBy            JournalEntry?          @relation("JournalEntryReversal")
-  lines                 JournalEntryLine[]
-  ledgerLines           LedgerTransaction[]
-  postingBatchId        String?                @unique
-  postingBatch          PostingBatch?          @relation(fields: [postingBatchId], references: [id])
-  bankCashTransaction   BankCashTransaction?
-  salesInvoice          SalesInvoice?          @relation("SalesInvoiceToJournalEntry")
-  purchaseInvoice       PurchaseInvoice?       @relation("PurchaseInvoiceToJournalEntry")
-  creditNote            CreditNote?            @relation("CreditNoteToJournalEntry")
-  debitNote             DebitNote?             @relation("DebitNoteToJournalEntry")
-  inventoryGoodsReceipt InventoryGoodsReceipt? @relation("InventoryGoodsReceiptToJournalEntry")
-  inventoryGoodsIssue   InventoryGoodsIssue?   @relation("InventoryGoodsIssueToJournalEntry")
-  inventoryAdjustment   InventoryAdjustment?   @relation("InventoryAdjustmentToJournalEntry")
-  payrollPeriod         PayrollPeriod?         @relation("PayrollPeriodToJournalEntry")
-  payrollAdjustment     PayrollAdjustment?     @relation("PayrollAdjustmentToJournalEntry")
-  fixedAssetAcquisition FixedAssetAcquisition? @relation("FixedAssetAcquisitionToJournalEntry")
+  reversalOfId              String?                    @unique
+  reversalOf                JournalEntry?              @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
+  reversedBy                JournalEntry?              @relation("JournalEntryReversal")
+  lines                     JournalEntryLine[]
+  ledgerLines               LedgerTransaction[]
+  postingBatchId            String?                    @unique
+  postingBatch              PostingBatch?              @relation(fields: [postingBatchId], references: [id])
+  bankCashTransaction       BankCashTransaction?
+  salesInvoice              SalesInvoice?              @relation("SalesInvoiceToJournalEntry")
+  purchaseInvoice           PurchaseInvoice?           @relation("PurchaseInvoiceToJournalEntry")
+  creditNote                CreditNote?                @relation("CreditNoteToJournalEntry")
+  debitNote                 DebitNote?                 @relation("DebitNoteToJournalEntry")
+  inventoryGoodsReceipt     InventoryGoodsReceipt?     @relation("InventoryGoodsReceiptToJournalEntry")
+  inventoryGoodsIssue       InventoryGoodsIssue?       @relation("InventoryGoodsIssueToJournalEntry")
+  inventoryAdjustment       InventoryAdjustment?       @relation("InventoryAdjustmentToJournalEntry")
+  payrollPeriod             PayrollPeriod?             @relation("PayrollPeriodToJournalEntry")
+  payrollAdjustment         PayrollAdjustment?         @relation("PayrollAdjustmentToJournalEntry")
+  fixedAssetAcquisition     FixedAssetAcquisition?     @relation("FixedAssetAcquisitionToJournalEntry")
   fixedAssetDepreciationRun FixedAssetDepreciationRun? @relation("FixedAssetDepreciationRunToJournalEntry")
-  fixedAssetDisposal    FixedAssetDisposal?    @relation("FixedAssetDisposalToJournalEntry")
+  fixedAssetDisposal        FixedAssetDisposal?        @relation("FixedAssetDisposalToJournalEntry")
 
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
@@ -587,44 +620,44 @@ model Supplier {
 }
 
 model InventoryItem {
-  id                           String                      @id @default(cuid())
-  code                         String                      @unique
-  name                         String
-  description                  String?
-  unitOfMeasure                String
-  category                     String?
-  type                         InventoryItemType           @default(INVENTORY)
-  inventoryAccountId           String?
-  inventoryAccount             Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
-  cogsAccountId                String?
-  cogsAccount                  Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
-  salesAccountId               String?
-  salesAccount                 Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
-  adjustmentAccountId          String?
-  adjustmentAccount            Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
-  reorderLevel                 Decimal                     @default(0) @db.Decimal(18, 4)
-  reorderQuantity              Decimal                     @default(0) @db.Decimal(18, 4)
-  preferredWarehouseId         String?
-  preferredWarehouse           InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
-  preferredWarehouseCode       String?
-  isActive                     Boolean                     @default(true)
-  onHandQuantity               Decimal                     @default(0) @db.Decimal(18, 4)
-  valuationAmount              Decimal                     @default(0) @db.Decimal(18, 2)
-  goodsReceiptLines            InventoryGoodsReceiptLine[]
-  goodsIssueLines              InventoryGoodsIssueLine[]
-  transferLines                InventoryTransferLine[]
-  adjustmentLines              InventoryAdjustmentLine[]
-  salesQuotationLines          SalesQuotationLine[]
-  salesOrderLines              SalesOrderLine[]
-  salesInvoiceLines            SalesInvoiceLine[]
-  purchaseRequestLines         PurchaseRequestLine[]       @relation("PurchaseRequestLineInventoryItem")
-  purchaseOrderLines           PurchaseOrderLine[]         @relation("PurchaseOrderLineInventoryItem")
-  purchaseInvoiceLines         PurchaseInvoiceLine[]
-  warehouseBalances            InventoryWarehouseBalance[]
-  costLayers                   InventoryCostLayer[]
-  stockMovements               InventoryStockMovement[]
-  createdAt                    DateTime                    @default(now())
-  updatedAt                    DateTime                    @updatedAt
+  id                     String                      @id @default(cuid())
+  code                   String                      @unique
+  name                   String
+  description            String?
+  unitOfMeasure          String
+  category               String?
+  type                   InventoryItemType           @default(INVENTORY)
+  inventoryAccountId     String?
+  inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccountId          String?
+  cogsAccount            Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  salesAccountId         String?
+  salesAccount           Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  adjustmentAccountId    String?
+  adjustmentAccount      Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  reorderLevel           Decimal                     @default(0) @db.Decimal(18, 4)
+  reorderQuantity        Decimal                     @default(0) @db.Decimal(18, 4)
+  preferredWarehouseId   String?
+  preferredWarehouse     InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
+  preferredWarehouseCode String?
+  isActive               Boolean                     @default(true)
+  onHandQuantity         Decimal                     @default(0) @db.Decimal(18, 4)
+  valuationAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  goodsReceiptLines      InventoryGoodsReceiptLine[]
+  goodsIssueLines        InventoryGoodsIssueLine[]
+  transferLines          InventoryTransferLine[]
+  adjustmentLines        InventoryAdjustmentLine[]
+  salesQuotationLines    SalesQuotationLine[]
+  salesOrderLines        SalesOrderLine[]
+  salesInvoiceLines      SalesInvoiceLine[]
+  purchaseRequestLines   PurchaseRequestLine[]       @relation("PurchaseRequestLineInventoryItem")
+  purchaseOrderLines     PurchaseOrderLine[]         @relation("PurchaseOrderLineInventoryItem")
+  purchaseInvoiceLines   PurchaseInvoiceLine[]
+  warehouseBalances      InventoryWarehouseBalance[]
+  costLayers             InventoryCostLayer[]
+  stockMovements         InventoryStockMovement[]
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([type, isActive])
   @@index([name])
@@ -941,44 +974,44 @@ model PayrollPaymentAllocation {
 }
 
 model FixedAssetCategory {
-  id                                String  @id @default(cuid())
-  code                              String  @unique
-  name                              String
-  nameAr                            String?
-  description                       String?
-  isActive                          Boolean @default(true)
-  assetAccountId                    String
-  assetAccount                      Account @relation("FixedAssetCategoryAssetAccount", fields: [assetAccountId], references: [id], onDelete: Restrict)
-  accumulatedDepreciationAccountId  String
-  accumulatedDepreciationAccount    Account @relation("FixedAssetCategoryAccumulatedDepreciationAccount", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
-  depreciationExpenseAccountId      String
-  depreciationExpenseAccount        Account @relation("FixedAssetCategoryDepreciationExpenseAccount", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
-  disposalGainAccountId             String?
-  disposalGainAccount               Account? @relation("FixedAssetCategoryDisposalGainAccount", fields: [disposalGainAccountId], references: [id], onDelete: Restrict)
-  disposalLossAccountId             String?
-  disposalLossAccount               Account? @relation("FixedAssetCategoryDisposalLossAccount", fields: [disposalLossAccountId], references: [id], onDelete: Restrict)
-  assets                            FixedAsset[]
-  createdAt                         DateTime @default(now())
-  updatedAt                         DateTime @updatedAt
+  id                               String       @id @default(cuid())
+  code                             String       @unique
+  name                             String
+  nameAr                           String?
+  description                      String?
+  isActive                         Boolean      @default(true)
+  assetAccountId                   String
+  assetAccount                     Account      @relation("FixedAssetCategoryAssetAccount", fields: [assetAccountId], references: [id], onDelete: Restrict)
+  accumulatedDepreciationAccountId String
+  accumulatedDepreciationAccount   Account      @relation("FixedAssetCategoryAccumulatedDepreciationAccount", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
+  depreciationExpenseAccountId     String
+  depreciationExpenseAccount       Account      @relation("FixedAssetCategoryDepreciationExpenseAccount", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
+  disposalGainAccountId            String?
+  disposalGainAccount              Account?     @relation("FixedAssetCategoryDisposalGainAccount", fields: [disposalGainAccountId], references: [id], onDelete: Restrict)
+  disposalLossAccountId            String?
+  disposalLossAccount              Account?     @relation("FixedAssetCategoryDisposalLossAccount", fields: [disposalLossAccountId], references: [id], onDelete: Restrict)
+  assets                           FixedAsset[]
+  createdAt                        DateTime     @default(now())
+  updatedAt                        DateTime     @updatedAt
 
   @@index([isActive, name])
 }
 
 model FixedAsset {
-  id                      String                         @id @default(cuid())
-  code                    String                         @unique
+  id                      String                       @id @default(cuid())
+  code                    String                       @unique
   name                    String
   categoryId              String
-  category                FixedAssetCategory             @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category                FixedAssetCategory           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   acquisitionDate         DateTime
   depreciationStartDate   DateTime
   usefulLifeMonths        Int
-  depreciationMethod      FixedAssetDepreciationMethod   @default(STRAIGHT_LINE)
-  residualValue           Decimal                        @default(0) @db.Decimal(18, 2)
-  acquisitionCost         Decimal                        @default(0) @db.Decimal(18, 2)
-  accumulatedDepreciation Decimal                        @default(0) @db.Decimal(18, 2)
-  bookValue               Decimal                        @default(0) @db.Decimal(18, 2)
-  status                  FixedAssetStatus               @default(ACTIVE)
+  depreciationMethod      FixedAssetDepreciationMethod @default(STRAIGHT_LINE)
+  residualValue           Decimal                      @default(0) @db.Decimal(18, 2)
+  acquisitionCost         Decimal                      @default(0) @db.Decimal(18, 2)
+  accumulatedDepreciation Decimal                      @default(0) @db.Decimal(18, 2)
+  bookValue               Decimal                      @default(0) @db.Decimal(18, 2)
+  status                  FixedAssetStatus             @default(ACTIVE)
   department              String?
   costCenter              String?
   employee                String?
@@ -988,57 +1021,57 @@ model FixedAsset {
   depreciationLines       FixedAssetDepreciationLine[]
   disposals               FixedAssetDisposal[]
   transfers               FixedAssetTransfer[]
-  createdAt               DateTime                       @default(now())
-  updatedAt               DateTime                       @updatedAt
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
 
   @@index([categoryId, status])
   @@index([name])
 }
 
 model FixedAssetAcquisition {
-  id                 String                      @id @default(cuid())
-  reference          String                      @unique
-  status             FixedAssetTransactionStatus @default(DRAFT)
-  assetId            String
-  asset              FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  acquisitionDate    DateTime
-  acquisitionCost    Decimal                     @db.Decimal(18, 2)
-  capitalizedCost    Decimal                     @default(0) @db.Decimal(18, 2)
-  totalCost          Decimal                     @db.Decimal(18, 2)
-  supplierReference  String?
+  id                       String                      @id @default(cuid())
+  reference                String                      @unique
+  status                   FixedAssetTransactionStatus @default(DRAFT)
+  assetId                  String
+  asset                    FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  acquisitionDate          DateTime
+  acquisitionCost          Decimal                     @db.Decimal(18, 2)
+  capitalizedCost          Decimal                     @default(0) @db.Decimal(18, 2)
+  totalCost                Decimal                     @db.Decimal(18, 2)
+  supplierReference        String?
   purchaseInvoiceReference String?
-  paymentReference   String?
-  clearingAccountId  String
-  clearingAccount    Account                     @relation("FixedAssetAcquisitionClearingAccount", fields: [clearingAccountId], references: [id], onDelete: Restrict)
-  description        String?
-  journalEntryId     String?                     @unique
-  journalEntry       JournalEntry?               @relation("FixedAssetAcquisitionToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
-  postedAt           DateTime?
-  reversedAt         DateTime?
-  createdAt          DateTime                    @default(now())
-  updatedAt          DateTime                    @updatedAt
+  paymentReference         String?
+  clearingAccountId        String
+  clearingAccount          Account                     @relation("FixedAssetAcquisitionClearingAccount", fields: [clearingAccountId], references: [id], onDelete: Restrict)
+  description              String?
+  journalEntryId           String?                     @unique
+  journalEntry             JournalEntry?               @relation("FixedAssetAcquisitionToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  postedAt                 DateTime?
+  reversedAt               DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
 
   @@index([assetId, status, acquisitionDate])
 }
 
 model FixedAssetDepreciationRun {
-  id             String                      @id @default(cuid())
-  reference      String                      @unique
-  status         FixedAssetTransactionStatus @default(DRAFT)
+  id             String                       @id @default(cuid())
+  reference      String                       @unique
+  status         FixedAssetTransactionStatus  @default(DRAFT)
   periodStart    DateTime
   periodEnd      DateTime
-  scope          String                      @default("ALL")
+  scope          String                       @default("ALL")
   categoryId     String?
   assetId        String?
   description    String?
-  totalAmount    Decimal                     @default(0) @db.Decimal(18, 2)
-  journalEntryId String?                     @unique
-  journalEntry   JournalEntry?               @relation("FixedAssetDepreciationRunToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  totalAmount    Decimal                      @default(0) @db.Decimal(18, 2)
+  journalEntryId String?                      @unique
+  journalEntry   JournalEntry?                @relation("FixedAssetDepreciationRunToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
   lines          FixedAssetDepreciationLine[]
   postedAt       DateTime?
   reversedAt     DateTime?
-  createdAt      DateTime                    @default(now())
-  updatedAt      DateTime                    @updatedAt
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
 
   @@index([status, periodStart, periodEnd])
   @@index([categoryId])
@@ -1046,71 +1079,71 @@ model FixedAssetDepreciationRun {
 }
 
 model FixedAssetDepreciationLine {
-  id                    String                    @id @default(cuid())
-  runId                 String
-  run                   FixedAssetDepreciationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  assetId               String
-  asset                 FixedAsset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  depreciationAmount    Decimal                   @db.Decimal(18, 2)
-  accumulatedBefore     Decimal                   @db.Decimal(18, 2)
-  accumulatedAfter      Decimal                   @db.Decimal(18, 2)
-  bookValueBefore       Decimal                   @db.Decimal(18, 2)
-  bookValueAfter        Decimal                   @db.Decimal(18, 2)
-  createdAt             DateTime                  @default(now())
+  id                 String                    @id @default(cuid())
+  runId              String
+  run                FixedAssetDepreciationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  assetId            String
+  asset              FixedAsset                @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  depreciationAmount Decimal                   @db.Decimal(18, 2)
+  accumulatedBefore  Decimal                   @db.Decimal(18, 2)
+  accumulatedAfter   Decimal                   @db.Decimal(18, 2)
+  bookValueBefore    Decimal                   @db.Decimal(18, 2)
+  bookValueAfter     Decimal                   @db.Decimal(18, 2)
+  createdAt          DateTime                  @default(now())
 
   @@unique([assetId, runId])
   @@index([assetId])
 }
 
 model FixedAssetDisposal {
-  id                String                      @id @default(cuid())
-  reference         String                      @unique
-  status            FixedAssetTransactionStatus @default(DRAFT)
-  assetId           String
-  asset             FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  disposalDate      DateTime
-  method            FixedAssetDisposalMethod
-  proceedsAmount    Decimal                     @default(0) @db.Decimal(18, 2)
-  disposalExpense   Decimal                     @default(0) @db.Decimal(18, 2)
-  bookValueAtDisposal Decimal                   @default(0) @db.Decimal(18, 2)
-  gainLossAmount    Decimal                     @default(0) @db.Decimal(18, 2)
-  proceedsAccountId String?
-  proceedsAccount   Account?                    @relation("FixedAssetDisposalProceedsAccount", fields: [proceedsAccountId], references: [id], onDelete: Restrict)
+  id                       String                      @id @default(cuid())
+  reference                String                      @unique
+  status                   FixedAssetTransactionStatus @default(DRAFT)
+  assetId                  String
+  asset                    FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  disposalDate             DateTime
+  method                   FixedAssetDisposalMethod
+  proceedsAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  disposalExpense          Decimal                     @default(0) @db.Decimal(18, 2)
+  bookValueAtDisposal      Decimal                     @default(0) @db.Decimal(18, 2)
+  gainLossAmount           Decimal                     @default(0) @db.Decimal(18, 2)
+  proceedsAccountId        String?
+  proceedsAccount          Account?                    @relation("FixedAssetDisposalProceedsAccount", fields: [proceedsAccountId], references: [id], onDelete: Restrict)
   disposalExpenseAccountId String?
-  disposalExpenseAccount   Account?             @relation("FixedAssetDisposalExpenseClearingAccount", fields: [disposalExpenseAccountId], references: [id], onDelete: Restrict)
-  description       String?
-  journalEntryId    String?                     @unique
-  journalEntry      JournalEntry?               @relation("FixedAssetDisposalToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
-  postedAt          DateTime?
-  reversedAt        DateTime?
-  createdAt         DateTime                    @default(now())
-  updatedAt         DateTime                    @updatedAt
+  disposalExpenseAccount   Account?                    @relation("FixedAssetDisposalExpenseClearingAccount", fields: [disposalExpenseAccountId], references: [id], onDelete: Restrict)
+  description              String?
+  journalEntryId           String?                     @unique
+  journalEntry             JournalEntry?               @relation("FixedAssetDisposalToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  postedAt                 DateTime?
+  reversedAt               DateTime?
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
 
   @@index([assetId, status, disposalDate])
 }
 
 model FixedAssetTransfer {
-  id                  String                      @id @default(cuid())
-  reference           String                      @unique
-  status              FixedAssetTransactionStatus @default(DRAFT)
-  assetId             String
-  asset               FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
-  transferDate        DateTime
-  fromDepartment      String?
-  toDepartment        String?
-  fromCostCenter      String?
-  toCostCenter        String?
-  fromEmployee        String?
-  toEmployee          String?
-  fromLocation        String?
-  toLocation          String?
-  fromBranch          String?
-  toBranch            String?
-  reason              String?
-  postedAt            DateTime?
-  reversedAt          DateTime?
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
+  id             String                      @id @default(cuid())
+  reference      String                      @unique
+  status         FixedAssetTransactionStatus @default(DRAFT)
+  assetId        String
+  asset          FixedAsset                  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  transferDate   DateTime
+  fromDepartment String?
+  toDepartment   String?
+  fromCostCenter String?
+  toCostCenter   String?
+  fromEmployee   String?
+  toEmployee     String?
+  fromLocation   String?
+  toLocation     String?
+  fromBranch     String?
+  toBranch       String?
+  reason         String?
+  postedAt       DateTime?
+  reversedAt     DateTime?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
 
   @@index([assetId, status, transferDate])
 }
@@ -1436,6 +1469,8 @@ model PurchaseOrderLine {
   quantity              Decimal               @default(1) @db.Decimal(18, 4)
   receivedQuantity      Decimal               @default(0) @db.Decimal(18, 4)
   unitPrice             Decimal               @default(0) @db.Decimal(18, 2)
+  taxId                 String?
+  tax                   Tax?                  @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount             Decimal               @default(0) @db.Decimal(18, 2)
   lineTotalAmount       Decimal               @default(0) @db.Decimal(18, 2)
   requestedDeliveryDate DateTime?
@@ -1444,6 +1479,7 @@ model PurchaseOrderLine {
 
   @@unique([purchaseOrderId, lineNumber])
   @@index([itemId])
+  @@index([taxId])
 }
 
 model PurchaseReceipt {
@@ -1520,12 +1556,14 @@ model PurchaseInvoiceLine {
   purchaseInvoice    PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
   lineNumber         Int
   itemId             String?
-  item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  item               InventoryItem?  @relation(fields: [itemId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String
   quantity           Decimal         @default(1) @db.Decimal(18, 4)
   unitPrice          Decimal         @default(0) @db.Decimal(18, 2)
   discountAmount     Decimal         @default(0) @db.Decimal(18, 2)
+  taxId              String?
+  tax                Tax?            @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount          Decimal         @default(0) @db.Decimal(18, 2)
   lineSubtotalAmount Decimal         @default(0) @db.Decimal(18, 2)
   lineTotalAmount    Decimal         @default(0) @db.Decimal(18, 2)
@@ -1536,6 +1574,7 @@ model PurchaseInvoiceLine {
   @@unique([purchaseInvoiceId, lineNumber])
   @@index([itemId])
   @@index([accountId])
+  @@index([taxId])
 }
 
 model SupplierPayment {
@@ -1608,12 +1647,15 @@ model DebitNoteLine {
   lineNumber      Int
   quantity        Decimal   @default(1) @db.Decimal(18, 4)
   amount          Decimal   @default(0) @db.Decimal(18, 2)
+  taxId           String?
+  tax             Tax?      @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount       Decimal   @default(0) @db.Decimal(18, 2)
   reason          String
   lineTotalAmount Decimal   @default(0) @db.Decimal(18, 2)
   createdAt       DateTime  @default(now())
 
   @@unique([debitNoteId, lineNumber])
+  @@index([taxId])
 }
 
 model SalesQuotation {
@@ -1652,6 +1694,8 @@ model SalesQuotationLine {
   quantity           Decimal        @default(1) @db.Decimal(18, 4)
   unitPrice          Decimal        @db.Decimal(18, 2)
   discountAmount     Decimal        @default(0) @db.Decimal(18, 2)
+  taxId              String?
+  tax                Tax?           @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount          Decimal        @default(0) @db.Decimal(18, 2)
   lineSubtotalAmount Decimal        @db.Decimal(18, 2)
   lineTotalAmount    Decimal        @db.Decimal(18, 2)
@@ -1662,6 +1706,7 @@ model SalesQuotationLine {
   @@unique([salesQuotationId, lineNumber])
   @@index([itemId])
   @@index([revenueAccountId])
+  @@index([taxId])
 }
 
 model SalesOrder {
@@ -1691,27 +1736,30 @@ model SalesOrder {
 }
 
 model SalesOrderLine {
-  id                 String     @id @default(cuid())
+  id                 String         @id @default(cuid())
   salesOrderId       String
-  salesOrder         SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  salesOrder         SalesOrder     @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   lineNumber         Int
   itemId             String?
   item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String?
-  quantity           Decimal    @default(1) @db.Decimal(18, 4)
-  unitPrice          Decimal    @db.Decimal(18, 2)
-  discountAmount     Decimal    @default(0) @db.Decimal(18, 2)
-  taxAmount          Decimal    @default(0) @db.Decimal(18, 2)
-  lineSubtotalAmount Decimal    @db.Decimal(18, 2)
-  lineTotalAmount    Decimal    @db.Decimal(18, 2)
+  quantity           Decimal        @default(1) @db.Decimal(18, 4)
+  unitPrice          Decimal        @db.Decimal(18, 2)
+  discountAmount     Decimal        @default(0) @db.Decimal(18, 2)
+  taxId              String?
+  tax                Tax?           @relation(fields: [taxId], references: [id], onDelete: Restrict)
+  taxAmount          Decimal        @default(0) @db.Decimal(18, 2)
+  lineSubtotalAmount Decimal        @db.Decimal(18, 2)
+  lineTotalAmount    Decimal        @db.Decimal(18, 2)
   revenueAccountId   String?
-  revenueAccount     Account?   @relation("SalesOrderRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
-  createdAt          DateTime   @default(now())
+  revenueAccount     Account?       @relation("SalesOrderRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  createdAt          DateTime       @default(now())
 
   @@unique([salesOrderId, lineNumber])
   @@index([itemId])
   @@index([revenueAccountId])
+  @@index([taxId])
 }
 
 model SalesInvoice {
@@ -1751,27 +1799,30 @@ model SalesInvoice {
 }
 
 model SalesInvoiceLine {
-  id                 String       @id @default(cuid())
+  id                 String         @id @default(cuid())
   salesInvoiceId     String
-  salesInvoice       SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  salesInvoice       SalesInvoice   @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
   lineNumber         Int
   itemId             String?
   item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String?
-  quantity           Decimal      @default(1) @db.Decimal(18, 4)
-  unitPrice          Decimal      @db.Decimal(18, 2)
-  discountAmount     Decimal      @default(0) @db.Decimal(18, 2)
-  taxAmount          Decimal      @default(0) @db.Decimal(18, 2)
-  lineSubtotalAmount Decimal      @db.Decimal(18, 2)
-  lineAmount         Decimal      @db.Decimal(18, 2)
+  quantity           Decimal        @default(1) @db.Decimal(18, 4)
+  unitPrice          Decimal        @db.Decimal(18, 2)
+  discountAmount     Decimal        @default(0) @db.Decimal(18, 2)
+  taxId              String?
+  tax                Tax?           @relation(fields: [taxId], references: [id], onDelete: Restrict)
+  taxAmount          Decimal        @default(0) @db.Decimal(18, 2)
+  lineSubtotalAmount Decimal        @db.Decimal(18, 2)
+  lineAmount         Decimal        @db.Decimal(18, 2)
   revenueAccountId   String
-  revenueAccount     Account      @relation("SalesInvoiceRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
-  createdAt          DateTime     @default(now())
+  revenueAccount     Account        @relation("SalesInvoiceRevenueAccount", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  createdAt          DateTime       @default(now())
 
   @@unique([salesInvoiceId, lineNumber])
   @@index([itemId])
   @@index([revenueAccountId])
+  @@index([taxId])
 }
 
 model CreditNote {
@@ -1810,6 +1861,8 @@ model CreditNoteLine {
   quantity           Decimal    @default(1) @db.Decimal(18, 4)
   unitPrice          Decimal    @db.Decimal(18, 2)
   discountAmount     Decimal    @default(0) @db.Decimal(18, 2)
+  taxId              String?
+  tax                Tax?       @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount          Decimal    @default(0) @db.Decimal(18, 2)
   lineSubtotalAmount Decimal    @db.Decimal(18, 2)
   lineAmount         Decimal    @db.Decimal(18, 2)
@@ -1819,6 +1872,7 @@ model CreditNoteLine {
 
   @@unique([creditNoteId, lineNumber])
   @@index([revenueAccountId])
+  @@index([taxId])
 }
 
 model ReceiptAllocation {

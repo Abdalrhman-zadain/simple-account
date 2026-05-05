@@ -41,6 +41,10 @@ export class PurchaseOrderLineDto {
   taxAmount!: number;
 
   @IsOptional()
+  @IsString()
+  taxId?: string;
+
+  @IsOptional()
   @IsDateString()
   requestedDeliveryDate?: string;
 }

@@ -25,6 +25,7 @@ type ResolvedInvoiceLine = {
   quantity: number;
   unitPrice: number;
   discountAmount: number;
+  taxId: string | null;
   taxAmount: number;
   lineSubtotalAmount: number;
   lineTotalAmount: number;
@@ -433,7 +434,8 @@ export class PurchaseInvoicesService {
   private async resolveLines(lines: PurchaseInvoiceLineDto[]) {
     const accountIds = Array.from(new Set(lines.map((line) => line.accountId)));
     const itemIds = Array.from(new Set(lines.map((line) => line.itemId).filter(Boolean))) as string[];
-    const [accounts, items] = await Promise.all([
+    const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
+    const [accounts, items, taxes] = await Promise.all([
       this.prisma.account.findMany({
         where: { id: { in: accountIds }, isActive: true, isPosting: true },
         select: { id: true, type: true, subtype: true, isPosting: true },
@@ -444,6 +446,9 @@ export class PurchaseInvoicesService {
             select: { id: true, name: true },
           })
         : Promise.resolve([]),
+      taxIds.length
+        ? this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
+        : Promise.resolve([]),
     ]);
     const validAccountIds = new Set(
       accounts
@@ -451,6 +456,7 @@ export class PurchaseInvoicesService {
         .map((account) => account.id),
     );
     const validItems = new Map(items.map((item) => [item.id, item]));
+    const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
 
     return lines.map((line) => {
       if (!validAccountIds.has(line.accountId)) {
@@ -465,8 +471,15 @@ export class PurchaseInvoicesService {
       const quantity = Number(line.quantity);
       const unitPrice = Number(line.unitPrice);
       const discountAmount = Number(line.discountAmount ?? 0);
-      const taxAmount = Number(line.taxAmount ?? 0);
+      const taxId = line.taxId?.trim() || null;
+      if (taxId && !taxById.has(taxId)) {
+        throw new BadRequestException('Each purchase invoice line tax must reference an active tax.');
+      }
       const lineSubtotalAmount = Number((quantity * unitPrice).toFixed(2));
+      const discountedAmount = Number((lineSubtotalAmount - discountAmount).toFixed(2));
+      const taxAmount = taxId
+        ? Number((discountedAmount * ((taxById.get(taxId) ?? 0) / 100)).toFixed(2))
+        : Number(line.taxAmount ?? 0);
       const lineTotalAmount = Number((lineSubtotalAmount - discountAmount + taxAmount).toFixed(2));
 
       if (lineTotalAmount < 0) {
@@ -480,6 +493,7 @@ export class PurchaseInvoicesService {
         quantity,
         unitPrice,
         discountAmount,
+        taxId,
         taxAmount,
         lineSubtotalAmount,
         lineTotalAmount,
@@ -519,6 +533,7 @@ export class PurchaseInvoicesService {
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
       discountAmount: this.toAmount(line.discountAmount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineSubtotalAmount: this.toAmount(line.lineSubtotalAmount),
       lineTotalAmount: this.toAmount(line.lineTotalAmount),
@@ -648,6 +663,7 @@ export class PurchaseInvoicesService {
         quantity: line.quantity.toString(),
         unitPrice: line.unitPrice.toString(),
         discountAmount: line.discountAmount.toString(),
+        taxId: line.taxId ?? null,
         taxAmount: line.taxAmount.toString(),
         lineSubtotalAmount: line.lineSubtotalAmount.toString(),
         lineTotalAmount: line.lineTotalAmount.toString(),

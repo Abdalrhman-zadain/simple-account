@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   LuCalendarDays as CalendarDays,
   LuCheck as Check,
@@ -16,8 +17,10 @@ import {
 
 import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
+import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
 import type { Customer, SalesInvoice } from "@/types/api";
 import {
   calculateQuotationTotals,
@@ -82,6 +85,8 @@ export function CreditNoteEditorModal({
   onSubmitAndPost,
 }: CreditNoteEditorModalProps) {
   const { t, language } = useTranslation();
+  const { token } = useAuth();
+  const { data: taxes = [] } = useQuery({ queryKey: ["taxes", "active", token], queryFn: () => getActiveTaxes(token) });
   const isArabic = language === "ar";
   const totals = useMemo(() => calculateQuotationTotals(editor.lines), [editor.lines]);
   const selectedInvoice = invoices.find((invoice) => invoice.id === editor.salesInvoiceId);
@@ -321,12 +326,24 @@ export function CreditNoteEditorModal({
                       onChange={(value) => updateLine(line.key, (current) => ({ ...current, quantity: "1", unitPrice: value, discountAmount: "" }))}
                       isArabic={isArabic}
                     />
-                    <CurrencyInput
-                      currencyCode={currencyCode}
-                      value={line.taxAmount}
-                      onChange={(value) => updateLine(line.key, (current) => ({ ...current, taxAmount: value }))}
-                      isArabic={isArabic}
-                    />
+                    <Select
+                      value={line.taxId}
+                      onChange={(event) => {
+                        const selectedTax = taxes.find((tax) => tax.id === event.target.value);
+                        updateLine(line.key, (current) => ({
+                          ...current,
+                          taxId: selectedTax?.id ?? "",
+                          taxRate: selectedTax ? String(selectedTax.rate) : "",
+                          taxAmount: selectedTax ? current.taxAmount : "",
+                        }));
+                      }}
+                      className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                    >
+                      <option value="">{t("salesReceivables.field.taxAmount")}</option>
+                      {taxes.map((tax) => (
+                        <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
+                      ))}
+                    </Select>
                     <CurrencyInput
                       currencyCode={currencyCode}
                       value={line.lineAmount}

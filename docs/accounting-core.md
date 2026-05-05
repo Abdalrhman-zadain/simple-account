@@ -385,6 +385,7 @@ Purpose:
 - manage user-defined account classes (subtypes)
 - manage user-defined journal entry types
 - manage user-defined payment method types
+- manage tax master records used by sales and purchase documents
 - support enterprise-style segmented account coding
 
 Main data involved:
@@ -393,6 +394,7 @@ Main data involved:
 - `SegmentValue`
 - `AccountSubtype`
 - `PaymentMethodType`
+- `Tax`
 - `JournalEntryType`
 - account segment assignments
 
@@ -403,6 +405,7 @@ Controller responsibility:
 - manage segment values
 - manage account subtypes (account classes)
 - manage payment method types
+- manage tax codes, rates, tax types, active status, and optional posting-account mappings
 - manage journal entry types
 
 Service responsibility:
@@ -417,12 +420,16 @@ Important business rules:
 - `PaymentMethodType` rows drive the allowed values for `BankCashAccount.type`
 - bank/cash account creation and update must reject unknown or inactive payment method types
 - the baseline payment-method list starts with `Bank` and `Cash`, and later custom methods such as `Wallet` or `Click` are added through Master Data
+- tax codes are managed in Master Data; active tax codes are the only tax choices offered on new sales/purchase documents
+- `SALES` and `PURCHASE` taxes require an active posting tax account, while zero-rated, exempt, and out-of-scope taxes may omit the account
+- tax records used by document lines cannot be deleted; they should be deactivated to preserve history
 - journal entry creation and update must reject unknown or inactive journal entry types
 
 Dependencies inside Phase 1:
 
 - used by chart of accounts
 - used by journal entries
+- used by sales and purchase document entry for controlled tax selection and calculation
 - used by bank/cash accounts
 
 ## Current API Surface

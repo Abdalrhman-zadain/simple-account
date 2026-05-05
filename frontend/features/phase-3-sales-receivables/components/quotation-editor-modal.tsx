@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   LuCalendarDays as CalendarDays,
   LuCirclePlus as CirclePlus,
@@ -15,8 +16,10 @@ import {
 
 import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
+import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
 import type { Customer, InventoryItem } from "@/types/api";
 
 export type SalesLineEditorState = {
@@ -27,6 +30,8 @@ export type SalesLineEditorState = {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId: string;
+  taxRate: string;
   taxAmount: string;
   lineAmount: string;
   revenueAccountId: string;
@@ -71,6 +76,8 @@ export function createEmptyLine(): SalesLineEditorState {
     quantity: "1",
     unitPrice: "",
     discountAmount: "",
+    taxId: "",
+    taxRate: "",
     taxAmount: "",
     lineAmount: "",
     revenueAccountId: "",
@@ -90,25 +97,37 @@ export function createEmptyQuotationEditor(): QuotationEditorState {
 }
 
 export function withCalculatedLineAmount(line: SalesLineEditorState): SalesLineEditorState {
+  const quantity = toFiniteNumber(line.quantity);
+  const unitPrice = toFiniteNumber(line.unitPrice);
+  const discountAmount = toFiniteNumber(line.discountAmount) ?? 0;
+  const taxRate = toFiniteNumber(line.taxRate);
+  const computedTaxAmount =
+    quantity !== null && unitPrice !== null && taxRate !== null
+      ? Math.max(quantity * unitPrice - discountAmount, 0) * taxRate / 100
+      : null;
   return {
     ...line,
+    taxAmount: computedTaxAmount !== null ? computedTaxAmount.toFixed(2) : line.taxAmount,
     lineAmount: calculateLineAmount(line),
   };
 }
 
 export function calculateLineAmount(
-  line: Pick<SalesLineEditorState, "quantity" | "unitPrice" | "discountAmount" | "taxAmount">,
+  line: Pick<SalesLineEditorState, "quantity" | "unitPrice" | "discountAmount" | "taxAmount" | "taxRate">,
 ) {
   const quantity = toFiniteNumber(line.quantity);
   const unitPrice = toFiniteNumber(line.unitPrice);
   const discountAmount = toFiniteNumber(line.discountAmount) ?? 0;
-  const taxAmount = toFiniteNumber(line.taxAmount) ?? 0;
 
   if (quantity === null || unitPrice === null) {
     return "";
   }
 
-  return (quantity * unitPrice - discountAmount + taxAmount).toFixed(2);
+  const discountedAmount = quantity * unitPrice - discountAmount;
+  const taxRate = toFiniteNumber(line.taxRate);
+  const taxAmount = taxRate !== null ? discountedAmount * taxRate / 100 : toFiniteNumber(line.taxAmount) ?? 0;
+
+  return (discountedAmount + taxAmount).toFixed(2);
 }
 
 export function calculateQuotationTotals(lines: SalesLineEditorState[]) {
@@ -117,8 +136,9 @@ export function calculateQuotationTotals(lines: SalesLineEditorState[]) {
       const quantity = toFiniteNumber(line.quantity) ?? 0;
       const unitPrice = toFiniteNumber(line.unitPrice) ?? 0;
       const discountAmount = toFiniteNumber(line.discountAmount) ?? 0;
-      const taxAmount = toFiniteNumber(line.taxAmount) ?? 0;
       const subtotal = quantity * unitPrice - discountAmount;
+      const taxRate = toFiniteNumber(line.taxRate);
+      const taxAmount = taxRate !== null ? subtotal * taxRate / 100 : toFiniteNumber(line.taxAmount) ?? 0;
       const lineAmount = toFiniteNumber(line.lineAmount) ?? subtotal + taxAmount;
 
       return {
@@ -158,6 +178,8 @@ export function QuotationEditorModal({
   onApprove,
 }: QuotationEditorModalProps) {
   const { t, language } = useTranslation();
+  const { token } = useAuth();
+  const { data: taxes = [] } = useQuery({ queryKey: ["taxes", "active", token], queryFn: () => getActiveTaxes(token) });
   const isArabic = language === "ar";
 
   const totals = useMemo(() => calculateQuotationTotals(editor.lines), [editor.lines]);
@@ -525,16 +547,24 @@ export function QuotationEditorModal({
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={line.taxAmount}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, taxAmount: event.target.value }))
-                            }
+                          <Select
+                            value={line.taxId}
+                            onChange={(event) => {
+                              const selectedTax = taxes.find((tax) => tax.id === event.target.value);
+                              updateLine(line.key, (current) => ({
+                                ...current,
+                                taxId: selectedTax?.id ?? "",
+                                taxRate: selectedTax ? String(selectedTax.rate) : "",
+                                taxAmount: selectedTax ? current.taxAmount : "",
+                              }));
+                            }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
+                          >
+                            <option value="">{t("salesReceivables.field.taxAmount")}</option>
+                            {taxes.map((tax) => (
+                              <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
+                            ))}
+                          </Select>
 
                           <Input
                             value={line.description}

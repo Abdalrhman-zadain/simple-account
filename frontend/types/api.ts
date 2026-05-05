@@ -111,6 +111,37 @@ export type PaymentMethodType = {
   updatedAt: string;
 };
 
+export type TaxType =
+  | "SALES"
+  | "PURCHASE"
+  | "ZERO_RATED"
+  | "EXEMPT"
+  | "OUT_OF_SCOPE";
+
+export type Tax = {
+  id: string;
+  taxCode: string;
+  taxName: string;
+  rate: string;
+  taxType: TaxType;
+  taxAccountId?: string | null;
+  taxAccount?: AccountOption | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateTaxPayload = {
+  taxCode: string;
+  taxName: string;
+  rate: number;
+  taxType: TaxType;
+  taxAccountId?: string | null;
+  isActive?: boolean;
+};
+
+export type UpdateTaxPayload = Partial<CreateTaxPayload>;
+
 export type InventoryItemType =
   | "INVENTORY"
   | "NON_STOCK"
@@ -1832,6 +1863,7 @@ export type PurchaseOrderLine = {
   quantity: string;
   receivedQuantity: string;
   unitPrice: string;
+  taxId?: string | null;
   taxAmount: string;
   lineTotalAmount: string;
   requestedDeliveryDate?: string | null;
@@ -1931,6 +1963,7 @@ export type PurchaseOrderLinePayload = {
   description: string;
   quantity: number;
   unitPrice: number;
+  taxId?: string;
   taxAmount: number;
   requestedDeliveryDate?: string;
 };
@@ -1971,6 +2004,7 @@ export type PurchaseInvoiceLine = {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId?: string | null;
   taxAmount: string;
   lineSubtotalAmount: string;
   lineTotalAmount: string;
@@ -2038,6 +2072,7 @@ export type PurchaseInvoiceLinePayload = {
   quantity: number;
   unitPrice: number;
   discountAmount: number;
+  taxId?: string;
   taxAmount: number;
   accountId: string;
 };
@@ -2145,6 +2180,7 @@ export type DebitNoteLine = {
   lineNumber: number;
   quantity: string;
   amount: string;
+  taxId?: string | null;
   taxAmount: string;
   reason: string;
   lineTotalAmount: string;
@@ -2199,6 +2235,7 @@ export type DebitNotesQuery = {
 export type DebitNoteLinePayload = {
   quantity: number;
   amount: number;
+  taxId?: string;
   taxAmount: number;
   reason: string;
 };
@@ -2228,6 +2265,7 @@ export type SalesLine = {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId?: string | null;
   taxAmount: string;
   lineSubtotalAmount: string;
   lineAmount: string;
@@ -2499,6 +2537,7 @@ export type SalesLinePayload = {
   quantity?: number;
   unitPrice?: number;
   discountAmount?: number;
+  taxId?: string;
   taxAmount?: number;
   lineAmount?: number;
   description?: string;

@@ -45,6 +45,10 @@ export class PurchaseInvoiceLineDto {
   @Min(0)
   taxAmount!: number;
 
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
   @IsString()
   accountId!: string;
 }

@@ -21,6 +21,7 @@ type DebitNoteListQuery = {
 type ResolvedDebitNoteLine = {
   quantity: number;
   amount: number;
+  taxId: string | null;
   taxAmount: number;
   reason: string;
   lineTotalAmount: number;
@@ -79,7 +80,7 @@ export class DebitNotesService {
 
     const reference = dto.reference?.trim() || this.generateReference('DN');
     const currencyCode = dto.currencyCode?.trim().toUpperCase() || supplier.defaultCurrency;
-    const lines = this.resolveLines(dto.lines);
+    const lines = await this.resolveLines(dto.lines);
     const totals = this.computeTotals(lines);
 
     try {
@@ -129,7 +130,7 @@ export class DebitNotesService {
       dto.purchaseInvoiceId === undefined ? current.purchaseInvoiceId ?? undefined : dto.purchaseInvoiceId || undefined;
     await this.ensurePurchaseInvoice(nextPurchaseInvoiceId, supplier.id);
 
-    const lines = dto.lines ? this.resolveLines(dto.lines) : null;
+    const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
@@ -381,16 +382,29 @@ export class DebitNotesService {
     return this.mapDebitNote(updated);
   }
 
-  private resolveLines(lines: DebitNoteLineDto[]) {
+  private async resolveLines(lines: DebitNoteLineDto[]) {
+    const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
+    const taxes = taxIds.length
+      ? await this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
+      : [];
+    const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
+
     return lines.map((line) => {
       const quantity = Number(line.quantity);
       const amount = Number(line.amount);
-      const taxAmount = Number(line.taxAmount ?? 0);
+      const taxId = line.taxId?.trim() || null;
+      if (taxId && !taxById.has(taxId)) {
+        throw new BadRequestException('Each debit note line tax must reference an active tax.');
+      }
+      const taxAmount = taxId
+        ? Number((amount * ((taxById.get(taxId) ?? 0) / 100)).toFixed(2))
+        : Number(line.taxAmount ?? 0);
       const lineTotalAmount = Number((amount + taxAmount).toFixed(2));
 
       return {
         quantity,
         amount,
+        taxId,
         taxAmount,
         reason: line.reason.trim(),
         lineTotalAmount,
@@ -417,6 +431,7 @@ export class DebitNotesService {
       lineNumber,
       quantity: this.toQuantity(line.quantity),
       amount: this.toAmount(line.amount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       reason: line.reason,
       lineTotalAmount: this.toAmount(line.lineTotalAmount),
@@ -687,6 +702,7 @@ export class DebitNotesService {
         lineNumber: line.lineNumber,
         quantity: line.quantity.toString(),
         amount: line.amount.toString(),
+        taxId: line.taxId ?? null,
         taxAmount: line.taxAmount.toString(),
         reason: line.reason,
         lineTotalAmount: line.lineTotalAmount.toString(),

@@ -146,6 +146,8 @@ Where to edit:
 
 What else to check:
 
+- sales document tax choices should come from active `Tax` master data (`GET /taxes/active`) rather than manual free-text or arbitrary tax values
+- sales document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - customer records must remain deactivatable without deleting history
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
@@ -189,6 +191,8 @@ Where to edit:
 
 What else to check:
 
+- purchase document tax choices should come from active `Tax` master data (`GET /taxes/active`) rather than manual free-text or arbitrary tax values
+- purchase document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - keep the purchases module split by subdomain ownership such as suppliers, requests, orders, invoices, payments, debit notes, posting/accounting, and validation/control
 - route files must stay thin and compose the owning Phase 4 feature page
 - purchase-request and purchase-order lines may now optionally link to active inventory items for UI-assisted selection, and `itemName` plus line description must remain persisted on the line so operational history does not depend on future item-master edits

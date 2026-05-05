@@ -68,6 +68,7 @@ import {
   CreatePurchaseInvoicePayload,
   CreateSupplierPaymentPayload,
   CreateSupplierPayload,
+  CreateTaxPayload,
   CreateBankCashAccountPayload,
   CreateLinkedBankCashAccountPayload,
   CreateLinkedBankCashAccountResponse,
@@ -163,6 +164,7 @@ import {
   SupplierPaymentsQuery,
   Supplier,
   SupplierBalance,
+  Tax,
   PurchaseRequestStatusNotePayload,
   SupplierTransactionsResponse,
   SuppliersQuery,
@@ -201,6 +203,7 @@ import {
   UpdatePurchaseInvoicePayload,
   UpdateSupplierPaymentPayload,
   UpdateSupplierPayload,
+  UpdateTaxPayload,
   UpdateSegmentValuePayload,
 } from "@/types/api";
 
@@ -2631,6 +2634,39 @@ export async function deactivatePaymentMethodType(
   token?: string | null,
 ) {
   return apiRequest<PaymentMethodType>(`/payment-method-types/${id}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+// ─── Taxes ───────────────────────────────────────────────────────────────────
+
+export async function getTaxes(token?: string | null) {
+  return apiRequest<Tax[]>("/taxes", { token });
+}
+
+export async function getActiveTaxes(token?: string | null) {
+  return apiRequest<Tax[]>("/taxes/active", { token });
+}
+
+export async function createTax(payload: CreateTaxPayload, token?: string | null) {
+  return apiRequest<Tax>("/taxes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateTax(id: string, payload: UpdateTaxPayload, token?: string | null) {
+  return apiRequest<Tax>(`/taxes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deleteTax(id: string, token?: string | null) {
+  return apiRequest<Tax>(`/taxes/${id}`, {
     method: "DELETE",
     token,
   });

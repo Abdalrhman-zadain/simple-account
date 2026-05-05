@@ -42,6 +42,7 @@ import {
   getAccountOptions,
   getDebitNoteById,
   getDebitNotes,
+  getActiveTaxes,
   getInventoryItems,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
@@ -77,7 +78,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { AccountOption, DebitNote, InventoryItem, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment } from "@/types/api";
+import type { AccountOption, DebitNote, InventoryItem, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
@@ -141,6 +142,8 @@ type PurchaseOrderLineEditorState = {
   description: string;
   quantity: string;
   unitPrice: string;
+  taxId: string;
+  taxRate: string;
   taxAmount: string;
   requestedDeliveryDate: string;
 };
@@ -183,6 +186,8 @@ type PurchaseInvoiceLineEditorState = {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId: string;
+  taxRate: string;
   taxAmount: string;
   accountId: string;
 };
@@ -219,6 +224,8 @@ type DebitNoteLineEditorState = {
   key: string;
   quantity: string;
   amount: string;
+  taxId: string;
+  taxRate: string;
   taxAmount: string;
   reason: string;
 };
@@ -382,6 +389,13 @@ export function PurchasesPage() {
     queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
     staleTime: 5 * 60 * 1000,
   });
+
+  const taxesQuery = useQuery({
+    queryKey: ["taxes", "active", token],
+    queryFn: () => getActiveTaxes(token),
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeTaxes = taxesQuery.data ?? [];
 
   const supplierBalanceQuery = useQuery({
     queryKey: queryKeys.purchaseSupplierBalance(token, selectedSupplierId),
@@ -2813,14 +2827,16 @@ export function PurchasesPage() {
                                 </Field>
 
                                 <Field label={t("purchases.orders.field.taxAmount")} labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={line.taxAmount}
-                                    onChange={(event) => updateOrderLine(line.key, "taxAmount", event.target.value)}
+                                  <Select
+                                    value={line.taxId}
+                                    onChange={(event) => updateOrderLineTax(line.key, activeTaxes.find((tax) => tax.id === event.target.value) ?? null)}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                                  />
+                                  >
+                                    <option value="">{t("purchases.orders.field.taxAmount")}</option>
+                                    {activeTaxes.map((tax) => (
+                                      <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
+                                    ))}
+                                  </Select>
                                 </Field>
                               </div>
 
@@ -3229,14 +3245,16 @@ export function PurchasesPage() {
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                   />
 
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={line.taxAmount}
-                                    onChange={(event) => updateInvoiceLine(line.key, "taxAmount", event.target.value)}
+                                  <Select
+                                    value={line.taxId}
+                                    onChange={(event) => updateInvoiceLineTax(line.key, activeTaxes.find((tax) => tax.id === event.target.value) ?? null)}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                                  />
+                                  >
+                                    <option value="">{t("purchases.invoices.field.taxAmount")}</option>
+                                    {activeTaxes.map((tax) => (
+                                      <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
+                                    ))}
+                                  </Select>
 
                                   <Input
                                     value={line.description}
@@ -4064,6 +4082,8 @@ export function PurchasesPage() {
         description: line.description,
         quantity: line.quantity,
         unitPrice: line.unitPrice,
+        taxId: line.taxId ?? "",
+        taxRate: "",
         taxAmount: line.taxAmount,
         requestedDeliveryDate: line.requestedDeliveryDate?.slice(0, 10) ?? "",
       })),
@@ -4137,7 +4157,27 @@ export function PurchasesPage() {
   ) {
     setOrderEditor((current) => ({
       ...current,
-      lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+        const next = { ...line, [field]: value };
+        if (next.taxRate && (field === "quantity" || field === "unitPrice")) {
+          const baseAmount = Number(next.quantity || 0) * Number(next.unitPrice || 0);
+          next.taxAmount = Number((baseAmount * Number(next.taxRate) / 100).toFixed(2)).toFixed(2);
+        }
+        return next;
+      }),
+    }));
+  }
+
+  function updateOrderLineTax(key: string, tax: Tax | null) {
+    setOrderEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+        const baseAmount = Number(line.quantity || 0) * Number(line.unitPrice || 0);
+        const taxAmount = tax ? Number((baseAmount * Number(tax.rate) / 100).toFixed(2)) : 0;
+        return { ...line, taxId: tax?.id ?? "", taxRate: tax ? String(tax.rate) : "", taxAmount: taxAmount.toFixed(2) };
+      }),
     }));
   }
 
@@ -4172,6 +4212,8 @@ export function PurchasesPage() {
         quantity: line.quantity,
         unitPrice: line.unitPrice,
         discountAmount: line.discountAmount,
+        taxId: line.taxId ?? "",
+        taxRate: "",
         taxAmount: line.taxAmount,
         accountId: line.account.id,
       })),
@@ -4207,7 +4249,29 @@ export function PurchasesPage() {
   ) {
     setInvoiceEditor((current) => ({
       ...current,
-      lines: current.lines.map((line) => (line.key === key ? { ...line, [field]: value } : line)),
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+        const next = { ...line, [field]: value };
+        if (next.taxRate && (field === "quantity" || field === "unitPrice" || field === "discountAmount")) {
+          const baseAmount = Number(next.quantity || 0) * Number(next.unitPrice || 0);
+          const discountedAmount = baseAmount - Number(next.discountAmount || 0);
+          next.taxAmount = Number((discountedAmount * Number(next.taxRate) / 100).toFixed(2)).toFixed(2);
+        }
+        return next;
+      }),
+    }));
+  }
+
+  function updateInvoiceLineTax(key: string, tax: Tax | null) {
+    setInvoiceEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+        const baseAmount = Number(line.quantity || 0) * Number(line.unitPrice || 0);
+        const discountedAmount = baseAmount - Number(line.discountAmount || 0);
+        const taxAmount = tax ? Number((discountedAmount * Number(tax.rate) / 100).toFixed(2)) : 0;
+        return { ...line, taxId: tax?.id ?? "", taxRate: tax ? String(tax.rate) : "", taxAmount: taxAmount.toFixed(2) };
+      }),
     }));
   }
 
@@ -4314,7 +4378,9 @@ export function PurchasesPage() {
             key: line.id,
             quantity: line.quantity,
             amount: line.amount,
-            taxAmount: "0.00",
+            taxId: line.taxId ?? "",
+            taxRate: "",
+            taxAmount: line.taxAmount,
             reason: line.reason,
           }))
         : [createEmptyDebitNoteLine()],
@@ -4691,6 +4757,8 @@ function createEmptyOrderLine(): PurchaseOrderLineEditorState {
     description: "",
     quantity: "1",
     unitPrice: "0.00",
+    taxId: "",
+    taxRate: "",
     taxAmount: "0.00",
     requestedDeliveryDate: "",
   };
@@ -4705,6 +4773,8 @@ function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
     quantity: "1",
     unitPrice: "0.00",
     discountAmount: "0.00",
+    taxId: "",
+    taxRate: "",
     taxAmount: "0.00",
     accountId: "",
   };
@@ -4750,6 +4820,8 @@ function createEmptyDebitNoteLine(): DebitNoteLineEditorState {
     key: randomKey(),
     quantity: "1",
     amount: "0.00",
+    taxId: "",
+    taxRate: "",
     taxAmount: "0.00",
     reason: "خصم بعد الشراء",
   };
@@ -4788,6 +4860,7 @@ function mapOrderEditorLines(lines: PurchaseOrderLineEditorState[]) {
     description: line.description,
     quantity: Number(line.quantity),
     unitPrice: Number(line.unitPrice),
+    taxId: line.taxId || undefined,
     taxAmount: Number(line.taxAmount),
     requestedDeliveryDate: line.requestedDeliveryDate || undefined,
   }));
@@ -4801,6 +4874,7 @@ function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
     quantity: Number(line.quantity),
     unitPrice: Number(line.unitPrice),
     discountAmount: Number(line.discountAmount),
+    taxId: line.taxId || undefined,
     taxAmount: Number(line.taxAmount),
     accountId: line.accountId,
   }));
@@ -4819,7 +4893,8 @@ function mapDebitNoteEditorLines(lines: DebitNoteLineEditorState[]) {
   return lines.map((line) => ({
     quantity: Number(line.quantity),
     amount: Number(line.amount),
-    taxAmount: 0,
+    taxId: line.taxId || undefined,
+    taxAmount: Number(line.taxAmount),
     reason: line.reason,
   }));
 }

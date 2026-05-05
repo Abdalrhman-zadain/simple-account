@@ -1,9 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { useState } from "react";
-import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban, LuWallet as Wallet } from "react-icons/lu";
+import { LuPlus as Plus, LuPencil as Pencil, LuX as X, LuCheck as Check, LuBuilding2 as Building2, LuMapPin as MapPin, LuUsers as Users2, LuBookMarked as BookMarked, LuFolderKanban as FolderKanban, LuWallet as Wallet, LuPercent as Percent, LuTrash2 as Trash2 } from "react-icons/lu";
 import {
+    createTax,
     createAccountSubtype,
     createJournalEntryType,
     createPaymentMethodType,
@@ -13,16 +15,20 @@ import {
     deactivatePaymentMethodType,
     deactivateSegmentValue,
     getAccountSubtypes,
+    getAccountOptions,
     getJournalEntryTypes,
     getPaymentMethodTypes,
     getSegmentDefinitions,
+    getTaxes,
     updateAccountSubtype,
     updateJournalEntryType,
     updatePaymentMethodType,
     updateSegmentValue,
+    updateTax,
+    deleteTax,
 } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
-import { AccountSubtype, JournalEntryType, PaymentMethodType, SegmentDefinition, SegmentValue } from "@/types/api";
+import { AccountOption, AccountSubtype, JournalEntryType, PaymentMethodType, SegmentDefinition, SegmentValue, Tax, TaxType } from "@/types/api";
 import { SectionHeading, StatusPill, Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
@@ -35,6 +41,27 @@ const SEGMENT_COLORS = [
     "text-orange-400 bg-orange-400/10 border-orange-400/20",
     "text-pink-400 bg-pink-400/10 border-pink-400/20",
 ];
+
+const TAX_TYPES: TaxType[] = ["SALES", "PURCHASE", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE"];
+
+type TaxEditorState = {
+    id?: string;
+    taxCode: string;
+    taxName: string;
+    rate: string;
+    taxType: TaxType;
+    taxAccountId: string;
+    isActive: boolean;
+};
+
+const emptyTaxEditor: TaxEditorState = {
+    taxCode: "",
+    taxName: "",
+    rate: "",
+    taxType: "SALES",
+    taxAccountId: "",
+    isActive: true,
+};
 
 export function MasterDataPage() {
     const { token } = useAuth();
@@ -62,6 +89,7 @@ export function MasterDataPage() {
     const [editPaymentMethodTypeName, setEditPaymentMethodTypeName] = useState("");
     const [newPaymentMethodTypeName, setNewPaymentMethodTypeName] = useState("");
     const [showAddPaymentMethodType, setShowAddPaymentMethodType] = useState(false);
+    const [taxEditor, setTaxEditor] = useState<TaxEditorState | null>(null);
 
     const { data: definitions = [], isLoading } = useQuery({
         queryKey: ["segment-definitions", token],
@@ -81,6 +109,16 @@ export function MasterDataPage() {
     const { data: paymentMethodTypes = [], isLoading: isLoadingPaymentMethodTypes } = useQuery({
         queryKey: ["payment-method-types", token],
         queryFn: () => getPaymentMethodTypes(token),
+    });
+
+    const { data: taxes = [], isLoading: isLoadingTaxes, isError: isTaxesError, error: taxesError } = useQuery({
+        queryKey: ["taxes", token],
+        queryFn: () => getTaxes(token),
+    });
+
+    const { data: taxAccounts = [] } = useQuery({
+        queryKey: ["accounts", "tax-account-options", token],
+        queryFn: () => getAccountOptions({ isActive: "true", isPosting: "true" }, token),
     });
 
     const createMutation = useMutation({
@@ -172,17 +210,64 @@ export function MasterDataPage() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payment-method-types"] }),
     });
 
-    if (isLoading || isLoadingSubtypes || isLoadingTypes || isLoadingPaymentMethodTypes) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
+    const saveTaxMutation = useMutation({
+        mutationFn: (editor: TaxEditorState) => {
+            const payload = {
+                taxCode: editor.taxCode,
+                taxName: editor.taxName,
+                rate: Number(editor.rate),
+                taxType: editor.taxType,
+                taxAccountId: editor.taxAccountId || null,
+                isActive: editor.isActive,
+            };
+            return editor.id ? updateTax(editor.id, payload, token) : createTax(payload, token);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["taxes"] });
+            setTaxEditor(null);
+        },
+    });
+
+    const deleteTaxMutation = useMutation({
+        mutationFn: (id: string) => deleteTax(id, token),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["taxes"] }),
+    });
+
+    if (isLoading || isLoadingSubtypes || isLoadingTypes || isLoadingPaymentMethodTypes || isLoadingTaxes) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
 
     const TABS = [
         ...definitions.map((def) => ({ kind: "segment" as const, def })),
         { kind: "account-subtypes" as const, def: null },
         { kind: "journal-entry-types" as const, def: null },
         { kind: "payment-method-types" as const, def: null },
+        { kind: "taxes" as const, def: null },
     ];
 
     const active = TABS[activeTab];
     const activeDef: SegmentDefinition | undefined = active?.kind === "segment" ? active.def : undefined;
+    const openTaxEditor = (tax?: Tax) => {
+        setTaxEditor(tax ? {
+            id: tax.id,
+            taxCode: tax.taxCode,
+            taxName: tax.taxName,
+            rate: String(tax.rate),
+            taxType: tax.taxType,
+            taxAccountId: tax.taxAccountId ?? "",
+            isActive: tax.isActive,
+        } : emptyTaxEditor);
+    };
+    const accountLabel = (account?: AccountOption | null) =>
+        account ? `${account.code} - ${account.nameAr || account.name}` : t("master.taxes.noAccount");
+    const selectedTaxTypeRequiresAccount = taxEditor?.taxType === "SALES" || taxEditor?.taxType === "PURCHASE";
+    const canSaveTax = Boolean(
+        taxEditor?.taxCode.trim() &&
+        taxEditor?.taxName.trim() &&
+        taxEditor?.rate !== "" &&
+        Number.isFinite(Number(taxEditor?.rate)) &&
+        Number(taxEditor?.rate) >= 0 &&
+        Number(taxEditor?.rate) <= 100 &&
+        (!selectedTaxTypeRequiresAccount || taxEditor?.taxAccountId)
+    );
 
     return (
         <div className="space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none">
@@ -197,8 +282,9 @@ export function MasterDataPage() {
                     const isSubtypeTab = tab.kind === "account-subtypes";
                     const isTypeTab = tab.kind === "journal-entry-types";
                     const isPaymentMethodTypeTab = tab.kind === "payment-method-types";
+                    const isTaxTab = tab.kind === "taxes";
                     const def = tab.def as SegmentDefinition | null;
-                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : isPaymentMethodTypeTab ? Wallet : (SEGMENT_ICONS[i] ?? Building2);
+                    const Icon = isSubtypeTab ? BookMarked : isTypeTab ? FolderKanban : isPaymentMethodTypeTab ? Wallet : isTaxTab ? Percent : (SEGMENT_ICONS[i] ?? Building2);
                     const color =
                         isSubtypeTab
                             ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/20"
@@ -206,10 +292,12 @@ export function MasterDataPage() {
                                 ? "text-indigo-400 bg-indigo-400/10 border-indigo-400/20"
                                 : isPaymentMethodTypeTab
                                     ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20"
-                                : (SEGMENT_COLORS[i] ?? SEGMENT_COLORS[0]);
+                                    : isTaxTab
+                                        ? "text-green-400 bg-green-400/10 border-green-400/20"
+                                        : (SEGMENT_COLORS[i] ?? SEGMENT_COLORS[0]);
                     return (
                         <button
-                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : isPaymentMethodTypeTab ? "payment-method-types" : def!.id}
+                            key={isSubtypeTab ? "account-subtypes" : isTypeTab ? "journal-entry-types" : isPaymentMethodTypeTab ? "payment-method-types" : isTaxTab ? "taxes" : def!.id}
                             onClick={() => {
                                 setActiveTab(i);
                                 setShowAddSegmentValue(false);
@@ -220,6 +308,7 @@ export function MasterDataPage() {
                                 setTypeEditingId(null);
                                 setShowAddPaymentMethodType(false);
                                 setPaymentMethodTypeEditingId(null);
+                                setTaxEditor(null);
                             }}
                             className={cn(
                                 "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold border transition-all",
@@ -227,7 +316,7 @@ export function MasterDataPage() {
                             )}
                         >
                             <Icon className="h-4 w-4" />
-                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : isPaymentMethodTypeTab ? t("master.tab.paymentMethodTypes") : def!.name}
+                            {isSubtypeTab ? t("master.tab.accountSubtypes") : isTypeTab ? t("master.tab.journalEntryTypes") : isPaymentMethodTypeTab ? t("master.tab.paymentMethodTypes") : isTaxTab ? t("master.tab.taxes") : def!.name}
                             <span className={cn(
                                 "ml-1 rounded-full px-2 py-0.5 text-[10px] font-black",
                                 activeTab === i ? "bg-gray-100" : "bg-gray-100"
@@ -238,7 +327,9 @@ export function MasterDataPage() {
                                         ? journalEntryTypes.filter((t) => t.isActive).length
                                         : isPaymentMethodTypeTab
                                             ? paymentMethodTypes.filter((t) => t.isActive).length
-                                        : def!.values.filter(v => v.isActive).length}
+                                            : isTaxTab
+                                                ? taxes.filter((tax) => tax.isActive).length
+                                                : def!.values.filter(v => v.isActive).length}
                             </span>
                         </button>
                     );
@@ -681,6 +772,175 @@ export function MasterDataPage() {
                     </table>
                 </Card>
             )}
+
+            {active?.kind === "taxes" && (
+                <Card className="p-0 border border-gray-200 bg-panel/40 overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-900">{t("master.section.taxes.title")}</h2>
+                            <p className="text-xs text-gray-500 mt-0.5">{t("master.section.taxes.description")}</p>
+                        </div>
+                        <Button onClick={() => openTaxEditor()}>
+                            <Plus className="h-4 w-4 mr-2" /> {t("master.section.taxes.add")}
+                        </Button>
+                    </div>
+
+                    {isTaxesError && (
+                        <div className="border-b border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
+                            {(taxesError as Error)?.message || t("master.taxes.error")}
+                        </div>
+                    )}
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="border-b border-gray-200 bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxCode")}</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxName")}</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.rate")}</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxType")}</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxAccount")}</th>
+                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 text-center">{t("common.table.status")}</th>
+                                    <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.actions")}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {taxes.length === 0 ? (
+                                    <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-600">{t("master.taxes.empty")}</td></tr>
+                                ) : taxes.map((tax) => (
+                                    <tr key={tax.id} className="group hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4"><span className="font-mono text-xs font-bold text-green-600">{tax.taxCode}</span></td>
+                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{tax.taxName}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700">{Number(tax.rate).toFixed(2)}%</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700">{t(`master.taxes.type.${tax.taxType}`)}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-700">{accountLabel(tax.taxAccount)}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <StatusPill label={tax.isActive ? t("common.status.active") : t("common.status.inactive")} tone={tax.isActive ? "positive" : "neutral"} />
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => openTaxEditor(tax)}
+                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-400/10 transition-all"
+                                                    title={t("common.action.edit")}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm(t("common.confirm.delete", { name: tax.taxName }))) deleteTaxMutation.mutate(tax.id);
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-400/10 transition-all"
+                                                    title={t("common.action.delete")}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {deleteTaxMutation.isError && (
+                        <div className="border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
+                            {(deleteTaxMutation.error as Error).message || t("master.taxes.deleteError")}
+                        </div>
+                    )}
+                </Card>
+            )}
+
+            {taxEditor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                            <h3 className="text-base font-bold text-gray-900">
+                                {taxEditor.id ? t("master.taxes.modal.editTitle") : t("master.taxes.modal.createTitle")}
+                            </h3>
+                            <button onClick={() => setTaxEditor(null)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+                            <Field label={t("master.taxes.taxCode")}>
+                                <input
+                                    value={taxEditor.taxCode}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, taxCode: event.target.value.toUpperCase() }))}
+                                    placeholder={t("master.taxes.codePlaceholder")}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <Field label={t("master.taxes.taxName")}>
+                                <input
+                                    value={taxEditor.taxName}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, taxName: event.target.value }))}
+                                    placeholder={t("master.taxes.namePlaceholder")}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <Field label={t("master.taxes.rate")}>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={taxEditor.rate}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, rate: event.target.value }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <Field label={t("master.taxes.taxType")}>
+                                <select
+                                    value={taxEditor.taxType}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, taxType: event.target.value as TaxType, taxAccountId: ["ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE"].includes(event.target.value) ? "" : current.taxAccountId }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                >
+                                    {TAX_TYPES.map((type) => <option key={type} value={type}>{t(`master.taxes.type.${type}`)}</option>)}
+                                </select>
+                            </Field>
+                            <Field label={t("master.taxes.taxAccount")}>
+                                <select
+                                    value={taxEditor.taxAccountId}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, taxAccountId: event.target.value }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                >
+                                    <option value="">{t("master.taxes.accountPlaceholder")}</option>
+                                    {taxAccounts.map((account) => <option key={account.id} value={account.id}>{accountLabel(account)}</option>)}
+                                </select>
+                            </Field>
+                            <Field label={t("common.table.status")}>
+                                <select
+                                    value={taxEditor.isActive ? "true" : "false"}
+                                    onChange={(event) => setTaxEditor((current) => current && ({ ...current, isActive: event.target.value === "true" }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                >
+                                    <option value="true">{t("master.taxes.active")}</option>
+                                    <option value="false">{t("master.taxes.inactive")}</option>
+                                </select>
+                            </Field>
+                        </div>
+                        {saveTaxMutation.isError && (
+                            <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {(saveTaxMutation.error as Error).message || t("master.taxes.saveError")}
+                            </div>
+                        )}
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                            <Button variant="secondary" onClick={() => setTaxEditor(null)}>{t("common.action.cancel")}</Button>
+                            <Button onClick={() => saveTaxMutation.mutate(taxEditor)} disabled={!canSaveTax || saveTaxMutation.isPending}>
+                                <Check className="h-4 w-4 mr-2" /> {t("common.action.save")}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <label className="space-y-1.5">
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{label}</span>
+            {children}
+        </label>
     );
 }

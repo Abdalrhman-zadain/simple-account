@@ -35,6 +35,7 @@ These docs describe the currently implemented accounting modules.
 
 - `platform/auth` is implemented.
 - `phase-1-accounting-foundation/accounting-core` is implemented.
+- Phase 1 Master Data now includes tax code setup for sales/purchase document entry, with tax rates, tax types, account mapping, active/inactive control, and protected deletion when tax records are used historically.
 - `phase-2-bank-cash-management/bank-cash-accounts` is implemented.
 - `phase-2-bank-cash-management/bank-cash-transactions` is implemented for receipt, payment, and transfer drafts/posting.
 - `phase-2-bank-cash-management/bank-reconciliations` is implemented for statement-line entry/import, matching, and reconciliation status tracking.

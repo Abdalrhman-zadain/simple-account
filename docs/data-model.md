@@ -123,6 +123,7 @@ Key fields:
 - quotation line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`/`lineTotalAmount`, and `revenueAccountId`
 - sales-order line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `revenueAccountId`
 - sales-invoice line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`, and `revenueAccountId`
+- quotation, sales-order, sales-invoice, and credit-note lines may optionally reference `Tax` through `taxId`; the stored `taxAmount` remains the historical calculated amount
 - customer receipt transactions `customerId`, settlement text, and links to posted receipt transactions
 - allocation `amount`, `allocatedAt`, and links to posted receipt transactions
 
@@ -172,6 +173,7 @@ Key fields:
 - supplier payment allocation `amount`, `allocatedAt`, `purchaseInvoiceId`, and `supplierPaymentId`
 - debit note `reference`, `status`, `noteDate`, `supplierId`, optional `purchaseInvoiceId`, `currencyCode`, `subtotalAmount`, `taxAmount`, `totalAmount`, and optional `journalEntryId`
 - debit note line `quantity`, `amount`, `taxAmount`, `reason`, and `lineTotalAmount`
+- purchase-order, purchase-invoice, and debit-note lines may optionally reference `Tax` through `taxId`; the stored `taxAmount` remains the historical calculated amount
 
 Accounting meaning:
 
@@ -335,12 +337,17 @@ Main models:
 - `SegmentDefinition`
 - `SegmentValue`
 - `AccountSubtype`
+- `JournalEntryType`
+- `PaymentMethodType`
+- `Tax`
 
 Accounting meaning:
 
 - allows enterprise-style segmented coding and reference data
 - links segment values to accounts
 - provides a controlled list of user-defined account classes (stored on `Account.subtype` as a string)
+- provides controlled tax codes with type, rate, active status, and optional `Account` mapping for sales/purchase tax posting
+- active tax codes are used by document forms; inactive tax codes remain available for historical lines that already reference them
 
 ### Audit And Users
 
@@ -440,6 +447,10 @@ Ownership by module:
 - Master Data:
   - `SegmentDefinition`
   - `SegmentValue`
+  - `AccountSubtype`
+  - `JournalEntryType`
+  - `PaymentMethodType`
+  - `Tax`
 - Audit:
   - `AuditLog`
 - Platform Auth:

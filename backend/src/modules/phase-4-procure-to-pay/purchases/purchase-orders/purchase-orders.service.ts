@@ -19,6 +19,7 @@ type ResolvedOrderLine = {
   description: string;
   quantity: number;
   unitPrice: number;
+  taxId: string | null;
   taxAmount: number;
   lineTotalAmount: number;
   requestedDeliveryDate: Date | null;
@@ -262,22 +263,33 @@ export class PurchaseOrdersService {
 
   private async resolveLines(lines: PurchaseOrderLineDto[]) {
     const itemIds = Array.from(new Set(lines.map((line) => line.itemId?.trim()).filter(Boolean))) as string[];
-    const validItems = new Map(
-      (
-        itemIds.length
-          ? await this.prisma.inventoryItem.findMany({
-              where: { id: { in: itemIds }, isActive: true },
-              select: { id: true, name: true },
-            })
-          : []
-      ).map((item) => [item.id, item]),
-    );
+    const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
+    const [items, taxes] = await Promise.all([
+      itemIds.length
+        ? this.prisma.inventoryItem.findMany({
+            where: { id: { in: itemIds }, isActive: true },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      taxIds.length
+        ? this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
+        : Promise.resolve([]),
+    ]);
+    const validItems = new Map(items.map((item) => [item.id, item]));
+    const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
 
     return lines.map((line) => {
       const quantity = Number(line.quantity);
       const unitPrice = Number(line.unitPrice);
-      const taxAmount = Number(line.taxAmount ?? 0);
-      const lineTotalAmount = Number((quantity * unitPrice + taxAmount).toFixed(2));
+      const taxId = line.taxId?.trim() || null;
+      if (taxId && !taxById.has(taxId)) {
+        throw new BadRequestException('Each purchase order line tax must reference an active tax.');
+      }
+      const lineBaseAmount = Number((quantity * unitPrice).toFixed(2));
+      const taxAmount = taxId
+        ? Number((lineBaseAmount * ((taxById.get(taxId) ?? 0) / 100)).toFixed(2))
+        : Number(line.taxAmount ?? 0);
+      const lineTotalAmount = Number((lineBaseAmount + taxAmount).toFixed(2));
       const itemId = line.itemId?.trim() || null;
       const item = itemId ? validItems.get(itemId) : null;
 
@@ -291,6 +303,7 @@ export class PurchaseOrdersService {
         description: line.description.trim(),
         quantity,
         unitPrice,
+        taxId,
         taxAmount,
         lineTotalAmount,
         requestedDeliveryDate: line.requestedDeliveryDate ? new Date(line.requestedDeliveryDate) : null,
@@ -323,6 +336,7 @@ export class PurchaseOrdersService {
       description: line.description,
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineTotalAmount: this.toAmount(line.lineTotalAmount),
       requestedDeliveryDate: line.requestedDeliveryDate,
@@ -418,6 +432,7 @@ export class PurchaseOrdersService {
         quantity: line.quantity.toString(),
         receivedQuantity: line.receivedQuantity.toString(),
         unitPrice: line.unitPrice.toString(),
+        taxId: line.taxId ?? null,
         taxAmount: line.taxAmount.toString(),
         lineTotalAmount: line.lineTotalAmount.toString(),
         requestedDeliveryDate: line.requestedDeliveryDate?.toISOString() ?? null,

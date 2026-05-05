@@ -553,6 +553,45 @@ async function main() {
     subtype: 'Payable',
     parentAccountId: payables.id,
   });
+  const salesTaxPayable = await createAccount({
+    code: '2110002',
+    name: 'Sales Tax Payable',
+    nameAr: 'ضريبة مبيعات مستحقة',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: payables.id,
+  });
+
+  await prisma.tax.createMany({
+    data: [
+      {
+        taxCode: 'VAT16',
+        taxName: 'ضريبة مبيعات 16%',
+        rate: 16,
+        taxType: 'SALES',
+        taxAccountId: salesTaxPayable.id,
+        isActive: true,
+      },
+      {
+        taxCode: 'VAT0',
+        taxName: 'ضريبة صفرية',
+        rate: 0,
+        taxType: 'ZERO_RATED',
+        taxAccountId: null,
+        isActive: true,
+      },
+      {
+        taxCode: 'EXEMPT',
+        taxName: 'معفى من الضريبة',
+        rate: 0,
+        taxType: 'EXEMPT',
+        taxAccountId: null,
+        isActive: true,
+      },
+    ],
+  });
+
   const ownersEquity = await createAccount({
     code: '3100000',
     name: "Owner's Equity",

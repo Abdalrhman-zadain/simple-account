@@ -50,6 +50,7 @@ type ResolvedLine = {
   itemName: string | null;
   description: string | null;
   revenueAccountId: string | null;
+  taxId: string | null;
   quantity: number;
   unitPrice: number;
   discountAmount: number;
@@ -1796,8 +1797,18 @@ export class SalesReceivablesService {
     }
 
     const resolved: ResolvedLine[] = [];
+    const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
+    const taxes = taxIds.length
+      ? await this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
+      : [];
+    const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
+
     for (const [index, rawLine] of lines.entries()) {
       const revenueAccountId = rawLine.revenueAccountId?.trim() || null;
+      const taxId = rawLine.taxId?.trim() || null;
+      if (taxId && !taxById.has(taxId)) {
+        throw new BadRequestException(`Line ${index + 1} tax must reference an active tax.`);
+      }
 
       if (options.requireRevenueAccount) {
         if (!revenueAccountId) {
@@ -1813,7 +1824,7 @@ export class SalesReceivablesService {
       const quantity = rawLine.quantity ?? 1; // Default quantity to 1 if not provided
       const unitPrice = rawLine.unitPrice; //
       const discountAmount = rawLine.discountAmount ?? 0;
-      const taxAmount = rawLine.taxAmount ?? 0;
+      const taxAmount = taxId ? 0 : rawLine.taxAmount ?? 0;
       const lineAmount = rawLine.lineAmount;
 
       if (quantity <= 0) {
@@ -1839,6 +1850,9 @@ export class SalesReceivablesService {
       const lineSubtotalAmount =
         computedSubtotal ??
         Number(((lineAmount as number) - taxAmount).toFixed(2));
+      const computedTaxAmount = taxId
+        ? Number((lineSubtotalAmount * ((taxById.get(taxId) ?? 0) / 100)).toFixed(2))
+        : taxAmount;
 
       if (lineSubtotalAmount < 0) {
         throw new BadRequestException(
@@ -1867,12 +1881,13 @@ export class SalesReceivablesService {
         itemName: rawLine.itemName?.trim() || null,
         description: rawLine.description?.trim() || null,
         revenueAccountId: revenueAccountId,
+        taxId,
         quantity: Number(quantity.toFixed(4)),
         unitPrice: finalUnitPrice,
         discountAmount: Number(discountAmount.toFixed(2)),
-        taxAmount: Number(taxAmount.toFixed(2)),
+        taxAmount: Number(computedTaxAmount.toFixed(2)),
         lineSubtotalAmount: Number(lineSubtotalAmount.toFixed(2)),
-        lineTotalAmount: finalLineTotalAmount,
+        lineTotalAmount: taxId ? Number((lineSubtotalAmount + computedTaxAmount).toFixed(2)) : finalLineTotalAmount,
       });
     }
 
@@ -1903,6 +1918,7 @@ export class SalesReceivablesService {
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
       discountAmount: this.toAmount(line.discountAmount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineSubtotalAmount: this.toAmount(line.lineSubtotalAmount),
       lineTotalAmount: this.toAmount(line.lineTotalAmount),
@@ -1921,6 +1937,7 @@ export class SalesReceivablesService {
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
       discountAmount: this.toAmount(line.discountAmount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineSubtotalAmount: this.toAmount(line.lineSubtotalAmount),
       lineTotalAmount: this.toAmount(line.lineTotalAmount),
@@ -1939,6 +1956,7 @@ export class SalesReceivablesService {
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
       discountAmount: this.toAmount(line.discountAmount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineSubtotalAmount: this.toAmount(line.lineSubtotalAmount),
       lineAmount: this.toAmount(line.lineTotalAmount),
@@ -1957,6 +1975,7 @@ export class SalesReceivablesService {
       quantity: this.toQuantity(line.quantity),
       unitPrice: this.toAmount(line.unitPrice),
       discountAmount: this.toAmount(line.discountAmount),
+      taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       lineSubtotalAmount: this.toAmount(line.lineSubtotalAmount),
       lineAmount: this.toAmount(line.lineTotalAmount),
@@ -2421,6 +2440,7 @@ export class SalesReceivablesService {
       quantity: line.quantity.toString(),
       unitPrice: line.unitPrice.toString(),
       discountAmount: line.discountAmount.toString(),
+      taxId: line.taxId ?? null,
       taxAmount: line.taxAmount.toString(),
       lineSubtotalAmount: line.lineSubtotalAmount.toString(),
       lineAmount: (line.lineAmount ?? line.lineTotalAmount).toString(),

@@ -2660,6 +2660,7 @@ function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
       quantity: resolvedLine.quantity ? Number(resolvedLine.quantity) : undefined,
       unitPrice: resolvedLine.unitPrice ? Number(resolvedLine.unitPrice) : undefined,
       discountAmount: resolvedLine.discountAmount ? Number(resolvedLine.discountAmount) : undefined,
+      taxId: resolvedLine.taxId || undefined,
       taxAmount: resolvedLine.taxAmount ? Number(resolvedLine.taxAmount) : undefined,
       lineAmount: resolvedLine.lineAmount ? Number(resolvedLine.lineAmount) : undefined,
       revenueAccountId: line.revenueAccountId || undefined,
@@ -2675,6 +2676,7 @@ function mapLineToEditor(line: {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId?: string | null;
   taxAmount: string;
   lineAmount: string;
   revenueAccount: { id: string } | null;
@@ -2687,6 +2689,8 @@ function mapLineToEditor(line: {
     quantity: line.quantity,
     unitPrice: line.unitPrice,
     discountAmount: line.discountAmount,
+    taxId: line.taxId ?? "",
+    taxRate: "",
     taxAmount: line.taxAmount,
     lineAmount: line.lineAmount,
     revenueAccountId: line.revenueAccount?.id ?? "",
@@ -2700,6 +2704,7 @@ function mapLineForConversion(line: {
   quantity: string;
   unitPrice: string;
   discountAmount: string;
+  taxId?: string | null;
   taxAmount: string;
   lineAmount: string;
   revenueAccount: { id: string } | null;
@@ -2711,6 +2716,7 @@ function mapLineForConversion(line: {
     quantity: Number(line.quantity),
     unitPrice: Number(line.unitPrice),
     discountAmount: Number(line.discountAmount),
+    taxId: line.taxId ?? undefined,
     taxAmount: Number(line.taxAmount),
     lineAmount: Number(line.lineAmount),
     revenueAccountId: line.revenueAccount?.id ?? undefined,
