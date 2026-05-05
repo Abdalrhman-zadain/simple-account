@@ -146,6 +146,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
 
   const primaryLabel = (row: BankCashTransaction) => primaryAccountLabel(row, language);
   const secondaryLabel = (row: BankCashTransaction) => secondaryAccountLabel(row, language);
+  const textAlign = language === "ar" ? "text-right" : "text-left";
 
   const totals = useMemo(
     () => ({
@@ -252,9 +253,9 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.reference")}</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.account")}</th>
-                  <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.date")}</th>
+                  <th className={cn("px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600", textAlign)}>{t("bankCashTransactions.table.reference")}</th>
+                  <th className={cn("px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600", textAlign)}>{t("bankCashTransactions.table.account")}</th>
+                  <th className={cn("px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600", textAlign)}>{t("bankCashTransactions.table.date")}</th>
                   <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.amount")}</th>
                   <th className="px-6 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.status")}</th>
                   <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("bankCashTransactions.table.actions")}</th>
@@ -277,12 +278,12 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
                       )}
                     >
                       <td className="px-6 py-4">
-                        <button className="text-left" onClick={() => setSelectedId(row.id)}>
+                        <button className={textAlign} onClick={() => setSelectedId(row.id)}>
                           <div className="font-bold text-gray-900">{row.reference}</div>
                           <div className="text-xs text-gray-500">{row.journalReference ?? t("bankCashTransactions.table.noJournal")}</div>
                         </button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className={cn("px-6 py-4", textAlign)}>
                         <div className="font-semibold text-gray-900">{primaryLabel(row)}</div>
                         <div className="text-xs text-gray-500">{secondaryLabel(row)}</div>
                       </td>
@@ -353,7 +354,7 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
               {selected.counterpartyName ? (
                 <DetailRow label={t("bankCashTransactions.form.counterparty")} value={<span className="font-semibold text-gray-900">{selected.counterpartyName}</span>} />
               ) : null}
-              <DetailRow label={t("bankCashTransactions.form.description")} value={<span className="text-gray-700">{selected.description || "â€”"}</span>} />
+              <DetailRow label={t("bankCashTransactions.form.description")} value={<span className="text-gray-700">{selected.description || "—"}</span>} />
             </div>
           ) : (
             <div className="text-sm text-gray-500">{t("bankCashTransactions.details.empty")}</div>
@@ -495,16 +496,16 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
 
 function localizeName(name: string, nameAr: string | null | undefined, language: string) {
   if (language === "ar") {
-    return nameAr?.trim() || name;
+    return cleanDisplayName(nameAr?.trim() || name);
   }
 
-  return name?.trim() || nameAr?.trim() || "";
+  return cleanDisplayName(name?.trim() || nameAr?.trim() || "");
 }
 
 function primaryAccountLabel(row: BankCashTransaction, language: string) {
   if (row.kind === "TRANSFER") {
     if (row.sourceBankCashAccount) {
-      return `${localizeName(row.sourceBankCashAccount.account.name, row.sourceBankCashAccount.account.nameAr, language)} Â· ${row.sourceBankCashAccount.account.code}`;
+      return `${localizeName(row.sourceBankCashAccount.account.name, row.sourceBankCashAccount.account.nameAr, language)} · ${row.sourceBankCashAccount.account.code}`;
     }
     return "—";
   }
@@ -516,10 +517,12 @@ function primaryAccountLabel(row: BankCashTransaction, language: string) {
 function secondaryAccountLabel(row: BankCashTransaction, language: string) {
   if (row.kind === "TRANSFER") {
     return row.destinationBankCashAccount
-      ? `${row.destinationBankCashAccount.account.code} Â· ${row.destinationBankCashAccount.name}`
-      : "â€”";
+      ? `${localizeName(row.destinationBankCashAccount.account.name, row.destinationBankCashAccount.account.nameAr, language)} · ${row.destinationBankCashAccount.account.code}`
+      : "—";
   }
-  return row.counterAccount ? `${row.counterAccount.code} Â· ${row.counterAccount.name}` : "â€”";
+  return row.counterAccount
+    ? `${localizeName(row.counterAccount.name, row.counterAccount.nameAr, language)} · ${row.counterAccount.code}`
+    : "—";
 }
 
 async function createTransaction(kind: BankCashTransactionKind, editor: EditorState, token?: string | null) {
@@ -613,4 +616,3 @@ function counterpartyHintKey(kind: BankCashTransactionKind) {
     ? "bankCashTransactions.form.counterpartyHint.receipt"
     : "bankCashTransactions.form.counterpartyHint.payment";
 }
-

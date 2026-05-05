@@ -139,3 +139,10 @@ npx prisma migrate reset --skip-seed
 npx prisma migrate dev --name sync_schema_after_reset
 
 pg_restore -h localhost -p 15432 -U simple_account_user -d simple_account --data-only --disable-triggers ~/simple_account_backup.dump
+
+
+
+2026-05-04,OB-001,Opening balance,1000,0
+2026-05-04,RCPT-001,قبض من عميل,500,0
+2026-05-04,PAY-001,دفع لمورد,0,200
+2026-05-04,FEE-001,رسوم بنكية,0,10
