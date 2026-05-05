@@ -563,24 +563,14 @@ async function main() {
     parentAccountId: payables.id,
   });
 
-  // Current Liabilities Section
-  const currentLiabilities = await createAccount({
-    code: '2200000',
-    name: 'Current Liabilities',
-    nameAr: 'الالتزامات المتداولة',
-    type: 'LIABILITY',
-    isPosting: false,
-    parentAccountId: liabilities.id,
-  });
-
-  // Sales Tax Payables by Rate
+  // Sales Tax Payables - Main Account under Liabilities
   const salesTaxByRate = await createAccount({
     code: '2300000',
     name: 'Sales Tax Payables',
     nameAr: 'أمانات ضريبة المبيعات',
     type: 'LIABILITY',
     isPosting: false,
-    parentAccountId: currentLiabilities.id,
+    parentAccountId: liabilities.id,
   });
 
   // Sales Tax Payables by Rate - 16%
