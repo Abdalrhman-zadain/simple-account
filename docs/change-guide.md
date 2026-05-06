@@ -173,6 +173,7 @@ What else to check:
 - customer records must remain deactivatable without deleting history
 - customer creation supports either creating a new posting receivable account automatically under `1121000 Customer Receivables / ذمم عملاء` or linking an existing active posting Asset account from that same subtree
 - customer sales-rep assignment should use optional `salesRepId` to an active Sales & Receivables `SalesRepresentative` for follow-up, reports, commissions, and collections; never substitute the representative's employee-payables account for the customer receivable account
+- sales representative account linking may create a new posting liability account under `2130000 Employee Payables / ذمم الموظفين`, link an existing active posting account from that subtree, or leave the representative without an account; this link remains employee-side context only
 - customer names should remain unique, and automatic customer-receivable account creation must not create a second detail account with the same customer name under `1121000`
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion

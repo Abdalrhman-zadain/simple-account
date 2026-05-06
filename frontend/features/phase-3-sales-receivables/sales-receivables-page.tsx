@@ -112,6 +112,7 @@ type SalesRepEditorState = {
   phone: string;
   email: string;
   defaultCommissionRate: string;
+  employeeReceivableAccountLinkMode: "" | "NONE" | "AUTO" | "EXISTING";
   employeeReceivableAccountId: string;
   status: "ACTIVE" | "INACTIVE";
 };
@@ -181,6 +182,7 @@ const EMPTY_SALES_REP_EDITOR: SalesRepEditorState = {
   phone: "",
   email: "",
   defaultCommissionRate: "0",
+  employeeReceivableAccountLinkMode: "",
   employeeReceivableAccountId: "",
   status: "ACTIVE",
 };
@@ -493,7 +495,11 @@ export function SalesReceivablesPage() {
           phone: salesRepEditor.phone || undefined,
           email: salesRepEditor.email || undefined,
           defaultCommissionRate: Number(salesRepEditor.defaultCommissionRate || 0),
-          employeeReceivableAccountId: salesRepEditor.employeeReceivableAccountId || undefined,
+          employeeReceivableAccountLinkMode: salesRepEditor.employeeReceivableAccountLinkMode || "NONE",
+          employeeReceivableAccountId:
+            salesRepEditor.employeeReceivableAccountLinkMode === "EXISTING"
+              ? salesRepEditor.employeeReceivableAccountId
+              : undefined,
           status: salesRepEditor.status,
         },
         token,
@@ -516,7 +522,11 @@ export function SalesReceivablesPage() {
           phone: salesRepEditor.phone,
           email: salesRepEditor.email,
           defaultCommissionRate: Number(salesRepEditor.defaultCommissionRate || 0),
-          employeeReceivableAccountId: salesRepEditor.employeeReceivableAccountId,
+          employeeReceivableAccountLinkMode: salesRepEditor.employeeReceivableAccountLinkMode || "NONE",
+          employeeReceivableAccountId:
+            salesRepEditor.employeeReceivableAccountLinkMode === "EXISTING"
+              ? salesRepEditor.employeeReceivableAccountId
+              : undefined,
           status: salesRepEditor.status,
         },
         token,
@@ -1207,6 +1217,18 @@ export function SalesReceivablesPage() {
       setSalesRepEditorClientError("يرجى تحديد حالة المندوب.");
       return;
     }
+    if (!salesRepEditor.employeeReceivableAccountLinkMode) {
+      setSalesRepEditorClientError("يرجى تحديد طريقة ربط حساب ذمم الموظف.");
+      return;
+    }
+    if (salesRepEditor.employeeReceivableAccountLinkMode === "AUTO" && !salesRepEditor.name.trim()) {
+      setSalesRepEditorClientError("يرجى إدخال اسم المندوب قبل إنشاء حساب ذمم تلقائي.");
+      return;
+    }
+    if (salesRepEditor.employeeReceivableAccountLinkMode === "EXISTING" && !salesRepEditor.employeeReceivableAccountId) {
+      setSalesRepEditorClientError("يرجى اختيار حساب ذمم الموظف قبل الحفظ.");
+      return;
+    }
 
     setSalesRepEditorClientError(null);
     if (salesRepEditor.id) {
@@ -1587,6 +1609,7 @@ export function SalesReceivablesPage() {
                                   phone: row.phone ?? "",
                                   email: row.email ?? "",
                                   defaultCommissionRate: row.defaultCommissionRate,
+                                  employeeReceivableAccountLinkMode: row.employeeReceivableAccountId ? "EXISTING" : "NONE",
                                   employeeReceivableAccountId: row.employeeReceivableAccountId ?? "",
                                   status: row.status,
                                 });
@@ -2523,7 +2546,13 @@ export function SalesReceivablesPage() {
         title={salesRepEditor.id ? "تعديل مندوب مبيعات" : "مندوب جديد"}
       >
         <div className="space-y-5">
-          <Field label="اسم المندوب" required error={salesRepEditorClientError ?? undefined}>
+          {salesRepEditorClientError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {salesRepEditorClientError}
+            </div>
+          ) : null}
+
+          <Field label="اسم المندوب" required>
             <Input value={salesRepEditor.name} onChange={(event) => setSalesRepEditor((current) => ({ ...current, name: event.target.value }))} />
           </Field>
 
@@ -2556,17 +2585,93 @@ export function SalesReceivablesPage() {
 
           <Field
             label="حساب ذمم الموظف"
-            hint="اختياري، ويستخدم للسلف والعهد والتسويات والعمولات فقط. لا يستخدم كحساب ذمم للعميل."
+            required
+            hint="يستخدم للسلف والعهد والتسويات والعمولات فقط. لا يستخدم كحساب ذمم للعميل."
           >
-            <Select value={salesRepEditor.employeeReceivableAccountId} onChange={(event) => setSalesRepEditor((current) => ({ ...current, employeeReceivableAccountId: event.target.value }))}>
-              <option value="">بدون حساب ذمم موظف</option>
-              {employeePayableAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.code} - {account.nameAr || account.name}
-                </option>
-              ))}
-            </Select>
+            <div className="mb-2 text-sm font-semibold text-gray-900">
+              طريقة ربط حساب ذمم الموظف <span className="text-base leading-none text-red-500">*</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <button
+                type="button"
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                  salesRepEditor.employeeReceivableAccountLinkMode === "NONE"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+                onClick={() => {
+                  setSalesRepEditorClientError(null);
+                  setSalesRepEditor((current) => ({
+                    ...current,
+                    employeeReceivableAccountLinkMode: "NONE",
+                    employeeReceivableAccountId: "",
+                  }));
+                }}
+              >
+                بدون حساب
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                  salesRepEditor.employeeReceivableAccountLinkMode === "AUTO"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+                onClick={() => {
+                  setSalesRepEditorClientError(null);
+                  setSalesRepEditor((current) => ({
+                    ...current,
+                    employeeReceivableAccountLinkMode: "AUTO",
+                    employeeReceivableAccountId: "",
+                  }));
+                }}
+              >
+                إنشاء حساب تلقائي
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                  salesRepEditor.employeeReceivableAccountLinkMode === "EXISTING"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+                onClick={() => {
+                  setSalesRepEditorClientError(null);
+                  setSalesRepEditor((current) => ({
+                    ...current,
+                    employeeReceivableAccountLinkMode: "EXISTING",
+                  }));
+                }}
+              >
+                اختيار حساب موجود
+              </button>
+            </div>
           </Field>
+
+          {salesRepEditor.employeeReceivableAccountLinkMode === "AUTO" ? (
+            <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-900">
+              سيتم إنشاء حساب ذمم جديد باسم المندوب تحت حساب ذمم الموظفين.
+            </div>
+          ) : null}
+
+          {salesRepEditor.employeeReceivableAccountLinkMode === "EXISTING" ? (
+            <Field label="اختيار حساب ذمم الموظف" required>
+              <Select value={salesRepEditor.employeeReceivableAccountId} onChange={(event) => {
+                setSalesRepEditorClientError(null);
+                setSalesRepEditor((current) => ({ ...current, employeeReceivableAccountId: event.target.value }));
+              }}>
+                <option value="">اختر حساب ذمم الموظف</option>
+                {employeePayableAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.code} - {account.nameAr || account.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
 
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => {

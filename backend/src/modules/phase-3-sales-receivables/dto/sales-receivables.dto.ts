@@ -43,6 +43,11 @@ export class CreateSalesRepresentativeDto {
   @IsString()
   employeeReceivableAccountId?: string;
 
+  @IsOptional()
+  @IsString()
+  @IsIn(["NONE", "AUTO", "EXISTING"])
+  employeeReceivableAccountLinkMode?: "NONE" | "AUTO" | "EXISTING";
+
   @IsString()
   @IsIn(["ACTIVE", "INACTIVE"])
   status!: "ACTIVE" | "INACTIVE";
@@ -73,6 +78,11 @@ export class UpdateSalesRepresentativeDto {
   @IsOptional()
   @IsString()
   employeeReceivableAccountId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["NONE", "AUTO", "EXISTING"])
+  employeeReceivableAccountLinkMode?: "NONE" | "AUTO" | "EXISTING";
 
   @IsOptional()
   @IsString()

@@ -2594,6 +2594,7 @@ export type CreateSalesRepresentativePayload = {
   email?: string;
   defaultCommissionRate?: number;
   employeeReceivableAccountId?: string;
+  employeeReceivableAccountLinkMode?: "NONE" | "AUTO" | "EXISTING";
   status: SalesRepStatus;
 };
 

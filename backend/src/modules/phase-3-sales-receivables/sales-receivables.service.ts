@@ -224,23 +224,22 @@ export class SalesReceivablesService {
   }
 
   async createSalesRepresentative(dto: CreateSalesRepresentativeDto) {
-    const employeeReceivableAccountId = dto.employeeReceivableAccountId?.trim() || null;
-    if (employeeReceivableAccountId) {
-      await this.ensureEmployeePayableAccount(employeeReceivableAccountId);
-    }
-
     try {
-      return await this.prisma.salesRepresentative.create({
-        data: {
-          code: dto.code?.trim() || this.generateReference("REP"),
-          name: dto.name.trim(),
-          phone: dto.phone?.trim() || null,
-          email: dto.email?.trim() || null,
-          defaultCommissionRate: this.toAmount(dto.defaultCommissionRate ?? 0),
-          employeeReceivableAccountId,
-          status: dto.status as SalesRepStatus,
-        },
-        include: this.salesRepInclude(),
+      return await this.prisma.$transaction(async (tx) => {
+        const employeeReceivableAccountId = await this.resolveSalesRepEmployeeReceivableAccount(dto, tx);
+
+        return tx.salesRepresentative.create({
+          data: {
+            code: dto.code?.trim() || this.generateReference("REP"),
+            name: dto.name.trim(),
+            phone: dto.phone?.trim() || null,
+            email: dto.email?.trim() || null,
+            defaultCommissionRate: this.toAmount(dto.defaultCommissionRate ?? 0),
+            employeeReceivableAccountId,
+            status: dto.status as SalesRepStatus,
+          },
+          include: this.salesRepInclude(),
+        });
       });
     } catch (error) {
       if (this.isUniqueConflict(error, "code")) {
@@ -256,28 +255,26 @@ export class SalesReceivablesService {
       throw new BadRequestException("Inactive sales representatives cannot be edited unless reactivated.");
     }
 
-    const employeeReceivableAccountId =
-      dto.employeeReceivableAccountId === undefined
-        ? undefined
-        : dto.employeeReceivableAccountId.trim() || null;
-    if (employeeReceivableAccountId) {
-      await this.ensureEmployeePayableAccount(employeeReceivableAccountId);
-    }
+    return this.prisma.$transaction(async (tx) => {
+      const employeeReceivableAccountId = await this.resolveSalesRepEmployeeReceivableAccount(dto, tx, {
+        preserveWhenMissing: true,
+      });
 
-    return this.prisma.salesRepresentative.update({
-      where: { id },
-      data: {
-        name: dto.name === undefined ? undefined : dto.name.trim(),
-        phone: dto.phone === undefined ? undefined : dto.phone.trim() || null,
-        email: dto.email === undefined ? undefined : dto.email.trim() || null,
-        defaultCommissionRate:
-          dto.defaultCommissionRate === undefined
-            ? undefined
-            : this.toAmount(dto.defaultCommissionRate),
-        employeeReceivableAccountId,
-        status: dto.status as SalesRepStatus | undefined,
-      },
-      include: this.salesRepInclude(),
+      return tx.salesRepresentative.update({
+        where: { id },
+        data: {
+          name: dto.name === undefined ? undefined : dto.name.trim(),
+          phone: dto.phone === undefined ? undefined : dto.phone.trim() || null,
+          email: dto.email === undefined ? undefined : dto.email.trim() || null,
+          defaultCommissionRate:
+            dto.defaultCommissionRate === undefined
+              ? undefined
+              : this.toAmount(dto.defaultCommissionRate),
+          employeeReceivableAccountId,
+          status: dto.status as SalesRepStatus | undefined,
+        },
+        include: this.salesRepInclude(),
+      });
     });
   }
 
@@ -2808,6 +2805,65 @@ export class SalesReceivablesService {
     return salesRep;
   }
 
+  private async resolveSalesRepEmployeeReceivableAccount(
+    dto: {
+      name?: string;
+      employeeReceivableAccountId?: string;
+      employeeReceivableAccountLinkMode?: "NONE" | "AUTO" | "EXISTING";
+    },
+    db: SalesReceivablesDb,
+    options: { preserveWhenMissing?: boolean } = {},
+  ) {
+    const linkMode = dto.employeeReceivableAccountLinkMode;
+    if (!linkMode) {
+      if (options.preserveWhenMissing && dto.employeeReceivableAccountId === undefined) {
+        return undefined;
+      }
+      const existingAccountId = dto.employeeReceivableAccountId?.trim();
+      if (!existingAccountId) {
+        return null;
+      }
+      await this.ensureEmployeePayableAccount(existingAccountId, db);
+      return existingAccountId;
+    }
+
+    if (linkMode === "NONE") {
+      return null;
+    }
+
+    if (linkMode === "EXISTING") {
+      if (!dto.employeeReceivableAccountId?.trim()) {
+        throw new BadRequestException("يرجى اختيار حساب ذمم الموظف قبل الحفظ.");
+      }
+      const accountId = dto.employeeReceivableAccountId.trim();
+      await this.ensureEmployeePayableAccount(accountId, db);
+      return accountId;
+    }
+
+    if (!dto.name?.trim()) {
+      throw new BadRequestException("يرجى إدخال اسم المندوب قبل إنشاء حساب ذمم تلقائي.");
+    }
+
+    const parentAccount = await this.getEmployeePayablesParentAccount(db);
+    await this.ensureUniqueEmployeePayableAccountName(dto.name, parentAccount.id, db);
+
+    const account = await this.accountsService.createWithinTransaction(
+      {
+        name: dto.name.trim(),
+        nameAr: dto.name.trim(),
+        type: "LIABILITY",
+        subtype: "Payable",
+        isPosting: true,
+        allowManualPosting: true,
+        currencyCode: parentAccount.currencyCode,
+        parentAccountId: parentAccount.id,
+      },
+      db as never,
+    );
+
+    return account.id;
+  }
+
   private async resolveActiveSalesRep(salesRepId: string | undefined, db: SalesReceivablesDb) {
     const normalizedId = salesRepId?.trim();
     if (salesRepId === undefined || normalizedId === "") {
@@ -2853,6 +2909,51 @@ export class SalesReceivablesService {
     }
     if (!(await this.isDescendantOfAccountCode(account.id, EMPLOYEE_PAYABLES_PARENT_CODE, db))) {
       throw new BadRequestException("حساب ذمم الموظف يجب أن يكون تحت ذمم الموظفين.");
+    }
+  }
+
+  private async getEmployeePayablesParentAccount(db: SalesReceivablesDb) {
+    const account = await db.account.findUnique({
+      where: { code: EMPLOYEE_PAYABLES_PARENT_CODE },
+      select: {
+        id: true,
+        code: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+        currencyCode: true,
+      },
+    });
+
+    if (!account) {
+      throw new BadRequestException(`Employee payables account ${EMPLOYEE_PAYABLES_PARENT_CODE} was not found.`);
+    }
+    if (!account.isActive || account.isPosting || account.type !== "LIABILITY") {
+      throw new BadRequestException("Employee payables parent account must be an active Liability header account.");
+    }
+
+    return account;
+  }
+
+  private async ensureUniqueEmployeePayableAccountName(
+    name: string,
+    parentAccountId: string,
+    db: SalesReceivablesDb,
+  ) {
+    const normalizedName = name.trim();
+    const existingAccount = await db.account.findFirst({
+      where: {
+        parentAccountId,
+        OR: [
+          { name: { equals: normalizedName, mode: "insensitive" } },
+          { nameAr: { equals: normalizedName, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException("يوجد حساب ذمم موظف بنفس اسم المندوب تحت ذمم الموظفين.");
     }
   }
 
