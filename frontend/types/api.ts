@@ -2541,7 +2541,8 @@ export type CreateCustomerPayload = {
   salesRepresentative?: string;
   paymentTerms?: string;
   creditLimit: number;
-  receivableAccountId: string;
+  receivableAccountLinkMode: "AUTO" | "EXISTING";
+  receivableAccountId?: string;
 };
 
 export type UpdateCustomerPayload = Partial<{

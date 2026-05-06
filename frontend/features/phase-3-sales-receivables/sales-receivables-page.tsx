@@ -95,6 +95,7 @@ type CustomerEditorState = {
   salesRepresentative: string;
   paymentTerms: string;
   creditLimit: string;
+  receivableAccountLinkMode: "" | "AUTO" | "EXISTING";
   receivableAccountId: string;
 };
 
@@ -152,6 +153,7 @@ const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
   salesRepresentative: "",
   paymentTerms: "",
   creditLimit: "0",
+  receivableAccountLinkMode: "",
   receivableAccountId: "",
 };
 
@@ -210,6 +212,7 @@ export function SalesReceivablesPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isCustomerEditorOpen, setIsCustomerEditorOpen] = useState(false);
   const [customerEditor, setCustomerEditor] = useState<CustomerEditorState>(EMPTY_CUSTOMER_EDITOR);
+  const [customerEditorClientError, setCustomerEditorClientError] = useState<string | null>(null);
 
   const [quotationSearch, setQuotationSearch] = useState("");
   const [quotationStatusFilter, setQuotationStatusFilter] = useState("");
@@ -373,7 +376,11 @@ export function SalesReceivablesPage() {
           salesRepresentative: customerEditor.salesRepresentative || undefined,
           paymentTerms: customerEditor.paymentTerms || undefined,
           creditLimit: Number(customerEditor.creditLimit || 0),
-          receivableAccountId: customerEditor.receivableAccountId,
+          receivableAccountLinkMode: customerEditor.receivableAccountLinkMode as "AUTO" | "EXISTING",
+          receivableAccountId:
+            customerEditor.receivableAccountLinkMode === "EXISTING"
+              ? customerEditor.receivableAccountId
+              : undefined,
         },
         token,
       ),
@@ -382,6 +389,7 @@ export function SalesReceivablesPage() {
       setSelectedCustomerId(created.id);
       setIsCustomerEditorOpen(false);
       setCustomerEditor(EMPTY_CUSTOMER_EDITOR);
+      setCustomerEditorClientError(null);
     },
   });
 
@@ -404,6 +412,7 @@ export function SalesReceivablesPage() {
       await invalidateSalesReceivables(queryClient);
       setSelectedCustomerId(updated.id);
       setIsCustomerEditorOpen(false);
+      setCustomerEditorClientError(null);
     },
   });
 
@@ -885,19 +894,21 @@ export function SalesReceivablesPage() {
   const customers = customersQuery.data ?? [];
   const receivableAccounts = useMemo(() => {
     const tree = receivableAccountsTreeQuery.data ?? [];
-    const receivableRoot = findAccountTreeNode(
+    const customerReceivablesRoot = findAccountTreeNode(
       tree,
       (node) =>
-        node.code === "1200000" ||
-        node.name.trim().toLowerCase() === "accounts receivable" ||
-        node.nameAr?.trim() === "الحسابات المدينة",
+        node.code === "1121000" ||
+        node.name.trim().toLowerCase() === "customer receivables" ||
+        node.nameAr?.trim() === "ذمم عملاء",
     );
 
-    if (!receivableRoot) {
+    if (!customerReceivablesRoot) {
       return [];
     }
 
-    return flattenPostingAccounts(receivableRoot.children);
+    return flattenPostingAccounts(customerReceivablesRoot.children).filter(
+      (account) => account.isActive && account.type === "ASSET",
+    );
   }, [receivableAccountsTreeQuery.data]);
   const activeCustomers = activeCustomersQuery.data ?? [];
   const inventoryItems = (inventoryItemsQuery.data?.data ?? []).filter((item) => item.isActive);
@@ -1027,6 +1038,25 @@ export function SalesReceivablesPage() {
     allocateReceiptMutation.error;
 
   const errorMessage = currentError instanceof Error ? currentError.message : null;
+  const saveCustomerFromEditor = () => {
+    if (!customerEditor.receivableAccountLinkMode) {
+      setCustomerEditorClientError("يرجى تحديد طريقة ربط حساب الذمم.");
+      return;
+    }
+
+    if (customerEditor.receivableAccountLinkMode === "EXISTING" && !customerEditor.receivableAccountId) {
+      setCustomerEditorClientError("يرجى اختيار حساب ذمم العميل قبل الحفظ.");
+      return;
+    }
+
+    setCustomerEditorClientError(null);
+    if (customerEditor.id) {
+      updateCustomerMutation.mutate();
+    } else {
+      createCustomerMutation.mutate();
+    }
+  };
+
   const saveAndPostCreditNote = async () => {
     const saved = creditNoteEditor.id
       ? await updateCreditNoteMutation.mutateAsync()
@@ -1100,6 +1130,7 @@ export function SalesReceivablesPage() {
               </Select>
               <Button className="gap-2" onClick={() => {
                 setCustomerEditor(EMPTY_CUSTOMER_EDITOR);
+                setCustomerEditorClientError(null);
                 setIsCustomerEditorOpen(true);
               }}>
                 <CirclePlus className="h-4 w-4 shrink-0" />
@@ -1185,8 +1216,10 @@ export function SalesReceivablesPage() {
                                         salesRepresentative: row.salesRepresentative ?? "",
                                         paymentTerms: row.paymentTerms ?? "",
                                         creditLimit: row.creditLimit,
+                                        receivableAccountLinkMode: "EXISTING",
                                         receivableAccountId: row.receivableAccount.id,
                                       });
+                                      setCustomerEditorClientError(null);
                                       setIsCustomerEditorOpen(true);
                                     }}
                                   >
@@ -2179,12 +2212,15 @@ export function SalesReceivablesPage() {
 
       <SidePanel
         isOpen={isCustomerEditorOpen}
-        onClose={() => setIsCustomerEditorOpen(false)}
+        onClose={() => {
+          setCustomerEditorClientError(null);
+          setIsCustomerEditorOpen(false);
+        }}
         title={customerEditor.id ? t("salesReceivables.dialog.editCustomer") : t("salesReceivables.dialog.newCustomer")}
       >
         <div className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.metric.creditLimit")}>
+            <Field label={t("salesReceivables.metric.creditLimit")} required>
               <Input
                 type="number"
                 min="0"
@@ -2195,7 +2231,7 @@ export function SalesReceivablesPage() {
             </Field>
           </div>
 
-          <Field label={t("salesReceivables.field.customerName")}>
+          <Field label={t("salesReceivables.field.customerName")} required>
             <Input value={customerEditor.name} onChange={(event) => setCustomerEditor((current) => ({ ...current, name: event.target.value }))} />
           </Field>
 
@@ -2217,22 +2253,78 @@ export function SalesReceivablesPage() {
             </Field>
           </div>
 
-          <Field label={t("salesReceivables.field.receivableAccount")}>
-            <Select value={customerEditor.receivableAccountId} onChange={(event) => setCustomerEditor((current) => ({ ...current, receivableAccountId: event.target.value }))}>
-              <option value="">{t("salesReceivables.empty.selectReceivableAccount")}</option>
-              {receivableAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.code} - {account.name}
-                </option>
-              ))}
-            </Select>
+          <Field label="حساب ذمم العميل" required error={customerEditorClientError ?? undefined}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                  customerEditor.receivableAccountLinkMode === "AUTO"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+                onClick={() => {
+                  setCustomerEditorClientError(null);
+                  setCustomerEditor((current) => ({
+                    ...current,
+                    receivableAccountLinkMode: "AUTO",
+                    receivableAccountId: "",
+                  }));
+                }}
+              >
+                إنشاء حساب تلقائي
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                  customerEditor.receivableAccountLinkMode === "EXISTING"
+                    ? "border-teal-500 bg-teal-50 text-teal-800"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+                onClick={() => {
+                  setCustomerEditorClientError(null);
+                  setCustomerEditor((current) => ({
+                    ...current,
+                    receivableAccountLinkMode: "EXISTING",
+                  }));
+                }}
+              >
+                اختيار حساب موجود
+              </button>
+            </div>
           </Field>
 
+          {customerEditor.receivableAccountLinkMode === "AUTO" ? (
+            <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-900">
+              سيتم إنشاء حساب ذمم جديد باسم العميل تحت حساب ذمم عملاء.
+            </div>
+          ) : null}
+
+          {customerEditor.receivableAccountLinkMode === "EXISTING" ? (
+            <Field label="اختيار حساب ذمم العميل" required>
+              <Select value={customerEditor.receivableAccountId} onChange={(event) => {
+                setCustomerEditorClientError(null);
+                setCustomerEditor((current) => ({ ...current, receivableAccountId: event.target.value }));
+              }}>
+                <option value="">{t("salesReceivables.empty.selectReceivableAccount")}</option>
+                {receivableAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.code} - {account.nameAr || account.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setIsCustomerEditorOpen(false)}>
+            <Button variant="secondary" onClick={() => {
+              setCustomerEditorClientError(null);
+              setIsCustomerEditorOpen(false);
+            }}>
               {t("salesReceivables.action.cancel")}
             </Button>
-            <Button onClick={() => (customerEditor.id ? updateCustomerMutation.mutate() : createCustomerMutation.mutate())} disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}>
+            <Button onClick={saveCustomerFromEditor} disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}>
               {customerEditor.id ? t("salesReceivables.action.saveChanges") : t("salesReceivables.action.createCustomer")}
             </Button>
           </div>

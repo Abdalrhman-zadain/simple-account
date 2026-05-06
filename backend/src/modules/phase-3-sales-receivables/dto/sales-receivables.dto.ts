@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -47,7 +48,12 @@ export class CreateCustomerDto {
   creditLimit!: number;
 
   @IsString()
-  receivableAccountId!: string;
+  @IsIn(["AUTO", "EXISTING"])
+  receivableAccountLinkMode!: "AUTO" | "EXISTING";
+
+  @IsOptional()
+  @IsString()
+  receivableAccountId?: string;
 }
 
 export class UpdateCustomerDto {

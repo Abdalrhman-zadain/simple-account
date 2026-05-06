@@ -109,6 +109,7 @@ async function main() {
     data: [
       { name: 'Bank' },
       { name: 'Cash' },
+      { name: 'Current Assets' },
       { name: 'Receivable' },
       { name: 'Payable' },
       { name: 'Equity' },
@@ -535,14 +536,22 @@ async function main() {
     isPosting: true,
     parentAccountId: inventory.id,
   });
+  const customerReceivables = await createAccount({
+    code: '1121000',
+    name: 'Customer Receivables',
+    nameAr: 'ذمم عملاء',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: receivables.id,
+  });
   const customers = await createAccount({
-    code: '1210001',
+    code: '1121001',
     name: 'Trade Customers',
-    nameAr: 'العملاء',
+    nameAr: 'عملاء تجاريون',
     type: 'ASSET',
     isPosting: true,
     subtype: 'Receivable',
-    parentAccountId: receivables.id,
+    parentAccountId: customerReceivables.id,
   });
   const suppliers = await createAccount({
     code: '2110001',

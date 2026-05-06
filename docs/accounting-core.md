@@ -70,6 +70,7 @@ Important business rules:
 - accounts may only be deleted when they have no journal-entry usage and no posted ledger history
 - PostgreSQL also enforces the leaf-node rule so invalid hierarchy writes are rejected below the service layer
 - inactive accounts should not behave like active posting targets
+- customer receivable detail accounts are created or selected under `1121000 Customer Receivables / ذمم عملاء`; the header account itself remains non-posting, while customer documents post against each customer's linked posting account
 
 Dependencies inside Phase 1:
 

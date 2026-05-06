@@ -15,6 +15,7 @@ import {
 
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { BankCashTransactionsService } from "../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service";
+import { AccountsService } from "../phase-1-accounting-foundation/accounting-core/chart-of-accounts/accounts.service";
 import { JournalEntriesService } from "../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service";
 import { PostingService } from "../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service";
 import {
@@ -46,6 +47,12 @@ type ReceiptQuery = {
   search?: string;
 };
 
+type SalesReceivablesDb = Prisma.TransactionClient | PrismaService;
+
+const CUSTOMER_RECEIVABLES_PARENT_CODE = "1121000";
+const RECEIVABLES_HEADER_CODE = "1120000";
+const CUSTOMER_AUTO_RECEIVABLE_SUBTYPE = "Current Assets";
+
 type ResolvedLine = {
   itemName: string | null;
   description: string | null;
@@ -64,6 +71,7 @@ export class SalesReceivablesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly bankCashTransactionsService: BankCashTransactionsService,
+    private readonly accountsService: AccountsService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
   ) {}
@@ -94,22 +102,25 @@ export class SalesReceivablesService {
   }
 
   async createCustomer(dto: CreateCustomerDto) {
-    await this.ensureReceivableAccount(dto.receivableAccountId);
     const code = dto.code?.trim() || this.generateReference("CUS");
 
     try {
-      return await this.prisma.customer.create({
-        data: {
-          code,
-          name: dto.name.trim(),
-          contactInfo: dto.contactInfo?.trim() || null,
-          taxInfo: dto.taxInfo?.trim() || null,
-          salesRepresentative: dto.salesRepresentative?.trim() || null,
-          paymentTerms: dto.paymentTerms?.trim() || null,
-          creditLimit: this.toAmount(dto.creditLimit),
-          receivableAccountId: dto.receivableAccountId,
-        },
-        include: { receivableAccount: { select: this.accountSummarySelect() } },
+      return await this.prisma.$transaction(async (tx) => {
+        const receivableAccountId = await this.resolveCustomerReceivableAccount(dto, tx);
+
+        return tx.customer.create({
+          data: {
+            code,
+            name: dto.name.trim(),
+            contactInfo: dto.contactInfo?.trim() || null,
+            taxInfo: dto.taxInfo?.trim() || null,
+            salesRepresentative: dto.salesRepresentative?.trim() || null,
+            paymentTerms: dto.paymentTerms?.trim() || null,
+            creditLimit: this.toAmount(dto.creditLimit),
+            receivableAccountId,
+          },
+          include: { receivableAccount: { select: this.accountSummarySelect() } },
+        });
       });
     } catch (error) {
       if (this.isUniqueConflict(error, "code")) {
@@ -1679,6 +1690,7 @@ export class SalesReceivablesService {
         "Deactivated customers cannot be selected for new transactions.",
       );
     }
+    await this.ensureReceivableAccount(customer.receivableAccountId);
     return customer;
   }
 
@@ -1726,8 +1738,114 @@ export class SalesReceivablesService {
     return note;
   }
 
-  private async ensureReceivableAccount(accountId: string) {
-    const account = await this.prisma.account.findUnique({
+  private async resolveCustomerReceivableAccount(dto: CreateCustomerDto, db: SalesReceivablesDb) {
+    if (!dto.receivableAccountLinkMode) {
+      throw new BadRequestException("يرجى تحديد طريقة ربط حساب الذمم.");
+    }
+
+    if (dto.receivableAccountLinkMode === "EXISTING") {
+      if (!dto.receivableAccountId) {
+        throw new BadRequestException("يرجى اختيار حساب ذمم العميل قبل الحفظ.");
+      }
+
+      await this.ensureReceivableAccount(dto.receivableAccountId, db);
+      return dto.receivableAccountId;
+    }
+
+    const parentAccount = await this.getCustomerReceivablesParentAccount(db);
+    await db.accountSubtype.upsert({
+      where: { name: CUSTOMER_AUTO_RECEIVABLE_SUBTYPE },
+      create: { name: CUSTOMER_AUTO_RECEIVABLE_SUBTYPE, isActive: true },
+      update: { isActive: true },
+    });
+
+    const account = await this.accountsService.createWithinTransaction(
+      {
+        name: dto.name.trim(),
+        nameAr: dto.name.trim(),
+        type: "ASSET",
+        subtype: CUSTOMER_AUTO_RECEIVABLE_SUBTYPE,
+        isPosting: true,
+        allowManualPosting: true,
+        currencyCode: parentAccount.currencyCode,
+        parentAccountId: parentAccount.id,
+      },
+      db as never,
+    );
+
+    return account.id;
+  }
+
+  private async getCustomerReceivablesParentAccount(db: SalesReceivablesDb) {
+    const existingAccount = await db.account.findUnique({
+      where: { code: CUSTOMER_RECEIVABLES_PARENT_CODE },
+      select: {
+        id: true,
+        code: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+        currencyCode: true,
+      },
+    });
+
+    if (existingAccount) {
+      if (!existingAccount.isActive || existingAccount.isPosting || existingAccount.type !== "ASSET") {
+        throw new BadRequestException(
+          "Customer receivables parent account must be an active Asset header account.",
+        );
+      }
+
+      return existingAccount;
+    }
+
+    const receivablesHeader = await db.account.findUnique({
+      where: { code: RECEIVABLES_HEADER_CODE },
+      select: {
+        id: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+        currencyCode: true,
+      },
+    });
+
+    if (!receivablesHeader) {
+      throw new BadRequestException(
+        `Receivables header account ${RECEIVABLES_HEADER_CODE} was not found.`,
+      );
+    }
+    if (!receivablesHeader.isActive || receivablesHeader.isPosting || receivablesHeader.type !== "ASSET") {
+      throw new BadRequestException(
+        "Receivables header account must be an active Asset header account.",
+      );
+    }
+
+    return db.account.create({
+      data: {
+        code: CUSTOMER_RECEIVABLES_PARENT_CODE,
+        name: "Customer Receivables",
+        nameAr: "ذمم عملاء",
+        type: "ASSET",
+        isPosting: false,
+        isActive: true,
+        allowManualPosting: true,
+        currencyCode: receivablesHeader.currencyCode,
+        parentAccountId: receivablesHeader.id,
+      },
+      select: {
+        id: true,
+        code: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+        currencyCode: true,
+      },
+    });
+  }
+
+  private async ensureReceivableAccount(accountId: string, db: SalesReceivablesDb = this.prisma) {
+    const account = await db.account.findUnique({
       where: { id: accountId },
       select: {
         id: true,
@@ -1735,6 +1853,7 @@ export class SalesReceivablesService {
         isActive: true,
         isPosting: true,
         allowManualPosting: true,
+        parentAccountId: true,
       },
     });
 
@@ -1755,6 +1874,33 @@ export class SalesReceivablesService {
         "Receivable account must be an Asset account.",
       );
     }
+    if (!(await this.isDescendantOfCustomerReceivables(account.id, db))) {
+      throw new BadRequestException(
+        "Receivable account must be under Customer Receivables.",
+      );
+    }
+  }
+
+  private async isDescendantOfCustomerReceivables(accountId: string, db: SalesReceivablesDb) {
+    let current = await db.account.findUnique({
+      where: { id: accountId },
+      select: { id: true, code: true, parentAccountId: true },
+    });
+
+    while (current) {
+      if (current.code === CUSTOMER_RECEIVABLES_PARENT_CODE) {
+        return current.id !== accountId;
+      }
+      if (!current.parentAccountId) {
+        return false;
+      }
+      current = await db.account.findUnique({
+        where: { id: current.parentAccountId },
+        select: { id: true, code: true, parentAccountId: true },
+      });
+    }
+
+    return false;
   }
 
   private async ensureRevenueAccount(accountId: string) {

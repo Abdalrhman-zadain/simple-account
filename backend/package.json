@@ -14,7 +14,8 @@
     "prisma:format": "prisma format",
     "prisma:migrate": "prisma migrate dev --skip-generate",
     "prisma:studio": "prisma studio",
-    "prisma:migrate:account-codes:6-to-7": "ts-node prisma/migrate-6-to-7-digit-account-codes.ts"
+    "prisma:migrate:account-codes:6-to-7": "ts-node prisma/migrate-6-to-7-digit-account-codes.ts",
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
