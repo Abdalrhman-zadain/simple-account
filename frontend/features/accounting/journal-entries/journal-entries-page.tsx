@@ -18,6 +18,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { JournalEntry, JournalEntryLine, AccountOption, JournalEntryType } from "@/types/api";
 import { SectionHeading, StatusPill, Card, Button, SidePanel, TableSkeleton } from "@/components/ui";
+import { ExportActions } from "@/components/ui/export-actions";
+import { exportOrPrint, formatExportDate, type ExportMode } from "@/lib/export-print";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 
@@ -218,7 +220,7 @@ function AccountAutocomplete({
 }
 
 export function JournalEntriesPage() {
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const queryClient = useQueryClient();
     const { t, language } = useTranslation();
     const isArabic = language === "ar";
@@ -319,6 +321,37 @@ export function JournalEntriesPage() {
     const debitTotal = lines.reduce((s, l) => s + Number((parseFloat(l.debitAmount) || 0).toFixed(2)), 0);
     const creditTotal = lines.reduce((s, l) => s + Number((parseFloat(l.creditAmount) || 0).toFixed(2)), 0);
     const isBalanced = Math.abs(debitTotal - creditTotal) < 0.001 && debitTotal > 0;
+    const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
+
+    const handleExport = (mode: ExportMode) => {
+        exportOrPrint({
+            mode,
+            entityType: "table",
+            title: "القيود اليومية",
+            fileName: "journal-entries",
+            currency: "JOD",
+            generatedBy: user?.name || user?.email,
+            permissions: exportPermissions,
+            filters: [
+                { label: "البحث", value: search.trim() || "كل القيود" },
+                {
+                    label: "نوع القيد",
+                    value: filterTypeId
+                        ? (typesQuery.data ?? []).find((type: JournalEntryType) => type.id === filterTypeId)?.name
+                        : "كل الأنواع",
+                },
+            ],
+            columns: [
+                { key: "reference", label: "رقم القيد", value: (row) => row.reference },
+                { key: "date", label: "تاريخ القيد", value: (row) => formatExportDate(row.entryDate) },
+                { key: "type", label: "نوع القيد", value: (row) => row.journalEntryType?.name || "غير محدد" },
+                { key: "description", label: "الوصف", value: (row) => row.description || "بدون وصف" },
+                { key: "status", label: "الحالة", value: (row) => t(`journal.status.${row.status}`) },
+            ],
+            rows: entriesQuery.data ?? [],
+            totals: [{ label: "عدد القيود", value: String(entriesQuery.data?.length ?? 0) }],
+        });
+    };
 
     const updateLine = (i: number, field: keyof LineForm, value: string) => {
         setLines(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
@@ -330,9 +363,12 @@ export function JournalEntriesPage() {
                 title={t("journal.title")}
                 description={t("journal.description")}
                 action={
-                    <Button onClick={() => setShowCreate(!showCreate)}>
-                        <Plus className="h-4 w-4 mr-2" /> {t("journal.button.newEntry")}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button onClick={() => setShowCreate(!showCreate)}>
+                            <Plus className="h-4 w-4 mr-2" /> {t("journal.button.newEntry")}
+                        </Button>
+                        <ExportActions onAction={handleExport} permissions={exportPermissions} disabled={entriesQuery.isLoading} />
+                    </div>
                 }
             />
 

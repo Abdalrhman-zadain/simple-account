@@ -84,6 +84,7 @@ The frontend separates routing from business UI:
 - larger frontend features may use feature-local `components/`, `types`, and `utils` files to keep orchestration separate from leaf UI
 - `frontend/components/ui` owns reusable UI primitives
 - `frontend/lib` owns API clients, config, and shared utilities
+- reusable print/PDF/Excel list output is owned by `frontend/lib/export-print.ts`, with the shared `ExportActions` control in `frontend/components/ui/export-actions.tsx`; feature pages prepare Arabic columns, filtered rows, filter summaries, and totals, then call the shared export engine
 
 Thin route files compose:
 

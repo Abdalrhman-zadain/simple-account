@@ -68,7 +68,9 @@ import type {
   SalesLinePayload,
 } from "@/types/api";
 import { Button, Card, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
+import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
+import { exportOrPrint, formatExportDate, formatExportMoney, type ExportMode } from "@/lib/export-print";
 import {
   createEmptyLine,
   createEmptyQuotationEditor,
@@ -197,7 +199,7 @@ const EMPTY_RECEIPT_EDITOR = (): ReceiptEditorState => ({
 });
 
 export function SalesReceivablesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -915,6 +917,81 @@ export function SalesReceivablesPage() {
   const selectedCreditNote = creditNotes.find((row) => row.id === selectedCreditNoteId) ?? null;
   const selectedReceipt = customerReceipts.find((row) => row.id === selectedReceiptId) ?? null;
   const selectedInvoiceForAllocation = openInvoices.find((row) => row.id === allocationInvoiceId) ?? null;
+  const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
+
+  const handleCustomersExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "العملاء",
+      fileName: "customers",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: customerSearch.trim() || "كل العملاء" },
+        {
+          label: "الحالة",
+          value:
+            customerStatusFilter === "true"
+              ? "نشط"
+              : customerStatusFilter === "false"
+                ? "غير نشط"
+                : "كل الحالات",
+        },
+      ],
+      columns: [
+        { key: "code", label: "رقم العميل", value: (row) => row.code },
+        { key: "name", label: "اسم العميل", value: (row) => row.name },
+        { key: "terms", label: "شروط الدفع", value: (row) => row.paymentTerms || "غير محدد" },
+        { key: "contact", label: "بيانات الاتصال", value: (row) => row.contactInfo || "غير محدد" },
+        { key: "account", label: "حساب الذمم", value: (row) => `${row.receivableAccount.code} - ${cleanDisplayName(row.receivableAccount.name)}` },
+        { key: "creditLimit", label: "حد الائتمان", align: "end", value: (row) => formatExportMoney(row.creditLimit, "JOD") },
+        { key: "balance", label: "الرصيد الحالي", align: "end", value: (row) => formatExportMoney(row.currentBalance, "JOD") },
+        { key: "status", label: "الحالة", value: (row) => (row.isActive ? "نشط" : "غير نشط") },
+      ],
+      rows: customers,
+      totals: [
+        { label: "عدد العملاء", value: String(customers.length) },
+        { label: "إجمالي الأرصدة", value: formatExportMoney(customers.reduce((sum, row) => sum + Number(row.currentBalance), 0), "JOD") },
+      ],
+    });
+  };
+
+  const handleInvoicesExport = (mode: ExportMode) => {
+    const selectedCustomerLabel = activeCustomers.find((row) => row.id === invoiceCustomerFilter);
+
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "فواتير المبيعات",
+      fileName: "sales-invoices",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: invoiceSearch.trim() || "كل الفواتير" },
+        { label: "الحالة", value: invoiceStatusFilter || "كل الحالات" },
+        { label: "العميل", value: selectedCustomerLabel ? `${selectedCustomerLabel.code} - ${selectedCustomerLabel.name}` : "كل العملاء" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الفاتورة", value: (row) => row.reference },
+        { key: "customer", label: "العميل", value: (row) => `${row.customer.code} - ${row.customer.name}` },
+        { key: "date", label: "تاريخ الفاتورة", value: (row) => formatExportDate(row.invoiceDate) },
+        { key: "dueDate", label: "تاريخ الاستحقاق", value: (row) => formatExportDate(row.dueDate) || "غير محدد" },
+        { key: "status", label: "الحالة", value: (row) => row.status },
+        { key: "total", label: "الإجمالي", align: "end", value: (row) => formatExportMoney(row.totalAmount, row.currencyCode || "JOD") },
+        { key: "allocated", label: "المسدد", align: "end", value: (row) => formatExportMoney(row.allocatedAmount, row.currencyCode || "JOD") },
+        { key: "outstanding", label: "المتبقي", align: "end", value: (row) => formatExportMoney(row.outstandingAmount, row.currencyCode || "JOD") },
+      ],
+      rows: invoices,
+      totals: [
+        { label: "عدد الفواتير", value: String(invoices.length) },
+        { label: "إجمالي الفواتير", value: formatExportMoney(invoices.reduce((sum, row) => sum + Number(row.totalAmount), 0), "JOD") },
+        { label: "إجمالي المتبقي", value: formatExportMoney(invoices.reduce((sum, row) => sum + Number(row.outstandingAmount), 0), "JOD") },
+      ],
+    });
+  };
 
   const matchingCustomerInvoices = useMemo(
     () => postedInvoices.filter((invoice) => invoice.customer.id === creditNoteEditor.customerId),
@@ -1029,6 +1106,12 @@ export function SalesReceivablesPage() {
                 {t("salesReceivables.action.newCustomer")}
               </Button>
             </div>
+            <ExportActions
+              className="mt-4 flex flex-wrap items-center gap-2"
+              onAction={handleCustomersExport}
+              permissions={exportPermissions}
+              disabled={customersQuery.isLoading}
+            />
           </Card>
 
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -1465,6 +1548,12 @@ export function SalesReceivablesPage() {
                 {t("salesReceivables.action.newInvoice")}
               </Button>
             </div>
+            <ExportActions
+              className="mt-4 flex flex-wrap items-center gap-2"
+              onAction={handleInvoicesExport}
+              permissions={exportPermissions}
+              disabled={invoicesQuery.isLoading}
+            />
           </Card>
 
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">

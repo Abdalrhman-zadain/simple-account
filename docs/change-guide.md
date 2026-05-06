@@ -29,6 +29,28 @@ Checks to run:
 - frontend typecheck
 - frontend route render check in dev
 
+## Add Print Or Export To A List Screen
+
+Where to edit:
+
+- keep the feature-specific row mapping in the owning `frontend/features/...` page or feature utility
+- use `frontend/components/ui/export-actions.tsx` for the shared Print/PDF/Excel controls
+- use `frontend/lib/export-print.ts` for output generation
+
+What else to check:
+
+- exported columns must use user-facing Arabic labels, not raw API keys
+- filters should be summarized as text metadata above the output instead of exporting input controls
+- rows should represent all records matching the current filters; if a list later uses server pagination, add or reuse an API read that fetches the full filtered result set before exporting
+- do not print the full page DOM, navigation, buttons, tabs, pagination, or action menus
+- include totals when the list has meaningful accounting totals
+- keep permissions pluggable through `canPrint`, `canExportPdf`, and `canExportExcel`
+
+Checks to run:
+
+- frontend typecheck
+- manual smoke test for print preview and Excel download on at least one RTL list
+
 ## Add Or Change Bank/Cash Accounts
 
 Where to edit:

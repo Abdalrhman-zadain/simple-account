@@ -11,6 +11,8 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { Button, PageSkeleton, SectionHeading } from "@/components/ui";
+import { ExportActions } from "@/components/ui/export-actions";
+import { exportOrPrint, formatExportMoney, type ExportMode } from "@/lib/export-print";
 
 import {
   applyAccountFilters,
@@ -29,7 +31,7 @@ import { AccountsTable } from "./components/accounts-table";
 import { getLocalizedAccountName } from "./chart-of-accounts.naming";
 
 export function AccountsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const parentId = searchParams.get("parentId") || null;
@@ -92,6 +94,46 @@ export function AccountsPage() {
   const currentAccounts = useMemo(() => applyAccountFilters(accountsQuery.data ?? [], filters), [accountsQuery.data, filters]);
   const stats = useMemo(() => collectStats(currentAccounts), [currentAccounts]);
   const totalBalance = useMemo(() => collectTotalBalance(currentAccounts), [currentAccounts]);
+  const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
+
+  const handleExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: parentAccount ? `دليل الحسابات - ${getLocalizedAccountName(parentAccount, language)}` : "دليل الحسابات",
+      fileName: "chart-of-accounts",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "المستوى", value: parentAccount ? `${parentAccount.code} - ${getLocalizedAccountName(parentAccount, language)}` : "الجذر" },
+        { label: "البحث", value: filters.search || "كل الحسابات" },
+        { label: "نوع الحساب", value: filters.type.length ? filters.type.map((type) => t(`accountType.${type}`)).join(", ") : "الكل" },
+        {
+          label: "الدور",
+          value: filters.isPosting.length
+            ? filters.isPosting.map((value) => (value === "true" ? "حساب ترحيل" : "حساب رئيسي")).join(", ")
+            : "الكل",
+        },
+        {
+          label: "الحالة",
+          value: filters.isActive.length
+            ? filters.isActive.map((value) => (value === "true" ? "نشط" : "غير نشط")).join(", ")
+            : "الكل",
+        },
+      ],
+      columns: [
+        { key: "code", label: "رقم الحساب", value: (row) => row.code },
+        { key: "name", label: "اسم الحساب", value: (row) => getLocalizedAccountName(row, language) },
+        { key: "type", label: "النوع", value: (row) => t(`accountType.${row.type}`) },
+        { key: "role", label: "الدور", value: (row) => (row.isPosting ? "حساب ترحيل" : "حساب رئيسي") },
+        { key: "status", label: "الحالة", value: (row) => (row.isActive ? "نشط" : "غير نشط") },
+        { key: "balance", label: "الرصيد", align: "end", value: (row) => formatExportMoney(row.currentBalance, "JOD") },
+      ],
+      rows: currentAccounts,
+      totals: [{ label: "إجمالي الرصيد", value: formatExportMoney(totalBalance, "JOD") }],
+    });
+  };
 
   const activateMutation = useMutation({
     mutationFn: (accountId: string) => activateAccount(accountId, token),
@@ -150,6 +192,7 @@ export function AccountsPage() {
                 {parentId ? t("accounts.button.newChild") : t("accounts.button.newAccount")}
               </Button>
             </Link>
+            <ExportActions onAction={handleExport} permissions={exportPermissions} disabled={accountsQuery.isLoading} />
           </div>
         }
       />

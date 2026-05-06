@@ -82,7 +82,9 @@ import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { AccountOption, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
+import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
+import { exportOrPrint, formatExportDate, formatExportMoney, type ExportMode } from "@/lib/export-print";
 
 type Workspace = "suppliers" | "requests" | "orders" | "invoices" | "payments" | "notes";
 
@@ -316,7 +318,7 @@ const EMPTY_DEBIT_NOTE_EDITOR = (): DebitNoteEditorState => ({
 });
 
 export function PurchasesPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t, language } = useTranslation();
   const isArabic = language === "ar";
   const queryClient = useQueryClient();
@@ -1013,6 +1015,79 @@ export function PurchasesPage() {
     debitNoteDetailQuery.data ??
     debitNotes.find((row) => row.id === selectedDebitNoteId) ??
     null;
+  const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
+
+  const handleSuppliersExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "الموردون",
+      fileName: "suppliers",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: supplierSearch.trim() || "كل الموردين" },
+        {
+          label: "الحالة",
+          value:
+            supplierStatusFilter === "true"
+              ? "نشط"
+              : supplierStatusFilter === "false"
+                ? "غير نشط"
+                : "كل الحالات",
+        },
+      ],
+      columns: [
+        { key: "code", label: "رقم المورد", value: (row) => row.code },
+        { key: "name", label: "اسم المورد", value: (row) => row.name },
+        { key: "contact", label: "بيانات الاتصال", value: (row) => row.phone || row.contactInfo || row.email || "غير محدد" },
+        { key: "paymentTerm", label: "شروط الدفع", value: (row) => row.paymentTerm ? (isArabic ? row.paymentTerm.nameAr || row.paymentTerm.name : row.paymentTerm.name) : "غير محدد" },
+        { key: "currency", label: "العملة", value: (row) => row.defaultCurrency },
+        { key: "account", label: "حساب الذمم", value: (row) => `${row.payableAccount.code} - ${cleanDisplayName(row.payableAccount.name)}` },
+        { key: "balance", label: "الرصيد الحالي", align: "end", value: (row) => formatExportMoney(row.currentBalance, row.defaultCurrency || "JOD") },
+        { key: "status", label: "الحالة", value: (row) => (row.isActive ? "نشط" : "غير نشط") },
+      ],
+      rows: suppliers,
+      totals: [
+        { label: "عدد الموردين", value: String(suppliers.length) },
+        { label: "إجمالي الأرصدة", value: formatExportMoney(totalOutstanding, "JOD") },
+      ],
+    });
+  };
+
+  const handlePurchaseInvoicesExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "فواتير الشراء",
+      fileName: "purchase-invoices",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: invoiceSearch.trim() || "كل الفواتير" },
+        { label: "الحالة", value: invoiceStatusFilter ? translatePurchaseInvoiceStatus(invoiceStatusFilter, t) : "كل الحالات" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الفاتورة", value: (row) => row.reference },
+        { key: "supplier", label: "المورد", value: (row) => `${row.supplier.code} - ${row.supplier.name}` },
+        { key: "date", label: "تاريخ الفاتورة", value: (row) => formatExportDate(row.invoiceDate) },
+        { key: "source", label: "أمر الشراء", value: (row) => row.sourcePurchaseOrder?.reference || "يدوي" },
+        { key: "status", label: "الحالة", value: (row) => translatePurchaseInvoiceStatus(row.status, t) },
+        { key: "subtotal", label: "قبل الضريبة", align: "end", value: (row) => formatExportMoney(row.subtotalAmount, row.currencyCode || "JOD") },
+        { key: "tax", label: "الضريبة", align: "end", value: (row) => formatExportMoney(row.taxAmount, row.currencyCode || "JOD") },
+        { key: "total", label: "الإجمالي", align: "end", value: (row) => formatExportMoney(row.totalAmount, row.currencyCode || "JOD") },
+        { key: "outstanding", label: "المتبقي", align: "end", value: (row) => formatExportMoney(row.outstandingAmount, row.currencyCode || "JOD") },
+      ],
+      rows: purchaseInvoices,
+      totals: [
+        { label: "عدد الفواتير", value: String(purchaseInvoices.length) },
+        { label: "إجمالي الفواتير", value: formatExportMoney(purchaseInvoices.reduce((sum, row) => sum + Number(row.totalAmount), 0), "JOD") },
+        { label: "إجمالي المتبقي", value: formatExportMoney(purchaseInvoices.reduce((sum, row) => sum + Number(row.outstandingAmount), 0), "JOD") },
+      ],
+    });
+  };
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const inventoryItems = inventoryItemsQuery.data?.data ?? [];
@@ -1207,6 +1282,11 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
+              <ExportActions
+                onAction={handleSuppliersExport}
+                permissions={exportPermissions}
+                disabled={suppliersQuery.isLoading}
+              />
 
               <div className="overflow-x-auto rounded-2xl border border-gray-200">
                 <table className="min-w-[1180px] w-full text-sm">
@@ -1800,6 +1880,11 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
+              <ExportActions
+                onAction={handlePurchaseInvoicesExport}
+                permissions={exportPermissions}
+                disabled={purchaseInvoicesQuery.isLoading}
+              />
 
               <div className="overflow-hidden rounded-2xl border border-gray-200">
                 <table className="w-full text-sm">

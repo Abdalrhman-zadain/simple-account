@@ -66,20 +66,21 @@ What this means for future edits:
 
 Current limitation:
 
-- the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace, but document export/printing and customer statement output are still not implemented.
+- the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace. Customer and sales-invoice list print/PDF/Excel output is available through the shared frontend export engine, but formal single-document outputs and customer statement output are still not implemented.
 - printable quote/order/invoice outputs and customer statement output are still not implemented.
 - sales invoice posting still uses the legacy sales tax/VAT liability-account lookup for journal posting; document entry can now select a `Tax` master record and store `taxId`, but posting has not yet been fully refactored to post each line against that tax record's mapped account.
 
 What this means for future edits:
 
 - keep new Phase 3 changes inside `frontend/features/phase-3-sales-receivables` and preserve Arabic/English translation coverage when adding more document actions.
-- add print/export and statement-generation workflows only when their backend routes and output formats are intentionally designed.
+- add formal document print/export and statement-generation workflows only when their backend routes and output formats are intentionally designed.
 
 ## Phase 4 Purchases Status
 
 Current limitation:
 
 - supplier masters, purchase requests, purchase-order maintenance, purchase invoices, supplier payments, and debit notes are now implemented end-to-end for their current draft/post/cancel slices, including journal posting for purchase invoices and debit notes.
+- supplier and purchase-invoice list print/PDF/Excel output is available through the shared frontend export engine, while formal purchase document templates remain a separate future refinement.
 - purchase orders now support draft/issue/receipt/cancel/close lifecycle management and now store operational purchase-receipt records, but they still do not create inventory or accounting journal entries from receipt posting.
 - purchase invoices, supplier payments, and debit notes now provide explicit reverse-document workflows that create reversal journal entries and mark the source documents as `REVERSED`.
 - the purchase debit-note editor currently captures supplier discount notes without a tax field and submits tax as zero; tax-bearing debit notes still depend on configured purchase tax/VAT posting accounts at the backend level.

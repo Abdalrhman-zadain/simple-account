@@ -135,6 +135,7 @@ Meaning of subfolders:
 - `lib/api`: backend API calls
 - `lib/config`: environment-driven config
 - `lib/utils`: shared utility functions
+- `lib/export-print.ts`: shared client-side print/PDF/Excel table output engine used by feature pages; pages should pass Arabic column labels, filtered rows, filter summaries, and totals rather than printing page DOM
 
 ## Backend Ownership
 
