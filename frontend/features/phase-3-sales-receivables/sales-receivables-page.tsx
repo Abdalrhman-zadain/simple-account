@@ -2384,7 +2384,6 @@ export function SalesReceivablesPage() {
             ? t("salesReceivables.action.toInvoice")
             : t("salesReceivables.dialog.newSalesInvoice")
         }
-        introDescription={t("salesReceivables.section.pipelineDescription")}
         reference={invoiceEditor.reference}
         dateLabel={t("salesReceivables.field.invoiceDate")}
         dateValue={invoiceEditor.invoiceDate}

@@ -33,7 +33,7 @@ type SalesDocumentEditorModalProps = {
   isOpen: boolean;
   title: string;
   introTitle: string;
-  introDescription: string;
+  introDescription?: string;
   reference: string;
   dateLabel: string;
   dateValue: string;
@@ -166,7 +166,7 @@ export function SalesDocumentEditorModal({
                   <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
                     {introTitle}
                   </div>
-                  <div className="text-sm text-slate-500">{introDescription}</div>
+                  {introDescription ? <div className="text-sm text-slate-500">{introDescription}</div> : null}
                 </div>
               </div>
 

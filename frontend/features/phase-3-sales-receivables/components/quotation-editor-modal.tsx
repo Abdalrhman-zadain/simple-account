@@ -271,7 +271,6 @@ export function QuotationEditorModal({
                   <div className={cn("text-lg text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
                     {t("salesReceivables.dialog.newQuotation")}
                   </div>
-                  <div className="text-sm text-slate-500">{t("salesReceivables.section.pipelineDescription")}</div>
                 </div>
               </div>
 

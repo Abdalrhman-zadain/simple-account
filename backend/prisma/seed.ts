@@ -276,13 +276,61 @@ async function main() {
     isPosting: false,
     parentAccountId: nonCurrentAssets.id,
   });
-  const payables = await createAccount({
+  const currentLiabilities = await createAccount({
     code: '2100000',
+    name: 'Current Liabilities',
+    nameAr: 'مطلوبات متداولة',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: liabilities.id,
+  });
+  const payables = await createAccount({
+    code: '2110000',
     name: 'Accounts Payable',
     nameAr: 'الذمم الدائنة',
     type: 'LIABILITY',
     isPosting: false,
+    parentAccountId: currentLiabilities.id,
+  });
+  const otherPayables = await createAccount({
+    code: '2120000',
+    name: 'Other Payables',
+    nameAr: 'ذمم دائنة أخرى',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: currentLiabilities.id,
+  });
+  const employeePayables = await createAccount({
+    code: '2130000',
+    name: 'Employee Payables',
+    nameAr: 'ذمم الموظفين',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: currentLiabilities.id,
+  });
+  const nonCurrentLiabilities = await createAccount({
+    code: '2200000',
+    name: 'Non-current Liabilities',
+    nameAr: 'مطلوبات غير متداولة',
+    type: 'LIABILITY',
+    isPosting: false,
     parentAccountId: liabilities.id,
+  });
+  await createAccount({
+    code: '2210000',
+    name: 'Long-term Loans',
+    nameAr: 'قروض طويلة الأجل',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: nonCurrentLiabilities.id,
+  });
+  await createAccount({
+    code: '2220000',
+    name: 'Other Long-term Liabilities',
+    nameAr: 'التزامات طويلة الأجل أخرى',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: nonCurrentLiabilities.id,
   });
   const sales = await createAccount({
     code: '4100000',
@@ -553,29 +601,25 @@ async function main() {
     subtype: 'Payable',
     parentAccountId: payables.id,
   });
-  const salesTaxPayable = await createAccount({
-    code: '2110002',
-    name: 'Sales Tax Payable',
-    nameAr: 'ضريبة مبيعات مستحقة',
-    type: 'LIABILITY',
-    isPosting: true,
-    subtype: 'Payable',
-    parentAccountId: payables.id,
-  });
-
-  // Sales Tax Payables - Main Account under Liabilities
   const salesTaxByRate = await createAccount({
-    code: '2300000',
+    code: '2121000',
     name: 'Sales Tax Payables',
     nameAr: 'أمانات ضريبة المبيعات',
     type: 'LIABILITY',
     isPosting: false,
-    parentAccountId: liabilities.id,
+    parentAccountId: otherPayables.id,
+  });
+  await createAccount({
+    code: '2122000',
+    name: 'Other General Payables',
+    nameAr: 'ذمم دائنة أخرى عامة',
+    type: 'LIABILITY',
+    isPosting: false,
+    parentAccountId: otherPayables.id,
   });
 
-  // Sales Tax Payables by Rate - 16%
-  await createAccount({
-    code: '2300001',
+  const salesTaxPayable = await createAccount({
+    code: '2121001',
     name: 'Sales Tax Payable 16%',
     nameAr: 'أمانات ضريبة المبيعات 16%',
     type: 'LIABILITY',
@@ -584,9 +628,8 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 10%
   await createAccount({
-    code: '2300002',
+    code: '2121002',
     name: 'Sales Tax Payable 10%',
     nameAr: 'أمانات ضريبة المبيعات 10%',
     type: 'LIABILITY',
@@ -595,9 +638,8 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 8%
   await createAccount({
-    code: '2300003',
+    code: '2121003',
     name: 'Sales Tax Payable 8%',
     nameAr: 'أمانات ضريبة المبيعات 8%',
     type: 'LIABILITY',
@@ -606,9 +648,8 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 5%
   await createAccount({
-    code: '2300004',
+    code: '2121004',
     name: 'Sales Tax Payable 5%',
     nameAr: 'أمانات ضريبة المبيعات 5%',
     type: 'LIABILITY',
@@ -617,9 +658,8 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 4%
   await createAccount({
-    code: '2300005',
+    code: '2121005',
     name: 'Sales Tax Payable 4%',
     nameAr: 'أمانات ضريبة المبيعات 4%',
     type: 'LIABILITY',
@@ -628,9 +668,8 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 2%
   await createAccount({
-    code: '2300006',
+    code: '2121006',
     name: 'Sales Tax Payable 2%',
     nameAr: 'أمانات ضريبة المبيعات 2%',
     type: 'LIABILITY',
@@ -639,15 +678,41 @@ async function main() {
     parentAccountId: salesTaxByRate.id,
   });
 
-  // Sales Tax Payables by Rate - 1%
   await createAccount({
-    code: '2300007',
+    code: '2121007',
     name: 'Sales Tax Payable 1%',
     nameAr: 'أمانات ضريبة المبيعات 1%',
     type: 'LIABILITY',
     isPosting: true,
     subtype: 'Payable',
     parentAccountId: salesTaxByRate.id,
+  });
+  await createAccount({
+    code: '2130001',
+    name: 'Salaries Payable',
+    nameAr: 'رواتب مستحقة الدفع',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: employeePayables.id,
+  });
+  await createAccount({
+    code: '2130002',
+    name: 'Commissions Payable',
+    nameAr: 'عمولات مستحقة الدفع',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: employeePayables.id,
+  });
+  await createAccount({
+    code: '2130003',
+    name: 'Other Employee Payables',
+    nameAr: 'مستحقات موظفين أخرى',
+    type: 'LIABILITY',
+    isPosting: true,
+    subtype: 'Payable',
+    parentAccountId: employeePayables.id,
   });
 
   await prisma.tax.createMany({
