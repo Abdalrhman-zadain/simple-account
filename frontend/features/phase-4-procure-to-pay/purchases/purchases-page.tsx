@@ -1056,11 +1056,11 @@ export function PurchasesPage() {
       closePurchaseRequestMutation.error,
   );
   const conversionError = getMutationErrorMessage(convertPurchaseRequestMutation.error);
-  const conversionFormError = getPurchaseRequestConversionError(conversionEditor);
+  const conversionFormError = getPurchaseRequestConversionError(conversionEditor, t);
   const orderSaveError = getMutationErrorMessage(createPurchaseOrderMutation.error ?? updatePurchaseOrderMutation.error);
-  const orderFormError = getPurchaseOrderFormError(orderEditor);
+  const orderFormError = getPurchaseOrderFormError(orderEditor, t);
   const receiptSaveError = getMutationErrorMessage(receivePurchaseOrderMutation.error);
-  const receiptFormError = getPurchaseReceiptFormError(receiptEditor);
+  const receiptFormError = getPurchaseReceiptFormError(receiptEditor, t);
   const orderActionError = getMutationErrorMessage(
     issuePurchaseOrderMutation.error ??
       receivePurchaseOrderMutation.error ??
@@ -1070,15 +1070,15 @@ export function PurchasesPage() {
       closePurchaseOrderMutation.error,
   );
   const invoiceSaveError = getMutationErrorMessage(createPurchaseInvoiceMutation.error ?? updatePurchaseInvoiceMutation.error);
-  const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor);
+  const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor, t);
   const invoiceActionError = getMutationErrorMessage(postPurchaseInvoiceMutation.error ?? reversePurchaseInvoiceMutation.error);
   const paymentSaveError = getMutationErrorMessage(createSupplierPaymentMutation.error ?? updateSupplierPaymentMutation.error);
-  const paymentFormError = getSupplierPaymentFormError(paymentEditor);
+  const paymentFormError = getSupplierPaymentFormError(paymentEditor, t);
   const paymentActionError = getMutationErrorMessage(
     postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error ?? reverseSupplierPaymentMutation.error,
   );
   const debitNoteSaveError = getMutationErrorMessage(createDebitNoteMutation.error ?? updateDebitNoteMutation.error);
-  const debitNoteFormError = getDebitNoteFormError(debitNoteEditor);
+  const debitNoteFormError = getDebitNoteFormError(debitNoteEditor, t);
   const debitNoteActionError = getMutationErrorMessage(
     postDebitNoteMutation.error ?? cancelDebitNoteMutation.error ?? reverseDebitNoteMutation.error,
   );
@@ -2510,6 +2510,7 @@ export function PurchasesPage() {
                           rows={3}
                           value={requestEditor.description}
                           onChange={(event) => setRequestEditor((current) => ({ ...current, description: event.target.value }))}
+                          placeholder={t("purchases.requests.field.descriptionPlaceholder")}
                           className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                         />
                       </Field>
@@ -2612,6 +2613,7 @@ export function PurchasesPage() {
                                   rows={2}
                                   value={line.justification}
                                   onChange={(event) => updateRequestLine(line.key, "justification", event.target.value)}
+                                  placeholder={t("purchases.requests.field.justificationPlaceholder")}
                                   className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                 />
                               </Field>
@@ -2622,6 +2624,7 @@ export function PurchasesPage() {
                                 rows={2}
                                 value={line.description}
                                 onChange={(event) => updateRequestLine(line.key, "description", event.target.value)}
+                                placeholder={t("purchases.requests.field.lineDescriptionPlaceholder")}
                                 className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                               />
                             </Field>
@@ -2819,6 +2822,7 @@ export function PurchasesPage() {
                           rows={3}
                           value={orderEditor.description}
                           onChange={(event) => setOrderEditor((current) => ({ ...current, description: event.target.value }))}
+                          placeholder={t("purchases.orders.field.descriptionPlaceholder")}
                           className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                         />
                       </Field>
@@ -2955,10 +2959,10 @@ export function PurchasesPage() {
                                   rows={2}
                                   value={line.description}
                                   onChange={(event) => updateOrderLine(line.key, "description", event.target.value)}
+                                  placeholder={t("purchases.orders.field.lineDescriptionPlaceholder")}
                                   className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                 />
                               </Field>
-
                               <div className="grid grid-cols-[1fr_1fr] gap-3">
                                 <div />
                                 <div>
@@ -3203,6 +3207,7 @@ export function PurchasesPage() {
                           rows={3}
                           value={invoiceEditor.description}
                           onChange={(event) => setInvoiceEditor((current) => ({ ...current, description: event.target.value }))}
+                          placeholder={t("purchases.invoices.field.descriptionPlaceholder")}
                           className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                         />
                       </Field>
@@ -3369,8 +3374,10 @@ export function PurchasesPage() {
                                   <Input
                                     value={line.description}
                                     onChange={(event) => updateInvoiceLine(line.key, "description", event.target.value)}
+                                    placeholder={t("purchases.invoices.field.lineDescriptionPlaceholder")}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                   />
+
                                 </div>
 
                                 <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
@@ -3575,6 +3582,7 @@ export function PurchasesPage() {
                           rows={3}
                           value={paymentEditor.description}
                           onChange={(event) => setPaymentEditor((current) => ({ ...current, description: event.target.value }))}
+                          placeholder="مثال: دفعة شراء مستلزمات مكتبية لشهر يونيو"
                           className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                         />
                       </Field>
@@ -4663,125 +4671,125 @@ function getPurchaseRequestFormError(editor: PurchaseRequestEditorState) {
   return null;
 }
 
-function getPurchaseRequestConversionError(editor: PurchaseRequestConversionState) {
+function getPurchaseRequestConversionError(editor: PurchaseRequestConversionState, t: any) {
   if (!editor.supplierId) {
-    return "Supplier selection is required. اختيار المورد مطلوب.";
+    return t("purchases.requests.empty.selectSupplier");
   }
   if (!editor.orderDate) {
-    return "Order date is required. تاريخ أمر الشراء مطلوب.";
+    return t("purchases.orders.field.orderDate") + " مطلوب.";
   }
   return null;
 }
 
-function getPurchaseOrderFormError(editor: PurchaseOrderEditorState) {
+function getPurchaseOrderFormError(editor: PurchaseOrderEditorState, t: any) {
   if (!editor.supplierId) {
-    return "Supplier selection is required. اختيار المورد مطلوب.";
+    return t("purchases.validation.supplierRequired");
   }
   if (!editor.orderDate) {
-    return "Purchase order date is required. تاريخ أمر الشراء مطلوب.";
+    return t("purchases.validation.dateRequired");
   }
   if (!editor.currencyCode.trim()) {
-    return "Currency is required. العملة مطلوبة.";
+    return t("purchases.validation.currencyRequired");
   }
   if (editor.lines.length === 0) {
-    return "At least one purchase order line is required. يجب إضافة سطر أمر شراء واحد على الأقل.";
+    return t("purchases.validation.atLeastOneLine");
   }
   for (const line of editor.lines) {
     if (!line.itemId) {
-      return "Each order line needs an inventory item. كل سطر أمر شراء يحتاج إلى صنف من المخزون.";
+      return t("purchases.validation.itemRequired");
     }
     if (!line.description.trim()) {
-      return "Each order line needs a description. كل سطر أمر شراء يحتاج إلى وصف.";
+      return t("purchases.validation.descriptionRequired");
     }
     if (!line.quantity || Number(line.quantity) <= 0) {
-      return "Each order line needs a quantity greater than zero. كل سطر أمر شراء يحتاج إلى كمية أكبر من صفر.";
+      return t("purchases.validation.quantityPositive");
     }
     if (line.unitPrice === "" || Number(line.unitPrice) < 0) {
-      return "Each order line needs a valid unit price. كل سطر أمر شراء يحتاج إلى سعر وحدة صحيح.";
+      return t("purchases.validation.unitPricePositive");
     }
     if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
-      return "Each order line needs a valid tax amount. كل سطر أمر شراء يحتاج إلى قيمة ضريبة صحيحة.";
+      return t("purchases.validation.taxAmountPositive");
     }
   }
   return null;
 }
 
-function getPurchaseReceiptFormError(editor: PurchaseReceiptEditorState) {
+function getPurchaseReceiptFormError(editor: PurchaseReceiptEditorState, t: any) {
   if (!editor.purchaseOrderId) {
-    return "Purchase order is required. أمر الشراء مطلوب.";
+    return t("purchases.orders.empty.selectOrder");
   }
   if (!editor.receiptDate) {
-    return "Receipt date is required. تاريخ الاستلام مطلوب.";
+    return t("purchases.validation.dateRequired");
   }
 
   const positiveLines = editor.lines.filter((line) => Number(line.quantityReceivedNow || 0) > 0);
   if (positiveLines.length === 0) {
-    return "Enter a received quantity on at least one line. أدخل كمية مستلمة في سطر واحد على الأقل.";
+    return t("purchases.validation.atLeastOneLine");
   }
 
   for (const line of positiveLines) {
     if (Number(line.quantityReceivedNow) - Number(line.remainingQuantity) > 0.0001) {
-      return "Received quantity cannot exceed the remaining order quantity. لا يمكن أن تتجاوز الكمية المستلمة الكمية المتبقية في أمر الشراء.";
+      return t("purchases.validation.receiptExceedsRemaining");
     }
   }
 
   return null;
 }
 
-function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState) {
+function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState, t: any) {
   if (!editor.supplierId) {
-    return "Supplier selection is required. اختيار المورد مطلوب.";
+    return t("purchases.validation.supplierRequired");
   }
   if (!editor.invoiceDate) {
-    return "Purchase invoice date is required. تاريخ فاتورة الشراء مطلوب.";
+    return t("purchases.validation.dateRequired");
   }
   if (!editor.currencyCode.trim()) {
-    return "Currency is required. العملة مطلوبة.";
+    return t("purchases.validation.currencyRequired");
   }
   if (editor.lines.length === 0) {
-    return "At least one purchase invoice line is required. يجب إضافة سطر فاتورة شراء واحد على الأقل.";
+    return t("purchases.validation.atLeastOneLine");
   }
   for (const line of editor.lines) {
     if (!line.itemId) {
-      return "Each invoice line needs an inventory item. كل سطر فاتورة شراء يحتاج إلى صنف من المخزون.";
+      return t("purchases.validation.itemRequired");
     }
     if (!line.description.trim()) {
-      return "Each invoice line needs a description. كل سطر فاتورة شراء يحتاج إلى وصف.";
+      return t("purchases.validation.descriptionRequired");
     }
     if (!line.accountId) {
-      return "Each invoice line needs an account classification. كل سطر فاتورة شراء يحتاج إلى تصنيف حساب.";
+      return t("purchases.validation.accountRequired");
     }
     if (!line.quantity || Number(line.quantity) <= 0) {
-      return "Each invoice line needs a quantity greater than zero. كل سطر فاتورة شراء يحتاج إلى كمية أكبر من صفر.";
+      return t("purchases.validation.quantityPositive");
     }
     if (line.unitPrice === "" || Number(line.unitPrice) < 0) {
-      return "Each invoice line needs a valid unit price. كل سطر فاتورة شراء يحتاج إلى سعر وحدة صحيح.";
+      return t("purchases.validation.unitPricePositive");
     }
     if (line.discountAmount === "" || Number(line.discountAmount) < 0) {
-      return "Each invoice line needs a valid discount amount. كل سطر فاتورة شراء يحتاج إلى قيمة خصم صحيحة.";
+      return "قيمة الخصم غير صحيحة.";
     }
     if (line.taxAmount === "" || Number(line.taxAmount) < 0) {
-      return "Each invoice line needs a valid tax amount. كل سطر فاتورة شراء يحتاج إلى قيمة ضريبة صحيحة.";
+      return t("purchases.validation.taxAmountPositive");
     }
     if (Number(line.discountAmount) > Number(line.quantity) * Number(line.unitPrice)) {
-      return "Discount cannot exceed the line subtotal. لا يمكن أن يتجاوز الخصم إجمالي السطر قبل الضريبة.";
+      return t("purchases.validation.discountExceedsTotal");
     }
   }
   return null;
 }
 
-function getSupplierPaymentFormError(editor: SupplierPaymentEditorState) {
+function getSupplierPaymentFormError(editor: SupplierPaymentEditorState, t: any) {
   if (!editor.supplierId) {
-    return "Supplier selection is required. اختيار المورد مطلوب.";
+    return t("purchases.payments.validation.supplierRequired");
   }
   if (!editor.paymentDate) {
-    return "Payment date is required. تاريخ الدفعة مطلوب.";
+    return t("purchases.validation.dateRequired");
   }
   if (!editor.amount || Number(editor.amount) <= 0) {
-    return "Payment amount must be greater than zero. مبلغ الدفعة يجب أن يكون أكبر من صفر.";
+    return t("purchases.payments.validation.amountRequired");
   }
   if (!editor.bankCashAccountId) {
-    return "Bank or cash account is required. حساب البنك أو الصندوق مطلوب.";
+    return t("purchases.payments.empty.selectBankCash");
   }
   const seen = new Set<string>();
   let allocated = 0;
@@ -4790,45 +4798,45 @@ function getSupplierPaymentFormError(editor: SupplierPaymentEditorState) {
       continue;
     }
     if (!allocation.purchaseInvoiceId) {
-      return "Each allocation needs a purchase invoice. كل تخصيص يحتاج إلى فاتورة شراء.";
+      return t("purchases.payments.empty.selectInvoice");
     }
     if (seen.has(allocation.purchaseInvoiceId)) {
-      return "The same purchase invoice cannot be allocated twice in one payment. لا يمكن تخصيص نفس فاتورة الشراء مرتين في نفس الدفعة.";
+      return "لا يمكن تخصيص نفس الفاتورة مرتين.";
     }
     seen.add(allocation.purchaseInvoiceId);
     if (!allocation.amount || Number(allocation.amount) <= 0) {
-      return "Each allocation amount must be greater than zero. مبلغ كل تخصيص يجب أن يكون أكبر من صفر.";
+      return "يجب أن يكون مبلغ السداد أكبر من صفر.";
     }
     allocated += Number(allocation.amount);
   }
   if (allocated - Number(editor.amount) > 0.0001) {
-    return "Allocated amount cannot exceed payment amount. لا يمكن أن يتجاوز المبلغ المخصص مبلغ الدفعة.";
+    return t("purchases.payments.validation.allocationExceedsPayment");
   }
   return null;
 }
 
-function getDebitNoteFormError(editor: DebitNoteEditorState) {
+function getDebitNoteFormError(editor: DebitNoteEditorState, t: any) {
   if (!editor.supplierId) {
-    return "Supplier selection is required.";
+    return t("purchases.validation.supplierRequired");
   }
   if (!editor.noteDate) {
-    return "Debit note date is required.";
+    return t("purchases.validation.dateRequired");
   }
   if (!editor.currencyCode.trim()) {
-    return "Currency is required.";
+    return t("purchases.validation.currencyRequired");
   }
   if (editor.lines.length === 0) {
-    return "At least one debit note line is required.";
+    return t("purchases.validation.atLeastOneLine");
   }
   for (const line of editor.lines) {
     if (!line.reason.trim()) {
-      return "Each debit note line needs a reason.";
+      return t("purchases.validation.descriptionRequired");
     }
     if (!line.quantity || Number(line.quantity) <= 0) {
-      return "Each debit note line needs a quantity greater than zero.";
+      return t("purchases.validation.quantityPositive");
     }
-    if (line.amount === "" || Number(line.amount) < 0) {
-      return "Each debit note line needs a valid amount.";
+    if (!line.amount || Number(line.amount) <= 0) {
+      return "يجب أن يكون مبلغ الخصم أكبر من صفر.";
     }
   }
   return null;
