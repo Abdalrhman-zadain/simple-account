@@ -159,8 +159,13 @@ async function main() {
     subtype?: string;
     parentAccountId?: string;
   }) =>
-    prisma.account.create({
-      data: {
+    prisma.account.upsert({
+      where: { code: data.code },
+      update: {
+        ...data,
+        createdById: admin.id,
+      },
+      create: {
         ...data,
         createdById: admin.id,
       },
@@ -583,14 +588,22 @@ async function main() {
     isPosting: true,
     parentAccountId: inventory.id,
   });
+  const customerReceivables = await createAccount({
+    code: '1121000',
+    name: 'Customer Receivables',
+    nameAr: 'ذمم عملاء',
+    type: 'ASSET',
+    isPosting: false,
+    parentAccountId: receivables.id,
+  });
   const customers = await createAccount({
-    code: '1210001',
+    code: '1121001',
     name: 'Trade Customers',
     nameAr: 'العملاء',
     type: 'ASSET',
     isPosting: true,
     subtype: 'Receivable',
-    parentAccountId: receivables.id,
+    parentAccountId: customerReceivables.id,
   });
   const suppliers = await createAccount({
     code: '2110001',

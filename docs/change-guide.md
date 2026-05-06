@@ -172,6 +172,7 @@ What else to check:
 - sales document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - customer records must remain deactivatable without deleting history
 - customer creation supports either creating a new posting receivable account automatically under `1121000 Customer Receivables / ذمم عملاء` or linking an existing active posting Asset account from that same subtree
+- customer sales-rep assignment should use optional `salesRepId` to an active Sales & Receivables `SalesRepresentative` for follow-up, reports, commissions, and collections; never substitute the representative's employee-payables account for the customer receivable account
 - customer names should remain unique, and automatic customer-receivable account creation must not create a second detail account with the same customer name under `1121000`
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
@@ -183,6 +184,7 @@ What else to check:
 - sales-order drafts must stay editable until confirmed, and confirmed orders must preserve quotation/invoice traceability
 - invoice and credit-note drafts must stay editable, but posted documents must be locked
 - posting must create a journal entry and use Phase 1 posting logic so ledger rows and balances remain consistent
+- sales invoice, receipt, and credit-note accounting must continue to use the customer's linked receivable account, not `salesRepId` or employee payable/receivable accounts
 - sales invoices must derive due date from the supplied due date or the customer payment terms
 - sales document references must remain unique across quotations, sales orders, invoices, receipts, and credit notes
 - customer balance must increase on posted invoices and decrease on posted credit notes

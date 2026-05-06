@@ -1647,6 +1647,22 @@ export type SalesInvoiceStatus =
   | "CANCELLED";
 export type CreditNoteStatus = "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED";
 export type AllocationStatus = "UNALLOCATED" | "PARTIAL" | "FULLY_ALLOCATED";
+export type SalesRepStatus = "ACTIVE" | "INACTIVE";
+
+export type SalesRepresentative = {
+  id: string;
+  code: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  defaultCommissionRate: string;
+  employeeReceivableAccountId?: string | null;
+  employeeReceivableAccount?: AccountOption | null;
+  status: SalesRepStatus;
+  _count?: { customers: number };
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type Customer = {
   id: string;
@@ -1655,6 +1671,13 @@ export type Customer = {
   contactInfo?: string | null;
   taxInfo?: string | null;
   salesRepresentative?: string | null;
+  salesRepId?: string | null;
+  salesRep?: {
+    id: string;
+    code: string;
+    name: string;
+    status: SalesRepStatus;
+  } | null;
   paymentTerms?: string | null;
   creditLimit: string;
   currentBalance: string;
@@ -2523,6 +2546,12 @@ export type AgingReport = {
 export type CustomersQuery = {
   isActive?: "true" | "false" | "";
   search?: string;
+  salesRepId?: string;
+};
+
+export type SalesRepresentativesQuery = {
+  status?: string;
+  search?: string;
 };
 
 export type SalesDocumentsQuery = {
@@ -2539,6 +2568,7 @@ export type CreateCustomerPayload = {
   contactInfo?: string;
   taxInfo?: string;
   salesRepresentative?: string;
+  salesRepId?: string;
   paymentTerms?: string;
   creditLimit: number;
   receivableAccountLinkMode: "AUTO" | "EXISTING";
@@ -2550,11 +2580,24 @@ export type UpdateCustomerPayload = Partial<{
   contactInfo: string;
   taxInfo: string;
   salesRepresentative: string;
+  salesRepId: string;
   paymentTerms: string;
   creditLimit: number;
   isActive: boolean;
   receivableAccountId: string;
 }>;
+
+export type CreateSalesRepresentativePayload = {
+  code?: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  defaultCommissionRate?: number;
+  employeeReceivableAccountId?: string;
+  status: SalesRepStatus;
+};
+
+export type UpdateSalesRepresentativePayload = Partial<CreateSalesRepresentativePayload>;
 
 export type SalesLinePayload = {
   itemId?: string;

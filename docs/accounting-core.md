@@ -71,7 +71,8 @@ Important business rules:
 - PostgreSQL also enforces the leaf-node rule so invalid hierarchy writes are rejected below the service layer
 - inactive accounts should not behave like active posting targets
 - customer receivable detail accounts are created or selected under `1121000 Customer Receivables / ذمم عملاء`; the header account itself remains non-posting, while customer documents post against each customer's linked posting account
-- seeded liability accounts use `2000000 Liabilities / الخصوم` with current liabilities under `2100000`, accounts payable under `2110000`, other payables and sales-tax payable rates under `2120000`, employee payables under `2130000`, and non-current liabilities under `2200000`
+- customer sales-rep assignment is relational context only; `salesRepId` is used for follow-up, collection ownership, commission/reporting preparation, and future sales-by-rep views, but invoice receivable posting still uses the customer's linked receivable account
+- seeded liability accounts use `2000000 Liabilities / الخصوم` with current liabilities under `2100000`, accounts payable under `2110000`, other payables and sales-tax payable rates under `2120000`, employee payables under `2130000`, and non-current liabilities under `2200000`; employee payable posting accounts such as salaries, commissions, and other employee payables are not customer receivable accounts
 
 Dependencies inside Phase 1:
 

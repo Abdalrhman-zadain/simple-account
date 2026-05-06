@@ -51,6 +51,8 @@ import {
   CustomerTransaction,
   ConvertPurchaseRequestToOrderPayload,
   CustomersQuery,
+  SalesRepresentative,
+  SalesRepresentativesQuery,
   CreateDebitNotePayload,
   CreateInventoryItemPayload,
   CreateInventoryGoodsIssuePayload,
@@ -62,6 +64,7 @@ import {
   CreateAccountSubtypePayload,
   CreateCreditNotePayload,
   CreateCustomerPayload,
+  CreateSalesRepresentativePayload,
   CreatePurchaseRequestPayload,
   CreatePurchaseOrderPayload,
   CreatePurchaseReceiptPayload,
@@ -187,6 +190,7 @@ import {
   UpdateDebitNotePayload,
   UpdateCreditNotePayload,
   UpdateCustomerPayload,
+  UpdateSalesRepresentativePayload,
   UpdateJournalEntryTypePayload,
   UpdatePaymentMethodTypePayload,
   UpdatePayrollComponentPayload,
@@ -1749,6 +1753,7 @@ export async function getCustomers(
 ) {
   const searchParams = new URLSearchParams();
   if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.salesRepId) searchParams.set("salesRepId", params.salesRepId);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
   const suffix = searchParams.toString() ? `?${searchParams}` : "";
   return apiRequest<Customer[]>(`/sales-receivables/customers${suffix}`, {
@@ -1781,6 +1786,49 @@ export async function updateCustomer(
 
 export async function deactivateCustomer(id: string, token?: string | null) {
   return apiRequest<Customer>(`/sales-receivables/customers/${id}/deactivate`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function getSalesRepresentatives(
+  params: SalesRepresentativesQuery = {},
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.status) searchParams.set("status", params.status);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<SalesRepresentative[]>(`/sales-receivables/sales-reps${suffix}`, {
+    token,
+  });
+}
+
+export async function createSalesRepresentative(
+  payload: CreateSalesRepresentativePayload,
+  token?: string | null,
+) {
+  return apiRequest<SalesRepresentative>("/sales-receivables/sales-reps", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateSalesRepresentative(
+  id: string,
+  payload: UpdateSalesRepresentativePayload,
+  token?: string | null,
+) {
+  return apiRequest<SalesRepresentative>(`/sales-receivables/sales-reps/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function deactivateSalesRepresentative(id: string, token?: string | null) {
+  return apiRequest<SalesRepresentative>(`/sales-receivables/sales-reps/${id}/deactivate`, {
     method: "POST",
     token,
   });

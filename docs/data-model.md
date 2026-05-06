@@ -103,6 +103,7 @@ Accounting meaning:
 Main models:
 
 - `Customer`
+- `SalesRepresentative`
 - `SalesQuotation`
 - `SalesQuotationLine`
 - `SalesOrder`
@@ -116,7 +117,8 @@ Main models:
 
 Key fields:
 
-- customer `code`, `name`, `contactInfo`, `taxInfo`, `salesRepresentative`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
+- customer `code`, `name`, `contactInfo`, `taxInfo`, optional legacy `salesRepresentative`, optional relational `salesRepId`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
+- sales representative `code`, `name`, `phone`, `email`, `defaultCommissionRate`, optional `employeeReceivableAccountId`, `status`, and linked customer count
 - quotation/order/invoice/credit-note `reference`, `status`, date fields, `currencyCode`, totals, and source-document references where applicable
 - invoice `dueDate`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, and `journalEntryId`
 - invoice `allocatedAmount`, `outstandingAmount`, and `allocationStatus`
@@ -131,6 +133,8 @@ Accounting meaning:
 
 - customer receivable control links each customer to one posting receivable account
 - customer creation can automatically create the linked posting receivable account under `1121000 Customer Receivables / ذمم عملاء`, or link an existing active posting Asset account from that subtree; sales invoices, receipts, and credit notes use the customer's linked posting account rather than receivables header accounts
+- customer `salesRepId` links to an active `SalesRepresentative` record managed inside Sales & Receivables for follow-up, reporting, commissions, collection ownership, and future sales-rep analysis; it never replaces the customer's receivable account and is not used as the invoice receivable posting account
+- a sales representative may optionally point to an active posting employee-payables account under `2130000 Employee Payables / ذمم الموظفين`; that account is used only for employee-side advances, custody, settlements, and commissions, not customer receivables
 - customer names are treated as unique by the Sales & Receivables service, and automatic receivable account creation rejects duplicate detail-account names under `1121000`
 - quotations and sales orders preserve commercial traceability before accounting is created
 - quotation lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so the commercial document remains readable even if the item master changes later
@@ -138,6 +142,7 @@ Accounting meaning:
 - sales-invoice lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so posted invoice history stays linked to the item card without depending on future item-master edits
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
+- sales-invoice posting uses the customer's linked receivable account only; sales representative links and employee payable accounts remain non-posting context for customer invoices
 - customer receipts are stored as Phase 2 posted receipt transactions and can be created from either the Sales module or the Bank & Cash module
 - posting creates journal/ledger history and links each document to its generated journal reference
 - customer balance is incremented on posted invoices and decremented on posted credit notes

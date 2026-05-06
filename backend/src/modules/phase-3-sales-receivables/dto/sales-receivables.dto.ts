@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsEmail,
   IsIn,
   IsNumber,
   IsOptional,
@@ -11,6 +12,73 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+export class CreateSalesRepresentativeDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 32)
+  code?: string;
+
+  @IsString()
+  @Length(1, 120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 40)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @Length(0, 120)
+  email?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  defaultCommissionRate?: number;
+
+  @IsOptional()
+  @IsString()
+  employeeReceivableAccountId?: string;
+
+  @IsString()
+  @IsIn(["ACTIVE", "INACTIVE"])
+  status!: "ACTIVE" | "INACTIVE";
+}
+
+export class UpdateSalesRepresentativeDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 40)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @Length(0, 120)
+  email?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  defaultCommissionRate?: number;
+
+  @IsOptional()
+  @IsString()
+  employeeReceivableAccountId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["ACTIVE", "INACTIVE"])
+  status?: "ACTIVE" | "INACTIVE";
+}
 
 export class CreateCustomerDto {
   @IsOptional()
@@ -36,6 +104,10 @@ export class CreateCustomerDto {
   @IsString()
   @Length(0, 120)
   salesRepresentative?: string;
+
+  @IsOptional()
+  @IsString()
+  salesRepId?: string;
 
   @IsOptional()
   @IsString()
@@ -76,6 +148,10 @@ export class UpdateCustomerDto {
   @IsString()
   @Length(0, 120)
   salesRepresentative?: string;
+
+  @IsOptional()
+  @IsString()
+  salesRepId?: string;
 
   @IsOptional()
   @IsString()

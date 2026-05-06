@@ -6,11 +6,13 @@ import {
   CreateCreditNoteDto,
   CreateCustomerDto,
   CreateCustomerReceiptDto,
+  CreateSalesRepresentativeDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
   CreateSalesQuotationDto,
   UpdateCreditNoteDto,
   UpdateCustomerDto,
+  UpdateSalesRepresentativeDto,
   UpdateSalesInvoiceDto,
   UpdateSalesOrderDto,
   UpdateSalesQuotationDto,
@@ -23,8 +25,8 @@ export class SalesReceivablesController {
   constructor(private readonly service: SalesReceivablesService) {}
 
   @Get('customers')
-  listCustomers(@Query('isActive') isActive?: string, @Query('search') search?: string) {
-    return this.service.listCustomers({ isActive, search });
+  listCustomers(@Query('isActive') isActive?: string, @Query('search') search?: string, @Query('salesRepId') salesRepId?: string) {
+    return this.service.listCustomers({ isActive, search, salesRepId });
   }
 
   @Post('customers')
@@ -40,6 +42,26 @@ export class SalesReceivablesController {
   @Post('customers/:id/deactivate')
   deactivateCustomer(@Param('id') id: string) {
     return this.service.deactivateCustomer(id);
+  }
+
+  @Get('sales-reps')
+  listSalesRepresentatives(@Query('status') status?: string, @Query('search') search?: string) {
+    return this.service.listSalesRepresentatives({ status, search });
+  }
+
+  @Post('sales-reps')
+  createSalesRepresentative(@Body() dto: CreateSalesRepresentativeDto) {
+    return this.service.createSalesRepresentative(dto);
+  }
+
+  @Patch('sales-reps/:id')
+  updateSalesRepresentative(@Param('id') id: string, @Body() dto: UpdateSalesRepresentativeDto) {
+    return this.service.updateSalesRepresentative(id, dto);
+  }
+
+  @Post('sales-reps/:id/deactivate')
+  deactivateSalesRepresentative(@Param('id') id: string) {
+    return this.service.deactivateSalesRepresentative(id);
   }
 
   @Get('customers/:id/balance')

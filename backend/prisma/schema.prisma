@@ -91,6 +91,11 @@ enum AllocationStatus {
   FULLY_ALLOCATED
 }
 
+enum SalesRepStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum PurchaseRequestStatus {
   DRAFT
   SUBMITTED
@@ -331,6 +336,7 @@ model Account {
   bankCashCounterpartTransactions           BankCashTransaction[]   @relation("BankCashCounterAccount")
   customerReceivables                       Customer[]              @relation("CustomerReceivableAccount")
   supplierPayables                          Supplier[]              @relation("SupplierPayableAccount")
+  salesRepEmployeeReceivableAccounts        SalesRepresentative[]   @relation("SalesRepEmployeeReceivableAccount")
   purchaseRequestExpenseLines               PurchaseRequestLine[]   @relation("PurchaseRequestExpenseAccount")
   purchaseInvoiceAccountLines               PurchaseInvoiceLine[]   @relation("PurchaseInvoiceClassificationAccount")
   salesQuotationRevenueLines                SalesQuotationLine[]    @relation("SalesQuotationRevenueAccount")
@@ -583,6 +589,8 @@ model Customer {
   contactInfo          String?
   taxInfo              String?
   salesRepresentative  String?
+  salesRepId           String?
+  salesRep             SalesRepresentative?  @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
   paymentTerms         String?
   creditLimit          Decimal               @default(0) @db.Decimal(18, 2)
   currentBalance       Decimal               @default(0) @db.Decimal(18, 2)
@@ -598,18 +606,37 @@ model Customer {
   updatedAt            DateTime              @updatedAt
 
   @@index([isActive, name])
+  @@index([salesRepId])
+}
+
+model SalesRepresentative {
+  id                          String         @id @default(cuid())
+  code                        String         @unique
+  name                        String
+  phone                       String?
+  email                       String?
+  defaultCommissionRate       Decimal        @default(0) @db.Decimal(5, 2)
+  employeeReceivableAccountId String?
+  employeeReceivableAccount   Account?       @relation("SalesRepEmployeeReceivableAccount", fields: [employeeReceivableAccountId], references: [id], onDelete: Restrict)
+  status                      SalesRepStatus @default(ACTIVE)
+  customers                   Customer[]
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
+
+  @@index([status, name])
+  @@index([employeeReceivableAccountId])
 }
 
 model PaymentTerm {
-  id                   String                      @id @default(cuid())
-  name                 String                      @unique
-  nameAr               String?
-  calculationMethod    DueDateCalculationMethod    @default(DAYS_AFTER)
-  numberOfDays         Int?
-  isActive             Boolean                     @default(true)
-  suppliers            Supplier[]
-  createdAt            DateTime                    @default(now())
-  updatedAt            DateTime                    @updatedAt
+  id                String                   @id @default(cuid())
+  name              String                   @unique
+  nameAr            String?
+  calculationMethod DueDateCalculationMethod @default(DAYS_AFTER)
+  numberOfDays      Int?
+  isActive          Boolean                  @default(true)
+  suppliers         Supplier[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   @@index([isActive, name])
 }
@@ -622,7 +649,7 @@ model Supplier {
   phone            String?
   email            String?
   address          String?
-  paymentTerms     String?           // Deprecated - use paymentTermId
+  paymentTerms     String? // Deprecated - use paymentTermId
   paymentTermId    String?
   paymentTerm      PaymentTerm?      @relation(fields: [paymentTermId], references: [id], onDelete: SetNull)
   taxInfo          String?

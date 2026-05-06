@@ -11,6 +11,7 @@ import {
   QuotationStatus,
   SalesInvoiceStatus,
   SalesOrderStatus,
+  SalesRepStatus,
 } from "../../generated/prisma";
 
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -23,12 +24,14 @@ import {
   CreateCreditNoteDto,
   CreateCustomerDto,
   CreateCustomerReceiptDto,
+  CreateSalesRepresentativeDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
   CreateSalesQuotationDto,
   SalesLineDto,
   UpdateCreditNoteDto,
   UpdateCustomerDto,
+  UpdateSalesRepresentativeDto,
   UpdateSalesInvoiceDto,
   UpdateSalesOrderDto,
   UpdateSalesQuotationDto,
@@ -51,6 +54,7 @@ type SalesReceivablesDb = Prisma.TransactionClient | PrismaService;
 
 const CUSTOMER_RECEIVABLES_PARENT_CODE = "1121000";
 const RECEIVABLES_HEADER_CODE = "1120000";
+const EMPLOYEE_PAYABLES_PARENT_CODE = "2130000";
 const CUSTOMER_AUTO_RECEIVABLE_SUBTYPE = "Current Assets";
 
 type ResolvedLine = {
@@ -76,10 +80,11 @@ export class SalesReceivablesService {
     private readonly postingService: PostingService,
   ) {}
 
-  async listCustomers(query: { isActive?: string; search?: string } = {}) {
+  async listCustomers(query: { isActive?: string; search?: string; salesRepId?: string } = {}) {
     const search = query.search?.trim();
     return this.prisma.customer.findMany({
       where: {
+        salesRepId: query.salesRepId?.trim() || undefined,
         isActive:
           query.isActive === undefined || query.isActive === ""
             ? undefined
@@ -93,10 +98,12 @@ export class SalesReceivablesService {
               {
                 salesRepresentative: { contains: search, mode: "insensitive" },
               },
+              { salesRep: { name: { contains: search, mode: "insensitive" } } },
+              { salesRep: { code: { contains: search, mode: "insensitive" } } },
             ]
           : undefined,
       },
-      include: { receivableAccount: { select: this.accountSummarySelect() } },
+      include: this.customerInclude(),
       orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
     });
   }
@@ -106,8 +113,12 @@ export class SalesReceivablesService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (dto.receivableAccountLinkMode === "AUTO" && !dto.name?.trim()) {
+          throw new BadRequestException("يرجى إدخال اسم العميل قبل إنشاء حساب ذمم تلقائي.");
+        }
         await this.ensureUniqueCustomerName(dto.name, tx);
         const receivableAccountId = await this.resolveCustomerReceivableAccount(dto, tx);
+        const salesRep = await this.resolveActiveSalesRep(dto.salesRepId, tx);
 
         return tx.customer.create({
           data: {
@@ -115,12 +126,13 @@ export class SalesReceivablesService {
             name: dto.name.trim(),
             contactInfo: dto.contactInfo?.trim() || null,
             taxInfo: dto.taxInfo?.trim() || null,
-            salesRepresentative: dto.salesRepresentative?.trim() || null,
+            salesRepresentative: salesRep?.name ?? dto.salesRepresentative?.trim() ?? null,
+            salesRepId: salesRep?.id ?? null,
             paymentTerms: dto.paymentTerms?.trim() || null,
             creditLimit: this.toAmount(dto.creditLimit),
             receivableAccountId,
           },
-          include: { receivableAccount: { select: this.accountSummarySelect() } },
+          include: this.customerInclude(),
         });
       });
     } catch (error) {
@@ -141,9 +153,18 @@ export class SalesReceivablesService {
     if (dto.receivableAccountId) {
       await this.ensureReceivableAccount(dto.receivableAccountId);
     }
+    const salesRep = await this.resolveActiveSalesRep(dto.salesRepId, this.prisma);
     if (dto.name !== undefined) {
       await this.ensureUniqueCustomerName(dto.name, this.prisma, id);
     }
+    const salesRepresentative =
+      salesRep
+        ? salesRep.name
+        : dto.salesRepId === ""
+          ? null
+          : dto.salesRepresentative === undefined
+            ? undefined
+            : dto.salesRepresentative.trim() || null;
 
     return this.prisma.customer.update({
       where: { id },
@@ -155,10 +176,11 @@ export class SalesReceivablesService {
             : dto.contactInfo.trim() || null,
         taxInfo:
           dto.taxInfo === undefined ? undefined : dto.taxInfo.trim() || null,
-        salesRepresentative:
-          dto.salesRepresentative === undefined
+        salesRepresentative,
+        salesRepId:
+          dto.salesRepId === undefined
             ? undefined
-            : dto.salesRepresentative.trim() || null,
+            : salesRep?.id ?? null,
         paymentTerms:
           dto.paymentTerms === undefined
             ? undefined
@@ -169,7 +191,7 @@ export class SalesReceivablesService {
             : this.toAmount(dto.creditLimit),
         receivableAccountId: dto.receivableAccountId,
       },
-      include: { receivableAccount: { select: this.accountSummarySelect() } },
+      include: this.customerInclude(),
     });
   }
 
@@ -178,7 +200,93 @@ export class SalesReceivablesService {
     return this.prisma.customer.update({
       where: { id },
       data: { isActive: false },
-      include: { receivableAccount: { select: this.accountSummarySelect() } },
+      include: this.customerInclude(),
+    });
+  }
+
+  async listSalesRepresentatives(query: { status?: string; search?: string } = {}) {
+    const search = query.search?.trim();
+    return this.prisma.salesRepresentative.findMany({
+      where: {
+        status: this.parseSalesRepStatus(query.status),
+        OR: search
+          ? [
+              { code: { contains: search, mode: "insensitive" } },
+              { name: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ]
+          : undefined,
+      },
+      include: this.salesRepInclude(),
+      orderBy: [{ status: "asc" }, { name: "asc" }],
+    });
+  }
+
+  async createSalesRepresentative(dto: CreateSalesRepresentativeDto) {
+    const employeeReceivableAccountId = dto.employeeReceivableAccountId?.trim() || null;
+    if (employeeReceivableAccountId) {
+      await this.ensureEmployeePayableAccount(employeeReceivableAccountId);
+    }
+
+    try {
+      return await this.prisma.salesRepresentative.create({
+        data: {
+          code: dto.code?.trim() || this.generateReference("REP"),
+          name: dto.name.trim(),
+          phone: dto.phone?.trim() || null,
+          email: dto.email?.trim() || null,
+          defaultCommissionRate: this.toAmount(dto.defaultCommissionRate ?? 0),
+          employeeReceivableAccountId,
+          status: dto.status as SalesRepStatus,
+        },
+        include: this.salesRepInclude(),
+      });
+    } catch (error) {
+      if (this.isUniqueConflict(error, "code")) {
+        throw new ConflictException("A sales representative with this code already exists.");
+      }
+      throw error;
+    }
+  }
+
+  async updateSalesRepresentative(id: string, dto: UpdateSalesRepresentativeDto) {
+    const current = await this.getSalesRepOrThrow(id);
+    if (current.status === SalesRepStatus.INACTIVE && dto.status !== SalesRepStatus.ACTIVE) {
+      throw new BadRequestException("Inactive sales representatives cannot be edited unless reactivated.");
+    }
+
+    const employeeReceivableAccountId =
+      dto.employeeReceivableAccountId === undefined
+        ? undefined
+        : dto.employeeReceivableAccountId.trim() || null;
+    if (employeeReceivableAccountId) {
+      await this.ensureEmployeePayableAccount(employeeReceivableAccountId);
+    }
+
+    return this.prisma.salesRepresentative.update({
+      where: { id },
+      data: {
+        name: dto.name === undefined ? undefined : dto.name.trim(),
+        phone: dto.phone === undefined ? undefined : dto.phone.trim() || null,
+        email: dto.email === undefined ? undefined : dto.email.trim() || null,
+        defaultCommissionRate:
+          dto.defaultCommissionRate === undefined
+            ? undefined
+            : this.toAmount(dto.defaultCommissionRate),
+        employeeReceivableAccountId,
+        status: dto.status as SalesRepStatus | undefined,
+      },
+      include: this.salesRepInclude(),
+    });
+  }
+
+  async deactivateSalesRepresentative(id: string) {
+    await this.getSalesRepOrThrow(id);
+    return this.prisma.salesRepresentative.update({
+      where: { id },
+      data: { status: SalesRepStatus.INACTIVE },
+      include: this.salesRepInclude(),
     });
   }
 
@@ -1679,7 +1787,7 @@ export class SalesReceivablesService {
   private async getCustomerOrThrow(id: string) {
     const customer = await this.prisma.customer.findUnique({
       where: { id },
-      include: { receivableAccount: { select: this.accountSummarySelect() } },
+      include: this.customerInclude(),
     });
     if (!customer) {
       throw new BadRequestException(`Customer ${id} was not found.`);
@@ -1932,14 +2040,25 @@ export class SalesReceivablesService {
   }
 
   private async isDescendantOfCustomerReceivables(accountId: string, db: SalesReceivablesDb) {
+    return this.isDescendantOfAccountCode(accountId, CUSTOMER_RECEIVABLES_PARENT_CODE, db, {
+      excludeRoot: true,
+    });
+  }
+
+  private async isDescendantOfAccountCode(
+    accountId: string,
+    ancestorCode: string,
+    db: SalesReceivablesDb,
+    options: { excludeRoot?: boolean } = {},
+  ) {
     let current = await db.account.findUnique({
       where: { id: accountId },
       select: { id: true, code: true, parentAccountId: true },
     });
 
     while (current) {
-      if (current.code === CUSTOMER_RECEIVABLES_PARENT_CODE) {
-        return current.id !== accountId;
+      if (current.code === ancestorCode) {
+        return options.excludeRoot ? current.id !== accountId : true;
       }
       if (!current.parentAccountId) {
         return false;
@@ -2649,11 +2768,92 @@ export class SalesReceivablesService {
       id: true,
       code: true,
       name: true,
+      nameAr: true,
       type: true,
       currencyCode: true,
       isActive: true,
       isPosting: true,
     };
+  }
+
+  private customerInclude() {
+    return {
+      receivableAccount: { select: this.accountSummarySelect() },
+      salesRep: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          status: true,
+        },
+      },
+    };
+  }
+
+  private salesRepInclude() {
+    return {
+      employeeReceivableAccount: { select: this.accountSummarySelect() },
+      _count: { select: { customers: true } },
+    };
+  }
+
+  private async getSalesRepOrThrow(id: string) {
+    const salesRep = await this.prisma.salesRepresentative.findUnique({
+      where: { id },
+      include: this.salesRepInclude(),
+    });
+    if (!salesRep) {
+      throw new BadRequestException(`Sales representative ${id} was not found.`);
+    }
+    return salesRep;
+  }
+
+  private async resolveActiveSalesRep(salesRepId: string | undefined, db: SalesReceivablesDb) {
+    const normalizedId = salesRepId?.trim();
+    if (salesRepId === undefined || normalizedId === "") {
+      return null;
+    }
+
+    const salesRep = await db.salesRepresentative.findUnique({
+      where: { id: normalizedId },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        status: true,
+      },
+    });
+
+    if (!salesRep) {
+      throw new BadRequestException("مندوب المبيعات المحدد غير موجود.");
+    }
+    if (salesRep.status !== SalesRepStatus.ACTIVE) {
+      throw new BadRequestException("مندوب المبيعات المحدد غير نشط.");
+    }
+
+    return salesRep;
+  }
+
+  private async ensureEmployeePayableAccount(accountId: string, db: SalesReceivablesDb = this.prisma) {
+    const account = await db.account.findUnique({
+      where: { id: accountId },
+      select: {
+        id: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+      },
+    });
+
+    if (!account) {
+      throw new BadRequestException(`Account ${accountId} was not found.`);
+    }
+    if (!account.isActive || !account.isPosting || account.type !== "LIABILITY") {
+      throw new BadRequestException("حساب ذمم الموظف يجب أن يكون حساب خصوم نشط وقابل للترحيل.");
+    }
+    if (!(await this.isDescendantOfAccountCode(account.id, EMPLOYEE_PAYABLES_PARENT_CODE, db))) {
+      throw new BadRequestException("حساب ذمم الموظف يجب أن يكون تحت ذمم الموظفين.");
+    }
   }
 
   private parseQuotationStatus(status?: string): QuotationStatus | undefined {
@@ -2664,6 +2864,16 @@ export class SalesReceivablesService {
       return status as QuotationStatus;
     }
     throw new BadRequestException("Invalid quotation status.");
+  }
+
+  private parseSalesRepStatus(status?: string): SalesRepStatus | undefined {
+    if (!status) {
+      return undefined;
+    }
+    if (status in SalesRepStatus) {
+      return status as SalesRepStatus;
+    }
+    throw new BadRequestException("Invalid sales representative status.");
   }
 
   private parseSalesOrderStatus(status?: string): SalesOrderStatus | undefined {

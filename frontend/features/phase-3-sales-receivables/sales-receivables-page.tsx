@@ -26,12 +26,14 @@ import {
   createCreditNote,
   createCustomer,
   createCustomerReceipt,
+  createSalesRepresentative,
   createSalesInvoice,
   createSalesOrder,
   createSalesQuotation,
   confirmSalesOrder,
   getCustomerReceipts,
   deactivateCustomer,
+  deactivateSalesRepresentative,
   getAccountOptions,
   getAccountsTree,
   getAgingReport,
@@ -42,6 +44,7 @@ import {
   getCustomerTransactions,
   getCustomers,
   getInventoryItems,
+  getSalesRepresentatives,
   getSalesOrders,
   getSalesQuotations,
   getSalesInvoices,
@@ -49,6 +52,7 @@ import {
   postSalesInvoice,
   updateCreditNote,
   updateCustomer,
+  updateSalesRepresentative,
   updateSalesInvoice,
   updateSalesOrder,
   updateSalesQuotation,
@@ -62,6 +66,7 @@ import type {
   AccountTreeNode,
   Customer,
   CustomerReceipt,
+  SalesRepresentative,
   SalesInvoiceStatus,
   SalesOrder,
   SalesQuotation,
@@ -84,7 +89,7 @@ import { ReceiptEditorModal } from "./components/receipt-editor-modal";
 import { SalesDocumentEditorModal } from "./components/sales-document-editor-modal";
 import { SalesOrderEditorModal } from "./components/sales-order-editor-modal";
 
-type SalesTab = "customers" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
+type SalesTab = "customers" | "sales-reps" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
 
 type CustomerEditorState = {
   id?: string;
@@ -93,10 +98,22 @@ type CustomerEditorState = {
   contactInfo: string;
   taxInfo: string;
   salesRepresentative: string;
+  salesRepId: string;
   paymentTerms: string;
   creditLimit: string;
   receivableAccountLinkMode: "" | "AUTO" | "EXISTING";
   receivableAccountId: string;
+};
+
+type SalesRepEditorState = {
+  id?: string;
+  code: string;
+  name: string;
+  phone: string;
+  email: string;
+  defaultCommissionRate: string;
+  employeeReceivableAccountId: string;
+  status: "ACTIVE" | "INACTIVE";
 };
 
 type InvoiceEditorState = {
@@ -151,10 +168,21 @@ const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
   contactInfo: "",
   taxInfo: "",
   salesRepresentative: "",
+  salesRepId: "",
   paymentTerms: "",
   creditLimit: "0",
   receivableAccountLinkMode: "",
   receivableAccountId: "",
+};
+
+const EMPTY_SALES_REP_EDITOR: SalesRepEditorState = {
+  code: "",
+  name: "",
+  phone: "",
+  email: "",
+  defaultCommissionRate: "0",
+  employeeReceivableAccountId: "",
+  status: "ACTIVE",
 };
 
 const EMPTY_ORDER_EDITOR = (): SalesOrderEditorState => ({
@@ -209,10 +237,16 @@ export function SalesReceivablesPage() {
 
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerStatusFilter, setCustomerStatusFilter] = useState<"true" | "false" | "">("");
+  const [customerSalesRepFilter, setCustomerSalesRepFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [isCustomerEditorOpen, setIsCustomerEditorOpen] = useState(false);
   const [customerEditor, setCustomerEditor] = useState<CustomerEditorState>(EMPTY_CUSTOMER_EDITOR);
   const [customerEditorClientError, setCustomerEditorClientError] = useState<string | null>(null);
+  const [salesRepSearch, setSalesRepSearch] = useState("");
+  const [salesRepStatusFilter, setSalesRepStatusFilter] = useState<"ACTIVE" | "INACTIVE" | "">("");
+  const [isSalesRepEditorOpen, setIsSalesRepEditorOpen] = useState(false);
+  const [salesRepEditor, setSalesRepEditor] = useState<SalesRepEditorState>(EMPTY_SALES_REP_EDITOR);
+  const [salesRepEditorClientError, setSalesRepEditorClientError] = useState<string | null>(null);
 
   const [quotationSearch, setQuotationSearch] = useState("");
   const [quotationStatusFilter, setQuotationStatusFilter] = useState("");
@@ -253,8 +287,8 @@ export function SalesReceivablesPage() {
   const [agingDate, setAgingDate] = useState(new Date().toISOString().slice(0, 10));
 
   const customersQuery = useQuery({
-    queryKey: queryKeys.salesCustomers(token, { search: customerSearch, isActive: customerStatusFilter }),
-    queryFn: () => getCustomers({ search: customerSearch, isActive: customerStatusFilter }, token),
+    queryKey: queryKeys.salesCustomers(token, { search: customerSearch, isActive: customerStatusFilter, salesRepId: customerSalesRepFilter }),
+    queryFn: () => getCustomers({ search: customerSearch, isActive: customerStatusFilter, salesRepId: customerSalesRepFilter }, token),
   });
 
   const activeCustomersQuery = useQuery({
@@ -266,6 +300,24 @@ export function SalesReceivablesPage() {
   const receivableAccountsTreeQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isActive: "true", type: "ASSET" }),
     queryFn: () => getAccountsTree({ isActive: "true", type: "ASSET" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const salesRepsQuery = useQuery({
+    queryKey: queryKeys.salesRepresentatives(token, { search: salesRepSearch, status: salesRepStatusFilter }),
+    queryFn: () => getSalesRepresentatives({ search: salesRepSearch, status: salesRepStatusFilter }, token),
+    staleTime: 30_000,
+  });
+
+  const activeSalesRepsQuery = useQuery({
+    queryKey: queryKeys.salesRepresentatives(token, { status: "ACTIVE" }),
+    queryFn: () => getSalesRepresentatives({ status: "ACTIVE" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const employeePayableAccountsTreeQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isActive: "true", type: "LIABILITY" }),
+    queryFn: () => getAccountsTree({ isActive: "true", type: "LIABILITY" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -373,7 +425,11 @@ export function SalesReceivablesPage() {
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || undefined,
           taxInfo: customerEditor.taxInfo || undefined,
-          salesRepresentative: customerEditor.salesRepresentative || undefined,
+          salesRepId: customerEditor.salesRepId || undefined,
+          salesRepresentative:
+            activeSalesReps.find((rep) => rep.id === customerEditor.salesRepId)?.name ||
+            customerEditor.salesRepresentative ||
+            undefined,
           paymentTerms: customerEditor.paymentTerms || undefined,
           creditLimit: Number(customerEditor.creditLimit || 0),
           receivableAccountLinkMode: customerEditor.receivableAccountLinkMode as "AUTO" | "EXISTING",
@@ -401,7 +457,11 @@ export function SalesReceivablesPage() {
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || "",
           taxInfo: customerEditor.taxInfo || "",
-          salesRepresentative: customerEditor.salesRepresentative || "",
+          salesRepId: customerEditor.salesRepId,
+          salesRepresentative:
+            activeSalesReps.find((rep) => rep.id === customerEditor.salesRepId)?.name ||
+            customerEditor.salesRepresentative ||
+            "",
           paymentTerms: customerEditor.paymentTerms || "",
           creditLimit: Number(customerEditor.creditLimit || 0),
           receivableAccountId: customerEditor.receivableAccountId,
@@ -421,6 +481,59 @@ export function SalesReceivablesPage() {
     onSuccess: async (updated) => {
       await invalidateSalesReceivables(queryClient);
       setSelectedCustomerId(updated.id);
+    },
+  });
+
+  const createSalesRepMutation = useMutation({
+    mutationFn: () =>
+      createSalesRepresentative(
+        {
+          code: salesRepEditor.code || undefined,
+          name: salesRepEditor.name,
+          phone: salesRepEditor.phone || undefined,
+          email: salesRepEditor.email || undefined,
+          defaultCommissionRate: Number(salesRepEditor.defaultCommissionRate || 0),
+          employeeReceivableAccountId: salesRepEditor.employeeReceivableAccountId || undefined,
+          status: salesRepEditor.status,
+        },
+        token,
+      ),
+    onSuccess: async () => {
+      await invalidateSalesReceivables(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["sales-representatives"] });
+      setIsSalesRepEditorOpen(false);
+      setSalesRepEditor(EMPTY_SALES_REP_EDITOR);
+      setSalesRepEditorClientError(null);
+    },
+  });
+
+  const updateSalesRepMutation = useMutation({
+    mutationFn: () =>
+      updateSalesRepresentative(
+        salesRepEditor.id!,
+        {
+          name: salesRepEditor.name,
+          phone: salesRepEditor.phone,
+          email: salesRepEditor.email,
+          defaultCommissionRate: Number(salesRepEditor.defaultCommissionRate || 0),
+          employeeReceivableAccountId: salesRepEditor.employeeReceivableAccountId,
+          status: salesRepEditor.status,
+        },
+        token,
+      ),
+    onSuccess: async () => {
+      await invalidateSalesReceivables(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["sales-representatives"] });
+      setIsSalesRepEditorOpen(false);
+      setSalesRepEditorClientError(null);
+    },
+  });
+
+  const deactivateSalesRepMutation = useMutation({
+    mutationFn: (id: string) => deactivateSalesRepresentative(id, token),
+    onSuccess: async () => {
+      await invalidateSalesReceivables(queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["sales-representatives"] });
     },
   });
 
@@ -892,6 +1005,8 @@ export function SalesReceivablesPage() {
   });
 
   const customers = customersQuery.data ?? [];
+  const salesReps = salesRepsQuery.data ?? [];
+  const activeSalesReps = activeSalesRepsQuery.data ?? [];
   const receivableAccounts = useMemo(() => {
     const tree = receivableAccountsTreeQuery.data ?? [];
     const customerReceivablesRoot = findAccountTreeNode(
@@ -910,6 +1025,24 @@ export function SalesReceivablesPage() {
       (account) => account.isActive && account.type === "ASSET",
     );
   }, [receivableAccountsTreeQuery.data]);
+  const employeePayableAccounts = useMemo(() => {
+    const tree = employeePayableAccountsTreeQuery.data ?? [];
+    const employeePayablesRoot = findAccountTreeNode(
+      tree,
+      (node) =>
+        node.code === "2130000" ||
+        node.name.trim().toLowerCase() === "employee payables" ||
+        node.nameAr?.trim() === "ذمم الموظفين",
+    );
+
+    if (!employeePayablesRoot) {
+      return [];
+    }
+
+    return flattenPostingAccounts(employeePayablesRoot.children).filter(
+      (account) => account.isActive && account.type === "LIABILITY",
+    );
+  }, [employeePayableAccountsTreeQuery.data]);
   const activeCustomers = activeCustomersQuery.data ?? [];
   const inventoryItems = (inventoryItemsQuery.data?.data ?? []).filter((item) => item.isActive);
   const quotations = quotationsQuery.data ?? [];
@@ -1019,6 +1152,9 @@ export function SalesReceivablesPage() {
     createCustomerMutation.error ??
     updateCustomerMutation.error ??
     deactivateCustomerMutation.error ??
+    createSalesRepMutation.error ??
+    updateSalesRepMutation.error ??
+    deactivateSalesRepMutation.error ??
     createQuotationMutation.error ??
     updateQuotationMutation.error ??
     approveQuotationMutation.error ??
@@ -1044,6 +1180,11 @@ export function SalesReceivablesPage() {
       return;
     }
 
+    if (customerEditor.receivableAccountLinkMode === "AUTO" && !customerEditor.name.trim()) {
+      setCustomerEditorClientError("يرجى إدخال اسم العميل قبل إنشاء حساب ذمم تلقائي.");
+      return;
+    }
+
     if (customerEditor.receivableAccountLinkMode === "EXISTING" && !customerEditor.receivableAccountId) {
       setCustomerEditorClientError("يرجى اختيار حساب ذمم العميل قبل الحفظ.");
       return;
@@ -1054,6 +1195,24 @@ export function SalesReceivablesPage() {
       updateCustomerMutation.mutate();
     } else {
       createCustomerMutation.mutate();
+    }
+  };
+
+  const saveSalesRepFromEditor = () => {
+    if (!salesRepEditor.name.trim()) {
+      setSalesRepEditorClientError("يرجى إدخال اسم المندوب.");
+      return;
+    }
+    if (!salesRepEditor.status) {
+      setSalesRepEditorClientError("يرجى تحديد حالة المندوب.");
+      return;
+    }
+
+    setSalesRepEditorClientError(null);
+    if (salesRepEditor.id) {
+      updateSalesRepMutation.mutate();
+    } else {
+      createSalesRepMutation.mutate();
     }
   };
 
@@ -1069,6 +1228,7 @@ export function SalesReceivablesPage() {
 
   const tabs: Array<{ id: SalesTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "customers", label: t("salesReceivables.tab.customers"), icon: Users },
+    { id: "sales-reps", label: "مندوبي المبيعات", icon: Handshake },
     { id: "quotations", label: t("salesReceivables.tab.quotations"), icon: FilePlus },
     { id: "orders", label: t("salesReceivables.tab.orders"), icon: ScrollText },
     { id: "invoices", label: t("salesReceivables.tab.invoices"), icon: FileText },
@@ -1121,12 +1281,20 @@ export function SalesReceivablesPage() {
           </div>
 
           <Card className="p-5">
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.5fr_auto]">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.5fr_0.7fr_auto]">
               <Input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchCustomers")} />
               <Select value={customerStatusFilter} onChange={(event) => setCustomerStatusFilter(event.target.value as "true" | "false" | "")}>
                 <option value="">{t("salesReceivables.filters.allStatuses")}</option>
                 <option value="true">{t("salesReceivables.filters.activeOnly")}</option>
                 <option value="false">{t("salesReceivables.filters.inactiveOnly")}</option>
+              </Select>
+              <Select value={customerSalesRepFilter} onChange={(event) => setCustomerSalesRepFilter(event.target.value)}>
+                <option value="">حسب مندوب المبيعات</option>
+                {activeSalesReps.map((rep) => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.code} - {rep.name}
+                  </option>
+                ))}
               </Select>
               <Button className="gap-2" onClick={() => {
                 setCustomerEditor(EMPTY_CUSTOMER_EDITOR);
@@ -1152,12 +1320,13 @@ export function SalesReceivablesPage() {
                 <div className="text-xs text-gray-500">{t("salesReceivables.section.customerMasterRecordsDescription")}</div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[980px] table-fixed text-sm">
+                <table className="w-full min-w-[1080px] table-fixed text-sm">
                   <colgroup>
-                    <col className="w-[230px]" />
-                    <col className="w-[210px]" />
+                    <col className="w-[190px]" />
+                    <col className="w-[200px]" />
                     <col className="w-[150px]" />
                     <col className="w-[150px]" />
+                    <col className="w-[160px]" />
                     <col className="w-[115px]" />
                     <col className="w-[155px]" />
                   </colgroup>
@@ -1167,6 +1336,7 @@ export function SalesReceivablesPage() {
                       <TableHead>{t("common.table.name")}</TableHead>
                       <TableHead>{t("salesReceivables.field.terms")}</TableHead>
                       <TableHead className="text-end">{t("salesReceivables.metric.creditLimit")}</TableHead>
+                      <TableHead>مندوب المبيعات</TableHead>
                       <TableHead className="text-center">{t("common.table.status")}</TableHead>
                       <TableHead className="text-center">{t("common.table.actions")}</TableHead>
                     </tr>
@@ -1174,7 +1344,7 @@ export function SalesReceivablesPage() {
                   <tbody>
                     {customers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                        <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
                           {t("salesReceivables.empty.customers")}
                         </td>
                       </tr>
@@ -1196,6 +1366,7 @@ export function SalesReceivablesPage() {
                           </td>
                           <td className="px-6 py-4 align-top text-start text-gray-700">{row.paymentTerms || t("salesReceivables.empty.notSet")}</td>
                           <td className="px-6 py-4 text-end align-top font-mono font-bold tabular-nums text-gray-900">{formatCurrency(row.creditLimit)}</td>
+                          <td className="px-6 py-4 align-top text-start text-gray-700">{row.salesRep ? `${row.salesRep.code} - ${row.salesRep.name}` : "غير محدد"}</td>
                           <td className="px-6 py-4 text-center align-top">
                             <StatusPill label={row.isActive ? t("salesReceivables.status.active") : t("salesReceivables.status.inactive")} tone={row.isActive ? "positive" : "neutral"} />
                           </td>
@@ -1214,6 +1385,7 @@ export function SalesReceivablesPage() {
                                         contactInfo: row.contactInfo ?? "",
                                         taxInfo: row.taxInfo ?? "",
                                         salesRepresentative: row.salesRepresentative ?? "",
+                                        salesRepId: row.salesRepId ?? "",
                                         paymentTerms: row.paymentTerms ?? "",
                                         creditLimit: row.creditLimit,
                                         receivableAccountLinkMode: "EXISTING",
@@ -1314,6 +1486,138 @@ export function SalesReceivablesPage() {
               )}
             </Card>
           </div>
+        </div>
+      ) : null}
+
+      {activeTab === "sales-reps" ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            <SummaryCard label="عدد المندوبين" value={salesReps.length} hint="القائمة الحالية" />
+            <SummaryCard label="المندوبون النشطون" value={salesReps.filter((row) => row.status === "ACTIVE").length} hint="متاحون للربط بالعملاء" />
+            <SummaryCard label="إجمالي العملاء المرتبطين" value={salesReps.reduce((sum, row) => sum + (row._count?.customers ?? 0), 0)} hint="حسب ربط العملاء الحالي" />
+            <SummaryCard label="إجمالي المبيعات حسب المندوب" value="قيد التجهيز" hint="جاهز لتقارير المبيعات لاحقًا" />
+          </div>
+
+          <Card className="p-5">
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.5fr_auto]">
+              <Input value={salesRepSearch} onChange={(event) => setSalesRepSearch(event.target.value)} placeholder="ابحث بالرمز أو اسم المندوب أو بيانات التواصل..." />
+              <Select value={salesRepStatusFilter} onChange={(event) => setSalesRepStatusFilter(event.target.value as "ACTIVE" | "INACTIVE" | "")}>
+                <option value="">كل الحالات</option>
+                <option value="ACTIVE">نشط</option>
+                <option value="INACTIVE">غير نشط</option>
+              </Select>
+              <Button className="gap-2" onClick={() => {
+                setSalesRepEditor(EMPTY_SALES_REP_EDITOR);
+                setSalesRepEditorClientError(null);
+                setIsSalesRepEditorOpen(true);
+              }}>
+                <CirclePlus className="h-4 w-4 shrink-0" />
+                مندوب جديد
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <div className="text-sm font-bold text-gray-900">جدول مندوبي المبيعات</div>
+              <div className="text-xs text-gray-500">إدارة المندوبين لأغراض المتابعة والعمولات والتقارير، بدون تغيير حساب ذمم العميل.</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1080px] table-fixed text-sm">
+                <colgroup>
+                  <col className="w-[150px]" />
+                  <col className="w-[210px]" />
+                  <col className="w-[220px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[130px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[170px]" />
+                </colgroup>
+                <thead className="bg-gray-50">
+                  <tr>
+                    <TableHead className="text-center">الرمز</TableHead>
+                    <TableHead>اسم المندوب</TableHead>
+                    <TableHead>بيانات التواصل</TableHead>
+                    <TableHead className="text-end">نسبة العمولة</TableHead>
+                    <TableHead className="text-center">عدد العملاء</TableHead>
+                    <TableHead className="text-center">الحالة</TableHead>
+                    <TableHead className="text-center">الإجراءات</TableHead>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesReps.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                        لا يوجد مندوبي مبيعات بعد.
+                      </td>
+                    </tr>
+                  ) : (
+                    salesReps.map((row) => (
+                      <tr key={row.id} className="border-t border-gray-100 transition-colors hover:bg-gray-50">
+                        <td dir="ltr" className="px-4 py-4 text-center align-top">
+                          <span className="inline-flex max-w-full rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-700">
+                            <span className="truncate">{row.code}</span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 align-top text-start">
+                          <div className="font-semibold text-gray-900">{row.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {row.employeeReceivableAccount ? `حساب موظف: ${row.employeeReceivableAccount.code}` : "لا يوجد حساب ذمم موظف"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 align-top text-start text-gray-700">
+                          <div>{row.phone || "لا يوجد هاتف"}</div>
+                          <div className="text-xs text-gray-500">{row.email || "لا يوجد بريد إلكتروني"}</div>
+                        </td>
+                        <td className="px-6 py-4 text-end align-top font-mono font-bold tabular-nums text-gray-900">{Number(row.defaultCommissionRate).toFixed(2)}%</td>
+                        <td className="px-6 py-4 text-center align-top font-mono font-bold tabular-nums text-gray-900">{row._count?.customers ?? 0}</td>
+                        <td className="px-6 py-4 text-center align-top">
+                          <StatusPill label={row.status === "ACTIVE" ? "نشط" : "غير نشط"} tone={row.status === "ACTIVE" ? "positive" : "neutral"} />
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex flex-wrap justify-center gap-2">
+                            <button
+                              type="button"
+                              className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                              onClick={() => {
+                                setSalesRepEditor({
+                                  id: row.id,
+                                  code: row.code,
+                                  name: row.name,
+                                  phone: row.phone ?? "",
+                                  email: row.email ?? "",
+                                  defaultCommissionRate: row.defaultCommissionRate,
+                                  employeeReceivableAccountId: row.employeeReceivableAccountId ?? "",
+                                  status: row.status,
+                                });
+                                setSalesRepEditorClientError(null);
+                                setIsSalesRepEditorOpen(true);
+                              }}
+                            >
+                              تعديل
+                            </button>
+                            {row.status === "ACTIVE" ? (
+                              <button
+                                type="button"
+                                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
+                                onClick={() => {
+                                  if (window.confirm(`تعطيل المندوب ${row.name}؟`)) {
+                                    deactivateSalesRepMutation.mutate(row.id);
+                                  }
+                                }}
+                              >
+                                تعطيل
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
       ) : null}
 
@@ -2211,6 +2515,74 @@ export function SalesReceivablesPage() {
       ) : null}
 
       <SidePanel
+        isOpen={isSalesRepEditorOpen}
+        onClose={() => {
+          setSalesRepEditorClientError(null);
+          setIsSalesRepEditorOpen(false);
+        }}
+        title={salesRepEditor.id ? "تعديل مندوب مبيعات" : "مندوب جديد"}
+      >
+        <div className="space-y-5">
+          <Field label="اسم المندوب" required error={salesRepEditorClientError ?? undefined}>
+            <Input value={salesRepEditor.name} onChange={(event) => setSalesRepEditor((current) => ({ ...current, name: event.target.value }))} />
+          </Field>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="رقم الهاتف">
+              <Input value={salesRepEditor.phone} onChange={(event) => setSalesRepEditor((current) => ({ ...current, phone: event.target.value }))} />
+            </Field>
+            <Field label="البريد الإلكتروني">
+              <Input type="email" value={salesRepEditor.email} onChange={(event) => setSalesRepEditor((current) => ({ ...current, email: event.target.value }))} />
+            </Field>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="نسبة العمولة الافتراضية">
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={salesRepEditor.defaultCommissionRate}
+                onChange={(event) => setSalesRepEditor((current) => ({ ...current, defaultCommissionRate: event.target.value }))}
+              />
+            </Field>
+            <Field label="الحالة" required>
+              <Select value={salesRepEditor.status} onChange={(event) => setSalesRepEditor((current) => ({ ...current, status: event.target.value as "ACTIVE" | "INACTIVE" }))}>
+                <option value="ACTIVE">نشط</option>
+                <option value="INACTIVE">غير نشط</option>
+              </Select>
+            </Field>
+          </div>
+
+          <Field
+            label="حساب ذمم الموظف"
+            hint="اختياري، ويستخدم للسلف والعهد والتسويات والعمولات فقط. لا يستخدم كحساب ذمم للعميل."
+          >
+            <Select value={salesRepEditor.employeeReceivableAccountId} onChange={(event) => setSalesRepEditor((current) => ({ ...current, employeeReceivableAccountId: event.target.value }))}>
+              <option value="">بدون حساب ذمم موظف</option>
+              {employeePayableAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.code} - {account.nameAr || account.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => {
+              setSalesRepEditorClientError(null);
+              setIsSalesRepEditorOpen(false);
+            }}>
+              إلغاء
+            </Button>
+            <Button onClick={saveSalesRepFromEditor} disabled={createSalesRepMutation.isPending || updateSalesRepMutation.isPending}>
+              {salesRepEditor.id ? "حفظ التعديلات" : "إنشاء مندوب"}
+            </Button>
+          </div>
+        </div>
+      </SidePanel>
+
+      <SidePanel
         isOpen={isCustomerEditorOpen}
         onClose={() => {
           setCustomerEditorClientError(null);
@@ -2248,12 +2620,32 @@ export function SalesReceivablesPage() {
             <Field label={t("salesReceivables.field.taxInformation")}>
               <Input value={customerEditor.taxInfo} onChange={(event) => setCustomerEditor((current) => ({ ...current, taxInfo: event.target.value }))} />
             </Field>
-            <Field label={t("salesReceivables.field.salesRepresentative")}>
-              <Input value={customerEditor.salesRepresentative} onChange={(event) => setCustomerEditor((current) => ({ ...current, salesRepresentative: event.target.value }))} />
+            <Field label="مندوب المبيعات" hint={!activeSalesReps.length ? "لا يوجد مندوبي مبيعات نشطون" : undefined}>
+              <Select
+                value={customerEditor.salesRepId}
+                onChange={(event) => {
+                  const selectedRep = activeSalesReps.find((rep) => rep.id === event.target.value);
+                  setCustomerEditor((current) => ({
+                    ...current,
+                    salesRepId: event.target.value,
+                    salesRepresentative: selectedRep?.name ?? "",
+                  }));
+                }}
+              >
+                <option value="">اختر مندوب المبيعات</option>
+                {activeSalesReps.map((rep) => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.code} - {rep.name}
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
 
           <Field label="حساب ذمم العميل" required error={customerEditorClientError ?? undefined}>
+            <div className="mb-2 text-sm font-semibold text-gray-900">
+              طريقة ربط حساب الذمم <span className="text-base leading-none text-red-500">*</span>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
@@ -2302,7 +2694,7 @@ export function SalesReceivablesPage() {
           ) : null}
 
           {customerEditor.receivableAccountLinkMode === "EXISTING" ? (
-            <Field label="اختيار حساب ذمم العميل" required>
+            <Field label="حساب ذمم العميل" required>
               <Select value={customerEditor.receivableAccountId} onChange={(event) => {
                 setCustomerEditorClientError(null);
                 setCustomerEditor((current) => ({ ...current, receivableAccountId: event.target.value }));
@@ -2957,6 +3349,7 @@ function flattenPostingAccounts(nodes: AccountTreeNode[]): AccountTreeNode[] {
 async function invalidateSalesReceivables(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["sales-customers"] }),
+    queryClient.invalidateQueries({ queryKey: ["sales-representatives"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-customer-balance"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-customer-transactions"] }),
     queryClient.invalidateQueries({ queryKey: ["sales-quotations"] }),

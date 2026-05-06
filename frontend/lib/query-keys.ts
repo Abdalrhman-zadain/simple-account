@@ -101,6 +101,9 @@ export const queryKeys = {
   salesCustomers(token: string | null, params: CustomersQuery = {}) {
     return ["sales-customers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },
+  salesRepresentatives(token: string | null, params: { status?: string; search?: string } = {}) {
+    return ["sales-representatives", token, normalizeObject(params as Record<string, unknown>)] as const;
+  },
   purchaseSuppliers(token: string | null, params: SuppliersQuery = {}) {
     return ["purchase-suppliers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },

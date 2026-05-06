@@ -289,6 +289,7 @@ Browser or API client
 Resulting accounting meaning:
 
 - customer master records store payment terms, credit limits, tax information, sales representative assignment, and receivable account linkage
+- sales representative assignment is stored in a Sales & Receivables representative registry, separately from the receivable account, so reports, commissions, follow-up, and collections can group customers by representative without changing accounting posting
 - sales quotations move through draft, approval, expiry, conversion, and cancellation states
 - sales orders move through draft, confirmation, and invoicing traceability states before full invoicing
 - sales invoices and credit notes can be drafted, then posted with generated journal entries
@@ -296,6 +297,7 @@ Resulting accounting meaning:
 - invoices carry currency, due date, source quotation/order references, subtotal, discount, tax, and allocation-derived settlement status
 - customer receipts can be initiated from Sales while still using the Phase 2 bank/cash transaction posting flow underneath
 - posting updates customer running balance and links operational documents to journal references
+- invoice and collection accounting uses the customer's receivable account, not the assigned sales representative or employee payable accounts
 - receipt allocation updates invoice outstanding/allocated status and prevents over-allocation
 - aging report buckets outstanding posted invoice balances into current, 31-60, 61-90, and over-90 day buckets using due date when present
 
