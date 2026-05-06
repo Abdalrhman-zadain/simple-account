@@ -106,6 +106,7 @@ export class SalesReceivablesService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await this.ensureUniqueCustomerName(dto.name, tx);
         const receivableAccountId = await this.resolveCustomerReceivableAccount(dto, tx);
 
         return tx.customer.create({
@@ -139,6 +140,9 @@ export class SalesReceivablesService {
     }
     if (dto.receivableAccountId) {
       await this.ensureReceivableAccount(dto.receivableAccountId);
+    }
+    if (dto.name !== undefined) {
+      await this.ensureUniqueCustomerName(dto.name, this.prisma, id);
     }
 
     return this.prisma.customer.update({
@@ -1753,6 +1757,7 @@ export class SalesReceivablesService {
     }
 
     const parentAccount = await this.getCustomerReceivablesParentAccount(db);
+    await this.ensureUniqueCustomerReceivableAccountName(dto.name, parentAccount.id, db);
     await db.accountSubtype.upsert({
       where: { name: CUSTOMER_AUTO_RECEIVABLE_SUBTYPE },
       create: { name: CUSTOMER_AUTO_RECEIVABLE_SUBTYPE, isActive: true },
@@ -1774,6 +1779,51 @@ export class SalesReceivablesService {
     );
 
     return account.id;
+  }
+
+  private async ensureUniqueCustomerName(
+    name: string,
+    db: SalesReceivablesDb,
+    excludeCustomerId?: string,
+  ) {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      throw new BadRequestException("Customer name is required.");
+    }
+
+    const existingCustomer = await db.customer.findFirst({
+      where: {
+        name: { equals: normalizedName, mode: "insensitive" },
+        id: excludeCustomerId ? { not: excludeCustomerId } : undefined,
+      },
+      select: { id: true },
+    });
+
+    if (existingCustomer) {
+      throw new ConflictException("لا يمكن تعريف عميلين بنفس الاسم.");
+    }
+  }
+
+  private async ensureUniqueCustomerReceivableAccountName(
+    name: string,
+    parentAccountId: string,
+    db: SalesReceivablesDb,
+  ) {
+    const normalizedName = name.trim();
+    const existingAccount = await db.account.findFirst({
+      where: {
+        parentAccountId,
+        OR: [
+          { name: { equals: normalizedName, mode: "insensitive" } },
+          { nameAr: { equals: normalizedName, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException("يوجد حساب ذمم بنفس اسم العميل تحت ذمم عملاء.");
+    }
   }
 
   private async getCustomerReceivablesParentAccount(db: SalesReceivablesDb) {

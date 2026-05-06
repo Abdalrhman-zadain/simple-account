@@ -131,6 +131,7 @@ Accounting meaning:
 
 - customer receivable control links each customer to one posting receivable account
 - customer creation can automatically create the linked posting receivable account under `1121000 Customer Receivables / ذمم عملاء`, or link an existing active posting Asset account from that subtree; sales invoices, receipts, and credit notes use the customer's linked posting account rather than receivables header accounts
+- customer names are treated as unique by the Sales & Receivables service, and automatic receivable account creation rejects duplicate detail-account names under `1121000`
 - quotations and sales orders preserve commercial traceability before accounting is created
 - quotation lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so the commercial document remains readable even if the item master changes later
 - sales-order lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so downstream invoicing can inherit the item link without depending on future item-master edits

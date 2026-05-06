@@ -172,6 +172,7 @@ What else to check:
 - sales document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - customer records must remain deactivatable without deleting history
 - customer creation supports either creating a new posting receivable account automatically under `1121000 Customer Receivables / ذمم عملاء` or linking an existing active posting Asset account from that same subtree
+- customer names should remain unique, and automatic customer-receivable account creation must not create a second detail account with the same customer name under `1121000`
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
 - sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, but `itemName`, `description`, and `revenueAccountId` must remain persisted on the quotation line so commercial history does not depend on future item-master edits
