@@ -17,14 +17,24 @@ export class CreateInventoryItemDto {
   @Length(0, 255)
   description?: string;
 
+  @IsOptional()
   @IsString()
   @Length(1, 32)
-  unitOfMeasure!: string;
+  unitOfMeasure?: string;
+
+  @IsString()
+  unitOfMeasureId!: string;
 
   @IsOptional()
   @IsString()
   @Length(0, 120)
   category?: string;
+
+  @IsString()
+  itemGroupId!: string;
+
+  @IsString()
+  itemCategoryId!: string;
 
   @IsEnum(InventoryItemType)
   type!: InventoryItemType;

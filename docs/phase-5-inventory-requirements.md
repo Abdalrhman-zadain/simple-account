@@ -12,6 +12,9 @@ This document captures the initial Phase 5 Inventory requirements baseline in th
 ### Proposed module slices
 
 - `item-master`
+- `item-groups`
+- `item-categories`
+- `units-of-measure`
 - `warehouses`
 - `goods-receipts`
 - `goods-issues`
@@ -21,6 +24,15 @@ This document captures the initial Phase 5 Inventory requirements baseline in th
 - `stock-ledger-inquiry`
 - `posting-accounting`
 - `validation-control`
+
+### Master Data Requirements Addendum
+
+- Document Type: Functional Requirements Addendum
+- Scope: Inventory Master Data
+- Phase: Phase 5 - Stock Control
+- Base Requirements: Existing requirements `REQ-INV-001` to `REQ-INV-060`
+- Added Requirements: New requirements `REQ-INV-061` to `REQ-INV-100`
+- Usage: Append this addendum after the current Phase 5 Inventory requirements baseline.
 
 ## العربية
 
@@ -34,6 +46,9 @@ This document captures the initial Phase 5 Inventory requirements baseline in th
 ### التقسيم المقترح للوحدات الفرعية
 
 - `item-master`
+- `item-groups`
+- `item-categories`
+- `units-of-measure`
 - `warehouses`
 - `goods-receipts`
 - `goods-issues`
@@ -153,3 +168,140 @@ This document captures the initial Phase 5 Inventory requirements baseline in th
 | REQ-INV-058 | The system shall prevent duplicate reference numbers within the same inventory transaction type according to system policy. | يجب أن يمنع النظام تكرار أرقام المراجع داخل نوع الحركة المخزنية نفسه وفق سياسة النظام. |
 | REQ-INV-059 | The system shall maintain a history of all draft, posted, reversed, and adjusted inventory transactions for audit purposes. | يجب أن يحتفظ النظام بسجل لجميع الحركات المخزنية في حالات المسودة والمرحلة والمعكوسة والمسوّاة لأغراض المراجعة والتدقيق. |
 | REQ-INV-060 | The system shall enforce stock availability rules according to configuration, including prevent-negative-stock policy where enabled. | يجب أن يفرض النظام قواعد توفر المخزون وفق الإعدادات، بما في ذلك سياسة منع المخزون السالب عند تفعيلها. |
+
+# Phase 5 - Inventory Module Requirements Addendum
+
+## Item Groups, Item Categories, Group-Category-Material Hierarchy, Validation, Terminology, and Units of Measure
+
+إضافة منفصلة على متطلبات المرحلة الخامسة للمخزون: مجموعات المواد، فئات المواد، علاقة المجموعة والفئة والمادة، قواعد التحقق، توحيد المصطلحات، ووحدات القياس.
+
+## Addendum Metadata | بيانات الإضافة
+
+| Field | Value |
+| --- | --- |
+| Document Type | Functional Requirements Addendum |
+| Scope | Inventory Master Data |
+| Phase | Phase 5 - Stock Control |
+| Base Requirements | Existing requirements: `REQ-INV-001` to `REQ-INV-060` |
+| Added Requirements | New requirements: `REQ-INV-061` to `REQ-INV-100` |
+| Usage | Append this addendum after the current Phase 5 Inventory requirements baseline. |
+
+## 11. Purpose | الهدف
+
+This addendum completes the Inventory Master Data structure by separating item groups, item categories, item/material cards, and units of measure into clear master-data areas. It also standardizes terminology and validates the relationship between group, category, and material.
+
+الهدف من هذه الإضافة هو استكمال بنية البيانات الأساسية للمخزون من خلال فصل مجموعات المواد، فئات المواد، بطاقة المادة، ووحدات القياس، مع توحيد المصطلحات وضبط العلاقة بين المجموعة والفئة والمادة.
+
+## 12. Master Data Structure | هيكل البيانات الأساسي
+
+| Level | English Name | Arabic Name | Purpose |
+| --- | --- | --- | --- |
+| Level 1 | Item Group | مجموعة المواد | Main inventory grouping such as Office Furniture, Electronics, Raw Materials. |
+| Level 2 | Item Category | فئة المادة | Sub-classification under a group such as Chairs, Desks, Printers. |
+| Level 3 | Material / Item Card | بطاقة المادة | The actual stock/service/non-stock item used in transactions. |
+| Support | Unit of Measure | وحدة القياس | Standard unit used on item cards and inventory transactions. |
+
+Approved hierarchy:
+
+```text
+Item Group -> Item Category -> Material / Item Card
+```
+
+العلاقة المعتمدة:
+
+```text
+مجموعة المواد -> فئة المادة -> بطاقة المادة
+```
+
+## 13. Item Groups | مجموعات المواد
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-061 | The system shall allow authorized users to create item group master records. | يجب أن يسمح النظام للمستخدمين المصرح لهم بإنشاء سجلات مجموعات المواد. |
+| REQ-INV-062 | The system shall store item group details including group code, group name, description, parent group where applicable, and status. | يجب أن يحفظ النظام بيانات مجموعة المواد بما يشمل كود المجموعة، اسم المجموعة، الوصف، المجموعة الأب عند الحاجة، والحالة. |
+| REQ-INV-063 | The system shall require a unique item group code for each item group. | يجب أن يطلب النظام كودًا فريدًا لكل مجموعة مواد. |
+| REQ-INV-064 | The system shall allow authorized users to edit item group name, description, parent group, and status according to permissions. | يجب أن يسمح النظام للمستخدمين المصرح لهم بتعديل اسم المجموعة، الوصف، المجموعة الأب، والحالة وفق الصلاحيات. |
+| REQ-INV-065 | The system shall allow item groups to be deactivated while preserving historical item and transaction records. | يجب أن يسمح النظام بتعطيل مجموعات المواد مع الحفاظ على سجلات المواد والحركات التاريخية. |
+| REQ-INV-066 | The system shall prevent deletion of an item group that is linked to item categories, item cards, or historical inventory transactions. | يجب أن يمنع النظام حذف مجموعة مواد مرتبطة بفئات مواد أو بطاقات مواد أو حركات مخزنية تاريخية. |
+| REQ-INV-067 | The system shall allow default inventory, sales, cost of goods sold, and adjustment accounts to be defined at item group level where accounting integration is enabled. | يجب أن يسمح النظام بتحديد حسابات افتراضية للمخزون والمبيعات وتكلفة البضاعة المباعة والتسويات على مستوى مجموعة المواد عند تفعيل التكامل المحاسبي. |
+
+## 14. Item Categories | فئات المواد
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-068 | The system shall allow authorized users to create item category master records. | يجب أن يسمح النظام للمستخدمين المصرح لهم بإنشاء سجلات فئات المواد. |
+| REQ-INV-069 | The system shall store item category details including category code, category name, description, linked item group, and status. | يجب أن يحفظ النظام بيانات فئة المادة بما يشمل كود الفئة، اسم الفئة، الوصف، مجموعة المواد المرتبطة، والحالة. |
+| REQ-INV-070 | The system shall require every item category to belong to one active item group at the time of creation. | يجب أن يطلب النظام أن تتبع كل فئة مادة مجموعة مواد فعالة واحدة عند الإنشاء. |
+| REQ-INV-071 | The system shall prevent creating an item category without selecting an item group. | يجب أن يمنع النظام إنشاء فئة مادة بدون اختيار مجموعة مواد. |
+| REQ-INV-072 | The system shall require a unique item category code according to the system uniqueness policy. | يجب أن يطلب النظام كودًا فريدًا لفئة المادة وفق سياسة التفرد المعتمدة في النظام. |
+| REQ-INV-073 | The system shall allow authorized users to edit item category name, description, linked item group, and status according to permissions and usage restrictions. | يجب أن يسمح النظام للمستخدمين المصرح لهم بتعديل اسم الفئة، الوصف، المجموعة المرتبطة، والحالة وفق الصلاحيات وقيود الاستخدام. |
+| REQ-INV-074 | The system shall allow item categories to be deactivated while preserving linked item and transaction history. | يجب أن يسمح النظام بتعطيل فئات المواد مع الحفاظ على المواد والحركات التاريخية المرتبطة بها. |
+| REQ-INV-075 | The system shall prevent deletion of an item category that is linked to item cards or historical inventory transactions. | يجب أن يمنع النظام حذف فئة مادة مرتبطة ببطاقات مواد أو حركات مخزنية تاريخية. |
+
+## 15. Group -> Category -> Material Hierarchy | علاقة المجموعة والفئة والمادة
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-076 | The system shall enforce the hierarchy Item Group -> Item Category -> Material / Item Card. | يجب أن يفرض النظام العلاقة الهرمية: مجموعة المواد ← فئة المادة ← بطاقة المادة. |
+| REQ-INV-077 | The system shall require each material / item card to be linked to one item group and one item category. | يجب أن يطلب النظام ربط كل بطاقة مادة بمجموعة مواد واحدة وفئة مادة واحدة. |
+| REQ-INV-078 | The system shall require the selected item category on a material / item card to belong to the selected item group. | يجب أن يطلب النظام أن تكون فئة المادة المختارة في بطاقة المادة تابعة لمجموعة المواد المختارة. |
+| REQ-INV-079 | The system shall preserve group and category values on historical transactions even if the related master data is later deactivated. | يجب أن يحافظ النظام على قيم المجموعة والفئة في الحركات التاريخية حتى لو تم تعطيل البيانات الأساسية المرتبطة لاحقًا. |
+| REQ-INV-080 | The system shall allow item group and item category information to be used in inventory search, filtering, reporting, and inquiry screens. | يجب أن يسمح النظام باستخدام معلومات مجموعة المواد وفئة المادة في شاشات البحث والتصفية والتقارير والاستعلامات المخزنية. |
+
+## 16. Validation Between Group and Category | التحقق بين المجموعة والفئة
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-081 | When creating or editing a material / item card, the system shall filter available item categories based on the selected item group. | عند إنشاء أو تعديل بطاقة مادة، يجب أن يقوم النظام بتصفية فئات المواد المتاحة بناءً على مجموعة المواد المختارة. |
+| REQ-INV-082 | The system shall prevent saving a material / item card if the selected category does not belong to the selected group. | يجب أن يمنع النظام حفظ بطاقة المادة إذا كانت الفئة المختارة لا تتبع المجموعة المختارة. |
+| REQ-INV-083 | The system shall prevent selecting inactive item groups when creating new item categories or new material / item cards. | يجب أن يمنع النظام اختيار مجموعات مواد غير فعالة عند إنشاء فئات مواد جديدة أو بطاقات مواد جديدة. |
+| REQ-INV-084 | The system shall prevent selecting inactive item categories when creating new material / item cards. | يجب أن يمنع النظام اختيار فئات مواد غير فعالة عند إنشاء بطاقات مواد جديدة. |
+| REQ-INV-085 | If an item group is changed before saving a material / item card, the system shall clear or revalidate the selected item category. | إذا تم تغيير مجموعة المواد قبل حفظ بطاقة المادة، يجب أن يقوم النظام بمسح فئة المادة المختارة أو إعادة التحقق منها. |
+| REQ-INV-086 | The system shall display a clear validation message when group/category relationships are invalid. | يجب أن يعرض النظام رسالة تحقق واضحة عندما تكون علاقة المجموعة والفئة غير صحيحة. |
+
+## 17. Terminology Standardization | توحيد المصطلحات
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-087 | The system shall use the label "Item Group" in English and "مجموعة المواد" in Arabic for the main inventory grouping level. | يجب أن يستخدم النظام مصطلح "Item Group" بالإنجليزية و"مجموعة المواد" بالعربية لمستوى التصنيف الرئيسي في المخزون. |
+| REQ-INV-088 | The system shall use the label "Item Category" in English and "فئة المادة" in Arabic for the sub-classification level under an item group. | يجب أن يستخدم النظام مصطلح "Item Category" بالإنجليزية و"فئة المادة" بالعربية لمستوى التصنيف الفرعي تحت مجموعة المواد. |
+| REQ-INV-089 | The system shall use the label "Material / Item Card" in English and "بطاقة المادة" in Arabic for the actual stock, non-stock, service, or raw material record. | يجب أن يستخدم النظام مصطلح "Material / Item Card" بالإنجليزية و"بطاقة المادة" بالعربية للسجل الفعلي للمادة المخزنية أو غير المخزنية أو الخدمة أو المادة الخام. |
+| REQ-INV-090 | The system shall avoid using the same Arabic label for item category and material card in the user interface, reports, and validation messages. | يجب أن يتجنب النظام استخدام نفس التسمية العربية لفئة المادة وبطاقة المادة في واجهة المستخدم والتقارير ورسائل التحقق. |
+
+## 18. Units of Measure Master | وحدات القياس
+
+| Req ID | English Requirement | المتطلب بالعربية |
+| --- | --- | --- |
+| REQ-INV-091 | The system shall allow authorized users to create unit of measure master records. | يجب أن يسمح النظام للمستخدمين المصرح لهم بإنشاء سجلات وحدات القياس. |
+| REQ-INV-092 | The system shall store unit of measure details including unit code, unit name, description, unit type where applicable, decimal precision, and status. | يجب أن يحفظ النظام بيانات وحدة القياس بما يشمل كود الوحدة، اسم الوحدة، الوصف، نوع الوحدة عند الحاجة، دقة الكسور العشرية، والحالة. |
+| REQ-INV-093 | The system shall require a unique unit of measure code for each unit. | يجب أن يطلب النظام كودًا فريدًا لكل وحدة قياس. |
+| REQ-INV-094 | The system shall allow authorized users to edit unit of measure name, description, decimal precision, and status according to permissions and usage restrictions. | يجب أن يسمح النظام للمستخدمين المصرح لهم بتعديل اسم وحدة القياس، الوصف، دقة الكسور العشرية، والحالة وفق الصلاحيات وقيود الاستخدام. |
+| REQ-INV-095 | The system shall allow units of measure to be deactivated while preserving historical item and transaction records. | يجب أن يسمح النظام بتعطيل وحدات القياس مع الحفاظ على سجلات المواد والحركات التاريخية. |
+| REQ-INV-096 | The system shall prevent selecting inactive units of measure on new material / item cards and new inventory transaction lines. | يجب أن يمنع النظام اختيار وحدات قياس غير فعالة في بطاقات المواد الجديدة أو أسطر الحركات المخزنية الجديدة. |
+| REQ-INV-097 | The system shall prevent deletion of a unit of measure that is linked to material / item cards or historical inventory transactions. | يجب أن يمنع النظام حذف وحدة قياس مرتبطة ببطاقات مواد أو حركات مخزنية تاريخية. |
+| REQ-INV-098 | The system shall require each material / item card to have one base unit of measure. | يجب أن يطلب النظام أن تحتوي كل بطاقة مادة على وحدة قياس أساسية واحدة. |
+| REQ-INV-099 | The system shall use the base unit of measure as the default unit in inventory balances and stock ledger calculations. | يجب أن يستخدم النظام وحدة القياس الأساسية كوحدة افتراضية في أرصدة المخزون واحتساب سجل المخزون. |
+| REQ-INV-100 | The system shall allow purchase and sales transaction lines to use the item base unit of measure by default unless unit conversion is supported by future configuration. | يجب أن يسمح النظام باستخدام وحدة القياس الأساسية للمادة بشكل افتراضي في أسطر الشراء والبيع ما لم يتم دعم تحويل الوحدات في إعدادات لاحقة. |
+
+## 19. Suggested Update to Existing Item Master Terminology | تعديل مقترح على مصطلحات بطاقة المادة الحالية
+
+The current Item Master requirements can remain in place, but the Arabic labels should be adjusted to avoid confusion between category and item/material. The following wording is recommended for UI and documentation consistency:
+
+يمكن إبقاء متطلبات `Item Master` الحالية كما هي، لكن يفضل تعديل التسميات العربية لتجنب الخلط بين فئة المادة وبطاقة المادة. يوصى باستخدام الصياغة التالية في الواجهة والتوثيق:
+
+| Current / Risky Label | Recommended Label | Reason |
+| --- | --- | --- |
+| بطاقة المادة | بطاقة المادة | Avoid confusion with Item Category. |
+| الصنف | فئة المادة | Use for category/sub-classification only. |
+| اسم الصنف | اسم المادة | Use for the actual item/material record. |
+| فئة المادة | فئة المادة | Keep as the category linked to a group. |
+
+## 20. Implementation Notes | ملاحظات تنفيذية
+
+| English Note | الملاحظة بالعربية |
+| --- | --- |
+| Add new module slice: `item-groups`. | أضف وحدة فرعية جديدة: `item-groups`. |
+| Add new module slice: `item-categories`. | أضف وحدة فرعية جديدة: `item-categories`. |
+| Add new module slice: `units-of-measure`. | أضف وحدة فرعية جديدة: `units-of-measure`. |
+| Keep `item-master` focused on the actual material / item card. | اجعل `item-master` مخصصًا لبطاقة المادة الفعلية. |
+| Use `REQ-INV-061` to `REQ-INV-100` as a direct continuation after the existing 60 requirements. | استخدم المتطلبات من `REQ-INV-061` إلى `REQ-INV-100` كاستكمال مباشر بعد المتطلبات الحالية البالغ عددها 60. |

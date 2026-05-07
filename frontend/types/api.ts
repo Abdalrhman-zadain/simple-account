@@ -227,13 +227,73 @@ export type UpdateInventoryPolicyPayload = {
   costingMethod: InventoryCostingMethod;
 };
 
+export type InventoryItemGroup = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  parentGroupId?: string | null;
+  parentGroup?: Pick<InventoryItemGroup, "id" | "code" | "name" | "isActive"> | null;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  inventoryAccount?: AccountOption | null;
+  cogsAccount?: AccountOption | null;
+  salesAccount?: AccountOption | null;
+  adjustmentAccount?: AccountOption | null;
+  categoryCount: number;
+  itemCount: number;
+  childGroupCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryItemCategory = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  itemGroupId: string;
+  itemGroup: Pick<InventoryItemGroup, "id" | "code" | "name" | "isActive">;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventoryUnitOfMeasure = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  unitType?: string | null;
+  decimalPrecision: number;
+  isActive: boolean;
+  status: "ACTIVE" | "INACTIVE";
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type InventoryItem = {
   id: string;
   code: string;
   name: string;
   description?: string | null;
   unitOfMeasure: string;
+  unitOfMeasureId?: string | null;
+  unitOfMeasureRef?: Pick<
+    InventoryUnitOfMeasure,
+    "id" | "code" | "name" | "decimalPrecision" | "isActive"
+  > | null;
   category?: string | null;
+  itemGroupId?: string | null;
+  itemGroup?: Pick<InventoryItemGroup, "id" | "code" | "name" | "isActive"> | null;
+  itemCategoryId?: string | null;
+  itemCategory?: Pick<
+    InventoryItemCategory,
+    "id" | "code" | "name" | "itemGroupId" | "isActive"
+  > | null;
   type: InventoryItemType;
   reorderLevel: string;
   reorderQuantity: string;
@@ -291,8 +351,19 @@ export type InventoryItemsQuery = {
   isActive?: "true" | "false" | "";
   search?: string;
   type?: InventoryItemType | "";
+  itemGroupId?: string;
+  itemCategoryId?: string;
   page?: number;
   limit?: number;
+};
+
+export type InventoryMasterDataQuery = {
+  isActive?: "true" | "false" | "";
+  search?: string;
+};
+
+export type InventoryItemCategoriesQuery = InventoryMasterDataQuery & {
+  itemGroupId?: string;
 };
 
 export type InventoryItemsResponse = {
@@ -366,8 +437,11 @@ export type CreateInventoryItemPayload = {
   code?: string;
   name: string;
   description?: string;
-  unitOfMeasure: string;
+  unitOfMeasure?: string;
+  unitOfMeasureId: string;
   category?: string;
+  itemGroupId: string;
+  itemCategoryId: string;
   type: InventoryItemType;
   inventoryAccountId?: string;
   cogsAccountId?: string;
@@ -376,6 +450,44 @@ export type CreateInventoryItemPayload = {
   reorderLevel?: string;
   reorderQuantity?: string;
   preferredWarehouseId?: string;
+};
+
+export type CreateInventoryItemGroupPayload = {
+  code?: string;
+  name: string;
+  description?: string;
+  parentGroupId?: string;
+  inventoryAccountId?: string;
+  cogsAccountId?: string;
+  salesAccountId?: string;
+  adjustmentAccountId?: string;
+};
+
+export type UpdateInventoryItemGroupPayload = Partial<CreateInventoryItemGroupPayload> & {
+  isActive?: boolean;
+};
+
+export type CreateInventoryItemCategoryPayload = {
+  code?: string;
+  name: string;
+  description?: string;
+  itemGroupId: string;
+};
+
+export type UpdateInventoryItemCategoryPayload = Partial<CreateInventoryItemCategoryPayload> & {
+  isActive?: boolean;
+};
+
+export type CreateInventoryUnitOfMeasurePayload = {
+  code?: string;
+  name: string;
+  description?: string;
+  unitType?: string;
+  decimalPrecision?: number;
+};
+
+export type UpdateInventoryUnitOfMeasurePayload = Partial<CreateInventoryUnitOfMeasurePayload> & {
+  isActive?: boolean;
 };
 
 export type UpdateInventoryItemPayload = Partial<CreateInventoryItemPayload> & {

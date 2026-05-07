@@ -26,6 +26,11 @@ import {
   InventoryTransfersQuery,
   InventoryWarehouse,
   InventoryPolicy,
+  InventoryItemCategory,
+  InventoryItemCategoriesQuery,
+  InventoryItemGroup,
+  InventoryMasterDataQuery,
+  InventoryUnitOfMeasure,
   InventoryWarehousesQuery,
   AccountSubtype,
   AccountTableRow,
@@ -55,10 +60,13 @@ import {
   SalesRepresentativesQuery,
   CreateDebitNotePayload,
   CreateInventoryItemPayload,
+  CreateInventoryItemCategoryPayload,
   CreateInventoryGoodsIssuePayload,
   CreateInventoryGoodsReceiptPayload,
+  CreateInventoryItemGroupPayload,
   CreateInventoryTransferPayload,
   CreateInventoryAdjustmentPayload,
+  CreateInventoryUnitOfMeasurePayload,
   CreateInventoryWarehousePayload,
   CreateAccountPayload,
   CreateAccountSubtypePayload,
@@ -179,10 +187,13 @@ import {
   UpdateAccountPayload,
   UpdateAccountSubtypePayload,
   UpdateInventoryItemPayload,
+  UpdateInventoryItemCategoryPayload,
   UpdateInventoryGoodsIssuePayload,
   UpdateInventoryGoodsReceiptPayload,
+  UpdateInventoryItemGroupPayload,
   UpdateInventoryTransferPayload,
   UpdateInventoryAdjustmentPayload,
+  UpdateInventoryUnitOfMeasurePayload,
   UpdateInventoryWarehousePayload,
   UpdateInventoryPolicyPayload,
   UpdateBankCashAccountPayload,
@@ -710,6 +721,8 @@ export async function getInventoryItems(
   const searchParams = new URLSearchParams();
   if (params.isActive) searchParams.set("isActive", params.isActive);
   if (params.type) searchParams.set("type", params.type);
+  if (params.itemGroupId) searchParams.set("itemGroupId", params.itemGroupId);
+  if (params.itemCategoryId) searchParams.set("itemCategoryId", params.itemCategoryId);
   if (params.search?.trim()) searchParams.set("search", params.search.trim());
   if (params.page && params.page > 0)
     searchParams.set("page", String(params.page));
@@ -719,6 +732,48 @@ export async function getInventoryItems(
   return apiRequest<InventoryItemsResponse>(`/inventory/items${suffix}`, {
     token,
   });
+}
+
+export async function getInventoryItemGroups(
+  params: InventoryMasterDataQuery = {},
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryItemGroup[]>(`/inventory/item-groups${suffix}`, {
+    token,
+  });
+}
+
+export async function getInventoryItemCategories(
+  params: InventoryItemCategoriesQuery = {},
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.itemGroupId) searchParams.set("itemGroupId", params.itemGroupId);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryItemCategory[]>(
+    `/inventory/item-categories${suffix}`,
+    { token },
+  );
+}
+
+export async function getInventoryUnitsOfMeasure(
+  params: InventoryMasterDataQuery = {},
+  token?: string | null,
+) {
+  const searchParams = new URLSearchParams();
+  if (params.isActive) searchParams.set("isActive", params.isActive);
+  if (params.search?.trim()) searchParams.set("search", params.search.trim());
+  const suffix = searchParams.toString() ? `?${searchParams}` : "";
+  return apiRequest<InventoryUnitOfMeasure[]>(
+    `/inventory/units-of-measure${suffix}`,
+    { token },
+  );
 }
 
 export async function getInventoryWarehouses(
@@ -919,6 +974,39 @@ export async function createInventoryItem(
   });
 }
 
+export async function createInventoryItemGroup(
+  payload: CreateInventoryItemGroupPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemGroup>("/inventory/item-groups", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryItemCategory(
+  payload: CreateInventoryItemCategoryPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemCategory>("/inventory/item-categories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function createInventoryUnitOfMeasure(
+  payload: CreateInventoryUnitOfMeasurePayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryUnitOfMeasure>("/inventory/units-of-measure", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
 export async function createInventoryWarehouse(
   payload: CreateInventoryWarehousePayload,
   token?: string | null,
@@ -984,6 +1072,48 @@ export async function updateInventoryItem(
     body: JSON.stringify(payload),
     token,
   });
+}
+
+export async function updateInventoryItemGroup(
+  id: string,
+  payload: UpdateInventoryItemGroupPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemGroup>(`/inventory/item-groups/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateInventoryItemCategory(
+  id: string,
+  payload: UpdateInventoryItemCategoryPayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemCategory>(
+    `/inventory/item-categories/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      token,
+    },
+  );
+}
+
+export async function updateInventoryUnitOfMeasure(
+  id: string,
+  payload: UpdateInventoryUnitOfMeasurePayload,
+  token?: string | null,
+) {
+  return apiRequest<InventoryUnitOfMeasure>(
+    `/inventory/units-of-measure/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+      token,
+    },
+  );
 }
 
 export async function updateInventoryWarehouse(
@@ -1054,6 +1184,45 @@ export async function deactivateInventoryItem(
     method: "POST",
     token,
   });
+}
+
+export async function deactivateInventoryItemGroup(
+  id: string,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemGroup>(
+    `/inventory/item-groups/${id}/deactivate`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+}
+
+export async function deactivateInventoryItemCategory(
+  id: string,
+  token?: string | null,
+) {
+  return apiRequest<InventoryItemCategory>(
+    `/inventory/item-categories/${id}/deactivate`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+}
+
+export async function deactivateInventoryUnitOfMeasure(
+  id: string,
+  token?: string | null,
+) {
+  return apiRequest<InventoryUnitOfMeasure>(
+    `/inventory/units-of-measure/${id}/deactivate`,
+    {
+      method: "POST",
+      token,
+    },
+  );
 }
 
 export async function deactivateInventoryWarehouse(

@@ -24,10 +24,12 @@ export class ItemMasterController {
     @Query("isActive") isActive?: string,
     @Query("search") search?: string,
     @Query("type") type?: string,
+    @Query("itemGroupId") itemGroupId?: string,
+    @Query("itemCategoryId") itemCategoryId?: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
-    return this.service.list({ isActive, search, type, page, limit });
+    return this.service.list({ isActive, search, type, itemGroupId, itemCategoryId, page, limit });
   }
 
   @Get(":id")

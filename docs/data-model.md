@@ -201,6 +201,9 @@ Accounting meaning:
 Main models:
 
 - `InventoryItem`
+- `InventoryItemGroup`
+- `InventoryItemCategory`
+- `InventoryUnitOfMeasure`
 - `InventoryWarehouse`
 - `InventoryGoodsReceipt`
 - `InventoryGoodsReceiptLine`
@@ -217,7 +220,10 @@ Main models:
 
 Key fields:
 
-- item `code`, `name`, `description`, `unitOfMeasure`, `category`, `type`, and `isActive`
+- item `code`, `name`, `description`, `unitOfMeasure`, `unitOfMeasureId`, `category`, `itemGroupId`, `itemCategoryId`, `type`, and `isActive`
+- item group `code`, `name`, `description`, optional `parentGroupId`, `isActive`, and optional default posting accounts
+- item category `code`, `name`, `description`, required `itemGroupId`, and `isActive`
+- unit of measure `code`, `name`, `description`, optional `unitType`, `decimalPrecision`, and `isActive`
 - default account references `inventoryAccountId`, `cogsAccountId`, `salesAccountId`, and `adjustmentAccountId`
 - replenishment fields `reorderLevel`, `reorderQuantity`, `preferredWarehouseId`, and `preferredWarehouseCode`
 - warehouse `code`, `name`, `address`, `responsiblePerson`, `isTransit`, and `isActive`
@@ -237,8 +243,11 @@ Key fields:
 
 Accounting meaning:
 
-- inventory item master and warehouse master records now persist the foundational Phase 5 inventory setup slices
+- inventory item group, item category, unit-of-measure, item master, and warehouse master records now persist the foundational Phase 5 inventory setup slices
+- item cards enforce the hierarchy `InventoryItemGroup -> InventoryItemCategory -> InventoryItem`, and category selection must belong to the selected active group
+- units of measure are managed as master data and selected as the item card base unit; the legacy item `unitOfMeasure` text remains a compatibility display mirror of the selected unit code
 - each item can store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments
+- item groups can also store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments for future defaulting behavior
 - warehouse masters support active/inactive control, transit/staging classification, and a single default transit location flag
 - goods receipts can be saved as drafts, updated while still in draft, cancelled before posting, and posted to increase both warehouse-level and item-level quantity/value balances
 - goods receipt lines preserve warehouse-linked intake history with item, quantity, unit-cost, and source-reference context

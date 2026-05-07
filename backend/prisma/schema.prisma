@@ -347,6 +347,10 @@ model Account {
   inventoryCogsItems                        InventoryItem[]         @relation("InventoryItemCogsAccount")
   inventorySalesItems                       InventoryItem[]         @relation("InventoryItemSalesAccount")
   inventoryAdjustmentItems                  InventoryItem[]         @relation("InventoryItemAdjustmentAccount")
+  inventoryGroupDefaultInventoryAccounts    InventoryItemGroup[]    @relation("InventoryItemGroupInventoryAccount")
+  inventoryGroupDefaultCogsAccounts         InventoryItemGroup[]    @relation("InventoryItemGroupCogsAccount")
+  inventoryGroupDefaultSalesAccounts        InventoryItemGroup[]    @relation("InventoryItemGroupSalesAccount")
+  inventoryGroupDefaultAdjustmentAccounts   InventoryItemGroup[]    @relation("InventoryItemGroupAdjustmentAccount")
   payrollExpenseComponents                  PayrollComponent[]      @relation("PayrollComponentExpenseAccount")
   payrollLiabilityComponents                PayrollComponent[]      @relation("PayrollComponentLiabilityAccount")
   payrollPeriodPayables                     PayrollPeriod[]         @relation("PayrollPeriodPayableAccount")
@@ -675,7 +679,13 @@ model InventoryItem {
   name                   String
   description            String?
   unitOfMeasure          String
+  unitOfMeasureId        String?
+  unitOfMeasureRef       InventoryUnitOfMeasure?     @relation(fields: [unitOfMeasureId], references: [id], onDelete: Restrict)
   category               String?
+  itemGroupId            String?
+  itemGroup              InventoryItemGroup?         @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
+  itemCategoryId         String?
+  itemCategory           InventoryItemCategory?      @relation(fields: [itemCategoryId], references: [id], onDelete: Restrict)
   type                   InventoryItemType           @default(INVENTORY)
   inventoryAccountId     String?
   inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
@@ -711,7 +721,65 @@ model InventoryItem {
 
   @@index([type, isActive])
   @@index([name])
+  @@index([itemGroupId, itemCategoryId])
+  @@index([unitOfMeasureId])
   @@index([preferredWarehouseId])
+}
+
+model InventoryItemGroup {
+  id                  String                  @id @default(cuid())
+  code                String                  @unique
+  name                String
+  description         String?
+  parentGroupId       String?
+  parentGroup         InventoryItemGroup?     @relation("InventoryItemGroupHierarchy", fields: [parentGroupId], references: [id], onDelete: Restrict)
+  childGroups         InventoryItemGroup[]    @relation("InventoryItemGroupHierarchy")
+  isActive            Boolean                 @default(true)
+  inventoryAccountId  String?
+  inventoryAccount    Account?                @relation("InventoryItemGroupInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  cogsAccountId       String?
+  cogsAccount         Account?                @relation("InventoryItemGroupCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  salesAccountId      String?
+  salesAccount        Account?                @relation("InventoryItemGroupSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  adjustmentAccountId String?
+  adjustmentAccount   Account?                @relation("InventoryItemGroupAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  categories          InventoryItemCategory[]
+  items               InventoryItem[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([isActive, name])
+  @@index([parentGroupId])
+}
+
+model InventoryItemCategory {
+  id          String               @id @default(cuid())
+  code        String               @unique
+  name        String
+  description String?
+  itemGroupId String
+  itemGroup   InventoryItemGroup   @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
+  isActive    Boolean              @default(true)
+  items       InventoryItem[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([itemGroupId, isActive, name])
+}
+
+model InventoryUnitOfMeasure {
+  id               String          @id @default(cuid())
+  code             String          @unique
+  name             String
+  description      String?
+  unitType         String?
+  decimalPrecision Int             @default(0)
+  isActive         Boolean         @default(true)
+  items            InventoryItem[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([isActive, name])
 }
 
 model InventoryPolicy {

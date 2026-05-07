@@ -6,6 +6,9 @@ import {
 import { InventoryItemType, Prisma } from "../../../../generated/prisma";
 
 import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { ItemCategoriesService } from "../item-categories/item-categories.service";
+import { ItemGroupsService } from "../item-groups/item-groups.service";
+import { UnitsOfMeasureService } from "../units-of-measure/units-of-measure.service";
 import { CreateInventoryItemDto } from "./dto/create-inventory-item.dto";
 import { UpdateInventoryItemDto } from "./dto/update-inventory-item.dto";
 
@@ -13,6 +16,8 @@ type InventoryItemListQuery = {
   isActive?: string;
   search?: string;
   type?: string;
+  itemGroupId?: string;
+  itemCategoryId?: string;
   page?: string;
   limit?: string;
 };
@@ -24,6 +29,9 @@ type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
     salesAccount: { select: ItemMasterService["accountSelect"] };
     adjustmentAccount: { select: ItemMasterService["accountSelect"] };
     preferredWarehouse: { select: ItemMasterService["warehouseSelect"] };
+    itemGroup: { select: ItemMasterService["itemGroupSelect"] };
+    itemCategory: { select: ItemMasterService["itemCategorySelect"] };
+    unitOfMeasureRef: { select: ItemMasterService["unitOfMeasureSelect"] };
   };
 }>;
 
@@ -47,7 +55,35 @@ export class ItemMasterService {
     isTransit: true,
   } as const;
 
-  constructor(private readonly prisma: PrismaService) {}
+  readonly itemGroupSelect = {
+    id: true,
+    code: true,
+    name: true,
+    isActive: true,
+  } as const;
+
+  readonly itemCategorySelect = {
+    id: true,
+    code: true,
+    name: true,
+    itemGroupId: true,
+    isActive: true,
+  } as const;
+
+  readonly unitOfMeasureSelect = {
+    id: true,
+    code: true,
+    name: true,
+    decimalPrecision: true,
+    isActive: true,
+  } as const;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly itemGroupsService: ItemGroupsService,
+    private readonly itemCategoriesService: ItemCategoriesService,
+    private readonly unitsOfMeasureService: UnitsOfMeasureService,
+  ) {}
 
   async list(query: InventoryItemListQuery = {}) {
     const page = this.parsePaginationNumber(query.page, {
@@ -70,6 +106,8 @@ export class ItemMasterService {
           ? undefined
           : query.isActive === "true",
       type: this.parseType(query.type),
+      itemGroupId: query.itemGroupId || undefined,
+      itemCategoryId: query.itemCategoryId || undefined,
       OR: search
         ? [
             { code: { contains: search, mode: "insensitive" } },
@@ -77,6 +115,10 @@ export class ItemMasterService {
             { description: { contains: search, mode: "insensitive" } },
             { unitOfMeasure: { contains: search, mode: "insensitive" } },
             { category: { contains: search, mode: "insensitive" } },
+            { itemGroup: { code: { contains: search, mode: "insensitive" } } },
+            { itemGroup: { name: { contains: search, mode: "insensitive" } } },
+            { itemCategory: { code: { contains: search, mode: "insensitive" } } },
+            { itemCategory: { name: { contains: search, mode: "insensitive" } } },
             {
               preferredWarehouseCode: { contains: search, mode: "insensitive" },
             },
@@ -104,6 +146,9 @@ export class ItemMasterService {
           salesAccount: { select: this.accountSelect },
           adjustmentAccount: { select: this.accountSelect },
           preferredWarehouse: { select: this.warehouseSelect },
+          itemGroup: { select: this.itemGroupSelect },
+          itemCategory: { select: this.itemCategorySelect },
+          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
         },
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
         skip,
@@ -135,12 +180,18 @@ export class ItemMasterService {
       salesAccountId,
       adjustmentAccountId,
       preferredWarehouse,
+      itemGroup,
+      itemCategory,
+      unitOfMeasure,
     ] = await Promise.all([
       this.validateInventoryAccount(dto.inventoryAccountId),
       this.validateCogsAccount(dto.cogsAccountId),
       this.validateSalesAccount(dto.salesAccountId),
       this.validateAdjustmentAccount(dto.adjustmentAccountId),
       this.validateWarehouse(dto.preferredWarehouseId),
+      this.itemGroupsService.ensureActiveGroup(dto.itemGroupId),
+      this.itemCategoriesService.ensureActiveCategoryInGroup(dto.itemCategoryId, dto.itemGroupId),
+      this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId),
     ]);
 
     const created = await this.prisma.inventoryItem
@@ -149,8 +200,11 @@ export class ItemMasterService {
           code,
           name: dto.name.trim(),
           description: dto.description?.trim() || null,
-          unitOfMeasure: dto.unitOfMeasure.trim(),
-          category: dto.category?.trim() || null,
+          unitOfMeasure: dto.unitOfMeasure?.trim() || unitOfMeasure.code,
+          unitOfMeasureId: unitOfMeasure.id,
+          category: dto.category?.trim() || itemCategory.name,
+          itemGroupId: itemGroup.id,
+          itemCategoryId: itemCategory.id,
           type: dto.type,
           inventoryAccountId,
           cogsAccountId,
@@ -170,6 +224,9 @@ export class ItemMasterService {
           salesAccount: { select: this.accountSelect },
           adjustmentAccount: { select: this.accountSelect },
           preferredWarehouse: { select: this.warehouseSelect },
+          itemGroup: { select: this.itemGroupSelect },
+          itemCategory: { select: this.itemCategorySelect },
+          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
         },
       })
       .catch((error: unknown) => {
@@ -198,6 +255,9 @@ export class ItemMasterService {
       salesAccountId,
       adjustmentAccountId,
       preferredWarehouse,
+      nextGroup,
+      nextCategory,
+      nextUnit,
     ] = await Promise.all([
       dto.inventoryAccountId !== undefined
         ? this.validateInventoryAccount(dto.inventoryAccountId || undefined)
@@ -214,6 +274,18 @@ export class ItemMasterService {
       dto.preferredWarehouseId !== undefined
         ? this.validateWarehouse(dto.preferredWarehouseId || undefined)
         : Promise.resolve(undefined),
+      dto.itemGroupId !== undefined
+        ? this.itemGroupsService.ensureActiveGroup(dto.itemGroupId)
+        : Promise.resolve(undefined),
+      dto.itemCategoryId !== undefined || dto.itemGroupId !== undefined
+        ? this.itemCategoriesService.ensureActiveCategoryInGroup(
+            dto.itemCategoryId ?? current.itemCategoryId ?? "",
+            dto.itemGroupId ?? current.itemGroupId ?? "",
+          )
+        : Promise.resolve(undefined),
+      dto.unitOfMeasureId !== undefined
+        ? this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId)
+        : Promise.resolve(undefined),
     ]);
 
     const updated = await this.prisma.inventoryItem.update({
@@ -224,9 +296,16 @@ export class ItemMasterService {
           dto.description === undefined
             ? undefined
             : dto.description.trim() || null,
-        unitOfMeasure: dto.unitOfMeasure?.trim(),
+        unitOfMeasure: dto.unitOfMeasure?.trim() || nextUnit?.code,
+        unitOfMeasureId:
+          dto.unitOfMeasureId === undefined ? undefined : nextUnit?.id,
         category:
-          dto.category === undefined ? undefined : dto.category.trim() || null,
+          dto.category === undefined
+            ? nextCategory?.name
+            : dto.category.trim() || nextCategory?.name || null,
+        itemGroupId: dto.itemGroupId === undefined ? undefined : nextGroup?.id,
+        itemCategoryId:
+          dto.itemCategoryId === undefined ? undefined : nextCategory?.id,
         type: dto.type,
         inventoryAccountId,
         cogsAccountId,
@@ -256,6 +335,9 @@ export class ItemMasterService {
         salesAccount: { select: this.accountSelect },
         adjustmentAccount: { select: this.accountSelect },
         preferredWarehouse: { select: this.warehouseSelect },
+        itemGroup: { select: this.itemGroupSelect },
+        itemCategory: { select: this.itemCategorySelect },
+        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
       },
     });
 
@@ -273,6 +355,9 @@ export class ItemMasterService {
         salesAccount: { select: this.accountSelect },
         adjustmentAccount: { select: this.accountSelect },
         preferredWarehouse: { select: this.warehouseSelect },
+        itemGroup: { select: this.itemGroupSelect },
+        itemCategory: { select: this.itemCategorySelect },
+        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
       },
     });
 
@@ -306,6 +391,9 @@ export class ItemMasterService {
         salesAccount: { select: this.accountSelect },
         adjustmentAccount: { select: this.accountSelect },
         preferredWarehouse: { select: this.warehouseSelect },
+        itemGroup: { select: this.itemGroupSelect },
+        itemCategory: { select: this.itemCategorySelect },
+        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
       },
     });
     if (!item) {
@@ -455,7 +543,13 @@ export class ItemMasterService {
       name: row.name,
       description: row.description,
       unitOfMeasure: row.unitOfMeasure,
+      unitOfMeasureId: row.unitOfMeasureId,
+      unitOfMeasureRef: row.unitOfMeasureRef,
       category: row.category,
+      itemGroupId: row.itemGroupId,
+      itemGroup: row.itemGroup,
+      itemCategoryId: row.itemCategoryId,
+      itemCategory: row.itemCategory,
       type: row.type,
       reorderLevel: row.reorderLevel.toString(),
       reorderQuantity: row.reorderQuantity.toString(),

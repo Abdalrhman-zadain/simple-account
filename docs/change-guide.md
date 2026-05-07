@@ -239,6 +239,33 @@ Checks to run:
 - frontend typecheck
 - Prisma generate and migration review when schema changes are introduced
 
+## Add Or Change Phase 5 Inventory Master Data
+
+Where to edit:
+
+- backend `phase-5-inventory-management/inventory/item-groups`
+- backend `phase-5-inventory-management/inventory/item-categories`
+- backend `phase-5-inventory-management/inventory/units-of-measure`
+- backend `phase-5-inventory-management/inventory/item-master` when the material/card relationship changes
+- frontend `features/phase-5-inventory-management/inventory`
+- `backend/prisma/schema.prisma` and migrations when master-data relationships change
+- `docs/phase-5-inventory-requirements.md` when the requirement baseline or terminology changes
+
+What else to check:
+
+- item categories must belong to one active item group at creation time
+- material/item cards must select an active item group, an active category under that group, and an active base unit of measure
+- changing an item group in the UI should clear or revalidate the selected category
+- keep Arabic labels distinct: `مجموعة الأصناف`, `فئة الصنف / التصنيف`, `بطاقة المادة`, and `وحدة القياس`
+- deactivation must preserve historical item and inventory transaction references
+- legacy `unitOfMeasure` and `category` item fields are compatibility/display mirrors; relational IDs own validation
+
+Checks to run:
+
+- Prisma generate and migration review
+- backend build
+- frontend typecheck
+
 ## Start Or Extend Phase 5 Inventory
 
 Where to edit:

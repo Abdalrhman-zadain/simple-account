@@ -99,6 +99,7 @@ What this means for future edits:
 Current limitation:
 
 - item master, warehouses, goods receipts, goods issues, transfers, adjustments, stock-ledger inquiry, warehouse balances, and costing/accounting integration are implemented; posted inventory documents now support reverse status workflows, but reverse currently marks status/audit history only and does not yet create stock-rollback or accounting-reversal entries.
+- inventory master data now includes item groups, item categories, units of measure, and enforced group/category/material selection in the item card UI/API.
 - `docs/phase-5-inventory-requirements.md` remains the planning/reference document for the full inventory roadmap and translation alignment.
 - inventory accounting entries are conditional and only run when `INVENTORY_ACCOUNTING_ENABLED` is enabled.
 - prevent-negative-stock behavior is policy-driven and follows `INVENTORY_PREVENT_NEGATIVE_STOCK` (defaults to enabled).

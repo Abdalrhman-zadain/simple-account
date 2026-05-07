@@ -245,7 +245,7 @@ Current root:
 
 - `inventory`
 
-`inventory` currently implements the `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, `policy`, and shared posting/costing support slices. Posting now maintains warehouse-level balances, movement history, organization-configured costing behavior (`/inventory/policy`), and optional accounting integration through Phase 1 posting services.
+`inventory` currently implements the `item-groups`, `item-categories`, `units-of-measure`, `item-master`, `warehouses`, `goods-receipts`, `goods-issues`, `transfers`, `adjustments`, `stock-ledger`, `policy`, and shared posting/costing support slices. Item cards enforce the group -> category -> material hierarchy and select an active base unit of measure. Posting now maintains warehouse-level balances, movement history, organization-configured costing behavior (`/inventory/policy`), and optional accounting integration through Phase 1 posting services.
 
 ### `backend/src/modules/phase-6-payroll-management`
 

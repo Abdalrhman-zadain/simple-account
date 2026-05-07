@@ -2,6 +2,8 @@ import type {
   AccountsQuery,
   InventoryGoodsIssuesQuery,
   InventoryItemsQuery,
+  InventoryItemCategoriesQuery,
+  InventoryMasterDataQuery,
   InventoryGoodsReceiptsQuery,
   InventoryStockLedgerQuery,
   InventoryTransfersQuery,
@@ -40,6 +42,15 @@ export const queryKeys = {
   },
   inventoryItems(token: string | null, params: InventoryItemsQuery = {}) {
     return ["inventory-items", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryItemGroups(token: string | null, params: InventoryMasterDataQuery = {}) {
+    return ["inventory-item-groups", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryItemCategories(token: string | null, params: InventoryItemCategoriesQuery = {}) {
+    return ["inventory-item-categories", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
+  },
+  inventoryUnitsOfMeasure(token: string | null, params: InventoryMasterDataQuery = {}) {
+    return ["inventory-units-of-measure", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },
   inventoryWarehouses(token: string | null, params: InventoryWarehousesQuery = {}) {
     return ["inventory-warehouses", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;

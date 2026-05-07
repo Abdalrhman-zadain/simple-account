@@ -20,8 +20,20 @@ export class UpdateInventoryItemDto {
 
   @IsOptional()
   @IsString()
+  unitOfMeasureId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   category?: string;
+
+  @IsOptional()
+  @IsString()
+  itemGroupId?: string;
+
+  @IsOptional()
+  @IsString()
+  itemCategoryId?: string;
 
   @IsOptional()
   @IsEnum(InventoryItemType)
