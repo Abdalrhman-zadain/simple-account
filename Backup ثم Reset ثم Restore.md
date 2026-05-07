@@ -146,3 +146,5 @@ pg_restore -h localhost -p 15432 -U simple_account_user -d simple_account --data
 2026-05-04,RCPT-001,قبض من عميل,500,0
 2026-05-04,PAY-001,دفع لمورد,0,200
 2026-05-04,FEE-001,رسوم بنكية,0,10
+
+
