@@ -678,6 +678,8 @@ model InventoryItem {
   code                   String                      @unique
   name                   String
   description            String?
+  barcode                String?                     @unique
+  qrCodeValue            String?                     @db.Text
   unitOfMeasure          String
   unitOfMeasureId        String?
   unitOfMeasureRef       InventoryUnitOfMeasure?     @relation(fields: [unitOfMeasureId], references: [id], onDelete: Restrict)
@@ -723,6 +725,7 @@ model InventoryItem {
   @@index([name])
   @@index([itemGroupId, itemCategoryId])
   @@index([unitOfMeasureId])
+  @@index([barcode])
   @@index([preferredWarehouseId])
 }
 

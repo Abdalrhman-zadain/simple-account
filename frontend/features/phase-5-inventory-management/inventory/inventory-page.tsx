@@ -23,6 +23,7 @@ import {
   deactivateInventoryItemGroup,
   deactivateInventoryUnitOfMeasure,
   deactivateInventoryWarehouse,
+  generateInventoryBarcode,
   getAccountOptions,
   getInventoryAdjustments,
   getInventoryGoodsIssues,
@@ -122,6 +123,8 @@ type ItemEditorState = {
   code: string;
   name: string;
   description: string;
+  barcode: string;
+  qrCodeValue: string;
   unitOfMeasure: string;
   unitOfMeasureId: string;
   category: string;
@@ -255,6 +258,8 @@ function createEmptyItemEditor(): ItemEditorState {
     code: "",
     name: "",
     description: "",
+    barcode: "",
+    qrCodeValue: "",
     unitOfMeasure: "",
     unitOfMeasureId: "",
     category: "",
@@ -415,6 +420,7 @@ export function InventoryPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [itemEditor, setItemEditor] = useState<ItemEditorState>(createEmptyItemEditor);
+  const [showItemCodePreview, setShowItemCodePreview] = useState(false);
 
   const [itemGroupSearch, setItemGroupSearch] = useState("");
   const [itemGroupStatusFilter, setItemGroupStatusFilter] = useState<"" | "true" | "false">("");
@@ -869,6 +875,14 @@ export function InventoryPage() {
     },
   });
 
+  const generateBarcodeMutation = useMutation({
+    mutationFn: () => generateInventoryBarcode(token),
+    onSuccess: ({ barcode }) => {
+      setItemEditor((current) => ({ ...current, barcode }));
+      setShowItemCodePreview(true);
+    },
+  });
+
   const deactivateItemMutation = useMutation({
     mutationFn: (id: string) => deactivateInventoryItem(id, token),
     onSuccess: async (updated) => {
@@ -1163,7 +1177,12 @@ export function InventoryPage() {
   const transferFormError = getTransferFormError(transferEditor);
   const adjustmentFormError = getAdjustmentFormError(adjustmentEditor);
 
-  const itemMutationError = getMutationError(createItemMutation.error, updateItemMutation.error, deactivateItemMutation.error);
+  const itemMutationError = getMutationError(
+    createItemMutation.error,
+    updateItemMutation.error,
+    deactivateItemMutation.error,
+    generateBarcodeMutation.error,
+  );
   const itemGroupMutationError = getMutationError(
     createItemGroupMutation.error,
     updateItemGroupMutation.error,
@@ -1597,6 +1616,8 @@ export function InventoryPage() {
                     <DetailCard label={t("inventory.detail.valuation")} value={selectedItem.valuationAmount} />
                     <DetailCard label={t("inventory.detail.reorderLevel")} value={selectedItem.reorderLevel} />
                     <DetailCard label={t("inventory.detail.reorderQuantity")} value={selectedItem.reorderQuantity} />
+                    <DetailCard label="الباركود" value={selectedItem.barcode || t("inventory.emptyValue")} />
+                    <DetailCard label="رمز QR" value={selectedItem.qrCodeValue || t("inventory.emptyValue")} />
                   </div>
 
                   {selectedItem.description ? <p className="text-sm leading-7 text-gray-600">{selectedItem.description}</p> : null}
@@ -1613,6 +1634,23 @@ export function InventoryPage() {
                         : selectedItem.preferredWarehouseCode || t("inventory.emptyValue")}
                     </div>
                   </div>
+
+                  {selectedItem.barcode || selectedItem.qrCodeValue ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <PreviewCard
+                        label="الباركود"
+                        value={selectedItem.barcode}
+                        emptyMessage="لا يوجد باركود بعد."
+                        svg={selectedItem.barcode ? getBarcodePreviewSvg(selectedItem.barcode) : null}
+                      />
+                      <PreviewCard
+                        label="رمز QR"
+                        value={selectedItem.qrCodeValue}
+                        emptyMessage="لا يوجد رمز QR بعد."
+                        svg={selectedItem.qrCodeValue ? getQrPreviewSvg(selectedItem.qrCodeValue) : null}
+                      />
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-3 pt-2">
                     <Button variant="secondary" onClick={() => openEditItem(selectedItem)} disabled={!selectedItem.isActive}>
@@ -2671,6 +2709,43 @@ export function InventoryPage() {
                   placeholder={t("inventory.placeholder.selectItemGroup")}
                 />
               </Field>
+              <Field label="الباركود" hint="إدخال يدوي أو عبر الماسح أو توليد تلقائي.">
+                <div className="space-y-3">
+                  <Input value={itemEditor.barcode} onChange={(event) => setItemEditor((current) => ({ ...current, barcode: event.target.value }))} />
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => void generateBarcodeMutation.mutate()}
+                      disabled={generateBarcodeMutation.isPending}
+                    >
+                      توليد باركود
+                    </Button>
+                    <Button variant="secondary" onClick={previewItemCodes}>
+                      معاينة
+                    </Button>
+                  </div>
+                </div>
+              </Field>
+              <Field label="رمز QR" hint="يعتمد على كود المادة والاسم والباركود والمجموعة والفئة ووحدة القياس.">
+                <div className="space-y-3">
+                  <Textarea
+                    value={itemEditor.qrCodeValue}
+                    rows={4}
+                    onChange={(event) => setItemEditor((current) => ({ ...current, qrCodeValue: event.target.value }))}
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="secondary" onClick={generateQrForItemEditor}>
+                      توليد QR
+                    </Button>
+                    <Button variant="secondary" onClick={previewItemCodes}>
+                      معاينة
+                    </Button>
+                    <Button variant="secondary" onClick={printItemLabel}>
+                      طباعة الملصق
+                    </Button>
+                  </div>
+                </div>
+              </Field>
               <Field label={t("inventory.field.itemCategory")}>
                 <ItemCategorySelect
                   value={itemEditor.itemCategoryId}
@@ -2729,6 +2804,23 @@ export function InventoryPage() {
             <Field label={t("inventory.field.description")}>
               <Textarea value={itemEditor.description} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, description: event.target.value }))} />
             </Field>
+
+            {showItemCodePreview ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <PreviewCard
+                  label="الباركود"
+                  value={itemEditor.barcode}
+                  emptyMessage="أدخل باركود أو استخدم توليد باركود."
+                  svg={itemEditor.barcode.trim() ? getBarcodePreviewSvg(itemEditor.barcode.trim()) : null}
+                />
+                <PreviewCard
+                  label="رمز QR"
+                  value={itemEditor.qrCodeValue}
+                  emptyMessage="استخدم توليد QR لإنشاء القيمة والمعاينة."
+                  svg={itemEditor.qrCodeValue.trim() ? getQrPreviewSvg(itemEditor.qrCodeValue.trim()) : null}
+                />
+              </div>
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("inventory.field.inventoryAccount")}>
@@ -3482,11 +3574,13 @@ export function InventoryPage() {
 
   function openNewItem() {
     setItemEditor(createEmptyItemEditor());
+    setShowItemCodePreview(false);
     setIsItemEditorOpen(true);
   }
 
   function openEditItem(item: InventoryItem) {
     setItemEditor(mapItemToEditor(item));
+    setShowItemCodePreview(Boolean(item.barcode || item.qrCodeValue));
     setIsItemEditorOpen(true);
   }
 
@@ -3521,6 +3615,95 @@ export function InventoryPage() {
   function openEditUnit(unit: InventoryUnitOfMeasure) {
     setUnitEditor(mapUnitToEditor(unit));
     setIsUnitEditorOpen(true);
+  }
+
+  function generateQrForItemEditor() {
+    const nextCode =
+      itemEditor.code.trim() || buildInternalItemCodeCandidate();
+    const nextBarcode = itemEditor.barcode.trim();
+
+    const nextQrValue = buildInventoryQrValue({
+      code: nextCode,
+      name: itemEditor.name,
+      barcode: nextBarcode,
+      category: itemEditor.category,
+      unitOfMeasure: itemEditor.unitOfMeasure,
+      itemGroup: itemEditor.type,
+    });
+
+    setItemEditor((current) => ({
+      ...current,
+      code: nextCode,
+      qrCodeValue: nextQrValue,
+    }));
+    setShowItemCodePreview(true);
+  }
+
+  function previewItemCodes() {
+    setShowItemCodePreview(true);
+  }
+
+  function printItemLabel() {
+    const barcode = itemEditor.barcode.trim();
+    const qrCodeValue = itemEditor.qrCodeValue.trim();
+    if (!barcode && !qrCodeValue) {
+      setShowItemCodePreview(true);
+      return;
+    }
+
+    const labelWindow = window.open("", "_blank", "noopener,noreferrer,width=920,height=720");
+    if (!labelWindow) {
+      return;
+    }
+
+    const title = itemEditor.name.trim() || itemEditor.code.trim() || "Item Label";
+    const barcodeSvg = barcode ? getBarcodePreviewSvg(barcode) : "";
+    const qrSvg = qrCodeValue ? getQrPreviewSvg(qrCodeValue) : "";
+
+    labelWindow.document.write(`<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(title)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+      .label { border: 1px solid #d1d5db; border-radius: 18px; padding: 24px; }
+      .meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+      .meta div { border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; }
+      .title { font-size: 24px; font-weight: 700; margin: 0 0 8px; }
+      .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+      .section { border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; }
+      .label-name { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+      .value { margin-top: 10px; font-size: 13px; word-break: break-all; }
+      @media print { body { margin: 0; } .label { border: 0; border-radius: 0; } }
+    </style>
+  </head>
+  <body>
+    <div class="label">
+      <h1 class="title">${escapeHtml(title)}</h1>
+      <div class="meta">
+        <div><strong>كود المادة:</strong> ${escapeHtml(itemEditor.code.trim() || "—")}</div>
+        <div><strong>وحدة القياس:</strong> ${escapeHtml(itemEditor.unitOfMeasure.trim() || "—")}</div>
+        <div><strong>الفئة:</strong> ${escapeHtml(itemEditor.category.trim() || "—")}</div>
+        <div><strong>المجموعة:</strong> ${escapeHtml(itemEditor.type)}</div>
+      </div>
+      <div class="row">
+        <div class="section">
+          <div class="label-name">الباركود</div>
+          ${barcodeSvg || "<div>—</div>"}
+          <div class="value">${escapeHtml(barcode || "—")}</div>
+        </div>
+        <div class="section">
+          <div class="label-name">رمز QR</div>
+          ${qrSvg || "<div>—</div>"}
+          <div class="value">${escapeHtml(qrCodeValue || "—")}</div>
+        </div>
+      </div>
+    </div>
+    <script>window.onload = () => window.print();</script>
+  </body>
+</html>`);
+    labelWindow.document.close();
   }
 
   function openNewWarehouse() {
@@ -3769,6 +3952,7 @@ export function InventoryPage() {
   function closeItemEditor() {
     setIsItemEditorOpen(false);
     setItemEditor(createEmptyItemEditor());
+    setShowItemCodePreview(false);
   }
 
   function closeItemGroupEditor() {
@@ -3829,6 +4013,33 @@ function DetailCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-gray-200 px-4 py-3">
       <div className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{label}</div>
       <div className="mt-1 text-lg font-bold text-gray-900">{value}</div>
+    </div>
+  );
+}
+
+function PreviewCard({
+  label,
+  value,
+  emptyMessage,
+  svg,
+}: {
+  label: string;
+  value?: string | null;
+  emptyMessage: string;
+  svg?: string | null;
+}) {
+  return (
+    <div className="rounded-3xl border border-gray-200 bg-white p-4">
+      <div className="mb-3 text-sm font-black text-gray-900">{label}</div>
+      {svg ? (
+        <div
+          className="overflow-hidden rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3"
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      ) : (
+        <EmptyState message={emptyMessage} />
+      )}
+      <div className="mt-3 break-all text-xs leading-6 text-gray-600">{value || "—"}</div>
     </div>
   );
 }
@@ -4161,6 +4372,8 @@ function mapItemToEditor(item: InventoryItem): ItemEditorState {
     code: item.code,
     name: item.name,
     description: item.description ?? "",
+    barcode: item.barcode ?? "",
+    qrCodeValue: item.qrCodeValue ?? "",
     unitOfMeasure: item.unitOfMeasure,
     unitOfMeasureId: item.unitOfMeasureRef?.id ?? item.unitOfMeasureId ?? "",
     category: item.category ?? "",
@@ -4303,6 +4516,8 @@ function mapItemEditorToPayload(editor: ItemEditorState) {
     code: editor.code.trim() || undefined,
     name: editor.name.trim(),
     description: editor.description.trim() || undefined,
+    barcode: editor.barcode.trim() || undefined,
+    qrCodeValue: editor.qrCodeValue.trim() || undefined,
     unitOfMeasure: editor.unitOfMeasure.trim(),
     unitOfMeasureId: editor.unitOfMeasureId,
     category: editor.category.trim() || undefined,
@@ -4445,6 +4660,9 @@ function getItemFormError(editor: ItemEditorState) {
   if (!editor.itemGroupId) return "Item group is required. مجموعة الأصناف مطلوبة.";
   if (!editor.itemCategoryId) return "Item category is required. فئة الصنف / التصنيف مطلوبة.";
   if (!editor.unitOfMeasureId) return "Base unit of measure is required. وحدة القياس الأساسية مطلوبة.";
+  if (!editor.name.trim()) return "Item name is required. اسم الصنف مطلوب.";
+  if (!editor.unitOfMeasure.trim()) return "Unit of measure is required. وحدة القياس مطلوبة.";
+  if (editor.barcode.trim().length > 120) return "Barcode is too long. الباركود طويل جدًا.";
   if (editor.reorderLevel.trim() && Number.isNaN(Number(editor.reorderLevel))) {
     return "Reorder level must be numeric. يجب أن يكون حد إعادة الطلب رقميا.";
   }
@@ -4600,4 +4818,142 @@ function formatVariance(systemQuantity: string, countedQuantity: string) {
     return "";
   }
   return String(counted - system);
+}
+
+function buildInternalItemCodeCandidate() {
+  const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const suffix =
+    `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  return `ITEM-${compactDate}-${suffix}`;
+}
+
+function buildInventoryQrValue({
+  code,
+  name,
+  barcode,
+  category,
+  unitOfMeasure,
+  itemGroup,
+}: {
+  code: string;
+  name: string;
+  barcode: string;
+  category: string;
+  unitOfMeasure: string;
+  itemGroup: string;
+}) {
+  return JSON.stringify(
+    {
+      itemCode: code.trim(),
+      itemName: name.trim(),
+      barcode: barcode.trim(),
+      itemGroup: itemGroup.trim(),
+      itemCategory: category.trim(),
+      unitOfMeasure: unitOfMeasure.trim(),
+    },
+    null,
+    0,
+  );
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function getBarcodePreviewSvg(value: string) {
+  const bits: number[] = [1, 0, 1, 0, 1, 0];
+
+  for (const char of value) {
+    const binary = char.charCodeAt(0).toString(2).padStart(8, "0");
+    for (const bit of binary) {
+      bits.push(bit === "1" ? 1 : 0);
+    }
+    bits.push(0);
+  }
+
+  bits.push(1, 0, 1, 0, 1, 0, 1);
+
+  const barWidth = 2;
+  const width = bits.length * barWidth + 24;
+  const rects = bits
+    .map((bit, index) =>
+      bit
+        ? `<rect x="${12 + index * barWidth}" y="8" width="${barWidth}" height="68" fill="#111827" />`
+        : "",
+    )
+    .join("");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} 96" width="100%" height="160" role="img" aria-label="Barcode preview">
+  <rect width="${width}" height="96" rx="16" fill="#ffffff" />
+  ${rects}
+  <text x="${width / 2}" y="90" text-anchor="middle" font-family="monospace" font-size="12" fill="#111827">${escapeHtml(value)}</text>
+</svg>`;
+}
+
+function getQrPreviewSvg(value: string) {
+  const size = 25;
+  const cell = 7;
+  const margin = 2;
+  const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => false));
+
+  paintFinder(matrix, 0, 0);
+  paintFinder(matrix, size - 7, 0);
+  paintFinder(matrix, 0, size - 7);
+
+  let state = 2166136261;
+  for (const char of value) {
+    state ^= char.charCodeAt(0);
+    state = Math.imul(state, 16777619);
+  }
+
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      if (isFinderZone(size, row, column)) {
+        continue;
+      }
+      state ^= row * size + column + 1;
+      state = Math.imul(state, 2246822519);
+      matrix[row][column] = (state >>> 29) % 2 === 0;
+    }
+  }
+
+  const viewSize = (size + margin * 2) * cell;
+  const rects: string[] = [];
+  for (let row = 0; row < size; row += 1) {
+    for (let column = 0; column < size; column += 1) {
+      if (!matrix[row][column]) {
+        continue;
+      }
+      rects.push(
+        `<rect x="${(column + margin) * cell}" y="${(row + margin) * cell}" width="${cell}" height="${cell}" fill="#111827" />`,
+      );
+    }
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewSize} ${viewSize}" width="100%" height="220" role="img" aria-label="QR preview">
+  <rect width="${viewSize}" height="${viewSize}" rx="16" fill="#ffffff" />
+  ${rects.join("")}
+</svg>`;
+}
+
+function paintFinder(matrix: boolean[][], startColumn: number, startRow: number) {
+  for (let row = 0; row < 7; row += 1) {
+    for (let column = 0; column < 7; column += 1) {
+      const isBorder = row === 0 || row === 6 || column === 0 || column === 6;
+      const isCenter = row >= 2 && row <= 4 && column >= 2 && column <= 4;
+      matrix[startRow + row][startColumn + column] = isBorder || isCenter;
+    }
+  }
+}
+
+function isFinderZone(size: number, row: number, column: number) {
+  const inTopLeft = row < 7 && column < 7;
+  const inTopRight = row < 7 && column >= size - 7;
+  const inBottomLeft = row >= size - 7 && column < 7;
+  return inTopLeft || inTopRight || inBottomLeft;
 }

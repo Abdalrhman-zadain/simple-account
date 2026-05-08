@@ -157,9 +157,46 @@ npm run prisma:studio
 
 Prisma Studio usually opens at:
 
-```text
+````text
 http://localhost:5555
+
+## Seeding the database
+
+From the `backend` folder, run the seed script to populate demo data.
+
+Prerequisites:
+- Ensure `DATABASE_URL` points to a running PostgreSQL instance (you can start one with the project's Docker compose).
+
+Recommended commands (run from the project root or `backend`):
+
+```powershell
+cd backend
+# start local postgres (if not already running)
+npm run db:up
+
+# install dependencies (if needed)
+npm install
+
+# generate Prisma client
+npm run prisma:generate
+
+# run the Prisma seed (reads the "prisma.seed" entry from backend/package.json)
+npx prisma db seed
+````
+
+Alternative (runs the TypeScript seed file directly):
+
+```powershell
+npx ts-node prisma/seed.ts
 ```
+
+Notes:
+
+- The seed script truncates public tables and inserts demo/test data — back up any important data first.
+- If you use `pnpm`, replace `npm install` with `pnpm install`.
+- If `npx prisma db seed` fails, verify `DATABASE_URL` and that Postgres is reachable.
+
+````
 
 ## Run Tests
 
@@ -170,7 +207,7 @@ Run the backend Jest test suite from the backend folder:
 ```powershell
 cd C:\Users\Dell\OneDrive\Desktop\work_project\simple-account\backend
 npm test
-```
+````
 
 To keep the backend tests running while you edit code:
 

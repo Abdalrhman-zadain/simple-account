@@ -281,6 +281,9 @@ What else to check:
 - keep the inventory module split by subdomain ownership such as item master, warehouses, goods receipts, issues, transfers, adjustments, costing, inquiry, posting/accounting, and validation/control
 - inventory list reads (`/inventory/items`, `/inventory/goods-receipts`, `/inventory/goods-issues`, `/inventory/transfers`, `/inventory/adjustments`, `/inventory/stock-ledger`) should use `page`/`limit` and keep frontend pagination state/controls in the owning Phase 5 feature page
 - item records that point to a preferred warehouse should reference the Phase 5 warehouse master slice instead of introducing parallel free-text warehouse registries
+- item barcode values must remain unique across all inventory items; use the dedicated item-master workflow for manual entry, scanner entry, or internal barcode generation
+- QR data for item cards should be stored as text/value only and generated from item master fields in the owning Phase 5 UI/workflow; preview images should remain derived UI output rather than database content
+- barcode/QR additions must stay operational only and must not create Phase 1 journal entries or other accounting postings
 - route files must stay thin and compose the owning Phase 5 feature page
 - valuation method changes should flow through `GET/PATCH /inventory/policy`; use `INVENTORY_COSTING_METHOD` only as fallback bootstrap/default behavior
 - stock movement posting must reuse Phase 1 journal-entry and posting services whenever accounting integration is enabled instead of writing ledger effects directly

@@ -15,6 +15,16 @@ export class UpdateInventoryItemDto {
 
   @IsOptional()
   @IsString()
+  @Length(1, 120)
+  barcode?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 4000)
+  qrCodeValue?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(1, 32)
   unitOfMeasure?: string;
 

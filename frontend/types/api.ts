@@ -280,6 +280,8 @@ export type InventoryItem = {
   code: string;
   name: string;
   description?: string | null;
+  barcode?: string | null;
+  qrCodeValue?: string | null;
   unitOfMeasure: string;
   unitOfMeasureId?: string | null;
   unitOfMeasureRef?: Pick<
@@ -437,6 +439,8 @@ export type CreateInventoryItemPayload = {
   code?: string;
   name: string;
   description?: string;
+  barcode?: string;
+  qrCodeValue?: string;
   unitOfMeasure?: string;
   unitOfMeasureId: string;
   category?: string;
@@ -492,6 +496,10 @@ export type UpdateInventoryUnitOfMeasurePayload = Partial<CreateInventoryUnitOfM
 
 export type UpdateInventoryItemPayload = Partial<CreateInventoryItemPayload> & {
   isActive?: boolean;
+};
+
+export type GenerateInventoryBarcodeResponse = {
+  barcode: string;
 };
 
 export type CreateInventoryWarehousePayload = {

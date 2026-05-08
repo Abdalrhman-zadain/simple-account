@@ -32,6 +32,11 @@ export class ItemMasterController {
     return this.service.list({ isActive, search, type, itemGroupId, itemCategoryId, page, limit });
   }
 
+  @Post("generate-barcode")
+  generateBarcode() {
+    return this.service.generateBarcode();
+  }
+
   @Get(":id")
   getById(@Param("id") id: string) {
     return this.service.getById(id);

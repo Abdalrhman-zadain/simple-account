@@ -105,6 +105,7 @@ import {
   CreateSalesOrderPayload,
   CreateSalesQuotationPayload,
   CreateTransferPayload,
+  GenerateInventoryBarcodeResponse,
   CreateJournalEntryPayload,
   CreateJournalEntryTypePayload,
   CreatePaymentMethodTypePayload,
@@ -1005,6 +1006,16 @@ export async function createInventoryUnitOfMeasure(
     body: JSON.stringify(payload),
     token,
   });
+}
+
+export async function generateInventoryBarcode(token?: string | null) {
+  return apiRequest<GenerateInventoryBarcodeResponse>(
+    "/inventory/items/generate-barcode",
+    {
+      method: "POST",
+      token,
+    },
+  );
 }
 
 export async function createInventoryWarehouse(

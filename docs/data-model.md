@@ -220,7 +220,7 @@ Main models:
 
 Key fields:
 
-- item `code`, `name`, `description`, `unitOfMeasure`, `unitOfMeasureId`, `category`, `itemGroupId`, `itemCategoryId`, `type`, and `isActive`
+- item `code`, `name`, `description`, optional unique `barcode`, optional `qrCodeValue`, `unitOfMeasure`, `unitOfMeasureId`, `category`, `itemGroupId`, `itemCategoryId`, `type`, and `isActive`
 - item group `code`, `name`, `description`, optional `parentGroupId`, `isActive`, and optional default posting accounts
 - item category `code`, `name`, `description`, required `itemGroupId`, and `isActive`
 - unit of measure `code`, `name`, `description`, optional `unitType`, `decimalPrecision`, and `isActive`
@@ -246,6 +246,9 @@ Accounting meaning:
 - inventory item group, item category, unit-of-measure, item master, and warehouse master records now persist the foundational Phase 5 inventory setup slices
 - item cards enforce the hierarchy `InventoryItemGroup -> InventoryItemCategory -> InventoryItem`, and category selection must belong to the selected active group
 - units of measure are managed as master data and selected as the item card base unit; the legacy item `unitOfMeasure` text remains a compatibility display mirror of the selected unit code
+- item cards can now store a unique operational barcode plus QR payload text used for scan workflows, label preview/printing, stocktaking, sales, and purchase identification
+- only the QR text/value is stored; preview images are generated in the UI and are not persisted in the database
+- barcode/QR values are operational identifiers only and do not create journal entries or direct accounting effects
 - each item can store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments
 - item groups can also store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments for future defaulting behavior
 - warehouse masters support active/inactive control, transit/staging classification, and a single default transit location flag

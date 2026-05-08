@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  InternalServerErrorException,
   Injectable,
 } from "@nestjs/common";
 import { InventoryItemType, Prisma } from "../../../../generated/prisma";
@@ -113,6 +114,8 @@ export class ItemMasterService {
             { code: { contains: search, mode: "insensitive" } },
             { name: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
+            { barcode: { contains: search, mode: "insensitive" } },
+            { qrCodeValue: { contains: search, mode: "insensitive" } },
             { unitOfMeasure: { contains: search, mode: "insensitive" } },
             { category: { contains: search, mode: "insensitive" } },
             { itemGroup: { code: { contains: search, mode: "insensitive" } } },
@@ -172,8 +175,28 @@ export class ItemMasterService {
     return this.mapItem(item);
   }
 
+  async generateBarcode() {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const barcode = this.buildBarcodeCandidate();
+      const existing = await this.prisma.inventoryItem.findUnique({
+        where: { barcode },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return { barcode };
+      }
+    }
+
+    throw new InternalServerErrorException(
+      "Could not generate a unique barcode.",
+    );
+  }
+
   async create(dto: CreateInventoryItemDto) {
     const code = dto.code?.trim() || this.generateReference("ITEM");
+    const barcode = this.normalizeOptionalText(dto.barcode);
+    const qrCodeValue = this.normalizeOptionalText(dto.qrCodeValue);
     const [
       inventoryAccountId,
       cogsAccountId,
@@ -183,6 +206,7 @@ export class ItemMasterService {
       itemGroup,
       itemCategory,
       unitOfMeasure,
+      uniqueBarcode,
     ] = await Promise.all([
       this.validateInventoryAccount(dto.inventoryAccountId),
       this.validateCogsAccount(dto.cogsAccountId),
@@ -192,6 +216,7 @@ export class ItemMasterService {
       this.itemGroupsService.ensureActiveGroup(dto.itemGroupId),
       this.itemCategoriesService.ensureActiveCategoryInGroup(dto.itemCategoryId, dto.itemGroupId),
       this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId),
+      this.ensureUniqueBarcode(barcode),
     ]);
 
     const created = await this.prisma.inventoryItem
@@ -200,6 +225,8 @@ export class ItemMasterService {
           code,
           name: dto.name.trim(),
           description: dto.description?.trim() || null,
+          barcode: uniqueBarcode,
+          qrCodeValue,
           unitOfMeasure: dto.unitOfMeasure?.trim() || unitOfMeasure.code,
           unitOfMeasureId: unitOfMeasure.id,
           category: dto.category?.trim() || itemCategory.name,
@@ -235,6 +262,9 @@ export class ItemMasterService {
             "An inventory item with this code already exists.",
           );
         }
+        if (this.isBarcodeConflict(error)) {
+          throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
+        }
         throw error;
       });
 
@@ -249,6 +279,15 @@ export class ItemMasterService {
       );
     }
 
+    const barcode =
+      dto.barcode === undefined
+        ? undefined
+        : this.normalizeOptionalText(dto.barcode);
+    const qrCodeValue =
+      dto.qrCodeValue === undefined
+        ? undefined
+        : this.normalizeOptionalText(dto.qrCodeValue);
+
     const [
       inventoryAccountId,
       cogsAccountId,
@@ -258,6 +297,7 @@ export class ItemMasterService {
       nextGroup,
       nextCategory,
       nextUnit,
+      uniqueBarcode,
     ] = await Promise.all([
       dto.inventoryAccountId !== undefined
         ? this.validateInventoryAccount(dto.inventoryAccountId || undefined)
@@ -286,60 +326,73 @@ export class ItemMasterService {
       dto.unitOfMeasureId !== undefined
         ? this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId)
         : Promise.resolve(undefined),
+      dto.barcode !== undefined
+        ? this.ensureUniqueBarcode(barcode, id)
+        : Promise.resolve(undefined),
     ]);
 
-    const updated = await this.prisma.inventoryItem.update({
-      where: { id },
-      data: {
-        name: dto.name?.trim(),
-        description:
-          dto.description === undefined
-            ? undefined
-            : dto.description.trim() || null,
-        unitOfMeasure: dto.unitOfMeasure?.trim() || nextUnit?.code,
-        unitOfMeasureId:
-          dto.unitOfMeasureId === undefined ? undefined : nextUnit?.id,
-        category:
-          dto.category === undefined
-            ? nextCategory?.name
-            : dto.category.trim() || nextCategory?.name || null,
-        itemGroupId: dto.itemGroupId === undefined ? undefined : nextGroup?.id,
-        itemCategoryId:
-          dto.itemCategoryId === undefined ? undefined : nextCategory?.id,
-        type: dto.type,
-        inventoryAccountId,
-        cogsAccountId,
-        salesAccountId,
-        adjustmentAccountId,
-        reorderLevel:
-          dto.reorderLevel === undefined
-            ? undefined
-            : this.parseDecimal(dto.reorderLevel, "Reorder level"),
-        reorderQuantity:
-          dto.reorderQuantity === undefined
-            ? undefined
-            : this.parseDecimal(dto.reorderQuantity, "Reorder quantity"),
-        preferredWarehouseId:
-          dto.preferredWarehouseId === undefined
-            ? undefined
-            : (preferredWarehouse?.id ?? null),
-        preferredWarehouseCode:
-          dto.preferredWarehouseId === undefined
-            ? undefined
-            : (preferredWarehouse?.code ?? null),
-        isActive: dto.isActive,
-      },
-      include: {
-        inventoryAccount: { select: this.accountSelect },
-        cogsAccount: { select: this.accountSelect },
-        salesAccount: { select: this.accountSelect },
-        adjustmentAccount: { select: this.accountSelect },
-        preferredWarehouse: { select: this.warehouseSelect },
-        itemGroup: { select: this.itemGroupSelect },
-        itemCategory: { select: this.itemCategorySelect },
-        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-      },
-    });
+    const updated = await this.prisma.inventoryItem
+      .update({
+        where: { id },
+        data: {
+          name: dto.name?.trim(),
+          description:
+            dto.description === undefined
+              ? undefined
+              : dto.description.trim() || null,
+          barcode: dto.barcode === undefined ? undefined : (uniqueBarcode ?? null),
+          qrCodeValue:
+            dto.qrCodeValue === undefined ? undefined : (qrCodeValue ?? null),
+          unitOfMeasure: dto.unitOfMeasure?.trim() || nextUnit?.code,
+          unitOfMeasureId:
+            dto.unitOfMeasureId === undefined ? undefined : nextUnit?.id,
+          category:
+            dto.category === undefined
+              ? nextCategory?.name
+              : dto.category.trim() || nextCategory?.name || null,
+          itemGroupId: dto.itemGroupId === undefined ? undefined : nextGroup?.id,
+          itemCategoryId:
+            dto.itemCategoryId === undefined ? undefined : nextCategory?.id,
+          type: dto.type,
+          inventoryAccountId,
+          cogsAccountId,
+          salesAccountId,
+          adjustmentAccountId,
+          reorderLevel:
+            dto.reorderLevel === undefined
+              ? undefined
+              : this.parseDecimal(dto.reorderLevel, "Reorder level"),
+          reorderQuantity:
+            dto.reorderQuantity === undefined
+              ? undefined
+              : this.parseDecimal(dto.reorderQuantity, "Reorder quantity"),
+          preferredWarehouseId:
+            dto.preferredWarehouseId === undefined
+              ? undefined
+              : (preferredWarehouse?.id ?? null),
+          preferredWarehouseCode:
+            dto.preferredWarehouseId === undefined
+              ? undefined
+              : (preferredWarehouse?.code ?? null),
+          isActive: dto.isActive,
+        },
+        include: {
+          inventoryAccount: { select: this.accountSelect },
+          cogsAccount: { select: this.accountSelect },
+          salesAccount: { select: this.accountSelect },
+          adjustmentAccount: { select: this.accountSelect },
+          preferredWarehouse: { select: this.warehouseSelect },
+          itemGroup: { select: this.itemGroupSelect },
+          itemCategory: { select: this.itemCategorySelect },
+          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
+        },
+      })
+      .catch((error: unknown) => {
+        if (this.isBarcodeConflict(error)) {
+          throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
+        }
+        throw error;
+      });
 
     return this.mapItem(updated);
   }
@@ -542,6 +595,8 @@ export class ItemMasterService {
       code: row.code,
       name: row.name,
       description: row.description,
+      barcode: row.barcode,
+      qrCodeValue: row.qrCodeValue,
       unitOfMeasure: row.unitOfMeasure,
       unitOfMeasureId: row.unitOfMeasureId,
       unitOfMeasureRef: row.unitOfMeasureRef,
@@ -585,6 +640,50 @@ export class ItemMasterService {
       error.code === "P2002" &&
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes("code")
+    );
+  }
+
+  private async ensureUniqueBarcode(barcode?: string | null, excludeId?: string) {
+    const normalized = this.normalizeOptionalText(barcode);
+    if (!normalized) {
+      return null;
+    }
+
+    const existing = await this.prisma.inventoryItem.findFirst({
+      where: {
+        barcode: normalized,
+        id: excludeId ? { not: excludeId } : undefined,
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
+    }
+
+    return normalized;
+  }
+
+  private normalizeOptionalText(value?: string | null) {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
+  }
+
+  private buildBarcodeCandidate() {
+    const epoch = Date.now().toString().slice(-11);
+    const random = Math.floor(Math.random() * 90 + 10).toString();
+    return `29${epoch}${random}`;
+  }
+
+  private isBarcodeConflict(error: unknown) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return false;
+    }
+
+    return (
+      error.code === "P2002" &&
+      Array.isArray(error.meta?.target) &&
+      error.meta.target.includes("barcode")
     );
   }
 }
