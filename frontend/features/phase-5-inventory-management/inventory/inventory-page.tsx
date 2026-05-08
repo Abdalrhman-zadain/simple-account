@@ -3,6 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import {
+  LuFileText as FileText,
+  LuPackage2 as Package2,
+  LuSave as Save,
+} from "react-icons/lu";
 
 import {
   cancelInventoryAdjustment,
@@ -2691,8 +2696,22 @@ export function InventoryPage() {
         </section>
 
         <SidePanel isOpen={isItemEditorOpen} onClose={closeItemEditor} title={itemEditor.id ? t("inventory.editor.editTitle") : t("inventory.editor.createTitle")}>
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="-mx-6 -my-6 flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-6 py-6">
+              <div className="space-y-5">
+                <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <Package2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-extrabold text-slate-900">
+                        {itemEditor.id ? t("inventory.editor.editTitle") : t("inventory.editor.createTitle")}
+                      </div>
+                      <div className="text-sm text-slate-500">{t("inventory.description.items")}</div>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-slate-50/70 [&_select]:border-slate-200 [&_select]:bg-slate-50/70 [&_textarea]:border-slate-200 [&_textarea]:bg-slate-50/70">
               <Field label={t("inventory.field.code")} hint={t("inventory.field.codeHint")}>
                 <Input value={itemEditor.code} onChange={(event) => setItemEditor((current) => ({ ...current, code: event.target.value }))} />
               </Field>
@@ -2801,9 +2820,9 @@ export function InventoryPage() {
               </Field>
             </div>
 
-            <Field label={t("inventory.field.description")}>
-              <Textarea value={itemEditor.description} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
+                  <Field label={t("inventory.field.description")}>
+                    <Textarea value={itemEditor.description} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, description: event.target.value }))} />
+                  </Field>
 
             {showItemCodePreview ? (
               <div className="grid gap-4 lg:grid-cols-2">
@@ -2822,7 +2841,19 @@ export function InventoryPage() {
               </div>
             ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2">
+                </section>
+
+                <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-extrabold text-slate-900">Linked Accounts</div>
+                      <div className="text-sm text-slate-500">Inventory, cost, sales, and adjustment accounts.</div>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 [&_select]:border-slate-200 [&_select]:bg-slate-50/70">
               <Field label={t("inventory.field.inventoryAccount")}>
                 <AccountSelect
                   value={itemEditor.inventoryAccountId}
@@ -2855,28 +2886,35 @@ export function InventoryPage() {
                   placeholder={t("inventory.placeholder.selectAccount")}
                 />
               </Field>
+                  </div>
+                </section>
+
+                {itemFormError ? <ErrorBox message={itemFormError} /> : null}
+                {itemMutationError ? <ErrorBox message={itemMutationError} /> : null}
+              </div>
             </div>
 
-            {itemFormError ? <ErrorBox message={itemFormError} /> : null}
-            {itemMutationError ? <ErrorBox message={itemMutationError} /> : null}
-
-            <div className="flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={closeItemEditor}>
-                {t("inventory.button.cancel")}
-              </Button>
-              <Button
-                onClick={() => {
-                  if (itemFormError) return;
-                  if (itemEditor.id) {
-                    void updateItemMutation.mutate();
-                    return;
-                  }
-                  void createItemMutation.mutate();
-                }}
-                disabled={Boolean(itemFormError) || createItemMutation.isPending || updateItemMutation.isPending}
-              >
-                {itemEditor.id ? t("inventory.button.save") : t("inventory.button.create")}
-              </Button>
+            <div className="border-t border-slate-200 bg-white px-6 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button variant="secondary" className="rounded-2xl px-6" onClick={closeItemEditor}>
+                  {t("inventory.button.cancel")}
+                </Button>
+                <Button
+                  className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                  onClick={() => {
+                    if (itemFormError) return;
+                    if (itemEditor.id) {
+                      void updateItemMutation.mutate();
+                      return;
+                    }
+                    void createItemMutation.mutate();
+                  }}
+                  disabled={Boolean(itemFormError) || createItemMutation.isPending || updateItemMutation.isPending}
+                >
+                  <Save className="h-4 w-4" />
+                  {itemEditor.id ? t("inventory.button.save") : t("inventory.button.create")}
+                </Button>
+              </div>
             </div>
           </div>
         </SidePanel>
