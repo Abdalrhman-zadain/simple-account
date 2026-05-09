@@ -1,6 +1,32 @@
-import { IsEnum, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsEnum, IsOptional, IsString, Length, Matches, ValidateNested } from 'class-validator';
 
 import { InventoryItemType } from '../../../../../generated/prisma';
+
+export class InventoryItemUnitConversionDto {
+  @IsString()
+  unitId!: string;
+
+  @Matches(/^\d+(\.\d{1,6})?$/)
+  conversionFactorToBaseUnit!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  barcode?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  defaultSalesPrice?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  defaultPurchasePrice?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isBaseUnit?: boolean;
+}
 
 export class CreateInventoryItemDto {
   @IsOptional()
@@ -16,6 +42,21 @@ export class CreateInventoryItemDto {
   @IsString()
   @Length(0, 255)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 4000)
+  internalNotes?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  itemImageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 4000)
+  attachmentsText?: string;
 
   @IsOptional()
   @IsString()
@@ -61,7 +102,36 @@ export class CreateInventoryItemDto {
 
   @IsOptional()
   @IsString()
+  salesReturnAccountId?: string;
+
+  @IsOptional()
+  @IsString()
   adjustmentAccountId?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  defaultSalesPrice?: string;
+
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,4})?$/)
+  defaultPurchasePrice?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 12)
+  currencyCode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  taxable?: boolean;
+
+  @IsOptional()
+  @IsString()
+  defaultTaxId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  trackInventory?: boolean;
 
   @IsOptional()
   @Matches(/^-?\d+(\.\d{1,4})?$/)
@@ -74,4 +144,10 @@ export class CreateInventoryItemDto {
   @IsOptional()
   @IsString()
   preferredWarehouseId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => InventoryItemUnitConversionDto)
+  unitConversions?: InventoryItemUnitConversionDto[];
 }

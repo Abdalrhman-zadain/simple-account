@@ -257,6 +257,9 @@ What else to check:
 - material/item cards must select an active item group, an active category under that group, and an active base unit of measure
 - changing an item group in the UI should clear or revalidate the selected category
 - keep Arabic labels distinct: `مجموعة الأصناف`, `فئة الصنف / التصنيف`, `بطاقة المادة`, and `وحدة القياس`
+- item-card pricing fields are suggestion/default values only; they must not be treated as inventory valuation or actual stock cost
+- item-card unit conversion setup must always keep the base-unit row with factor `1`, block duplicate units, and keep conversion factors visible in the owning form/UI
+- unit and item barcodes must remain unique across both the item master barcode field and per-unit conversion rows
 - deactivation must preserve historical item and inventory transaction references
 - legacy `unitOfMeasure` and `category` item fields are compatibility/display mirrors; relational IDs own validation
 

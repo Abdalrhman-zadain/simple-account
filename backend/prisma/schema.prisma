@@ -346,6 +346,7 @@ model Account {
   inventoryDefaultItems                     InventoryItem[]         @relation("InventoryItemInventoryAccount")
   inventoryCogsItems                        InventoryItem[]         @relation("InventoryItemCogsAccount")
   inventorySalesItems                       InventoryItem[]         @relation("InventoryItemSalesAccount")
+  inventorySalesReturnItems                 InventoryItem[]         @relation("InventoryItemSalesReturnAccount")
   inventoryAdjustmentItems                  InventoryItem[]         @relation("InventoryItemAdjustmentAccount")
   inventoryGroupDefaultInventoryAccounts    InventoryItemGroup[]    @relation("InventoryItemGroupInventoryAccount")
   inventoryGroupDefaultCogsAccounts         InventoryItemGroup[]    @relation("InventoryItemGroupCogsAccount")
@@ -521,6 +522,7 @@ model Tax {
   salesOrderLines      SalesOrderLine[]
   salesInvoiceLines    SalesInvoiceLine[]
   creditNoteLines      CreditNoteLine[]
+  inventoryItems       InventoryItem[]       @relation("InventoryItemDefaultTax")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -678,6 +680,9 @@ model InventoryItem {
   code                   String                      @unique
   name                   String
   description            String?
+  internalNotes          String?                     @db.Text
+  itemImageUrl           String?
+  attachmentsText        String?                     @db.Text
   barcode                String?                     @unique
   qrCodeValue            String?                     @db.Text
   unitOfMeasure          String
@@ -695,8 +700,17 @@ model InventoryItem {
   cogsAccount            Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
   salesAccountId         String?
   salesAccount           Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  salesReturnAccountId   String?
+  salesReturnAccount     Account?                    @relation("InventoryItemSalesReturnAccount", fields: [salesReturnAccountId], references: [id], onDelete: Restrict)
   adjustmentAccountId    String?
   adjustmentAccount      Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  defaultSalesPrice      Decimal?                    @db.Decimal(18, 4)
+  defaultPurchasePrice   Decimal?                    @db.Decimal(18, 4)
+  currencyCode           String?                     @db.VarChar(12)
+  taxable                Boolean                     @default(false)
+  defaultTaxId           String?
+  defaultTax             Tax?                        @relation("InventoryItemDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
+  trackInventory         Boolean                     @default(true)
   reorderLevel           Decimal                     @default(0) @db.Decimal(18, 4)
   reorderQuantity        Decimal                     @default(0) @db.Decimal(18, 4)
   preferredWarehouseId   String?
@@ -715,6 +729,7 @@ model InventoryItem {
   purchaseRequestLines   PurchaseRequestLine[]       @relation("PurchaseRequestLineInventoryItem")
   purchaseOrderLines     PurchaseOrderLine[]         @relation("PurchaseOrderLineInventoryItem")
   purchaseInvoiceLines   PurchaseInvoiceLine[]
+  unitConversions        InventoryItemUnitConversion[]
   warehouseBalances      InventoryWarehouseBalance[]
   costLayers             InventoryCostLayer[]
   stockMovements         InventoryStockMovement[]
@@ -727,6 +742,8 @@ model InventoryItem {
   @@index([unitOfMeasureId])
   @@index([barcode])
   @@index([preferredWarehouseId])
+  @@index([defaultTaxId])
+  @@index([salesReturnAccountId])
 }
 
 model InventoryItemGroup {
@@ -779,10 +796,31 @@ model InventoryUnitOfMeasure {
   decimalPrecision Int             @default(0)
   isActive         Boolean         @default(true)
   items            InventoryItem[]
+  itemConversions  InventoryItemUnitConversion[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
   @@index([isActive, name])
+}
+
+model InventoryItemUnitConversion {
+  id                         String                 @id @default(cuid())
+  inventoryItemId            String
+  inventoryItem              InventoryItem          @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  unitId                     String
+  unit                       InventoryUnitOfMeasure @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  conversionFactorToBaseUnit Decimal                @db.Decimal(18, 6)
+  barcode                    String?                @unique
+  defaultSalesPrice          Decimal?               @db.Decimal(18, 4)
+  defaultPurchasePrice       Decimal?               @db.Decimal(18, 4)
+  isBaseUnit                 Boolean                @default(false)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+
+  @@unique([inventoryItemId, unitId])
+  @@index([inventoryItemId])
+  @@index([unitId])
+  @@index([barcode])
 }
 
 model InventoryPolicy {

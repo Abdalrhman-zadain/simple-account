@@ -154,11 +154,13 @@ export function SidePanel({
   onClose,
   title,
   children,
+  panelClassName,
 }: {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  panelClassName?: string;
 }) {
   return (
     <div className={cn(
@@ -168,7 +170,8 @@ export function SidePanel({
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className={cn(
         "absolute inset-y-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl transition-transform duration-300 transform sm:inset-y-4 sm:right-4 sm:h-[calc(100vh-2rem)] sm:rounded-3xl sm:border sm:border-gray-200",
-        isOpen ? "translate-x-0" : "translate-x-full"
+        isOpen ? "translate-x-0" : "translate-x-full",
+        panelClassName,
       )}>
         <div className="flex h-full flex-col border-l border-gray-200 sm:border-l-0">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-gray-50 p-6">

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LuFileText as FileText,
   LuPackage2 as Package2,
@@ -29,6 +29,7 @@ import {
   deactivateInventoryUnitOfMeasure,
   deactivateInventoryWarehouse,
   generateInventoryBarcode,
+  getActiveTaxes,
   getAccountOptions,
   getInventoryAdjustments,
   getInventoryGoodsIssues,
@@ -75,6 +76,7 @@ import type {
   InventoryItem,
   InventoryItemCategory,
   InventoryItemGroup,
+  InventoryItemUnitConversion,
   InventoryIssueStatus,
   InventoryCostingMethod,
   InventoryItemType,
@@ -128,6 +130,9 @@ type ItemEditorState = {
   code: string;
   name: string;
   description: string;
+  internalNotes: string;
+  itemImageUrl: string;
+  attachmentsText: string;
   barcode: string;
   qrCodeValue: string;
   unitOfMeasure: string;
@@ -136,13 +141,31 @@ type ItemEditorState = {
   itemGroupId: string;
   itemCategoryId: string;
   type: InventoryItemType;
+  defaultSalesPrice: string;
+  defaultPurchasePrice: string;
+  currencyCode: string;
+  taxable: boolean;
+  defaultTaxId: string;
+  trackInventory: boolean;
   inventoryAccountId: string;
   cogsAccountId: string;
   salesAccountId: string;
+  salesReturnAccountId: string;
   adjustmentAccountId: string;
   reorderLevel: string;
   reorderQuantity: string;
   preferredWarehouseId: string;
+  unitConversions: ItemUnitConversionEditorState[];
+};
+
+type ItemUnitConversionEditorState = {
+  key: string;
+  unitId: string;
+  conversionFactorToBaseUnit: string;
+  barcode: string;
+  defaultSalesPrice: string;
+  defaultPurchasePrice: string;
+  isBaseUnit: boolean;
 };
 
 type ItemGroupEditorState = {
@@ -263,6 +286,9 @@ function createEmptyItemEditor(): ItemEditorState {
     code: "",
     name: "",
     description: "",
+    internalNotes: "",
+    itemImageUrl: "",
+    attachmentsText: "",
     barcode: "",
     qrCodeValue: "",
     unitOfMeasure: "",
@@ -271,13 +297,36 @@ function createEmptyItemEditor(): ItemEditorState {
     itemGroupId: "",
     itemCategoryId: "",
     type: "INVENTORY",
+    defaultSalesPrice: "",
+    defaultPurchasePrice: "",
+    currencyCode: "JOD",
+    taxable: false,
+    defaultTaxId: "",
+    trackInventory: true,
     inventoryAccountId: "",
     cogsAccountId: "",
     salesAccountId: "",
+    salesReturnAccountId: "",
     adjustmentAccountId: "",
     reorderLevel: "0",
     reorderQuantity: "0",
     preferredWarehouseId: "",
+    unitConversions: [],
+  };
+}
+
+function createUnitConversionEditor(
+  partial: Partial<ItemUnitConversionEditorState> = {},
+): ItemUnitConversionEditorState {
+  return {
+    key: Math.random().toString(36).slice(2, 10),
+    unitId: "",
+    conversionFactorToBaseUnit: "",
+    barcode: "",
+    defaultSalesPrice: "",
+    defaultPurchasePrice: "",
+    isBaseUnit: false,
+    ...partial,
   };
 }
 
@@ -425,6 +474,7 @@ export function InventoryPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isItemEditorOpen, setIsItemEditorOpen] = useState(false);
   const [itemEditor, setItemEditor] = useState<ItemEditorState>(createEmptyItemEditor);
+  const itemSaveModeRef = useRef<"save" | "saveAndClose">("saveAndClose");
   const [showItemCodePreview, setShowItemCodePreview] = useState(false);
 
   const [itemGroupSearch, setItemGroupSearch] = useState("");
@@ -727,6 +777,12 @@ export function InventoryPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const activeTaxesQuery = useQuery({
+    queryKey: ["taxes", "active", token],
+    queryFn: () => getActiveTaxes(token),
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     if (inventoryPolicyQuery.data?.costingMethod) {
       setCostingMethodDraft(inventoryPolicyQuery.data.costingMethod);
@@ -867,7 +923,11 @@ export function InventoryPage() {
     onSuccess: async (created) => {
       await queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
       setSelectedItemId(created.id);
-      closeItemEditor();
+      setItemEditor(mapItemToEditor(created));
+      setShowItemCodePreview(Boolean(created.barcode || created.qrCodeValue));
+      if (itemSaveModeRef.current === "saveAndClose") {
+        closeItemEditor();
+      }
     },
   });
 
@@ -876,7 +936,11 @@ export function InventoryPage() {
     onSuccess: async (updated) => {
       await queryClient.invalidateQueries({ queryKey: ["inventory-items"] });
       setSelectedItemId(updated.id);
-      closeItemEditor();
+      setItemEditor(mapItemToEditor(updated));
+      setShowItemCodePreview(Boolean(updated.barcode || updated.qrCodeValue));
+      if (itemSaveModeRef.current === "saveAndClose") {
+        closeItemEditor();
+      }
     },
   });
 
@@ -1115,7 +1179,13 @@ export function InventoryPage() {
   const activeItemGroups = activeItemGroupsQuery.data ?? itemGroups.filter((row) => row.isActive);
   const activeItemCategories = activeItemCategoriesQuery.data ?? itemCategories.filter((row) => row.isActive);
   const activeUnitsOfMeasure = activeUnitsQuery.data ?? unitsOfMeasure.filter((row) => row.isActive);
+  const activeTaxes = activeTaxesQuery.data ?? [];
   const itemEditorCategories = activeItemCategories.filter((row) => row.itemGroupId === itemEditor.itemGroupId);
+  const inventorySettingsDisabled = itemEditor.type === "NON_STOCK" || itemEditor.type === "SERVICE" || !itemEditor.trackInventory;
+  useEffect(() => {
+    setItemEditor((current) => ensureBaseUnitConversionRow(current, activeUnitsOfMeasure));
+  }, [activeUnitsOfMeasure, itemEditor.unitOfMeasureId]);
+
   const itemTotal = itemsResponse?.total ?? 0;
   const itemTotalPages = itemsResponse?.totalPages ?? 1;
   const itemRangeStart = itemTotal === 0 ? 0 : (itemPage - 1) * INVENTORY_ITEMS_PAGE_SIZE + 1;
@@ -2695,197 +2765,437 @@ export function InventoryPage() {
           </Card>
         </section>
 
-        <SidePanel isOpen={isItemEditorOpen} onClose={closeItemEditor} title={itemEditor.id ? t("inventory.editor.editTitle") : t("inventory.editor.createTitle")}>
+        <SidePanel
+          isOpen={isItemEditorOpen}
+          onClose={closeItemEditor}
+          title={itemEditor.id ? t("inventory.editor.editTitle") : t("inventory.editor.createTitle")}
+          panelClassName="max-w-[1480px]"
+        >
           <div className="-mx-6 -my-6 flex max-h-[calc(100vh-8rem)] flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-6 py-6">
-              <div className="space-y-5">
+            <div dir="rtl" className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-6 py-6 arabic-ui">
+              <div className="space-y-5 text-right">
                 <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                      <Package2 className="h-5 w-5" />
-                    </div>
+                  <div className="mb-5 flex items-center justify-end gap-3">
                     <div>
                       <div className="text-lg font-extrabold text-slate-900">
                         {itemEditor.id ? t("inventory.editor.editTitle") : t("inventory.editor.createTitle")}
                       </div>
                       <div className="text-sm text-slate-500">{t("inventory.description.items")}</div>
                     </div>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-slate-50/70 [&_select]:border-slate-200 [&_select]:bg-slate-50/70 [&_textarea]:border-slate-200 [&_textarea]:bg-slate-50/70">
-              <Field label={t("inventory.field.code")} hint={t("inventory.field.codeHint")}>
-                <Input value={itemEditor.code} onChange={(event) => setItemEditor((current) => ({ ...current, code: event.target.value }))} />
-              </Field>
-              <Field label={t("inventory.field.name")}>
-                <Input value={itemEditor.name} onChange={(event) => setItemEditor((current) => ({ ...current, name: event.target.value }))} />
-              </Field>
-              <Field label={t("inventory.field.itemGroup")}>
-                <ItemGroupSelect
-                  value={itemEditor.itemGroupId}
-                  onChange={(value) =>
-                    setItemEditor((current) => ({ ...current, itemGroupId: value, itemCategoryId: "" }))
-                  }
-                  options={activeItemGroups}
-                  placeholder={t("inventory.placeholder.selectItemGroup")}
-                />
-              </Field>
-              <Field label="الباركود" hint="إدخال يدوي أو عبر الماسح أو توليد تلقائي.">
-                <div className="space-y-3">
-                  <Input value={itemEditor.barcode} onChange={(event) => setItemEditor((current) => ({ ...current, barcode: event.target.value }))} />
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => void generateBarcodeMutation.mutate()}
-                      disabled={generateBarcodeMutation.isPending}
-                    >
-                      توليد باركود
-                    </Button>
-                    <Button variant="secondary" onClick={previewItemCodes}>
-                      معاينة
-                    </Button>
-                  </div>
-                </div>
-              </Field>
-              <Field label="رمز QR" hint="يعتمد على كود المادة والاسم والباركود والمجموعة والفئة ووحدة القياس.">
-                <div className="space-y-3">
-                  <Textarea
-                    value={itemEditor.qrCodeValue}
-                    rows={4}
-                    onChange={(event) => setItemEditor((current) => ({ ...current, qrCodeValue: event.target.value }))}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <Button variant="secondary" onClick={generateQrForItemEditor}>
-                      توليد QR
-                    </Button>
-                    <Button variant="secondary" onClick={previewItemCodes}>
-                      معاينة
-                    </Button>
-                    <Button variant="secondary" onClick={printItemLabel}>
-                      طباعة الملصق
-                    </Button>
-                  </div>
-                </div>
-              </Field>
-              <Field label={t("inventory.field.itemCategory")}>
-                <ItemCategorySelect
-                  value={itemEditor.itemCategoryId}
-                  onChange={(value) => {
-                    const category = activeItemCategories.find((row) => row.id === value);
-                    setItemEditor((current) => ({
-                      ...current,
-                      itemCategoryId: value,
-                      category: category?.name ?? current.category,
-                    }));
-                  }}
-                  options={itemEditorCategories}
-                  placeholder={t("inventory.placeholder.selectItemCategory")}
-                />
-              </Field>
-              <Field label={t("inventory.field.unitOfMeasure")}>
-                <UnitSelect
-                  value={itemEditor.unitOfMeasureId}
-                  onChange={(value) => {
-                    const unit = activeUnitsOfMeasure.find((row) => row.id === value);
-                    setItemEditor((current) => ({
-                      ...current,
-                      unitOfMeasureId: value,
-                      unitOfMeasure: unit?.code ?? current.unitOfMeasure,
-                    }));
-                  }}
-                  options={activeUnitsOfMeasure}
-                  placeholder={t("inventory.placeholder.selectUnit")}
-                />
-              </Field>
-              <Field label={t("inventory.field.type")}>
-                <Select value={itemEditor.type} onChange={(event) => setItemEditor((current) => ({ ...current, type: event.target.value as InventoryItemType }))}>
-                  {ITEM_TYPE_OPTIONS.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`inventory.type.${type}`)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("inventory.field.preferredWarehouse")}>
-                <WarehouseSelect
-                  value={itemEditor.preferredWarehouseId}
-                  onChange={(value) => setItemEditor((current) => ({ ...current, preferredWarehouseId: value }))}
-                  options={warehouses.filter((row) => row.isActive)}
-                  placeholder={t("inventory.placeholder.selectWarehouse")}
-                />
-              </Field>
-              <Field label={t("inventory.field.reorderLevel")}>
-                <Input value={itemEditor.reorderLevel} onChange={(event) => setItemEditor((current) => ({ ...current, reorderLevel: event.target.value }))} />
-              </Field>
-              <Field label={t("inventory.field.reorderQuantity")}>
-                <Input value={itemEditor.reorderQuantity} onChange={(event) => setItemEditor((current) => ({ ...current, reorderQuantity: event.target.value }))} />
-              </Field>
-            </div>
-
-                  <Field label={t("inventory.field.description")}>
-                    <Textarea value={itemEditor.description} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, description: event.target.value }))} />
-                  </Field>
-
-            {showItemCodePreview ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <PreviewCard
-                  label="الباركود"
-                  value={itemEditor.barcode}
-                  emptyMessage="أدخل باركود أو استخدم توليد باركود."
-                  svg={itemEditor.barcode.trim() ? getBarcodePreviewSvg(itemEditor.barcode.trim()) : null}
-                />
-                <PreviewCard
-                  label="رمز QR"
-                  value={itemEditor.qrCodeValue}
-                  emptyMessage="استخدم توليد QR لإنشاء القيمة والمعاينة."
-                  svg={itemEditor.qrCodeValue.trim() ? getQrPreviewSvg(itemEditor.qrCodeValue.trim()) : null}
-                />
-              </div>
-            ) : null}
-
-                </section>
-
-                <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="text-lg font-extrabold text-slate-900">Linked Accounts</div>
-                      <div className="text-sm text-slate-500">Inventory, cost, sales, and adjustment accounts.</div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <Package2 className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 [&_select]:border-slate-200 [&_select]:bg-slate-50/70">
-              <Field label={t("inventory.field.inventoryAccount")}>
-                <AccountSelect
-                  value={itemEditor.inventoryAccountId}
-                  onChange={(value) => setItemEditor((current) => ({ ...current, inventoryAccountId: value }))}
-                  options={inventoryAccountsQuery.data ?? []}
-                  placeholder={t("inventory.placeholder.selectAccount")}
-                />
-              </Field>
-              <Field label={t("inventory.field.cogsAccount")}>
-                <AccountSelect
-                  value={itemEditor.cogsAccountId}
-                  onChange={(value) => setItemEditor((current) => ({ ...current, cogsAccountId: value }))}
-                  options={cogsAccountsQuery.data ?? []}
-                  placeholder={t("inventory.placeholder.selectAccount")}
-                />
-              </Field>
-              <Field label={t("inventory.field.salesAccount")}>
-                <AccountSelect
-                  value={itemEditor.salesAccountId}
-                  onChange={(value) => setItemEditor((current) => ({ ...current, salesAccountId: value }))}
-                  options={salesAccountsQuery.data ?? []}
-                  placeholder={t("inventory.placeholder.selectAccount")}
-                />
-              </Field>
-              <Field label={t("inventory.field.adjustmentAccount")}>
-                <AccountSelect
-                  value={itemEditor.adjustmentAccountId}
-                  onChange={(value) => setItemEditor((current) => ({ ...current, adjustmentAccountId: value }))}
-                  options={adjustmentAccountsQuery.data ?? []}
-                  placeholder={t("inventory.placeholder.selectAccount")}
-                />
-              </Field>
+
+                  <div className="space-y-5">
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h3 className="text-base font-extrabold text-slate-900">1. البيانات الأساسية</h3>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-white [&_select]:border-slate-200 [&_select]:bg-white">
+                        <Field label="رمز المادة" hint={t("inventory.field.codeHint")} labelAlign="end">
+                          <Input value={itemEditor.code} onChange={(event) => setItemEditor((current) => ({ ...current, code: event.target.value }))} className="text-right" />
+                        </Field>
+                        <Field label="اسم المادة" required labelAlign="end">
+                          <Input value={itemEditor.name} onChange={(event) => setItemEditor((current) => ({ ...current, name: event.target.value }))} className="text-right" />
+                        </Field>
+                        <Field label="مجموعة المواد" required labelAlign="end">
+                          <ItemGroupSelect
+                            value={itemEditor.itemGroupId}
+                            onChange={(value) =>
+                              setItemEditor((current) => ({ ...current, itemGroupId: value, itemCategoryId: "" }))
+                            }
+                            options={activeItemGroups}
+                            placeholder={t("inventory.placeholder.selectItemGroup")}
+                          />
+                        </Field>
+                        <Field label="فئة المادة" required labelAlign="end">
+                          <ItemCategorySelect
+                            value={itemEditor.itemCategoryId}
+                            onChange={(value) => {
+                              const category = activeItemCategories.find((row) => row.id === value);
+                              setItemEditor((current) => ({
+                                ...current,
+                                itemCategoryId: value,
+                                category: category?.name ?? current.category,
+                              }));
+                            }}
+                            options={itemEditorCategories}
+                            placeholder={t("inventory.placeholder.selectItemCategory")}
+                          />
+                        </Field>
+                        <Field label="نوع المادة" required labelAlign="end">
+                          <Select
+                            value={itemEditor.type}
+                            onChange={(event) =>
+                              setItemEditor((current) => ({
+                                ...current,
+                                type: event.target.value as InventoryItemType,
+                                trackInventory: event.target.value === "NON_STOCK" || event.target.value === "SERVICE" ? false : current.trackInventory || true,
+                              }))
+                            }
+                            className="text-right"
+                          >
+                            {ITEM_TYPE_OPTIONS.map((type) => (
+                              <option key={type} value={type}>
+                                {t(`inventory.type.${type}`)}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <Field label="وحدة القياس الأساسية" required labelAlign="end">
+                          <UnitSelect
+                            value={itemEditor.unitOfMeasureId}
+                            onChange={(value) => {
+                              const unit = activeUnitsOfMeasure.find((row) => row.id === value);
+                              setItemEditor((current) => ({
+                                ...current,
+                                unitOfMeasureId: value,
+                                unitOfMeasure: unit?.code ?? current.unitOfMeasure,
+                              }));
+                            }}
+                            options={activeUnitsOfMeasure}
+                            placeholder={t("inventory.placeholder.selectUnit")}
+                          />
+                        </Field>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h3 className="text-base font-extrabold text-slate-900">2. الوحدات والأسعار</h3>
+                      </div>
+
+                      <div className="mb-5">
+                        <div className="mb-3 text-sm font-bold text-slate-900">الأسعار الافتراضية</div>
+                        <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-white [&_select]:border-slate-200 [&_select]:bg-white">
+                          <Field label="سعر البيع الافتراضي" labelAlign="end">
+                            <Input value={itemEditor.defaultSalesPrice} onChange={(event) => setItemEditor((current) => ({ ...current, defaultSalesPrice: event.target.value }))} className="text-right" inputMode="decimal" />
+                          </Field>
+                          <Field label="سعر الشراء الافتراضي" labelAlign="end">
+                            <Input value={itemEditor.defaultPurchasePrice} onChange={(event) => setItemEditor((current) => ({ ...current, defaultPurchasePrice: event.target.value }))} className="text-right" inputMode="decimal" />
+                          </Field>
+                          <Field label="العملة" labelAlign="end">
+                            <Input value={itemEditor.currencyCode} onChange={(event) => setItemEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} className="text-right uppercase" maxLength={12} />
+                          </Field>
+                          <Field label="خاضع للضريبة" labelAlign="end">
+                            <label className="flex min-h-[50px] items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800">
+                              <span>خاضع للضريبة</span>
+                              <input
+                                type="checkbox"
+                                checked={itemEditor.taxable}
+                                onChange={(event) =>
+                                  setItemEditor((current) => ({
+                                    ...current,
+                                    taxable: event.target.checked,
+                                    defaultTaxId: event.target.checked ? current.defaultTaxId : "",
+                                  }))
+                                }
+                                className="h-4 w-4 accent-emerald-600"
+                              />
+                            </label>
+                          </Field>
+                          <Field label="فئة الضريبة" labelAlign="end" className="md:col-span-2">
+                            <Select
+                              value={itemEditor.defaultTaxId}
+                              onChange={(event) => setItemEditor((current) => ({ ...current, defaultTaxId: event.target.value }))}
+                              disabled={!itemEditor.taxable}
+                              className="text-right"
+                            >
+                              <option value="">اختر فئة ضريبة</option>
+                              {activeTaxes.map((tax) => (
+                                <option key={tax.id} value={tax.id}>
+                                  {tax.taxCode} · {tax.taxName}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                        </div>
+                        <p className="mt-3 text-sm font-medium text-slate-500">
+                          هذه الأسعار افتراضية فقط وتظهر كمقترح في الفواتير، ولا تمثل تكلفة المخزون الفعلية.
+                        </p>
+                      </div>
+
+                      <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <Button variant="secondary" size="sm" className="rounded-2xl" onClick={addUnitConversionRow}>
+                            + إضافة وحدة
+                          </Button>
+                          <div>
+                            <div className="text-sm font-extrabold text-slate-900">الوحدات والتحويلات</div>
+                            <div className="text-sm text-slate-500">
+                              حدد الوحدات الإضافية للمادة ومعامل تحويل كل وحدة إلى وحدة القياس الأساسية.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                          إذا كانت الوحدة الأساسية "حبة"، والكرتونة تحتوي 24 حبة، أدخل 24.
+                          <br />
+                          الوحدة الأساسية يجب أن يكون معامل التحويل لها 1.
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[1100px] w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                              <tr className="text-right text-slate-700">
+                                {["الوحدة", "معامل التحويل إلى الوحدة الأساسية", "باركود الوحدة", "سعر البيع", "سعر الشراء", "الإجراءات"].map((label) => (
+                                  <th key={label} className="border-b border-slate-200 px-3 py-3 font-extrabold">{label}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {itemEditor.unitConversions.map((row) => (
+                                <tr key={row.key} className="align-top">
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <UnitSelect
+                                      value={row.unitId}
+                                      onChange={(value) =>
+                                        updateUnitConversionRow(row.key, (current) => ({
+                                          ...current,
+                                          unitId: value,
+                                          isBaseUnit: value === itemEditor.unitOfMeasureId,
+                                          conversionFactorToBaseUnit: value === itemEditor.unitOfMeasureId ? "1" : current.conversionFactorToBaseUnit,
+                                        }))
+                                      }
+                                      options={activeUnitsOfMeasure}
+                                      placeholder="اختر وحدة"
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <Input
+                                      value={row.conversionFactorToBaseUnit}
+                                      onChange={(event) =>
+                                        updateUnitConversionRow(row.key, (current) => ({
+                                          ...current,
+                                          conversionFactorToBaseUnit: event.target.value,
+                                        }))
+                                      }
+                                      disabled={row.isBaseUnit}
+                                      className="text-right"
+                                      inputMode="decimal"
+                                      placeholder="1"
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <Input
+                                      value={row.barcode}
+                                      onChange={(event) =>
+                                        updateUnitConversionRow(row.key, (current) => ({
+                                          ...current,
+                                          barcode: event.target.value,
+                                        }))
+                                      }
+                                      className="text-right"
+                                      placeholder="باركود الوحدة"
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <Input
+                                      value={row.defaultSalesPrice}
+                                      onChange={(event) =>
+                                        updateUnitConversionRow(row.key, (current) => ({
+                                          ...current,
+                                          defaultSalesPrice: event.target.value,
+                                        }))
+                                      }
+                                      className="text-right"
+                                      inputMode="decimal"
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <Input
+                                      value={row.defaultPurchasePrice}
+                                      onChange={(event) =>
+                                        updateUnitConversionRow(row.key, (current) => ({
+                                          ...current,
+                                          defaultPurchasePrice: event.target.value,
+                                        }))
+                                      }
+                                      className="text-right"
+                                      inputMode="decimal"
+                                    />
+                                  </td>
+                                  <td className="border-b border-slate-100 px-3 py-3">
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="rounded-2xl"
+                                      onClick={() => removeUnitConversionRow(row.key)}
+                                      disabled={row.isBaseUnit}
+                                    >
+                                      حذف
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h3 className="text-base font-extrabold text-slate-900">3. الرموز والملصقات</h3>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-white">
+                        <Field label="الباركود" hint="يمكن إدخاله يدويًا أو عبر الماسح أو توليده تلقائيًا." labelAlign="end">
+                          <div className="space-y-3">
+                            <Input value={itemEditor.barcode} onChange={(event) => setItemEditor((current) => ({ ...current, barcode: event.target.value }))} className="text-right" />
+                            <div className="flex flex-wrap justify-end gap-3">
+                              <Button variant="secondary" onClick={previewItemCodes}>معاينة الباركود</Button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => void generateBarcodeMutation.mutate()}
+                                disabled={generateBarcodeMutation.isPending}
+                              >
+                                توليد باركود
+                              </Button>
+                            </div>
+                          </div>
+                        </Field>
+                        <Field label="رمز QR" hint="يتم توليده من بيانات المادة ويتم حفظ القيمة النصية فقط." labelAlign="end">
+                          <div className="space-y-3">
+                            <Input value={itemEditor.qrCodeValue} readOnly className="text-right bg-slate-100" />
+                            <div className="flex flex-wrap justify-end gap-3">
+                              <Button variant="secondary" onClick={printItemLabel}>طباعة الملصق</Button>
+                              <Button variant="secondary" onClick={previewItemCodes}>معاينة QR</Button>
+                              <Button variant="secondary" onClick={generateQrForItemEditor}>توليد QR</Button>
+                            </div>
+                          </div>
+                        </Field>
+                      </div>
+
+                      {showItemCodePreview ? (
+                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                          <PreviewCard
+                            label="الباركود"
+                            value={itemEditor.barcode}
+                            emptyMessage="أدخل باركود أو استخدم توليد باركود."
+                            svg={itemEditor.barcode.trim() ? getBarcodePreviewSvg(itemEditor.barcode.trim()) : null}
+                          />
+                          <PreviewCard
+                            label="رمز QR"
+                            value={itemEditor.qrCodeValue}
+                            emptyMessage="استخدم توليد QR لإنشاء القيمة والمعاينة."
+                            svg={itemEditor.qrCodeValue.trim() ? getQrPreviewSvg(itemEditor.qrCodeValue.trim()) : null}
+                          />
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h3 className="text-base font-extrabold text-slate-900">4. إعدادات المخزون</h3>
+                      </div>
+                      <div className="mb-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+                        سيتم تعطيل إعدادات المخزون إذا كان نوع المادة غير مخزني.
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-white [&_select]:border-slate-200 [&_select]:bg-white">
+                        <Field label="تتبع المخزون" labelAlign="end">
+                          <label className="flex min-h-[50px] items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800">
+                            <span>تتبع المخزون</span>
+                            <input
+                              type="checkbox"
+                              checked={itemEditor.trackInventory}
+                              onChange={(event) => setItemEditor((current) => ({ ...current, trackInventory: event.target.checked }))}
+                              disabled={itemEditor.type === "NON_STOCK" || itemEditor.type === "SERVICE"}
+                              className="h-4 w-4 accent-emerald-600"
+                            />
+                          </label>
+                        </Field>
+                        <Field label="المستودع المفضل" labelAlign="end">
+                          <WarehouseSelect
+                            value={itemEditor.preferredWarehouseId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, preferredWarehouseId: value }))}
+                            options={warehouses.filter((row) => row.isActive)}
+                            placeholder={t("inventory.placeholder.selectWarehouse")}
+                            disabled={inventorySettingsDisabled}
+                          />
+                        </Field>
+                        <Field label="حد إعادة الطلب" labelAlign="end">
+                          <Input value={itemEditor.reorderLevel} onChange={(event) => setItemEditor((current) => ({ ...current, reorderLevel: event.target.value }))} className="text-right" disabled={inventorySettingsDisabled} inputMode="decimal" />
+                        </Field>
+                        <Field label="كمية إعادة الطلب" labelAlign="end">
+                          <Input value={itemEditor.reorderQuantity} onChange={(event) => setItemEditor((current) => ({ ...current, reorderQuantity: event.target.value }))} className="text-right" disabled={inventorySettingsDisabled} inputMode="decimal" />
+                        </Field>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4 flex items-center justify-end gap-3">
+                        <div>
+                          <h3 className="text-base font-extrabold text-slate-900">5. الحسابات المحاسبية</h3>
+                          <p className="text-sm text-slate-500">إذا لم يتم اختيار حسابات هنا، سيتم استخدام الحسابات المحددة في مجموعة المواد.</p>
+                        </div>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 [&_select]:border-slate-200 [&_select]:bg-white">
+                        <Field label="حساب المخزون" labelAlign="end">
+                          <AccountSelect
+                            value={itemEditor.inventoryAccountId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, inventoryAccountId: value }))}
+                            options={inventoryAccountsQuery.data ?? []}
+                            placeholder={t("inventory.placeholder.selectAccount")}
+                          />
+                        </Field>
+                        <Field label="حساب المبيعات" labelAlign="end">
+                          <AccountSelect
+                            value={itemEditor.salesAccountId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, salesAccountId: value }))}
+                            options={salesAccountsQuery.data ?? []}
+                            placeholder={t("inventory.placeholder.selectAccount")}
+                          />
+                        </Field>
+                        <Field label="حساب تكلفة البضاعة المباعة" labelAlign="end">
+                          <AccountSelect
+                            value={itemEditor.cogsAccountId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, cogsAccountId: value }))}
+                            options={cogsAccountsQuery.data ?? []}
+                            placeholder={t("inventory.placeholder.selectAccount")}
+                          />
+                        </Field>
+                        <Field label="حساب مردودات المبيعات" labelAlign="end">
+                          <AccountSelect
+                            value={itemEditor.salesReturnAccountId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, salesReturnAccountId: value }))}
+                            options={salesAccountsQuery.data ?? []}
+                            placeholder={t("inventory.placeholder.selectAccount")}
+                          />
+                        </Field>
+                        <Field label="حساب تسويات المخزون" labelAlign="end" className="md:col-span-2">
+                          <AccountSelect
+                            value={itemEditor.adjustmentAccountId}
+                            onChange={(value) => setItemEditor((current) => ({ ...current, adjustmentAccountId: value }))}
+                            options={adjustmentAccountsQuery.data ?? []}
+                            placeholder={t("inventory.placeholder.selectAccount")}
+                          />
+                        </Field>
+                      </div>
+                    </section>
+
+                    <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h3 className="text-base font-extrabold text-slate-900">6. الوصف والملاحظات</h3>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2 [&_input]:border-slate-200 [&_input]:bg-white [&_textarea]:border-slate-200 [&_textarea]:bg-white">
+                        <Field label="الوصف" labelAlign="end" className="md:col-span-2">
+                          <Textarea value={itemEditor.description} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, description: event.target.value }))} className="text-right" />
+                        </Field>
+                        <Field label="ملاحظات داخلية" labelAlign="end" className="md:col-span-2">
+                          <Textarea value={itemEditor.internalNotes} rows={4} onChange={(event) => setItemEditor((current) => ({ ...current, internalNotes: event.target.value }))} className="text-right" />
+                        </Field>
+                        <Field label="صورة المادة" labelAlign="end">
+                          <Input value={itemEditor.itemImageUrl} onChange={(event) => setItemEditor((current) => ({ ...current, itemImageUrl: event.target.value }))} className="text-right" placeholder="رابط صورة المادة" />
+                        </Field>
+                        <Field label="المرفقات" labelAlign="end">
+                          <Textarea value={itemEditor.attachmentsText} rows={3} onChange={(event) => setItemEditor((current) => ({ ...current, attachmentsText: event.target.value }))} className="text-right" placeholder="روابط أو مراجع المرفقات" />
+                        </Field>
+                      </div>
+                    </section>
                   </div>
                 </section>
 
@@ -2895,25 +3205,29 @@ export function InventoryPage() {
             </div>
 
             <div className="border-t border-slate-200 bg-white px-6 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button variant="secondary" className="rounded-2xl px-6" onClick={closeItemEditor}>
                   {t("inventory.button.cancel")}
                 </Button>
-                <Button
-                  className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
-                  onClick={() => {
-                    if (itemFormError) return;
-                    if (itemEditor.id) {
-                      void updateItemMutation.mutate();
-                      return;
-                    }
-                    void createItemMutation.mutate();
-                  }}
-                  disabled={Boolean(itemFormError) || createItemMutation.isPending || updateItemMutation.isPending}
-                >
-                  <Save className="h-4 w-4" />
-                  {itemEditor.id ? t("inventory.button.save") : t("inventory.button.create")}
-                </Button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    variant="secondary"
+                    className="rounded-2xl px-6"
+                    onClick={() => submitItemEditor("save")}
+                    disabled={Boolean(itemFormError) || createItemMutation.isPending || updateItemMutation.isPending}
+                  >
+                    <Save className="h-4 w-4" />
+                    حفظ
+                  </Button>
+                  <Button
+                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                    onClick={() => submitItemEditor("saveAndClose")}
+                    disabled={Boolean(itemFormError) || createItemMutation.isPending || updateItemMutation.isPending}
+                  >
+                    <Save className="h-4 w-4" />
+                    حفظ وإغلاق
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -3622,6 +3936,52 @@ export function InventoryPage() {
     setIsItemEditorOpen(true);
   }
 
+  function addUnitConversionRow() {
+    setItemEditor((current) => ({
+      ...current,
+      unitConversions: [...current.unitConversions, createUnitConversionEditor()],
+    }));
+  }
+
+  function updateUnitConversionRow(
+    key: string,
+    updater: (row: ItemUnitConversionEditorState) => ItemUnitConversionEditorState,
+  ) {
+    setItemEditor((current) => ({
+      ...current,
+      unitConversions: current.unitConversions.map((row) =>
+        row.key === key ? updater(row) : row,
+      ),
+    }));
+  }
+
+  function removeUnitConversionRow(key: string) {
+    setItemEditor((current) => {
+      const row = current.unitConversions.find((entry) => entry.key === key);
+      if (!row || row.isBaseUnit) {
+        return current;
+      }
+
+      return {
+        ...current,
+        unitConversions: current.unitConversions.filter((entry) => entry.key !== key),
+      };
+    });
+  }
+
+  function submitItemEditor(mode: "save" | "saveAndClose") {
+    if (itemFormError) {
+      return;
+    }
+
+    itemSaveModeRef.current = mode;
+    if (itemEditor.id) {
+      void updateItemMutation.mutate();
+      return;
+    }
+    void createItemMutation.mutate();
+  }
+
   function openNewItemGroup() {
     setItemGroupEditor(createEmptyItemGroupEditor());
     setIsItemGroupEditorOpen(true);
@@ -4294,14 +4654,16 @@ function WarehouseSelect({
   onChange,
   options,
   placeholder,
+  disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: InventoryWarehouse[];
   placeholder: string;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={value} onChange={(event) => onChange(event.target.value)}>
+    <Select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
       <option value="">{placeholder}</option>
       {options.map((option) => (
         <option key={option.id} value={option.id}>
@@ -4386,14 +4748,16 @@ function UnitSelect({
   onChange,
   options,
   placeholder,
+  disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: InventoryUnitOfMeasure[];
   placeholder: string;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={value} onChange={(event) => onChange(event.target.value)}>
+    <Select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
       <option value="">{placeholder}</option>
       {options.map((option) => (
         <option key={option.id} value={option.id}>
@@ -4410,6 +4774,9 @@ function mapItemToEditor(item: InventoryItem): ItemEditorState {
     code: item.code,
     name: item.name,
     description: item.description ?? "",
+    internalNotes: item.internalNotes ?? "",
+    itemImageUrl: item.itemImageUrl ?? "",
+    attachmentsText: item.attachmentsText ?? "",
     barcode: item.barcode ?? "",
     qrCodeValue: item.qrCodeValue ?? "",
     unitOfMeasure: item.unitOfMeasure,
@@ -4418,13 +4785,84 @@ function mapItemToEditor(item: InventoryItem): ItemEditorState {
     itemGroupId: item.itemGroup?.id ?? item.itemGroupId ?? "",
     itemCategoryId: item.itemCategory?.id ?? item.itemCategoryId ?? "",
     type: item.type,
+    defaultSalesPrice: item.defaultSalesPrice ?? "",
+    defaultPurchasePrice: item.defaultPurchasePrice ?? "",
+    currencyCode: item.currencyCode ?? "JOD",
+    taxable: item.taxable,
+    defaultTaxId: item.defaultTaxId ?? "",
+    trackInventory: item.trackInventory,
     inventoryAccountId: item.inventoryAccount?.id ?? "",
     cogsAccountId: item.cogsAccount?.id ?? "",
     salesAccountId: item.salesAccount?.id ?? "",
+    salesReturnAccountId: item.salesReturnAccount?.id ?? "",
     adjustmentAccountId: item.adjustmentAccount?.id ?? "",
     reorderLevel: item.reorderLevel,
     reorderQuantity: item.reorderQuantity,
     preferredWarehouseId: item.preferredWarehouse?.id ?? item.preferredWarehouseId ?? "",
+    unitConversions: item.unitConversions.map(mapUnitConversionToEditor),
+  };
+}
+
+function mapUnitConversionToEditor(conversion: InventoryItemUnitConversion): ItemUnitConversionEditorState {
+  return createUnitConversionEditor({
+    key: conversion.id,
+    unitId: conversion.unitId,
+    conversionFactorToBaseUnit: conversion.conversionFactorToBaseUnit,
+    barcode: conversion.barcode ?? "",
+    defaultSalesPrice: conversion.defaultSalesPrice ?? "",
+    defaultPurchasePrice: conversion.defaultPurchasePrice ?? "",
+    isBaseUnit: conversion.isBaseUnit,
+  });
+}
+
+function ensureBaseUnitConversionRow(
+  editor: ItemEditorState,
+  units: InventoryUnitOfMeasure[],
+): ItemEditorState {
+  if (!editor.unitOfMeasureId) {
+    return editor.unitConversions.length === 0 ? editor : { ...editor, unitConversions: [] };
+  }
+
+  const baseUnit = units.find((row) => row.id === editor.unitOfMeasureId);
+  const nextUnitOfMeasure = baseUnit?.code ?? editor.unitOfMeasure;
+  const nextRows = editor.unitConversions
+    .filter((row, index, current) => current.findIndex((candidate) => candidate.unitId === row.unitId) === index)
+    .map((row) =>
+      row.unitId === editor.unitOfMeasureId
+        ? {
+            ...row,
+            isBaseUnit: true,
+            conversionFactorToBaseUnit: "1",
+          }
+        : { ...row, isBaseUnit: false },
+    );
+
+  const hasBaseRow = nextRows.some((row) => row.unitId === editor.unitOfMeasureId);
+  const normalizedRows = hasBaseRow
+    ? nextRows
+    : [createUnitConversionEditor({ unitId: editor.unitOfMeasureId, conversionFactorToBaseUnit: "1", isBaseUnit: true }), ...nextRows];
+
+  if (
+    nextUnitOfMeasure === editor.unitOfMeasure &&
+    normalizedRows.length === editor.unitConversions.length &&
+    normalizedRows.every((row, index) => {
+      const current = editor.unitConversions[index];
+      return current
+        && current.unitId === row.unitId
+        && current.conversionFactorToBaseUnit === row.conversionFactorToBaseUnit
+        && current.barcode === row.barcode
+        && current.defaultSalesPrice === row.defaultSalesPrice
+        && current.defaultPurchasePrice === row.defaultPurchasePrice
+        && current.isBaseUnit === row.isBaseUnit;
+    })
+  ) {
+    return editor;
+  }
+
+  return {
+    ...editor,
+    unitOfMeasure: nextUnitOfMeasure,
+    unitConversions: normalizedRows,
   };
 }
 
@@ -4554,6 +4992,9 @@ function mapItemEditorToPayload(editor: ItemEditorState) {
     code: editor.code.trim() || undefined,
     name: editor.name.trim(),
     description: editor.description.trim() || undefined,
+    internalNotes: editor.internalNotes.trim() || undefined,
+    itemImageUrl: editor.itemImageUrl.trim() || undefined,
+    attachmentsText: editor.attachmentsText.trim() || undefined,
     barcode: editor.barcode.trim() || undefined,
     qrCodeValue: editor.qrCodeValue.trim() || undefined,
     unitOfMeasure: editor.unitOfMeasure.trim(),
@@ -4562,13 +5003,28 @@ function mapItemEditorToPayload(editor: ItemEditorState) {
     itemGroupId: editor.itemGroupId,
     itemCategoryId: editor.itemCategoryId,
     type: editor.type,
+    defaultSalesPrice: editor.defaultSalesPrice.trim() || undefined,
+    defaultPurchasePrice: editor.defaultPurchasePrice.trim() || undefined,
+    currencyCode: editor.currencyCode.trim() || undefined,
+    taxable: editor.taxable,
+    defaultTaxId: editor.taxable ? editor.defaultTaxId || undefined : undefined,
+    trackInventory: editor.trackInventory,
     inventoryAccountId: editor.inventoryAccountId || undefined,
     cogsAccountId: editor.cogsAccountId || undefined,
     salesAccountId: editor.salesAccountId || undefined,
+    salesReturnAccountId: editor.salesReturnAccountId || undefined,
     adjustmentAccountId: editor.adjustmentAccountId || undefined,
     reorderLevel: editor.reorderLevel.trim() || undefined,
     reorderQuantity: editor.reorderQuantity.trim() || undefined,
     preferredWarehouseId: editor.preferredWarehouseId || undefined,
+    unitConversions: editor.unitConversions.map((row) => ({
+      unitId: row.unitId,
+      conversionFactorToBaseUnit: row.conversionFactorToBaseUnit.trim(),
+      barcode: row.barcode.trim() || undefined,
+      defaultSalesPrice: row.defaultSalesPrice.trim() || undefined,
+      defaultPurchasePrice: row.defaultPurchasePrice.trim() || undefined,
+      isBaseUnit: row.isBaseUnit,
+    })),
   };
 }
 
@@ -4698,15 +5154,56 @@ function getItemFormError(editor: ItemEditorState) {
   if (!editor.itemGroupId) return "Item group is required. مجموعة الأصناف مطلوبة.";
   if (!editor.itemCategoryId) return "Item category is required. فئة الصنف / التصنيف مطلوبة.";
   if (!editor.unitOfMeasureId) return "Base unit of measure is required. وحدة القياس الأساسية مطلوبة.";
-  if (!editor.name.trim()) return "Item name is required. اسم الصنف مطلوب.";
   if (!editor.unitOfMeasure.trim()) return "Unit of measure is required. وحدة القياس مطلوبة.";
   if (editor.barcode.trim().length > 120) return "Barcode is too long. الباركود طويل جدًا.";
+  if (editor.defaultSalesPrice.trim() && Number.isNaN(Number(editor.defaultSalesPrice))) {
+    return "Default sales price must be numeric. يجب أن يكون سعر البيع الافتراضي رقمياً.";
+  }
+  if (editor.defaultPurchasePrice.trim() && Number.isNaN(Number(editor.defaultPurchasePrice))) {
+    return "Default purchase price must be numeric. يجب أن يكون سعر الشراء الافتراضي رقمياً.";
+  }
+  if (editor.taxable && !editor.defaultTaxId) {
+    return "Tax category is required when the item is taxable. فئة الضريبة مطلوبة عند تفعيل خاضع للضريبة.";
+  }
   if (editor.reorderLevel.trim() && Number.isNaN(Number(editor.reorderLevel))) {
     return "Reorder level must be numeric. يجب أن يكون حد إعادة الطلب رقميا.";
   }
   if (editor.reorderQuantity.trim() && Number.isNaN(Number(editor.reorderQuantity))) {
     return "Reorder quantity must be numeric. يجب أن تكون كمية إعادة الطلب رقمية.";
   }
+  if (!editor.unitConversions.length) {
+    return "Base unit conversion row is required. يجب وجود صف للوحدة الأساسية داخل جدول التحويلات.";
+  }
+
+  const unitIds = new Set<string>();
+  let hasBaseUnit = false;
+
+  for (const row of editor.unitConversions) {
+    if (!row.unitId) {
+      return "Each conversion row must have a unit. يجب اختيار وحدة لكل صف تحويل.";
+    }
+    if (unitIds.has(row.unitId)) {
+      return "Duplicate units are not allowed. لا يمكن تكرار نفس الوحدة أكثر من مرة.";
+    }
+    unitIds.add(row.unitId);
+
+    const factor = Number(row.conversionFactorToBaseUnit);
+    if (!row.conversionFactorToBaseUnit.trim() || Number.isNaN(factor) || factor <= 0) {
+      return "Conversion factor must be greater than zero. معامل التحويل إلى الوحدة الأساسية يجب أن يكون أكبر من صفر.";
+    }
+
+    if (row.unitId === editor.unitOfMeasureId) {
+      hasBaseUnit = true;
+      if (factor !== 1) {
+        return "Base unit conversion factor must be 1. يجب أن يكون معامل تحويل الوحدة الأساسية مساوياً لـ 1.";
+      }
+    }
+  }
+
+  if (!hasBaseUnit) {
+    return "Base unit row must always exist. يجب أن يكون صف الوحدة الأساسية موجوداً دائماً.";
+  }
+
   return null;
 }
 

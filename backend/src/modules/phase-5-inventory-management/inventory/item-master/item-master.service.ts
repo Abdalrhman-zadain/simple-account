@@ -10,7 +10,7 @@ import { PrismaService } from "../../../../common/prisma/prisma.service";
 import { ItemCategoriesService } from "../item-categories/item-categories.service";
 import { ItemGroupsService } from "../item-groups/item-groups.service";
 import { UnitsOfMeasureService } from "../units-of-measure/units-of-measure.service";
-import { CreateInventoryItemDto } from "./dto/create-inventory-item.dto";
+import { CreateInventoryItemDto, InventoryItemUnitConversionDto } from "./dto/create-inventory-item.dto";
 import { UpdateInventoryItemDto } from "./dto/update-inventory-item.dto";
 
 type InventoryItemListQuery = {
@@ -28,11 +28,18 @@ type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
     inventoryAccount: { select: ItemMasterService["accountSelect"] };
     cogsAccount: { select: ItemMasterService["accountSelect"] };
     salesAccount: { select: ItemMasterService["accountSelect"] };
+    salesReturnAccount: { select: ItemMasterService["accountSelect"] };
     adjustmentAccount: { select: ItemMasterService["accountSelect"] };
+    defaultTax: { select: ItemMasterService["taxSelect"] };
     preferredWarehouse: { select: ItemMasterService["warehouseSelect"] };
     itemGroup: { select: ItemMasterService["itemGroupSelect"] };
     itemCategory: { select: ItemMasterService["itemCategorySelect"] };
     unitOfMeasureRef: { select: ItemMasterService["unitOfMeasureSelect"] };
+    unitConversions: {
+      include: {
+        unit: { select: ItemMasterService["unitOfMeasureSelect"] };
+      };
+    };
   };
 }>;
 
@@ -77,6 +84,33 @@ export class ItemMasterService {
     name: true,
     decimalPrecision: true,
     isActive: true,
+  } as const;
+
+  readonly taxSelect = {
+    id: true,
+    taxCode: true,
+    taxName: true,
+    rate: true,
+    taxType: true,
+    isActive: true,
+  } as const;
+
+  readonly itemInclude = {
+    inventoryAccount: { select: this.accountSelect },
+    cogsAccount: { select: this.accountSelect },
+    salesAccount: { select: this.accountSelect },
+    salesReturnAccount: { select: this.accountSelect },
+    adjustmentAccount: { select: this.accountSelect },
+    defaultTax: { select: this.taxSelect },
+    preferredWarehouse: { select: this.warehouseSelect },
+    itemGroup: { select: this.itemGroupSelect },
+    itemCategory: { select: this.itemCategorySelect },
+    unitOfMeasureRef: { select: this.unitOfMeasureSelect },
+    unitConversions: {
+      include: {
+        unit: { select: this.unitOfMeasureSelect },
+      },
+    },
   } as const;
 
   constructor(
@@ -143,16 +177,7 @@ export class ItemMasterService {
       this.prisma.inventoryItem.count({ where }),
       this.prisma.inventoryItem.findMany({
         where,
-        include: {
-          inventoryAccount: { select: this.accountSelect },
-          cogsAccount: { select: this.accountSelect },
-          salesAccount: { select: this.accountSelect },
-          adjustmentAccount: { select: this.accountSelect },
-          preferredWarehouse: { select: this.warehouseSelect },
-          itemGroup: { select: this.itemGroupSelect },
-          itemCategory: { select: this.itemCategorySelect },
-          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-        },
+        include: this.itemInclude,
         orderBy: [{ isActive: "desc" }, { name: "asc" }],
         skip,
         take: limit,
@@ -197,11 +222,14 @@ export class ItemMasterService {
     const code = dto.code?.trim() || this.generateReference("ITEM");
     const barcode = this.normalizeOptionalText(dto.barcode);
     const qrCodeValue = this.normalizeOptionalText(dto.qrCodeValue);
+    const trackInventory = this.resolveTrackInventory(dto.type, dto.trackInventory);
     const [
       inventoryAccountId,
       cogsAccountId,
       salesAccountId,
+      salesReturnAccountId,
       adjustmentAccountId,
+      defaultTaxId,
       preferredWarehouse,
       itemGroup,
       itemCategory,
@@ -211,13 +239,20 @@ export class ItemMasterService {
       this.validateInventoryAccount(dto.inventoryAccountId),
       this.validateCogsAccount(dto.cogsAccountId),
       this.validateSalesAccount(dto.salesAccountId),
+      this.validateSalesReturnAccount(dto.salesReturnAccountId),
       this.validateAdjustmentAccount(dto.adjustmentAccountId),
+      this.validateTax(dto.taxable ? dto.defaultTaxId : undefined),
       this.validateWarehouse(dto.preferredWarehouseId),
       this.itemGroupsService.ensureActiveGroup(dto.itemGroupId),
       this.itemCategoriesService.ensureActiveCategoryInGroup(dto.itemCategoryId, dto.itemGroupId),
       this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId),
       this.ensureUniqueBarcode(barcode),
     ]);
+    const unitConversions = await this.validateUnitConversions(
+      dto.unitConversions,
+      unitOfMeasure.id,
+      uniqueBarcode,
+    );
 
     const created = await this.prisma.inventoryItem
       .create({
@@ -225,6 +260,9 @@ export class ItemMasterService {
           code,
           name: dto.name.trim(),
           description: dto.description?.trim() || null,
+          internalNotes: dto.internalNotes?.trim() || null,
+          itemImageUrl: dto.itemImageUrl?.trim() || null,
+          attachmentsText: dto.attachmentsText?.trim() || null,
           barcode: uniqueBarcode,
           qrCodeValue,
           unitOfMeasure: dto.unitOfMeasure?.trim() || unitOfMeasure.code,
@@ -236,7 +274,14 @@ export class ItemMasterService {
           inventoryAccountId,
           cogsAccountId,
           salesAccountId,
+          salesReturnAccountId,
           adjustmentAccountId,
+          defaultSalesPrice: this.parseNullableDecimal(dto.defaultSalesPrice, "Default sales price"),
+          defaultPurchasePrice: this.parseNullableDecimal(dto.defaultPurchasePrice, "Default purchase price"),
+          currencyCode: dto.currencyCode?.trim().toUpperCase() || null,
+          taxable: dto.taxable ?? false,
+          defaultTaxId: defaultTaxId ?? null,
+          trackInventory,
           reorderLevel: this.parseDecimal(dto.reorderLevel, "Reorder level"),
           reorderQuantity: this.parseDecimal(
             dto.reorderQuantity,
@@ -244,17 +289,18 @@ export class ItemMasterService {
           ),
           preferredWarehouseId: preferredWarehouse?.id ?? null,
           preferredWarehouseCode: preferredWarehouse?.code ?? null,
+          unitConversions: {
+            create: unitConversions.map((row) => ({
+              unitId: row.unitId,
+              conversionFactorToBaseUnit: row.conversionFactorToBaseUnit,
+              barcode: row.barcode,
+              defaultSalesPrice: row.defaultSalesPrice,
+              defaultPurchasePrice: row.defaultPurchasePrice,
+              isBaseUnit: row.isBaseUnit,
+            })),
+          },
         },
-        include: {
-          inventoryAccount: { select: this.accountSelect },
-          cogsAccount: { select: this.accountSelect },
-          salesAccount: { select: this.accountSelect },
-          adjustmentAccount: { select: this.accountSelect },
-          preferredWarehouse: { select: this.warehouseSelect },
-          itemGroup: { select: this.itemGroupSelect },
-          itemCategory: { select: this.itemCategorySelect },
-          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-        },
+        include: this.itemInclude,
       })
       .catch((error: unknown) => {
         if (this.isCodeConflict(error)) {
@@ -287,12 +333,19 @@ export class ItemMasterService {
       dto.qrCodeValue === undefined
         ? undefined
         : this.normalizeOptionalText(dto.qrCodeValue);
+    const nextType = dto.type ?? current.type;
+    const nextTrackInventory = this.resolveTrackInventory(
+      nextType,
+      dto.trackInventory ?? current.trackInventory,
+    );
 
     const [
       inventoryAccountId,
       cogsAccountId,
       salesAccountId,
+      salesReturnAccountId,
       adjustmentAccountId,
+      defaultTaxId,
       preferredWarehouse,
       nextGroup,
       nextCategory,
@@ -308,8 +361,20 @@ export class ItemMasterService {
       dto.salesAccountId !== undefined
         ? this.validateSalesAccount(dto.salesAccountId || undefined)
         : Promise.resolve(undefined),
+      dto.salesReturnAccountId !== undefined
+        ? this.validateSalesReturnAccount(dto.salesReturnAccountId || undefined)
+        : Promise.resolve(undefined),
       dto.adjustmentAccountId !== undefined
         ? this.validateAdjustmentAccount(dto.adjustmentAccountId || undefined)
+        : Promise.resolve(undefined),
+      dto.taxable !== undefined || dto.defaultTaxId !== undefined
+        ? this.validateTax(
+            (dto.taxable ?? current.taxable)
+              ? dto.defaultTaxId === undefined
+                ? current.defaultTaxId ?? undefined
+                : dto.defaultTaxId || undefined
+              : undefined,
+          )
         : Promise.resolve(undefined),
       dto.preferredWarehouseId !== undefined
         ? this.validateWarehouse(dto.preferredWarehouseId || undefined)
@@ -330,6 +395,12 @@ export class ItemMasterService {
         ? this.ensureUniqueBarcode(barcode, id)
         : Promise.resolve(undefined),
     ]);
+    const nextBaseUnitId = nextUnit?.id ?? current.unitOfMeasureId ?? "";
+    const nextItemBarcode = dto.barcode === undefined ? current.barcode : uniqueBarcode;
+    const unitConversions =
+      dto.unitConversions === undefined
+        ? undefined
+        : await this.validateUnitConversions(dto.unitConversions, nextBaseUnitId, nextItemBarcode ?? null, id);
 
     const updated = await this.prisma.inventoryItem
       .update({
@@ -340,6 +411,18 @@ export class ItemMasterService {
             dto.description === undefined
               ? undefined
               : dto.description.trim() || null,
+          internalNotes:
+            dto.internalNotes === undefined
+              ? undefined
+              : dto.internalNotes.trim() || null,
+          itemImageUrl:
+            dto.itemImageUrl === undefined
+              ? undefined
+              : dto.itemImageUrl.trim() || null,
+          attachmentsText:
+            dto.attachmentsText === undefined
+              ? undefined
+              : dto.attachmentsText.trim() || null,
           barcode: dto.barcode === undefined ? undefined : (uniqueBarcode ?? null),
           qrCodeValue:
             dto.qrCodeValue === undefined ? undefined : (qrCodeValue ?? null),
@@ -357,7 +440,26 @@ export class ItemMasterService {
           inventoryAccountId,
           cogsAccountId,
           salesAccountId,
+          salesReturnAccountId,
           adjustmentAccountId,
+          defaultSalesPrice:
+            dto.defaultSalesPrice === undefined
+              ? undefined
+              : this.parseNullableDecimal(dto.defaultSalesPrice, "Default sales price"),
+          defaultPurchasePrice:
+            dto.defaultPurchasePrice === undefined
+              ? undefined
+              : this.parseNullableDecimal(dto.defaultPurchasePrice, "Default purchase price"),
+          currencyCode:
+            dto.currencyCode === undefined
+              ? undefined
+              : dto.currencyCode.trim().toUpperCase() || null,
+          taxable: dto.taxable,
+          defaultTaxId:
+            dto.taxable === undefined && dto.defaultTaxId === undefined
+              ? undefined
+              : (defaultTaxId ?? null),
+          trackInventory: nextTrackInventory,
           reorderLevel:
             dto.reorderLevel === undefined
               ? undefined
@@ -375,17 +477,22 @@ export class ItemMasterService {
               ? undefined
               : (preferredWarehouse?.code ?? null),
           isActive: dto.isActive,
+          unitConversions:
+            unitConversions === undefined
+              ? undefined
+              : {
+                  deleteMany: {},
+                  create: unitConversions.map((row) => ({
+                    unitId: row.unitId,
+                    conversionFactorToBaseUnit: row.conversionFactorToBaseUnit,
+                    barcode: row.barcode,
+                    defaultSalesPrice: row.defaultSalesPrice,
+                    defaultPurchasePrice: row.defaultPurchasePrice,
+                    isBaseUnit: row.isBaseUnit,
+                  })),
+                },
         },
-        include: {
-          inventoryAccount: { select: this.accountSelect },
-          cogsAccount: { select: this.accountSelect },
-          salesAccount: { select: this.accountSelect },
-          adjustmentAccount: { select: this.accountSelect },
-          preferredWarehouse: { select: this.warehouseSelect },
-          itemGroup: { select: this.itemGroupSelect },
-          itemCategory: { select: this.itemCategorySelect },
-          unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-        },
+        include: this.itemInclude,
       })
       .catch((error: unknown) => {
         if (this.isBarcodeConflict(error)) {
@@ -402,16 +509,7 @@ export class ItemMasterService {
     const updated = await this.prisma.inventoryItem.update({
       where: { id },
       data: { isActive: false },
-      include: {
-        inventoryAccount: { select: this.accountSelect },
-        cogsAccount: { select: this.accountSelect },
-        salesAccount: { select: this.accountSelect },
-        adjustmentAccount: { select: this.accountSelect },
-        preferredWarehouse: { select: this.warehouseSelect },
-        itemGroup: { select: this.itemGroupSelect },
-        itemCategory: { select: this.itemCategorySelect },
-        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-      },
+      include: this.itemInclude,
     });
 
     return this.mapItem(updated);
@@ -438,16 +536,7 @@ export class ItemMasterService {
   private async getItemWithAccountsOrThrow(id: string) {
     const item = await this.prisma.inventoryItem.findUnique({
       where: { id },
-      include: {
-        inventoryAccount: { select: this.accountSelect },
-        cogsAccount: { select: this.accountSelect },
-        salesAccount: { select: this.accountSelect },
-        adjustmentAccount: { select: this.accountSelect },
-        preferredWarehouse: { select: this.warehouseSelect },
-        itemGroup: { select: this.itemGroupSelect },
-        itemCategory: { select: this.itemCategorySelect },
-        unitOfMeasureRef: { select: this.unitOfMeasureSelect },
-      },
+      include: this.itemInclude,
     });
     if (!item) {
       throw new BadRequestException(`Inventory item ${id} was not found.`);
@@ -472,6 +561,13 @@ export class ItemMasterService {
   private async validateSalesAccount(id?: string) {
     return this.validateAccount(id, {
       label: "Sales account",
+      allowedTypes: ["REVENUE"],
+    });
+  }
+
+  private async validateSalesReturnAccount(id?: string) {
+    return this.validateAccount(id, {
+      label: "Sales return account",
       allowedTypes: ["REVENUE"],
     });
   }
@@ -501,6 +597,26 @@ export class ItemMasterService {
     }
 
     return warehouse;
+  }
+
+  private async validateTax(id?: string) {
+    if (!id) {
+      return null;
+    }
+
+    const tax = await this.prisma.tax.findUnique({
+      where: { id },
+      select: this.taxSelect,
+    });
+
+    if (!tax) {
+      throw new BadRequestException("Tax was not found.");
+    }
+    if (!tax.isActive) {
+      throw new BadRequestException("Tax must be active.");
+    }
+
+    return tax.id;
   }
 
   private async validateAccount(
@@ -589,12 +705,126 @@ export class ItemMasterService {
     }
   }
 
+  private parseNullableDecimal(value: string | undefined, label: string) {
+    if (!value || !value.trim()) {
+      return null;
+    }
+
+    try {
+      return new Prisma.Decimal(value);
+    } catch {
+      throw new BadRequestException(`${label} is invalid.`);
+    }
+  }
+
+  private resolveTrackInventory(type: InventoryItemType, requested?: boolean | null) {
+    if (type === "NON_STOCK" || type === "SERVICE") {
+      return false;
+    }
+
+    return requested ?? true;
+  }
+
+  private async validateUnitConversions(
+    rows: InventoryItemUnitConversionDto[] | undefined,
+    baseUnitId: string,
+    itemBarcode?: string | null,
+    excludeItemId?: string,
+  ) {
+    if (!baseUnitId) {
+      throw new BadRequestException("Base unit of measure is required.");
+    }
+
+    const inputRows =
+      rows && rows.length > 0
+        ? rows
+        : [{ unitId: baseUnitId, conversionFactorToBaseUnit: "1", isBaseUnit: true }];
+
+    const normalizedRows = inputRows.map((row) => ({
+      unitId: row.unitId,
+      conversionFactorToBaseUnit: row.conversionFactorToBaseUnit,
+      barcode: this.normalizeOptionalText(row.barcode),
+      defaultSalesPrice: row.defaultSalesPrice,
+      defaultPurchasePrice: row.defaultPurchasePrice,
+      isBaseUnit: row.isBaseUnit ?? false,
+    }));
+
+    const seenUnits = new Set<string>();
+    const seenBarcodes = new Set<string>();
+    let hasBaseUnit = false;
+
+    for (const row of normalizedRows) {
+      if (!row.unitId) {
+        throw new BadRequestException("Each unit conversion row must select a unit.");
+      }
+      if (seenUnits.has(row.unitId)) {
+        throw new BadRequestException("لا يمكن تكرار نفس الوحدة أكثر من مرة لنفس المادة");
+      }
+      seenUnits.add(row.unitId);
+
+      const factor = this.parseNullableDecimal(
+        row.conversionFactorToBaseUnit,
+        "Conversion factor to base unit",
+      );
+      if (!factor || factor.lte(0)) {
+        throw new BadRequestException("معامل التحويل إلى الوحدة الأساسية يجب أن يكون أكبر من صفر");
+      }
+
+      if (row.barcode) {
+        if (row.barcode === itemBarcode) {
+          throw new BadRequestException("لا يمكن تكرار نفس الباركود بين المادة ووحداتها");
+        }
+        if (seenBarcodes.has(row.barcode)) {
+          throw new BadRequestException("باركود الوحدة مكرر داخل نفس بطاقة المادة");
+        }
+        seenBarcodes.add(row.barcode);
+      }
+
+      if (row.unitId === baseUnitId) {
+        hasBaseUnit = true;
+        if (!factor.eq(1)) {
+          throw new BadRequestException("الوحدة الأساسية يجب أن يكون معامل التحويل لها 1");
+        }
+      }
+    }
+
+    if (!hasBaseUnit) {
+      throw new BadRequestException("يجب أن تتضمن التحويلات صف الوحدة الأساسية");
+    }
+
+    const units = await Promise.all(
+      normalizedRows.map(async (row) => ({
+        ...row,
+        unit: await this.unitsOfMeasureService.ensureActiveUnit(row.unitId),
+      })),
+    );
+
+    await Promise.all(
+      units.map((row) => this.ensureUniqueBarcode(row.barcode, excludeItemId)),
+    );
+
+    return units.map((row) => ({
+      unitId: row.unit.id,
+      conversionFactorToBaseUnit: this.parseNullableDecimal(
+        row.conversionFactorToBaseUnit,
+        "Conversion factor to base unit",
+      )!,
+      barcode: row.barcode,
+      defaultSalesPrice: this.parseNullableDecimal(row.defaultSalesPrice, "Unit default sales price"),
+      defaultPurchasePrice: this.parseNullableDecimal(row.defaultPurchasePrice, "Unit default purchase price"),
+      isBaseUnit: row.unit.id === baseUnitId,
+    }));
+  }
+
   private mapItem(row: InventoryItemWithAccounts) {
     return {
       id: row.id,
       code: row.code,
       name: row.name,
       description: row.description,
+      internalNotes: row.internalNotes,
+      itemImageUrl: row.itemImageUrl,
+      attachmentsText: row.attachmentsText,
       barcode: row.barcode,
       qrCodeValue: row.qrCodeValue,
       unitOfMeasure: row.unitOfMeasure,
@@ -606,6 +836,13 @@ export class ItemMasterService {
       itemCategoryId: row.itemCategoryId,
       itemCategory: row.itemCategory,
       type: row.type,
+      defaultSalesPrice: row.defaultSalesPrice?.toString() ?? "",
+      defaultPurchasePrice: row.defaultPurchasePrice?.toString() ?? "",
+      currencyCode: row.currencyCode,
+      taxable: row.taxable,
+      defaultTaxId: row.defaultTaxId,
+      defaultTax: row.defaultTax,
+      trackInventory: row.trackInventory,
       reorderLevel: row.reorderLevel.toString(),
       reorderQuantity: row.reorderQuantity.toString(),
       preferredWarehouseId: row.preferredWarehouseId,
@@ -618,7 +855,18 @@ export class ItemMasterService {
       inventoryAccount: row.inventoryAccount,
       cogsAccount: row.cogsAccount,
       salesAccount: row.salesAccount,
+      salesReturnAccount: row.salesReturnAccount,
       adjustmentAccount: row.adjustmentAccount,
+      unitConversions: row.unitConversions.map((conversion) => ({
+        id: conversion.id,
+        unitId: conversion.unitId,
+        unit: conversion.unit,
+        conversionFactorToBaseUnit: conversion.conversionFactorToBaseUnit.toString(),
+        barcode: conversion.barcode,
+        defaultSalesPrice: conversion.defaultSalesPrice?.toString() ?? "",
+        defaultPurchasePrice: conversion.defaultPurchasePrice?.toString() ?? "",
+        isBaseUnit: conversion.isBaseUnit,
+      })),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -658,6 +906,19 @@ export class ItemMasterService {
     });
 
     if (existing) {
+      throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
+    }
+
+    const existingConversion =
+      await this.prisma.inventoryItemUnitConversion.findFirst({
+        where: {
+          barcode: normalized,
+          inventoryItemId: excludeId ? { not: excludeId } : undefined,
+        },
+        select: { id: true },
+      });
+
+    if (existingConversion) {
       throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
     }
 

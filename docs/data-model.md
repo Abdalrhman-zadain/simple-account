@@ -220,12 +220,13 @@ Main models:
 
 Key fields:
 
-- item `code`, `name`, `description`, optional unique `barcode`, optional `qrCodeValue`, `unitOfMeasure`, `unitOfMeasureId`, `category`, `itemGroupId`, `itemCategoryId`, `type`, and `isActive`
+- item `code`, `name`, `description`, optional `internalNotes`, optional `itemImageUrl`, optional `attachmentsText`, optional unique `barcode`, optional `qrCodeValue`, `unitOfMeasure`, `unitOfMeasureId`, `category`, `itemGroupId`, `itemCategoryId`, `type`, optional default sales/purchase prices, optional `currencyCode`, optional taxable/default-tax configuration, optional item-level sales-return account, optional `trackInventory`, and `isActive`
 - item group `code`, `name`, `description`, optional `parentGroupId`, `isActive`, and optional default posting accounts
 - item category `code`, `name`, `description`, required `itemGroupId`, and `isActive`
 - unit of measure `code`, `name`, `description`, optional `unitType`, `decimalPrecision`, and `isActive`
 - default account references `inventoryAccountId`, `cogsAccountId`, `salesAccountId`, and `adjustmentAccountId`
 - replenishment fields `reorderLevel`, `reorderQuantity`, `preferredWarehouseId`, and `preferredWarehouseCode`
+- unit conversion rows `unitId`, `conversionFactorToBaseUnit`, optional unit barcode, optional default sales/purchase prices, and `isBaseUnit`
 - warehouse `code`, `name`, `address`, `responsiblePerson`, `isTransit`, and `isActive`
 - goods receipt `reference`, `status`, `receiptDate`, `warehouseId`, optional purchase references, summary quantities/amounts, and `postedAt`
 - goods receipt line `lineNumber`, `itemId`, `quantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
@@ -249,8 +250,10 @@ Accounting meaning:
 - item cards can now store a unique operational barcode plus QR payload text used for scan workflows, label preview/printing, stocktaking, sales, and purchase identification
 - only the QR text/value is stored; preview images are generated in the UI and are not persisted in the database
 - barcode/QR values are operational identifiers only and do not create journal entries or direct accounting effects
-- each item can store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments
+- item cards can now store optional default sales/purchase prices, currency code, taxable/default-tax settings, internal notes, image/attachment references, and per-unit conversion rows for the material card workflow
+- each item can store default posting-account mappings for inventory, cost of goods sold, sales, sales returns, and adjustments
 - item groups can also store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments for future defaulting behavior
+- the base unit conversion row is always preserved with factor `1`; additional unit rows store how operational quantities convert back to the base unit for future document-entry workflows
 - warehouse masters support active/inactive control, transit/staging classification, and a single default transit location flag
 - goods receipts can be saved as drafts, updated while still in draft, cancelled before posting, and posted to increase both warehouse-level and item-level quantity/value balances
 - goods receipt lines preserve warehouse-linked intake history with item, quantity, unit-cost, and source-reference context

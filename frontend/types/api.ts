@@ -280,6 +280,9 @@ export type InventoryItem = {
   code: string;
   name: string;
   description?: string | null;
+  internalNotes?: string | null;
+  itemImageUrl?: string | null;
+  attachmentsText?: string | null;
   barcode?: string | null;
   qrCodeValue?: string | null;
   unitOfMeasure: string;
@@ -297,6 +300,13 @@ export type InventoryItem = {
     "id" | "code" | "name" | "itemGroupId" | "isActive"
   > | null;
   type: InventoryItemType;
+  defaultSalesPrice: string;
+  defaultPurchasePrice: string;
+  currencyCode?: string | null;
+  taxable: boolean;
+  defaultTaxId?: string | null;
+  defaultTax?: Pick<Tax, "id" | "taxCode" | "taxName" | "rate" | "taxType" | "isActive"> | null;
+  trackInventory: boolean;
   reorderLevel: string;
   reorderQuantity: string;
   preferredWarehouseId?: string | null;
@@ -336,6 +346,15 @@ export type InventoryItem = {
     isActive: boolean;
     isPosting: boolean;
   } | null;
+  salesReturnAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
   adjustmentAccount?: {
     id: string;
     code: string;
@@ -345,8 +364,23 @@ export type InventoryItem = {
     isActive: boolean;
     isPosting: boolean;
   } | null;
+  unitConversions: InventoryItemUnitConversion[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type InventoryItemUnitConversion = {
+  id: string;
+  unitId: string;
+  unit: Pick<
+    InventoryUnitOfMeasure,
+    "id" | "code" | "name" | "decimalPrecision" | "isActive"
+  >;
+  conversionFactorToBaseUnit: string;
+  barcode?: string | null;
+  defaultSalesPrice: string;
+  defaultPurchasePrice: string;
+  isBaseUnit: boolean;
 };
 
 export type InventoryItemsQuery = {
@@ -439,6 +473,9 @@ export type CreateInventoryItemPayload = {
   code?: string;
   name: string;
   description?: string;
+  internalNotes?: string;
+  itemImageUrl?: string;
+  attachmentsText?: string;
   barcode?: string;
   qrCodeValue?: string;
   unitOfMeasure?: string;
@@ -450,10 +487,27 @@ export type CreateInventoryItemPayload = {
   inventoryAccountId?: string;
   cogsAccountId?: string;
   salesAccountId?: string;
+  salesReturnAccountId?: string;
   adjustmentAccountId?: string;
+  defaultSalesPrice?: string;
+  defaultPurchasePrice?: string;
+  currencyCode?: string;
+  taxable?: boolean;
+  defaultTaxId?: string;
+  trackInventory?: boolean;
   reorderLevel?: string;
   reorderQuantity?: string;
   preferredWarehouseId?: string;
+  unitConversions?: InventoryItemUnitConversionPayload[];
+};
+
+export type InventoryItemUnitConversionPayload = {
+  unitId: string;
+  conversionFactorToBaseUnit: string;
+  barcode?: string;
+  defaultSalesPrice?: string;
+  defaultPurchasePrice?: string;
+  isBaseUnit?: boolean;
 };
 
 export type CreateInventoryItemGroupPayload = {
