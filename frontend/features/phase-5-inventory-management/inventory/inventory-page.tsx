@@ -94,6 +94,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import {
   ItemEditorModal,
   ItemEditorState,
+  ItemUnitConversionEditorState,
   createEmptyItemEditor,
   createUnitConversionEditor,
 } from "./item-editor-modal";
@@ -374,7 +375,7 @@ function createEmptyAdjustmentEditor(): AdjustmentEditorState {
 }
 
 export function InventoryPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const [workspace, setWorkspace] = useState<InventoryWorkspace>("items");
@@ -1095,6 +1096,7 @@ export function InventoryPage() {
   const activeUnitsOfMeasure = activeUnitsQuery.data ?? unitsOfMeasure.filter((row) => row.isActive);
   const activeTaxes = activeTaxesQuery.data ?? [];
   const itemEditorCategories = activeItemCategories.filter((row) => row.itemGroupId === itemEditor.itemGroupId);
+  const isArabic = language === "ar";
   const inventorySettingsDisabled = itemEditor.type === "SERVICE" || !itemEditor.trackInventory;
   useEffect(() => {
     if (itemEditor.type !== "SERVICE") {
@@ -1333,13 +1335,11 @@ export function InventoryPage() {
             selectedId={selectedItemGroup?.id ?? null}
             onSelect={setSelectedItemGroupId}
             renderMeta={(group) =>
-              [
-                group.parentGroup ? `${group.parentGroup.code} · ${group.parentGroup.name}` : null,
-                t("inventory.itemGroups.categoryCount", { count: group.categoryCount }),
-                t("inventory.itemGroups.itemCount", { count: group.itemCount }),
-              ]
-                .filter(Boolean)
-                .join(" · ")
+              <div className="flex flex-wrap justify-end gap-x-2 gap-y-1">
+                {group.parentGroup ? <span>{formatCodeName(group.parentGroup.code, group.parentGroup.name, isArabic)}</span> : null}
+                <span>{t("inventory.itemGroups.categoryCount", { count: group.categoryCount })}</span>
+                <span>{t("inventory.itemGroups.itemCount", { count: group.itemCount })}</span>
+              </div>
             }
             detail={
               selectedItemGroup ? (
@@ -1349,7 +1349,7 @@ export function InventoryPage() {
                   isActive={selectedItemGroup.isActive}
                   description={selectedItemGroup.description}
                   rows={[
-                    [t("inventory.itemGroups.field.parentGroup"), selectedItemGroup.parentGroup ? `${selectedItemGroup.parentGroup.code} · ${selectedItemGroup.parentGroup.name}` : t("inventory.emptyValue")],
+                    [t("inventory.itemGroups.field.parentGroup"), selectedItemGroup.parentGroup ? formatCodeName(selectedItemGroup.parentGroup.code, selectedItemGroup.parentGroup.name, isArabic) : t("inventory.emptyValue")],
                     [t("inventory.itemGroups.detail.categoryCount"), String(selectedItemGroup.categoryCount)],
                     [t("inventory.itemGroups.detail.itemCount"), String(selectedItemGroup.itemCount)],
                   ]}
@@ -1388,13 +1388,16 @@ export function InventoryPage() {
                 <option value="">{t("inventory.itemCategories.filters.allGroups")}</option>
                 {activeItemGroups.map((group) => (
                   <option key={group.id} value={group.id}>
-                    {group.code} · {group.name}
+                    {formatCodeNameText(group.code, group.name, isArabic)}
                   </option>
                 ))}
               </Select>
             }
             renderMeta={(category) =>
-              `${category.itemGroup.code} · ${category.itemGroup.name} · ${t("inventory.itemCategories.itemCount", { count: category.itemCount })}`
+              <div className="flex flex-wrap justify-end gap-x-2 gap-y-1">
+                <span>{formatCodeName(category.itemGroup.code, category.itemGroup.name, isArabic)}</span>
+                <span>{t("inventory.itemCategories.itemCount", { count: category.itemCount })}</span>
+              </div>
             }
             detail={
               selectedItemCategory ? (
@@ -1404,7 +1407,7 @@ export function InventoryPage() {
                   isActive={selectedItemCategory.isActive}
                   description={selectedItemCategory.description}
                   rows={[
-                    [t("inventory.itemCategories.field.itemGroup"), `${selectedItemCategory.itemGroup.code} · ${selectedItemCategory.itemGroup.name}`],
+                    [t("inventory.itemCategories.field.itemGroup"), formatCodeName(selectedItemCategory.itemGroup.code, selectedItemCategory.itemGroup.name, isArabic)],
                     [t("inventory.itemCategories.detail.itemCount"), String(selectedItemCategory.itemCount)],
                   ]}
                   onEdit={() => openEditItemCategory(selectedItemCategory)}
@@ -1505,7 +1508,7 @@ export function InventoryPage() {
                   <option value="">{t("inventory.filters.allItemGroups")}</option>
                   {activeItemGroups.map((group) => (
                     <option key={group.id} value={group.id}>
-                      {group.code} · {group.name}
+                      {formatCodeNameText(group.code, group.name, isArabic)}
                     </option>
                   ))}
                 </Select>
@@ -1515,7 +1518,7 @@ export function InventoryPage() {
                     .filter((category) => !itemGroupFilter || category.itemGroupId === itemGroupFilter)
                     .map((category) => (
                       <option key={category.id} value={category.id}>
-                        {category.code} · {category.name}
+                        {formatCodeNameText(category.code, category.name, isArabic)}
                       </option>
                     ))}
                 </Select>
@@ -3959,11 +3962,12 @@ function MasterDataGrid<T extends MasterDataRow>({
   rows: T[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  renderMeta: (row: T) => string;
+  renderMeta: (row: T) => ReactNode;
   detail: ReactNode;
   extraFilter?: ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isArabic = language === "ar";
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
@@ -3989,20 +3993,22 @@ function MasterDataGrid<T extends MasterDataRow>({
                 key={row.id}
                 type="button"
                 onClick={() => onSelect(row.id)}
-                className={`w-full rounded-2xl border px-5 py-4 text-left transition ${
+                className={`w-full rounded-2xl border px-5 py-4 transition ${
                   selectedId === row.id ? "border-teal-200 bg-teal-50/60" : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
+                <div className={`flex items-start gap-4 ${isArabic ? "flex-row-reverse" : "justify-between"}`}>
+                  <div className={`flex min-w-0 flex-1 flex-col space-y-1 ${isArabic ? "items-end text-right" : "text-left"}`}>
                     <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{row.code}</div>
                     <div className="text-lg font-black tracking-tight text-gray-900">{row.name}</div>
                     <div className="text-sm text-gray-600">{renderMeta(row)}</div>
                   </div>
-                  <StatusPill
-                    label={row.isActive ? t("inventory.status.active") : t("inventory.status.inactive")}
-                    tone={row.isActive ? "positive" : "warning"}
-                  />
+                  <div className="shrink-0">
+                    <StatusPill
+                      label={row.isActive ? t("inventory.status.active") : t("inventory.status.inactive")}
+                      tone={row.isActive ? "positive" : "warning"}
+                    />
+                  </div>
                 </div>
               </button>
             ))
@@ -4030,33 +4036,36 @@ function MasterDataDetail({
   name: string;
   isActive: boolean;
   description?: string | null;
-  rows: Array<[string, string]>;
+  rows: Array<[string, ReactNode]>;
   onEdit: () => void;
   onDeactivate: () => void;
   editLabel: string;
   deactivateLabel: string;
   disableActions: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const isArabic = language === "ar";
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
+      <div className={`flex items-start gap-4 ${isArabic ? "flex-row-reverse" : "justify-between"}`}>
+        <div className={`flex min-w-0 flex-1 flex-col space-y-1 ${isArabic ? "items-end text-right" : "text-left"}`}>
           <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{code}</div>
           <h2 className="text-2xl font-black tracking-tight text-gray-900">{name}</h2>
         </div>
-        <StatusPill label={isActive ? t("inventory.status.active") : t("inventory.status.inactive")} tone={isActive ? "positive" : "warning"} />
+        <div className="shrink-0">
+          <StatusPill label={isActive ? t("inventory.status.active") : t("inventory.status.inactive")} tone={isActive ? "positive" : "warning"} />
+        </div>
       </div>
-      {description ? <p className="text-sm leading-7 text-gray-600">{description}</p> : null}
+      {description ? <p className={`text-sm leading-7 text-gray-600 ${isArabic ? "text-right" : ""}`}>{description}</p> : null}
       <div className="space-y-2 text-sm leading-7 text-gray-600">
         {rows.map(([label, value]) => (
-          <div key={label}>
+          <div key={label} className="text-right">
             <span className="font-semibold text-gray-900">{label}:</span> {value}
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap gap-3 pt-2">
+      <div className={`flex flex-wrap gap-3 pt-2 ${isArabic ? "justify-end" : ""}`}>
         <Button variant="secondary" onClick={onEdit} disabled={disableActions}>
           {editLabel}
         </Button>
@@ -4842,6 +4851,26 @@ function buildInternalItemCodeCandidate() {
   const suffix =
     `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
   return `ITEM-${compactDate}-${suffix}`;
+}
+
+function formatCodeName(code: string, name: string, isArabic: boolean) {
+  return isArabic ? (
+    <>
+      <span>{name}</span>
+      <span>{' · '}</span>
+      <bdi dir="ltr">{code}</bdi>
+    </>
+  ) : (
+    <>
+      <bdi dir="ltr">{code}</bdi>
+      <span>{' · '}</span>
+      <span>{name}</span>
+    </>
+  );
+}
+
+function formatCodeNameText(code: string, name: string, isArabic: boolean) {
+  return isArabic ? `${name} · ${code}` : `${code} · ${name}`;
 }
 
 function buildInventoryQrValue({

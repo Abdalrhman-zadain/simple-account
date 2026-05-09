@@ -125,7 +125,7 @@ export function MasterDataPage() {
 
     const { data: taxAccounts = [] } = useQuery({
         queryKey: ["accounts", "tax-account-options", token],
-        queryFn: () => getAccountOptions({ isActive: "true", isPosting: "true" }, token),
+        queryFn: () => getAccountOptions({ isActive: "true", isPosting: "true", type: "LIABILITY" }, token),
     });
 
     const createMutation = useMutation({
@@ -267,6 +267,17 @@ export function MasterDataPage() {
     const accountLabel = (account?: AccountOption | null) =>
         account ? `${account.code} - ${account.nameAr || account.name}` : t("master.taxes.noAccount");
     const selectedTaxTypeRequiresAccount = taxEditor?.taxType === "SALES" || taxEditor?.taxType === "PURCHASE";
+    const taxAccountOptions = taxAccounts.filter((account) => {
+        if (taxEditor?.taxType === "SALES") {
+            return account.code.startsWith("212100");
+        }
+
+        if (taxEditor?.taxType === "PURCHASE") {
+            return account.type === "LIABILITY";
+        }
+
+        return true;
+    });
     const canSaveTax = Boolean(
         taxEditor?.taxCode.trim() &&
         taxEditor?.taxName.trim() &&
@@ -919,7 +930,7 @@ export function MasterDataPage() {
                                     className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
                                 >
                                     <option value="">{t("master.taxes.accountPlaceholder")}</option>
-                                    {taxAccounts.filter((account) => account.code.startsWith('230')).map((account) => <option key={account.id} value={account.id}>{accountLabel(account)}</option>)}
+                                    {taxAccountOptions.map((account) => <option key={account.id} value={account.id}>{accountLabel(account)}</option>)}
                                 </select>
                             </Field>
                             <Field label={t("common.table.status")}>

@@ -147,4 +147,26 @@ pg_restore -h localhost -p 15432 -U simple_account_user -d simple_account --data
 2026-05-04,PAY-001,دفع لمورد,0,200
 2026-05-04,FEE-001,رسوم بنكية,0,10
 
+pm2 restart ecosystem.config.js
+
+
+
+• Use this sequence on the server:
+
+  cd "/home/server/Desktop/simple account system/simple-account"
+  git pull --ff-only
+  cd frontend && npm run build
+  cd ../backend && npm run build
+  cd .. && pm2 restart account-frontend account-backend
+
+  Why this is necessary: this project’s production processes do not run source files directly. The frontend serves from frontend/.next, and the backend serves from backend/dist, so git
+  pull and pm2 restart alone are not enough after code changes.
+
+  If you want a safer routine, use this order every time:
+
+  1. git pull --ff-only
+  2. frontend: npm run build
+  3. backend: npm run build
+  4. pm2 restart account-frontend account-backend
+  5. Verify http://sabina.trusttechlimited.com
 

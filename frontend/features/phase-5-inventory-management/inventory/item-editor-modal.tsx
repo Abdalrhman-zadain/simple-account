@@ -109,6 +109,10 @@ const ITEM_TYPE_OPTIONS: { value: InventoryItemType; label: string }[] = [
   { value: "MANUFACTURED_ITEM", label: "مادة مصنّعة" },
 ];
 
+function formatCodeName(code: string, name: string, isArabic: boolean) {
+  return isArabic ? `${name} · ${code}` : `${code} · ${name}`;
+}
+
 export function createEmptyItemEditor(): ItemEditorState {
   return {
     code: "",
@@ -300,7 +304,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectItemGroup")}</option>
                     {activeItemGroups.map((g) => (
-                      <option key={g.id} value={g.id}>{g.code} · {g.name}</option>
+                      <option key={g.id} value={g.id}>{formatCodeName(g.code, g.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -319,7 +323,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectItemCategory")}</option>
                     {itemEditorCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.code} · {cat.name}</option>
+                      <option key={cat.id} value={cat.id}>{formatCodeName(cat.code, cat.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -371,7 +375,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectUnit")}</option>
                     {activeUnitsOfMeasure.map((u) => (
-                      <option key={u.id} value={u.id}>{u.code} · {u.name}</option>
+                      <option key={u.id} value={u.id}>{formatCodeName(u.code, u.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -485,7 +489,7 @@ export function ItemEditorModal({
                             >
                               <option value="">اختر وحدة</option>
                               {activeUnitsOfMeasure.map((u) => (
-                                <option key={u.id} value={u.id}>{u.code} · {u.name}</option>
+                                <option key={u.id} value={u.id}>{formatCodeName(u.code, u.name, isArabic)}</option>
                               ))}
                             </Select>
                           </td>
@@ -662,7 +666,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectWarehouse")}</option>
                     {warehouses.filter(w => w.isActive).map((w) => (
-                      <option key={w.id} value={w.id}>{w.code} · {w.name}</option>
+                      <option key={w.id} value={w.id}>{formatCodeName(w.code, w.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -711,7 +715,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {inventoryAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -723,7 +727,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {salesAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -736,7 +740,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {cogsAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -748,7 +752,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {salesAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -761,7 +765,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {adjustmentAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
