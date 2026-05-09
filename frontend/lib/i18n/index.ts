@@ -1780,10 +1780,10 @@ Object.assign(enTranslations, {
     "Add NestJS submodules under the Phase 5 inventory root with DTOs, services, and guarded endpoints.",
   "inventory.next.ui":
     "Split feature-owned inventory screens under frontend/features/phase-5-inventory-management as each workflow becomes real.",
-  "inventory.type.INVENTORY": "Inventory",
-  "inventory.type.NON_STOCK": "Non-Stock",
-  "inventory.type.SERVICE": "Service",
   "inventory.type.RAW_MATERIAL": "Raw Material",
+  "inventory.type.FINISHED_GOOD": "Finished Good",
+  "inventory.type.SERVICE": "Service",
+  "inventory.type.MANUFACTURED_ITEM": "Manufactured Item",
 });
 
 Object.assign(enTranslations, {

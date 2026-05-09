@@ -1608,10 +1608,10 @@ Object.assign(arTranslations, {
     "إضافة الوحدات الفرعية في NestJS تحت جذر المرحلة الخامسة مع DTOs والخدمات والمسارات المحمية.",
   "inventory.next.ui":
     "تقسيم شاشات المخزون المملوكة للميزة داخل frontend/features/phase-5-inventory-management مع بدء تنفيذ كل سير عمل فعلي.",
-  "inventory.type.INVENTORY": "مخزني",
-  "inventory.type.NON_STOCK": "غير مخزني",
-  "inventory.type.SERVICE": "خدمة",
   "inventory.type.RAW_MATERIAL": "مادة خام",
+  "inventory.type.FINISHED_GOOD": "مادة جاهزة للبيع",
+  "inventory.type.SERVICE": "خدمة",
+  "inventory.type.MANUFACTURED_ITEM": "مادة مصنّعة",
 });
 
 Object.assign(arTranslations, {

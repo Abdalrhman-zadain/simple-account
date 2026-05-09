@@ -166,10 +166,10 @@ export type CreatePaymentTermPayload = {
 export type UpdatePaymentTermPayload = Partial<CreatePaymentTermPayload>;
 
 export type InventoryItemType =
-  | "INVENTORY"
-  | "NON_STOCK"
+  | "RAW_MATERIAL"
+  | "FINISHED_GOOD"
   | "SERVICE"
-  | "RAW_MATERIAL";
+  | "MANUFACTURED_ITEM";
 
 export type InventoryWarehouse = {
   id: string;

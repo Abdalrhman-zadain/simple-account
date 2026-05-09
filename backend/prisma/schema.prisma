@@ -172,10 +172,10 @@ enum DebitNoteStatus {
 }
 
 enum InventoryItemType {
-  INVENTORY
-  NON_STOCK
-  SERVICE
   RAW_MATERIAL
+  FINISHED_GOOD
+  SERVICE
+  MANUFACTURED_ITEM
 }
 
 enum InventoryCostingMethod {
@@ -693,7 +693,7 @@ model InventoryItem {
   itemGroup              InventoryItemGroup?         @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
   itemCategoryId         String?
   itemCategory           InventoryItemCategory?      @relation(fields: [itemCategoryId], references: [id], onDelete: Restrict)
-  type                   InventoryItemType           @default(INVENTORY)
+  type                   InventoryItemType           @default(FINISHED_GOOD)
   inventoryAccountId     String?
   inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
   cogsAccountId          String?

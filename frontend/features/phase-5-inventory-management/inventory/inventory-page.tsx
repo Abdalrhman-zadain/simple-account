@@ -92,7 +92,7 @@ import type {
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
-const ITEM_TYPE_OPTIONS: InventoryItemType[] = ["INVENTORY", "NON_STOCK", "SERVICE", "RAW_MATERIAL"];
+const ITEM_TYPE_OPTIONS: InventoryItemType[] = ["RAW_MATERIAL", "FINISHED_GOOD", "SERVICE", "MANUFACTURED_ITEM"];
 const RECEIPT_STATUS_OPTIONS: InventoryReceiptStatus[] = ["DRAFT", "POSTED", "CANCELLED", "REVERSED"];
 const ISSUE_STATUS_OPTIONS: InventoryIssueStatus[] = ["DRAFT", "POSTED", "CANCELLED", "REVERSED"];
 const TRANSFER_STATUS_OPTIONS: InventoryTransferStatus[] = ["DRAFT", "POSTED", "CANCELLED", "REVERSED"];
@@ -1181,10 +1181,12 @@ export function InventoryPage() {
   const activeUnitsOfMeasure = activeUnitsQuery.data ?? unitsOfMeasure.filter((row) => row.isActive);
   const activeTaxes = activeTaxesQuery.data ?? [];
   const itemEditorCategories = activeItemCategories.filter((row) => row.itemGroupId === itemEditor.itemGroupId);
-  const inventorySettingsDisabled = itemEditor.type === "NON_STOCK" || itemEditor.type === "SERVICE" || !itemEditor.trackInventory;
+  const inventorySettingsDisabled = itemEditor.type === "SERVICE" || !itemEditor.trackInventory;
   useEffect(() => {
-    setItemEditor((current) => ensureBaseUnitConversionRow(current, activeUnitsOfMeasure));
-  }, [activeUnitsOfMeasure, itemEditor.unitOfMeasureId]);
+    if (itemEditor.type !== "SERVICE") {
+      setItemEditor((current) => ensureBaseUnitConversionRow(current, activeUnitsOfMeasure));
+    }
+  }, [activeUnitsOfMeasure, itemEditor.unitOfMeasureId, itemEditor.type]);
 
   const itemTotal = itemsResponse?.total ?? 0;
   const itemTotalPages = itemsResponse?.totalPages ?? 1;
@@ -2827,13 +2829,29 @@ export function InventoryPage() {
                         <Field label="نوع المادة" required labelAlign="end">
                           <Select
                             value={itemEditor.type}
-                            onChange={(event) =>
-                              setItemEditor((current) => ({
-                                ...current,
-                                type: event.target.value as InventoryItemType,
-                                trackInventory: event.target.value === "NON_STOCK" || event.target.value === "SERVICE" ? false : current.trackInventory || true,
-                              }))
-                            }
+                            onChange={(event) => {
+                              const newType = event.target.value as InventoryItemType;
+                              setItemEditor((current) => {
+                                let nextUnitOfMeasureId = current.unitOfMeasureId;
+                                let nextUnitOfMeasure = current.unitOfMeasure;
+
+                                if (newType === "SERVICE" && !nextUnitOfMeasureId) {
+                                  const serviceUnit = activeUnitsOfMeasure.find((u) => u.name === "خدمة" || u.name === "Service");
+                                  if (serviceUnit) {
+                                    nextUnitOfMeasureId = serviceUnit.id;
+                                    nextUnitOfMeasure = serviceUnit.code;
+                                  }
+                                }
+
+                                return {
+                                  ...current,
+                                  type: newType,
+                                  trackInventory: newType === "SERVICE" ? false : true,
+                                  unitOfMeasureId: nextUnitOfMeasureId,
+                                  unitOfMeasure: nextUnitOfMeasure,
+                                };
+                              });
+                            }}
                             className="text-right"
                           >
                             {ITEM_TYPE_OPTIONS.map((type) => (
@@ -3100,9 +3118,8 @@ export function InventoryPage() {
                               type="checkbox"
                               checked={itemEditor.trackInventory}
                               onChange={(event) => setItemEditor((current) => ({ ...current, trackInventory: event.target.checked }))}
-                              disabled={itemEditor.type === "NON_STOCK" || itemEditor.type === "SERVICE"}
-                              className="h-4 w-4 accent-emerald-600"
-                            />
+                              disabled={itemEditor.type === "SERVICE"}
+                              className="h-4 w-4 accent-emerald-600"                            />
                           </label>
                         </Field>
                         <Field label="المستودع المفضل" labelAlign="end">
@@ -3140,6 +3157,7 @@ export function InventoryPage() {
                             onChange={(value) => setItemEditor((current) => ({ ...current, inventoryAccountId: value }))}
                             options={inventoryAccountsQuery.data ?? []}
                             placeholder={t("inventory.placeholder.selectAccount")}
+                            disabled={itemEditor.type === "SERVICE"}
                           />
                         </Field>
                         <Field label="حساب المبيعات" labelAlign="end">
@@ -3156,6 +3174,7 @@ export function InventoryPage() {
                             onChange={(value) => setItemEditor((current) => ({ ...current, cogsAccountId: value }))}
                             options={cogsAccountsQuery.data ?? []}
                             placeholder={t("inventory.placeholder.selectAccount")}
+                            disabled={itemEditor.type === "SERVICE"}
                           />
                         </Field>
                         <Field label="حساب مردودات المبيعات" labelAlign="end">
@@ -3172,6 +3191,7 @@ export function InventoryPage() {
                             onChange={(value) => setItemEditor((current) => ({ ...current, adjustmentAccountId: value }))}
                             options={adjustmentAccountsQuery.data ?? []}
                             placeholder={t("inventory.placeholder.selectAccount")}
+                            disabled={itemEditor.type === "SERVICE"}
                           />
                         </Field>
                       </div>
@@ -5153,8 +5173,17 @@ function getItemFormError(editor: ItemEditorState) {
   if (!editor.name.trim()) return "Material name is required. اسم المادة مطلوب.";
   if (!editor.itemGroupId) return "Item group is required. مجموعة الأصناف مطلوبة.";
   if (!editor.itemCategoryId) return "Item category is required. فئة الصنف / التصنيف مطلوبة.";
-  if (!editor.unitOfMeasureId) return "Base unit of measure is required. وحدة القياس الأساسية مطلوبة.";
-  if (!editor.unitOfMeasure.trim()) return "Unit of measure is required. وحدة القياس مطلوبة.";
+
+  const isService = editor.type === "SERVICE";
+
+  if (!isService) {
+    if (!editor.unitOfMeasureId) return "Base unit of measure is required. وحدة القياس الأساسية مطلوبة.";
+    if (!editor.unitOfMeasure.trim()) return "Unit of measure is required. وحدة القياس مطلوبة.";
+    if (!editor.unitConversions.length) {
+      return "Base unit conversion row is required. يجب وجود صف للوحدة الأساسية داخل جدول التحويلات.";
+    }
+  }
+
   if (editor.barcode.trim().length > 120) return "Barcode is too long. الباركود طويل جدًا.";
   if (editor.defaultSalesPrice.trim() && Number.isNaN(Number(editor.defaultSalesPrice))) {
     return "Default sales price must be numeric. يجب أن يكون سعر البيع الافتراضي رقمياً.";
@@ -5170,9 +5199,6 @@ function getItemFormError(editor: ItemEditorState) {
   }
   if (editor.reorderQuantity.trim() && Number.isNaN(Number(editor.reorderQuantity))) {
     return "Reorder quantity must be numeric. يجب أن تكون كمية إعادة الطلب رقمية.";
-  }
-  if (!editor.unitConversions.length) {
-    return "Base unit conversion row is required. يجب وجود صف للوحدة الأساسية داخل جدول التحويلات.";
   }
 
   const unitIds = new Set<string>();
@@ -5192,7 +5218,7 @@ function getItemFormError(editor: ItemEditorState) {
       return "Conversion factor must be greater than zero. معامل التحويل إلى الوحدة الأساسية يجب أن يكون أكبر من صفر.";
     }
 
-    if (row.unitId === editor.unitOfMeasureId) {
+    if (!isService && row.unitId === editor.unitOfMeasureId) {
       hasBaseUnit = true;
       if (factor !== 1) {
         return "Base unit conversion factor must be 1. يجب أن يكون معامل تحويل الوحدة الأساسية مساوياً لـ 1.";
@@ -5200,7 +5226,7 @@ function getItemFormError(editor: ItemEditorState) {
     }
   }
 
-  if (!hasBaseUnit) {
+  if (!isService && !hasBaseUnit && editor.unitOfMeasureId) {
     return "Base unit row must always exist. يجب أن يكون صف الوحدة الأساسية موجوداً دائماً.";
   }
 
