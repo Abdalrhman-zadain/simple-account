@@ -72,7 +72,7 @@ import type {
   SalesQuotation,
   SalesLinePayload,
 } from "@/types/api";
-import { Button, Card, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
+import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { exportOrPrint, formatExportDate, formatExportMoney, type ExportMode } from "@/lib/export-print";
@@ -1261,34 +1261,35 @@ export function SalesReceivablesPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <SectionHeading
-        title={t("salesReceivables.title")}
-        description={t("salesReceivables.description")}
-      />
+    <PageShell>
+      <div className="space-y-8">
+        <SectionHeading
+          title={t("salesReceivables.title")}
+          description={t("salesReceivables.description")}
+        />
 
-      <div className="flex flex-wrap gap-3">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const active = tab.id === activeTab;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
-                active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+        <div className="flex flex-wrap gap-3">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = tab.id === activeTab;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
+                  active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {errorMessage ? <Card className="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{errorMessage}</Card> : null}
+        {errorMessage ? <Card className="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{errorMessage}</Card> : null}
 
       {activeTab === "customers" ? (
         <div className="space-y-6">
@@ -3057,7 +3058,8 @@ export function SalesReceivablesPage() {
         </div>
       </SidePanel>
       ) : null}
-    </div>
+      </div>
+    </PageShell>
   );
 }
 

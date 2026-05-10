@@ -1039,7 +1039,7 @@ export class ReportingService {
 
   private resolveSourceDocument(journalEntry: Record<string, unknown>) {
     const candidates: Array<{ key: string; label: string; path: string }> = [
-      { key: "bankCashTransaction", label: "Bank/Cash Transaction", path: "/bank-cash-transactions" },
+      { key: "bankCashTransaction", label: "Bank/Cash Transaction", path: "/bank-cash-accounts?tab=receipts" },
       { key: "salesInvoice", label: "Sales Invoice", path: "/sales-receivables" },
       { key: "purchaseInvoice", label: "Purchase Invoice", path: "/purchases" },
       { key: "creditNote", label: "Credit Note", path: "/sales-receivables" },

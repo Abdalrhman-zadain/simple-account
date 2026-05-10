@@ -17,7 +17,6 @@ import {
   LuPanelLeftClose as PanelLeftClose,
   LuPanelLeftOpen as PanelLeftOpen,
   LuWalletMinimal as WalletMinimal,
-  LuReceiptText as ReceiptText,
   LuBadgeCheck as BadgeCheck,
   LuShoppingCart as ShoppingCart,
   LuPackage as Package,
@@ -71,7 +70,6 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/accounts", labelKey: "nav.item.chartOfAccounts", icon: BookOpen },
       { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
-      { href: "/bank-cash-transactions/receipts", labelKey: "nav.item.bankCashTransactions", icon: ReceiptText },
       { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
       { href: "/sales-receivables", labelKey: "nav.item.salesReceivables", icon: Users },
       { href: "/purchases", labelKey: "nav.item.purchases", icon: ShoppingCart },
@@ -167,11 +165,6 @@ export function SiteHeader({
         queryFn: () => getBankCashAccounts({}, token),
         staleTime: 30_000,
       });
-      return;
-    }
-
-    if (href.startsWith("/bank-cash-transactions")) {
-      void prefetchPostingAccounts();
       void queryClient.prefetchQuery({
         queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
         queryFn: () => getBankCashAccounts({ isActive: "true" }, token),

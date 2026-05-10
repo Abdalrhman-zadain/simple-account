@@ -1684,7 +1684,7 @@ function getAuditSourcePath(entry: ReportingActivityEntry) {
     case "JournalEntry":
       return `/journal-entries?reference=${encodeURIComponent(entityId)}`;
     case "BankCashTransaction":
-      return `/bank-cash-transactions?sourceId=${encodeURIComponent(entityId)}`;
+      return `/bank-cash-accounts?tab=receipts&sourceId=${encodeURIComponent(entityId)}`;
     case "SalesInvoice":
     case "CreditNote":
       return `/sales-receivables?sourceId=${encodeURIComponent(entityId)}`;

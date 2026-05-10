@@ -1,12 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
+  LuArrowLeftRight as ArrowLeftRight,
+  LuBoxes as Boxes,
+  LuChartNoAxesColumn as ChartNoAxesColumn,
   LuFileText as FileText,
+  LuFolderTree as FolderTree,
+  LuPackage as Package,
   LuPackage2 as Package2,
+  LuRuler as Ruler,
   LuSave as Save,
+  LuSettings2 as Settings2,
+  LuTags as Tags,
+  LuWarehouse as Warehouse,
 } from "react-icons/lu";
 
 import {
@@ -63,6 +72,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AccountOption,
@@ -131,6 +141,24 @@ type InventoryWorkspace =
   | "transfers"
   | "adjustments"
   | "stockLedger";
+
+const INVENTORY_WORKSPACE_TABS: Array<{
+  id: InventoryWorkspace;
+  labelKey: string;
+  icon: ComponentType<{ className?: string }>;
+}> = [
+  { id: "items", labelKey: "inventory.workspace.items", icon: Package },
+  { id: "itemGroups", labelKey: "inventory.workspace.itemGroups", icon: Boxes },
+  { id: "itemCategories", labelKey: "inventory.workspace.itemCategories", icon: Tags },
+  { id: "unitsOfMeasure", labelKey: "inventory.workspace.unitsOfMeasure", icon: Ruler },
+  { id: "warehouses", labelKey: "inventory.workspace.warehouses", icon: Warehouse },
+  { id: "receipts", labelKey: "inventory.workspace.receipts", icon: FileText },
+  { id: "issues", labelKey: "inventory.workspace.issues", icon: Package2 },
+  { id: "transfers", labelKey: "inventory.workspace.transfers", icon: ArrowLeftRight },
+  { id: "adjustments", labelKey: "inventory.workspace.adjustments", icon: FolderTree },
+  { id: "stockLedger", labelKey: "inventory.workspace.stockLedger", icon: ChartNoAxesColumn },
+  { id: "policy", labelKey: "inventory.workspace.policy", icon: Settings2 },
+];
 
 type ItemGroupEditorState = {
   id?: string;
@@ -1255,41 +1283,28 @@ export function InventoryPage() {
 
         <section className="space-y-4">
           <SectionHeading title={t("inventory.workspace.title")} description={t("inventory.workspace.description")} />
-          <Card className="flex flex-wrap gap-3">
-            <Button variant={workspace === "items" ? "primary" : "secondary"} onClick={() => setWorkspace("items")}>
-              {t("inventory.workspace.items")}
-            </Button>
-            <Button variant={workspace === "itemGroups" ? "primary" : "secondary"} onClick={() => setWorkspace("itemGroups")}>
-              {t("inventory.workspace.itemGroups")}
-            </Button>
-            <Button variant={workspace === "itemCategories" ? "primary" : "secondary"} onClick={() => setWorkspace("itemCategories")}>
-              {t("inventory.workspace.itemCategories")}
-            </Button>
-            <Button variant={workspace === "unitsOfMeasure" ? "primary" : "secondary"} onClick={() => setWorkspace("unitsOfMeasure")}>
-              {t("inventory.workspace.unitsOfMeasure")}
-            </Button>
-            <Button variant={workspace === "warehouses" ? "primary" : "secondary"} onClick={() => setWorkspace("warehouses")}>
-              {t("inventory.workspace.warehouses")}
-            </Button>
-            <Button variant={workspace === "receipts" ? "primary" : "secondary"} onClick={() => setWorkspace("receipts")}>
-              {t("inventory.workspace.receipts")}
-            </Button>
-            <Button variant={workspace === "issues" ? "primary" : "secondary"} onClick={() => setWorkspace("issues")}>
-              {t("inventory.workspace.issues")}
-            </Button>
-            <Button variant={workspace === "transfers" ? "primary" : "secondary"} onClick={() => setWorkspace("transfers")}>
-              {t("inventory.workspace.transfers")}
-            </Button>
-            <Button variant={workspace === "adjustments" ? "primary" : "secondary"} onClick={() => setWorkspace("adjustments")}>
-              {t("inventory.workspace.adjustments")}
-            </Button>
-            <Button variant={workspace === "stockLedger" ? "primary" : "secondary"} onClick={() => setWorkspace("stockLedger")}>
-              {t("inventory.workspace.stockLedger")}
-            </Button>
-            <Button variant={workspace === "policy" ? "primary" : "secondary"} onClick={() => setWorkspace("policy")}>
-              {t("inventory.workspace.policy")}
-            </Button>
-          </Card>
+          <div className="flex flex-wrap gap-3">
+            {INVENTORY_WORKSPACE_TABS.map((tab) => {
+              const active = workspace === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setWorkspace(tab.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3.5 py-2 text-[13px] font-bold transition-colors",
+                    active
+                      ? "border-gray-900 bg-gray-900 text-white"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  {t(tab.labelKey)}
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section id="inventory-policy-section" className={`space-y-5 ${workspace === "policy" ? "" : "hidden"}`}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuCirclePlus as CirclePlus } from "react-icons/lu";
 
@@ -37,7 +37,7 @@ type AccountTreeLike = {
   children?: AccountTreeLike[];
 };
 
-export function BankCashAccountsPage() {
+export function BankCashAccountsPage({ headerTabs }: { headerTabs?: ReactNode }) {
   const { token } = useAuth();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -227,6 +227,8 @@ export function BankCashAccountsPage() {
           </Button>
         }
       />
+
+      {headerTabs ? <div className="-mt-4 flex flex-wrap gap-3">{headerTabs}</div> : null}
 
       <BankCashAccountsSummary activeCount={activeCount} totalBalance={totalBalance} />
 

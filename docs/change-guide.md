@@ -100,7 +100,7 @@ Where to edit:
 - backend `phase-2-bank-cash-management/bank-cash-transactions`
 - `backend/prisma/schema.prisma` and Prisma migration files if transaction shape changes
 - frontend Phase 2 transaction features and API wrappers when UI is added
-- route files under `frontend/app/(erp)/bank-cash-transactions/...` should stay thin and compose the owning feature page
+- the primary frontend workspace now lives under `frontend/app/(erp)/bank-cash-accounts/page.tsx`; legacy route files under `frontend/app/(erp)/bank-cash-transactions/...` should stay thin and only redirect into the unified bank/cash workspace
 
 What else to check:
 
@@ -115,7 +115,7 @@ What else to check:
 Must remain compatible:
 
 - existing `/bank-cash-accounts` route and registry behavior
-- `/bank-cash-transactions/receipts`, `/bank-cash-transactions/payments`, and `/bank-cash-transactions/transfers` should keep their workflow intent unless intentionally changed
+- `/bank-cash-transactions/receipts`, `/bank-cash-transactions/payments`, and `/bank-cash-transactions/transfers` should keep redirect compatibility into the unified `/bank-cash-accounts` workspace unless intentionally changed
 - Phase 1 journal-entry and posting invariants
 - ledger history as the authoritative source for posted account activity
 

@@ -130,10 +130,10 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/accounts/edit/[id]`
 - `/journal-entries`
 - `/bank-cash-accounts`
-- `/bank-cash-transactions`
-- `/bank-cash-transactions/receipts`
-- `/bank-cash-transactions/payments`
-- `/bank-cash-transactions/transfers`
+- `/bank-cash-transactions` (legacy redirect to `/bank-cash-accounts?tab=receipts`)
+- `/bank-cash-transactions/receipts` (legacy redirect to `/bank-cash-accounts?tab=receipts`)
+- `/bank-cash-transactions/payments` (legacy redirect to `/bank-cash-accounts?tab=payments`)
+- `/bank-cash-transactions/transfers` (legacy redirect to `/bank-cash-accounts?tab=transfers`)
 - `/bank-reconciliations`
 - `/sales-receivables`
 - `/purchases`
@@ -202,7 +202,8 @@ The bank/cash account flow is:
 Browser
   -> /bank-cash-accounts
   -> app/(erp)/bank-cash-accounts/page.tsx
-  -> BankCashAccountsPage in frontend/features/phase-2-bank-cash-management/bank-cash-accounts
+  -> unified bank/cash workspace in frontend/features/phase-2-bank-cash-management/bank-cash-accounts
+  -> accounts tab composes BankCashAccountsPage; receipts/payments/transfers tabs compose BankCashTransactionsPage
   -> frontend/lib/api
   -> GET/POST/PATCH /bank-cash-accounts
   -> BankCashAccountsController

@@ -59,12 +59,20 @@ const EMPTY_EDITOR: EditorState = {
 };
 
 const KIND_ROUTES: Array<{ kind: BankCashTransactionKind; href: string; icon: any }> = [
-  { kind: "RECEIPT", href: "/bank-cash-transactions/receipts", icon: Inbox },
-  { kind: "PAYMENT", href: "/bank-cash-transactions/payments", icon: Send },
-  { kind: "TRANSFER", href: "/bank-cash-transactions/transfers", icon: ArrowLeftRight },
+  { kind: "RECEIPT", href: "/bank-cash-accounts?tab=receipts", icon: Inbox },
+  { kind: "PAYMENT", href: "/bank-cash-accounts?tab=payments", icon: Send },
+  { kind: "TRANSFER", href: "/bank-cash-accounts?tab=transfers", icon: ArrowLeftRight },
 ];
 
-export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKind }) {
+export function BankCashTransactionsPage({
+  kind,
+  showKindTabs = true,
+  headerTabs,
+}: {
+  kind: BankCashTransactionKind;
+  showKindTabs?: boolean;
+  headerTabs?: ReactNode;
+}) {
   const { token } = useAuth();
   const { t, language } = useTranslation();
   const queryClient = useQueryClient();
@@ -200,25 +208,29 @@ export function BankCashTransactionsPage({ kind }: { kind: BankCashTransactionKi
         }
       />
 
-      <div className="flex flex-wrap gap-3">
-        {KIND_ROUTES.map((item) => {
-          const Icon = item.icon;
-          const active = item.kind === kind;
-          return (
-            <Link
-              key={item.kind}
-              href={item.href}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
-                active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {t(transactionTabKey(item.kind))}
-            </Link>
-          );
-        })}
-      </div>
+      {headerTabs ? <div className="-mt-4 flex flex-wrap gap-3">{headerTabs}</div> : null}
+
+      {showKindTabs && !headerTabs ? (
+        <div className="flex flex-wrap gap-3">
+          {KIND_ROUTES.map((item) => {
+            const Icon = item.icon;
+            const active = item.kind === kind;
+            return (
+              <Link
+                key={item.kind}
+                href={item.href}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
+                  active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {t(transactionTabKey(item.kind))}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <SummaryCard label={t("bankCashTransactions.summary.total")} value={rows.length} hint={t("bankCashTransactions.summary.rows")} />
