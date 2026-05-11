@@ -58,6 +58,7 @@ const EMPLOYEE_PAYABLES_PARENT_CODE = "2130000";
 const CUSTOMER_AUTO_RECEIVABLE_SUBTYPE = "Current Assets";
 
 type ResolvedLine = {
+  itemId: string | null;
   itemName: string | null;
   description: string | null;
   revenueAccountId: string | null;
@@ -112,10 +113,10 @@ export class SalesReceivablesService {
   }
 
   async createCustomer(dto: CreateCustomerDto) {
-    const code = dto.code?.trim() || this.generateReference("CUS");
+    return await this.prisma.$transaction(async (tx) => {
+      const code = dto.code?.trim() || (await this.generateSequentialCustomerCode(tx));
 
-    try {
-      return await this.prisma.$transaction(async (tx) => {
+      try {
         if (dto.receivableAccountLinkMode === "AUTO" && !dto.name?.trim()) {
           throw new BadRequestException("يرجى إدخال اسم العميل قبل إنشاء حساب ذمم تلقائي.");
         }
@@ -124,7 +125,7 @@ export class SalesReceivablesService {
         const salesRep = await this.resolveActiveSalesRep(dto.salesRepId, tx);
         const taxTreatmentId = await this.resolveActiveTaxTreatment(dto.taxTreatmentId, tx);
 
-        return tx.customer.create({
+        return await tx.customer.create({
           data: {
             code,
             name: dto.name.trim(),
@@ -138,15 +139,35 @@ export class SalesReceivablesService {
           },
           include: this.customerInclude(),
         });
-      });
-    } catch (error) {
-      if (this.isUniqueConflict(error, "code")) {
-        throw new ConflictException(
-          "A customer with this code already exists.",
-        );
+      } catch (error) {
+        if (this.isUniqueConflict(error, "code")) {
+          throw new ConflictException(`رمز العميل "${code}" مستخدم بالفعل.`);
+        }
+        throw error;
       }
-      throw error;
+    });
+  }
+
+  private async generateSequentialCustomerCode(tx?: any) {
+    const prisma = tx || this.prisma;
+    const lastCustomer = await prisma.customer.findFirst({
+      where: { code: { startsWith: "CUS-" } },
+      orderBy: { code: "desc" },
+      select: { code: true },
+    });
+
+    if (!lastCustomer) {
+      return "CUS-000001";
     }
+
+    const lastNumberStr = lastCustomer.code.replace("CUS-", "");
+    const lastNumber = parseInt(lastNumberStr, 10);
+    if (isNaN(lastNumber)) {
+      return "CUS-000001";
+    }
+
+    const nextNumber = lastNumber + 1;
+    return `CUS-${nextNumber.toString().padStart(6, "0")}`;
   }
 
   async updateCustomer(id: string, dto: UpdateCustomerDto) {
@@ -2117,14 +2138,27 @@ export class SalesReceivablesService {
 
     const resolved: ResolvedLine[] = [];
     const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
+    const itemIds = Array.from(new Set(lines.map((line) => line.itemId?.trim()).filter(Boolean))) as string[];
     const taxes = taxIds.length
       ? await this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
       : [];
+    const items = itemIds.length
+      ? await this.prisma.inventoryItem.findMany({
+          where: { id: { in: itemIds }, isActive: true },
+          select: { id: true, code: true, name: true },
+        })
+      : [];
     const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
+    const itemById = new Map(items.map((item) => [item.id, item]));
 
     for (const [index, rawLine] of lines.entries()) {
+      const itemId = rawLine.itemId?.trim() || null;
       const revenueAccountId = rawLine.revenueAccountId?.trim() || null;
       const taxId = rawLine.taxId?.trim() || null;
+      const item = itemId ? itemById.get(itemId) ?? null : null;
+      if (itemId && !item) {
+        throw new BadRequestException(`Line ${index + 1} item/service must reference an active inventory item.`);
+      }
       if (taxId && !taxById.has(taxId)) {
         throw new BadRequestException(`Line ${index + 1} tax must reference an active tax.`);
       }
@@ -2197,7 +2231,8 @@ export class SalesReceivablesService {
       }
 
       resolved.push({
-        itemName: rawLine.itemName?.trim() || null,
+        itemId,
+        itemName: rawLine.itemName?.trim() || item?.name || null,
         description: rawLine.description?.trim() || null,
         revenueAccountId: revenueAccountId,
         taxId,
@@ -2232,6 +2267,7 @@ export class SalesReceivablesService {
   ): Prisma.SalesQuotationLineUncheckedCreateWithoutSalesQuotationInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -2251,6 +2287,7 @@ export class SalesReceivablesService {
   ): Prisma.SalesOrderLineUncheckedCreateWithoutSalesOrderInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -2270,6 +2307,7 @@ export class SalesReceivablesService {
   ): Prisma.SalesInvoiceLineUncheckedCreateWithoutSalesInvoiceInput {
     return {
       lineNumber,
+      itemId: line.itemId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -2564,7 +2602,20 @@ export class SalesReceivablesService {
         },
       },
       lines: {
-        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        include: {
+          revenueAccount: { select: this.accountSummarySelect() },
+          item: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              description: true,
+              type: true,
+              isActive: true,
+              salesAccount: { select: this.accountSummarySelect() },
+            },
+          },
+        },
         orderBy: { lineNumber: "asc" },
       },
     } satisfies Prisma.SalesQuotationInclude;
@@ -2585,7 +2636,20 @@ export class SalesReceivablesService {
         select: { id: true, reference: true, totalAmount: true, status: true },
       },
       lines: {
-        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        include: {
+          revenueAccount: { select: this.accountSummarySelect() },
+          item: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              description: true,
+              type: true,
+              isActive: true,
+              salesAccount: { select: this.accountSummarySelect() },
+            },
+          },
+        },
         orderBy: { lineNumber: "asc" },
       },
     } satisfies Prisma.SalesOrderInclude;
@@ -2604,7 +2668,20 @@ export class SalesReceivablesService {
       sourceQuotation: { select: { id: true, reference: true } },
       sourceSalesOrder: { select: { id: true, reference: true } },
       lines: {
-        include: { revenueAccount: { select: this.accountSummarySelect() } },
+        include: {
+          revenueAccount: { select: this.accountSummarySelect() },
+          item: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              description: true,
+              type: true,
+              isActive: true,
+              salesAccount: { select: this.accountSummarySelect() },
+            },
+          },
+        },
         orderBy: { lineNumber: "asc" },
       },
       journalEntry: { select: { id: true, reference: true } },
@@ -2874,7 +2951,9 @@ export class SalesReceivablesService {
     return {
       id: line.id,
       lineNumber: line.lineNumber,
+      itemId: line.itemId ?? null,
       itemName: line.itemName,
+      item: line.item ?? null,
       description: line.description,
       quantity: line.quantity.toString(),
       unitPrice: line.unitPrice.toString(),

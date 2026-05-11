@@ -17,7 +17,7 @@ import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatItemServiceLabel } from "@/lib/utils";
 import type { Customer, InventoryItem, Tax } from "@/types/api";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -384,7 +384,7 @@ export function SalesDocumentEditorModal({
                             </option>
                             {inventoryItems.map((item) => (
                               <option key={item.id} value={item.id}>
-                                {item.code} · {item.name}
+                                {formatItemServiceLabel(item.code, item.name)}
                               </option>
                             ))}
                           </Select>
@@ -451,7 +451,6 @@ export function SalesDocumentEditorModal({
 
                           <Select
                             value={line.taxId}
-                            disabled={!allowTaxOverride}
                             onChange={(event) => {
                               const selectedTax = taxes.find((tax) => tax.id === event.target.value);
                               updateLine(line.key, (current) => ({
@@ -461,7 +460,7 @@ export function SalesDocumentEditorModal({
                                 taxAmount: selectedTax ? current.taxAmount : "",
                               }));
                             }}
-                            className={cn("border-slate-200 bg-white disabled:cursor-not-allowed disabled:bg-slate-100", isArabic && "arabic-ui text-right")}
+                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
                             <option value="">{t("salesReceivables.field.tax")}</option>
                             {taxes.map((tax) => (

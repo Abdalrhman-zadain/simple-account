@@ -18,7 +18,7 @@ import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatItemServiceLabel } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { Customer, InventoryItem } from "@/types/api";
 
@@ -64,6 +64,7 @@ type QuotationEditorModalProps = {
   isApproving: boolean;
   onClose: () => void;
   onChange: (editor: QuotationEditorState) => void;
+  onCustomerChange: (value: string) => void;
   onSaveDraft: () => void;
   onApprove: () => void;
 };
@@ -226,6 +227,7 @@ export function QuotationEditorModal({
   isApproving,
   onClose,
   onChange,
+  onCustomerChange,
   onSaveDraft,
   onApprove,
 }: QuotationEditorModalProps) {
@@ -369,9 +371,7 @@ export function QuotationEditorModal({
                   <div className="relative">
                     <Select
                       value={editor.customerId}
-                      onChange={(event) =>
-                        updateEditor((current) => ({ ...current, customerId: event.target.value }))
-                      }
+                      onChange={(event) => onCustomerChange(event.target.value)}
                       className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
                     >
                       <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
@@ -554,7 +554,7 @@ export function QuotationEditorModal({
                             </option>
                             {inventoryItems.map((item) => (
                               <option key={item.id} value={item.id}>
-                                {item.code} · {item.name}
+                                {formatItemServiceLabel(item.code, item.name)}
                               </option>
                             ))}
                           </Select>

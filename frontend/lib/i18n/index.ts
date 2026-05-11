@@ -483,6 +483,8 @@ const enTranslations: Record<string, string> = {
   "common.action.cancel": "Cancel",
   "common.action.change": "Change",
   "common.action.remove": "Remove",
+  "common.action.viewDetails": "View Details",
+  "common.action.close": "Close",
   "common.optional": "Optional",
   "common.loading": "Loading...",
 

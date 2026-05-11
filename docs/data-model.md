@@ -141,9 +141,9 @@ Accounting meaning:
 - a sales representative may either have no employee-payables account, create one automatically under `2130000 Employee Payables / ذمم الموظفين`, or link an existing active posting account from that subtree; that account is used only for employee-side advances, custody, settlements, and commissions, not customer receivables
 - customer names are treated as unique by the Sales & Receivables service, and automatic receivable account creation rejects duplicate detail-account names under `1121000`
 - quotations and sales orders preserve commercial traceability before accounting is created
-- quotation lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so the commercial document remains readable even if the item master changes later
-- sales-order lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so downstream invoicing can inherit the item link without depending on future item-master edits
-- sales-invoice lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so posted invoice history stays linked to the item card without depending on future item-master edits
+- quotation lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so dropdown labels, print views, and commercial history can show the item/service code plus name without depending on later item-master edits
+- sales-order lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so downstream invoicing can inherit the item link while preserving code/name display context
+- sales-invoice lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so posted invoice history stays linked to the item card while print/report displays can resolve the item/service code when available
 - when a sales invoice customer is selected, draft invoice lines inherit the customer's tax-treatment default tax; out-of-scope treatment clears line tax, and reverse-charge behavior currently follows the treatment's configured default tax when one exists, otherwise no tax is defaulted
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
@@ -250,6 +250,7 @@ Key fields:
 Accounting meaning:
 
 - inventory item group, item category, unit-of-measure, item master, and warehouse master records now persist the foundational Phase 5 inventory setup slices
+- item master `code` is generated only by the backend during create using the shared `ITM-000001` pattern for both items and services, with one global six-digit sequence across all inventory item types
 - item cards enforce the hierarchy `InventoryItemGroup -> InventoryItemCategory -> InventoryItem`, and category selection must belong to the selected active group
 - units of measure are managed as master data and selected as the item card base unit; the legacy item `unitOfMeasure` text remains a compatibility display mirror of the selected unit code
 - item cards can now store a unique operational barcode plus QR payload text used for scan workflows, label preview/printing, stocktaking, sales, and purchase identification

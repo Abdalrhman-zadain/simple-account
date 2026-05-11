@@ -179,9 +179,9 @@ What else to check:
 - customer creation and editing must require an active `TaxTreatment`; the old free-text tax-information field is no longer the authoritative sales tax selector
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
-- sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, but `itemName`, `description`, and `revenueAccountId` must remain persisted on the quotation line so commercial history does not depend on future item-master edits
-- sales-order lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the order line so downstream invoice conversion keeps commercial traceability even if the item master changes later
-- sales-invoice lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the invoice line so posted commercial history stays readable even if the item master changes later
+- sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, must persist the linked `itemId`, and must still keep `itemName`, `description`, and `revenueAccountId` snapshot context so commercial history and print displays do not depend on future item-master edits
+- sales-order lines may now optionally link to active inventory items for UI-assisted item/service selection, must persist the linked `itemId`, and must still keep `itemName`, `description`, and resolved revenue-account context so downstream invoice conversion keeps commercial traceability even if the item master changes later
+- sales-invoice lines may now optionally link to active inventory items for UI-assisted item/service selection, must persist the linked `itemId`, and must still keep `itemName`, `description`, and resolved revenue-account context so posted commercial history stays readable even if the item master changes later
 - selecting or changing an invoice customer should offer to re-apply the customer's tax-treatment default across existing draft invoice lines, and newly added lines should inherit that same default tax automatically
 - converting an approved quotation or sales order into an invoice should prefill the invoice editor, let the user choose revenue accounts per line, and only call the convert API when the draft is saved
 - the quotation editor supports both `save draft` and immediate `approve quotation` from the same form; when approving a brand-new quotation, the UI should save first and then approve the created draft in the same flow
@@ -260,6 +260,7 @@ What else to check:
 - item categories must belong to one active item group at creation time
 - material/item cards must select an active item group, an active category under that group, and an active base unit of measure
 - changing an item group in the UI should clear or revalidate the selected category
+- item/service codes must be generated only by the backend on create using the `ITM-000001` format, with prefix `ITM`, six zero-padded digits, no date/random suffixes, and one global sequence shared across all item and service types
 - keep Arabic labels distinct: `مجموعة الأصناف`, `فئة الصنف / التصنيف`, `بطاقة المادة`, and `وحدة القياس`
 - item-card pricing fields are suggestion/default values only; they must not be treated as inventory valuation or actual stock cost
 - item-card unit conversion setup must always keep the base-unit row with factor `1`, block duplicate units, and keep conversion factors visible in the owning form/UI

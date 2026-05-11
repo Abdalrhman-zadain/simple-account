@@ -59,7 +59,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
+import { cleanDisplayName, cn, formatCurrency, formatDate, formatItemServiceLabel } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AccountTreeNode,
@@ -246,6 +246,7 @@ export function SalesReceivablesPage() {
   const [customerStatusFilter, setCustomerStatusFilter] = useState<"true" | "false" | "">("");
   const [customerSalesRepFilter, setCustomerSalesRepFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [isCustomerDetailsOpen, setIsCustomerDetailsOpen] = useState(false);
   const [isCustomerEditorOpen, setIsCustomerEditorOpen] = useState(false);
   const [customerEditor, setCustomerEditor] = useState<CustomerEditorState>(EMPTY_CUSTOMER_EDITOR);
   const [customerEditorClientError, setCustomerEditorClientError] = useState<string | null>(null);
@@ -731,6 +732,77 @@ export function SalesReceivablesPage() {
     setInvoiceEditor((current) => ({
       ...current,
       customerId: value,
+      lines: nextLines,
+    }));
+  };
+
+  const handleQuotationCustomerChange = (value: string) => {
+    const nextCustomer =
+      activeCustomers.find((row) => row.id === value) ??
+      customers.find((row) => row.id === value) ??
+      null;
+    const nextLines = applyCustomerTaxTreatmentToLines(
+      quotationEditor.lines,
+      nextCustomer?.taxTreatment ?? null,
+    );
+    const hasExistingLines = hasMeaningfulSalesLines(quotationEditor.lines);
+    const changingCustomer =
+      Boolean(quotationEditor.customerId) && quotationEditor.customerId !== value;
+
+    if (changingCustomer && hasExistingLines) {
+      const confirmed = window.confirm(
+        t("salesReceivables.confirm.applyCustomerTaxTreatment", {
+          name: nextCustomer?.name ?? "",
+        }),
+      );
+
+      if (!confirmed) {
+        setQuotationEditor((current) => ({ ...current, customerId: value }));
+        return;
+      }
+    }
+
+    setQuotationEditor((current) => ({
+      ...current,
+      customerId: value,
+      lines: nextLines,
+    }));
+  };
+
+  const handleOrderCustomerChange = (value: string) => {
+    const nextCustomer =
+      activeCustomers.find((row) => row.id === value) ??
+      customers.find((row) => row.id === value) ??
+      null;
+    const nextLines = applyCustomerTaxTreatmentToLines(
+      orderEditor.lines,
+      nextCustomer?.taxTreatment ?? null,
+    );
+    const hasExistingLines = hasMeaningfulSalesLines(orderEditor.lines);
+    const changingCustomer =
+      Boolean(orderEditor.customerId) && orderEditor.customerId !== value;
+
+    if (changingCustomer && hasExistingLines) {
+      const confirmed = window.confirm(
+        t("salesReceivables.confirm.applyCustomerTaxTreatment", {
+          name: nextCustomer?.name ?? "",
+        }),
+      );
+
+      if (!confirmed) {
+        setOrderEditor((current) => ({
+          ...current,
+          customerId: value,
+          sourceQuotationId: "",
+        }));
+        return;
+      }
+    }
+
+    setOrderEditor((current) => ({
+      ...current,
+      customerId: value,
+      sourceQuotationId: "",
       lines: nextLines,
     }));
   };
@@ -1402,7 +1474,7 @@ export function SalesReceivablesPage() {
             />
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
             <Card className="overflow-hidden p-0">
               <div className="border-b border-gray-200 px-6 py-4">
                 <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.customerMasterRecords")}</div>
@@ -1417,11 +1489,11 @@ export function SalesReceivablesPage() {
                     <col className="w-[150px]" />
                     <col className="w-[160px]" />
                     <col className="w-[115px]" />
-                    <col className="w-[155px]" />
+                    <col className="w-[185px]" />
                   </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
-                      <TableHead className="text-center">{t("common.table.code")}</TableHead>
+                      <TableHead className="text-center">{t("salesReceivables.field.customerCode")}</TableHead>
                       <TableHead>{t("common.table.name")}</TableHead>
                       <TableHead>{t("salesReceivables.field.terms")}</TableHead>
                       <TableHead className="text-end">{t("salesReceivables.metric.creditLimit")}</TableHead>
@@ -1444,7 +1516,10 @@ export function SalesReceivablesPage() {
                             <button
                               type="button"
                               className="inline-flex max-w-full rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-700 transition hover:bg-slate-200"
-                              onClick={() => setSelectedCustomerId(row.id)}
+                              onClick={() => {
+                                setSelectedCustomerId(row.id);
+                                setIsCustomerDetailsOpen(true);
+                              }}
                             >
                               <span className="truncate">{row.code}</span>
                             </button>
@@ -1461,6 +1536,16 @@ export function SalesReceivablesPage() {
                           </td>
                           <td className="px-4 py-4 align-top">
                             <div className="flex flex-wrap justify-center gap-2">
+                              <button
+                                type="button"
+                                className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                                onClick={() => {
+                                  setSelectedCustomerId(row.id);
+                                  setIsCustomerDetailsOpen(true);
+                                }}
+                              >
+                                {t("common.action.viewDetails")}
+                              </button>
                               {row.isActive ? (
                                 <>
                                   <button
@@ -1498,15 +1583,7 @@ export function SalesReceivablesPage() {
                                     {t("salesReceivables.action.deactivate")}
                                   </button>
                                 </>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                                  onClick={() => setSelectedCustomerId(row.id)}
-                                >
-                                  {t("salesReceivables.action.view")}
-                                </button>
-                              )}
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -1515,64 +1592,6 @@ export function SalesReceivablesPage() {
                   </tbody>
                 </table>
               </div>
-            </Card>
-
-            <Card className="space-y-5">
-              <div>
-                <div className="text-lg font-bold text-gray-900">{selectedCustomer?.name ?? t("salesReceivables.section.customerDetails")}</div>
-                <div className="text-sm text-gray-500">
-                  {selectedCustomer ? `${selectedCustomer.code} · ${selectedCustomer.receivableAccount.code} ${cleanDisplayName(selectedCustomer.receivableAccount.name)}` : t("salesReceivables.section.customerDetailsEmpty")}
-                </div>
-              </div>
-
-              {selectedCustomer ? (
-                <>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <MiniMetric label={t("salesReceivables.metric.currentBalance")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.currentBalance) : "—"} />
-                    <MiniMetric label={t("salesReceivables.metric.outstanding")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.outstandingBalance) : "—"} />
-                    <MiniMetric label={t("salesReceivables.metric.creditLimit")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.creditLimit) : "—"} />
-                    <MiniMetric label={t("salesReceivables.metric.availableCredit")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.availableCredit) : "—"} />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">{t("salesReceivables.section.customerTransactions")}</div>
-                    <div className="space-y-3">
-                      {(customerTransactionsQuery.data ?? []).length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
-                          {t("salesReceivables.empty.noPostedCustomerTransactions")}
-                        </div>
-                      ) : (
-                        (customerTransactionsQuery.data ?? []).map((item) => (
-                          <div key={item.id} className="rounded-xl border border-gray-200 px-4 py-4">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <div className="text-sm font-bold text-gray-900">{item.reference}</div>
-                                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{item.type.replaceAll("_", " ")}</div>
-                              </div>
-                              <div className="text-right">
-                                <div className="font-mono text-sm font-bold text-gray-900">{formatCurrency(item.amount)}</div>
-                                <div className="text-xs text-gray-500">{formatDate(item.date)}</div>
-                              </div>
-                            </div>
-                            {"outstandingAmount" in item ? (
-                              <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-600">
-                                <span>{t("salesReceivables.transaction.allocated", { amount: formatCurrency(item.allocatedAmount) })}</span>
-                                <span>{t("salesReceivables.transaction.outstanding", { amount: formatCurrency(item.outstandingAmount) })}</span>
-                              </div>
-                            ) : null}
-                            {"salesInvoiceReference" in item ? (
-                              <div className="mt-3 text-xs text-gray-600">{t("salesReceivables.transaction.appliedToInvoice", { reference: item.salesInvoiceReference })}</div>
-                            ) : null}
-                            {"description" in item && item.description ? <div className="mt-3 text-sm text-gray-600">{item.description}</div> : null}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-gray-500">{t("salesReceivables.empty.customerTransactionPrompt")}</div>
-              )}
             </Card>
           </div>
         </div>
@@ -1813,7 +1832,8 @@ export function SalesReceivablesPage() {
                       <div key={line.id} className="rounded-xl border border-gray-200 px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <div className="text-sm font-bold text-gray-900">{line.description || line.itemName || `Line ${line.lineNumber}`}</div>
+                            <div className="text-sm font-bold text-gray-900">{formatSalesLineTitle(line)}</div>
+                            {line.description ? <div className="text-xs text-gray-500">{line.description}</div> : null}
                             <div className="text-xs text-gray-500">{line.revenueAccount ? `${line.revenueAccount.code} · ${line.revenueAccount.name}` : t("salesReceivables.empty.revenueAccountOptional")}</div>
                           </div>
                           <div className="text-right font-mono text-sm font-bold text-gray-900">{formatCurrency(line.lineAmount)}</div>
@@ -1922,7 +1942,7 @@ export function SalesReceivablesPage() {
                     {selectedOrder.lines.map((line) => (
                       <div key={line.id} className="rounded-xl border border-gray-200 px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
-                          <div className="text-sm font-bold text-gray-900">{line.description || line.itemName || `Line ${line.lineNumber}`}</div>
+                          <div className="text-sm font-bold text-gray-900">{formatSalesLineTitle(line)}</div>
                           <div className="text-right font-mono text-sm font-bold text-gray-900">{formatCurrency(line.lineAmount)}</div>
                         </div>
                       </div>
@@ -2107,7 +2127,8 @@ export function SalesReceivablesPage() {
                       <div key={line.id} className="rounded-xl border border-gray-200 px-4 py-4">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <div className="text-sm font-bold text-gray-900">{line.description || `Line ${line.lineNumber}`}</div>
+                            <div className="text-sm font-bold text-gray-900">{formatSalesLineTitle(line)}</div>
+                            {line.description ? <div className="text-xs text-gray-500">{line.description}</div> : null}
                             <div className="text-xs text-gray-500">
                               {line.revenueAccount ? `${line.revenueAccount.code} · ${line.revenueAccount.name}` : "No revenue account"}
                             </div>
@@ -2614,6 +2635,15 @@ export function SalesReceivablesPage() {
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
+            <Field label={t("salesReceivables.field.customerCode")}>
+              <Input
+                value={customerEditor.code}
+                onChange={(event) => setCustomerEditor((current) => ({ ...current, code: event.target.value }))}
+                readOnly={user?.role !== "ADMIN"}
+                className={user?.role !== "ADMIN" ? "bg-gray-50" : ""}
+                placeholder={t("salesReceivables.field.codeHint")}
+              />
+            </Field>
             <Field label={t("salesReceivables.metric.creditLimit")} required>
               <Input
                 type="number"
@@ -2771,6 +2801,7 @@ export function SalesReceivablesPage() {
         isSavingDraft={createQuotationMutation.isPending || updateQuotationMutation.isPending}
         isApproving={approveQuotationMutation.isPending}
         onChange={setQuotationEditor}
+        onCustomerChange={handleQuotationCustomerChange}
         onSaveDraft={() => {
           void saveQuotationDraft();
         }}
@@ -2791,6 +2822,7 @@ export function SalesReceivablesPage() {
         revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={createOrderMutation.isPending || updateOrderMutation.isPending}
         onChange={setOrderEditor}
+        onCustomerChange={handleOrderCustomerChange}
         onSubmit={() => (orderEditor.id ? updateOrderMutation.mutate() : createOrderMutation.mutate())}
       />
 
@@ -2990,6 +3022,93 @@ export function SalesReceivablesPage() {
       </SidePanel>
       ) : null}
       </div>
+      <SidePanel
+        isOpen={isCustomerDetailsOpen}
+        onClose={() => setIsCustomerDetailsOpen(false)}
+        title={selectedCustomer?.name ?? t("salesReceivables.section.customerDetails")}
+      >
+        <div className="space-y-8">
+          <div className="grid gap-4 md:grid-cols-2">
+            <MiniMetric label={t("salesReceivables.field.customerCode")} value={selectedCustomer?.code ?? "—"} />
+            <MiniMetric label={t("common.table.status")} value={selectedCustomer?.isActive ? t("salesReceivables.status.active") : t("salesReceivables.status.inactive")} />
+            <MiniMetric label={t("salesReceivables.metric.currentBalance")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.currentBalance) : "—"} />
+            <MiniMetric label={t("salesReceivables.metric.outstanding")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.outstandingBalance) : "—"} />
+            <MiniMetric label={t("salesReceivables.metric.creditLimit")} value={formatCurrency(selectedCustomer?.creditLimit ?? "0")} />
+            <MiniMetric label={t("salesReceivables.metric.availableCredit")} value={customerBalanceQuery.data ? formatCurrency(customerBalanceQuery.data.availableCredit) : "—"} />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 border-b pb-2">{t("salesReceivables.section.customerMasterRecords")}</h3>
+            <div className="grid gap-x-6 gap-y-4 md:grid-cols-2 text-sm">
+              <div>
+                <div className="text-gray-500">{t("salesReceivables.field.terms")}</div>
+                <div className="font-semibold text-gray-900">{selectedCustomer?.paymentTerms || t("salesReceivables.empty.notSet")}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">{t("salesReceivables.field.salesRepresentative")}</div>
+                <div className="font-semibold text-gray-900">{selectedCustomer?.salesRep ? `${selectedCustomer.salesRep.code} - ${selectedCustomer.salesRep.name}` : t("salesReceivables.empty.notSet")}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">{t("salesReceivables.field.taxTreatment")}</div>
+                <div className="font-semibold text-gray-900">{selectedCustomer?.taxTreatment?.arabicName || selectedCustomer?.taxTreatment?.englishName || t("salesReceivables.empty.notSet")}</div>
+              </div>
+              <div>
+                <div className="text-gray-500">{t("salesReceivables.field.receivableAccount")}</div>
+                <div className="font-semibold text-gray-900">{selectedCustomer ? `${selectedCustomer.receivableAccount.code} - ${selectedCustomer.receivableAccount.name}` : "—"}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 border-b pb-2">{t("salesReceivables.field.contactInformation")}</h3>
+            <div className="text-sm text-gray-900 whitespace-pre-wrap">
+              {selectedCustomer?.contactInfo || t("salesReceivables.empty.customerContact")}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 border-b pb-2">{t("salesReceivables.section.customerTransactions")}</h3>
+            <div className="space-y-3">
+              {(customerTransactionsQuery.data ?? []).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500">
+                  {t("salesReceivables.empty.noPostedCustomerTransactions")}
+                </div>
+              ) : (
+                (customerTransactionsQuery.data ?? []).slice(0, 10).map((item) => (
+                  <div key={item.id} className="rounded-xl border border-gray-200 px-4 py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">{item.reference}</div>
+                        <div className="text-xs uppercase tracking-[0.18em] text-gray-500">{item.type.replaceAll("_", " ")}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-sm font-bold text-gray-900">{formatCurrency(item.amount)}</div>
+                        <div className="text-xs text-gray-500">{formatDate(item.date)}</div>
+                      </div>
+                    </div>
+                    {"outstandingAmount" in item ? (
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-600">
+                        <span>{t("salesReceivables.transaction.allocated", { amount: formatCurrency(item.allocatedAmount) })}</span>
+                        <span>{t("salesReceivables.transaction.outstanding", { amount: formatCurrency(item.outstandingAmount) })}</span>
+                      </div>
+                    ) : null}
+                    {"salesInvoiceReference" in item ? (
+                      <div className="mt-3 text-xs text-gray-600">{t("salesReceivables.transaction.appliedToInvoice", { reference: item.salesInvoiceReference })}</div>
+                    ) : null}
+                    {"description" in item && item.description ? <div className="mt-3 text-sm text-gray-600">{item.description}</div> : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button variant="secondary" onClick={() => setIsCustomerDetailsOpen(false)}>
+              {t("common.action.close")}
+            </Button>
+          </div>
+        </div>
+      </SidePanel>
     </PageShell>
   );
 }
@@ -3331,6 +3450,18 @@ function mapLineForConversion(line: {
     lineAmount: Number(line.lineAmount),
     revenueAccountId: line.revenueAccount?.id ?? undefined,
   };
+}
+
+function formatSalesLineTitle(line: {
+  lineNumber: number;
+  item?: { code: string; name: string } | null;
+  itemName?: string | null;
+}) {
+  if (line.item) {
+    return formatItemServiceLabel(line.item.code, line.item.name);
+  }
+
+  return line.itemName?.trim() || `Line ${line.lineNumber}`;
 }
 
 function resolveTaxTreatmentDefaultTax(taxTreatment: Customer["taxTreatment"] | null | undefined) {

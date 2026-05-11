@@ -72,7 +72,7 @@ import {
 } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
+import { cn, formatItemServiceLabel } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
   AccountOption,
@@ -1558,7 +1558,7 @@ export function InventoryPage() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="space-y-1">
                             <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{item.code}</div>
-                            <div className="text-lg font-black tracking-tight text-gray-900">{item.name}</div>
+                            <div className="text-lg font-black tracking-tight text-gray-900">{formatItemServiceLabel(item.code, item.name)}</div>
                             <div className="text-sm text-gray-600">
                               {t(`inventory.type.${item.type}`)} · {item.unitOfMeasure}
                               {item.itemGroup ? ` · ${item.itemGroup.name}` : ""}
@@ -1608,7 +1608,9 @@ export function InventoryPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                       <div className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">{selectedItem.code}</div>
-                      <h2 className="text-2xl font-black tracking-tight text-gray-900">{selectedItem.name}</h2>
+                      <h2 className="text-2xl font-black tracking-tight text-gray-900">
+                        {formatItemServiceLabel(selectedItem.code, selectedItem.name)}
+                      </h2>
                     </div>
                     <StatusPill
                       label={selectedItem.isActive ? t("inventory.status.active") : t("inventory.status.inactive")}
@@ -1826,7 +1828,7 @@ export function InventoryPage() {
                     {selectedIssue.lines.map((line) => (
                       <div key={line.id} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         <div className="font-semibold text-gray-900">
-                          {line.item.code} · {line.item.name}
+                          {formatItemServiceLabel(line.item.code, line.item.name)}
                         </div>
                         <div>
                           {line.quantity} {line.unitOfMeasure} · {line.unitCost} · {line.lineTotalAmount}
@@ -2026,7 +2028,7 @@ export function InventoryPage() {
                     {selectedTransfer.lines.map((line) => (
                       <div key={line.id} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         <div className="font-semibold text-gray-900">
-                          {line.item.code} · {line.item.name}
+                          {formatItemServiceLabel(line.item.code, line.item.name)}
                         </div>
                         <div>
                           {line.quantity} {line.unitOfMeasure} · {line.unitCost} · {line.lineTotalAmount}
@@ -2226,7 +2228,7 @@ export function InventoryPage() {
                     {selectedAdjustment.lines.map((line) => (
                       <div key={line.id} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         <div className="font-semibold text-gray-900">
-                          {line.item.code} · {line.item.name}
+                          {formatItemServiceLabel(line.item.code, line.item.name)}
                         </div>
                         <div>
                           {t("inventory.adjustments.detail.system")}: {line.systemQuantity} · {t("inventory.adjustments.detail.counted")}:{" "}
@@ -2543,7 +2545,7 @@ export function InventoryPage() {
                     {selectedReceipt.lines.map((line) => (
                       <div key={line.id} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         <div className="font-semibold text-gray-900">
-                          {line.item.code} · {line.item.name}
+                          {formatItemServiceLabel(line.item.code, line.item.name)}
                         </div>
                         <div>
                           {line.quantity} {line.unitOfMeasure} · {line.unitCost} · {line.lineTotalAmount}
@@ -2600,7 +2602,7 @@ export function InventoryPage() {
                 <option value="">{t("inventory.stockLedger.filters.allItems")}</option>
                 {items.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.code} · {item.name}
+                    {formatItemServiceLabel(item.code, item.name)}
                   </option>
                 ))}
               </Select>
@@ -2640,7 +2642,7 @@ export function InventoryPage() {
                       <StatusPill label={t(`inventory.stockLedger.movementType.${movement.movementType}`)} tone="neutral" />
                     </div>
                     <div className="text-sm font-semibold text-gray-900">
-                      {movement.item.code} · {movement.item.name} · {movement.warehouse.code} · {movement.warehouse.name}
+                      {formatItemServiceLabel(movement.item.code, movement.item.name)} · {movement.warehouse.code} · {movement.warehouse.name}
                     </div>
                     <div className="text-sm text-gray-700">
                       {t("inventory.stockLedger.detail.quantityIn")}: {movement.quantityIn} · {t("inventory.stockLedger.detail.quantityOut")}:
@@ -3510,8 +3512,7 @@ export function InventoryPage() {
   }
 
   function generateQrForItemEditor() {
-    const nextCode =
-      itemEditor.code.trim() || buildInternalItemCodeCandidate();
+    const nextCode = itemEditor.code.trim();
     const nextBarcode = itemEditor.barcode.trim();
 
     const nextQrValue = buildInventoryQrValue({
@@ -3525,7 +3526,6 @@ export function InventoryPage() {
 
     setItemEditor((current) => ({
       ...current,
-      code: nextCode,
       qrCodeValue: nextQrValue,
     }));
     setShowItemCodePreview(true);
@@ -3574,7 +3574,7 @@ export function InventoryPage() {
     <div class="label">
       <h1 class="title">${escapeHtml(title)}</h1>
       <div class="meta">
-        <div><strong>كود المادة:</strong> ${escapeHtml(itemEditor.code.trim() || "—")}</div>
+        <div><strong>رمز المادة / الخدمة:</strong> ${escapeHtml(itemEditor.code.trim() || "—")}</div>
         <div><strong>وحدة القياس:</strong> ${escapeHtml(itemEditor.unitOfMeasure.trim() || "—")}</div>
         <div><strong>الفئة:</strong> ${escapeHtml(itemEditor.category.trim() || "—")}</div>
         <div><strong>المجموعة:</strong> ${escapeHtml(itemEditor.type)}</div>
@@ -4167,7 +4167,7 @@ function WarehouseSelect({
       <option value="">{placeholder}</option>
       {options.map((option) => (
         <option key={option.id} value={option.id}>
-          {option.code} · {option.name}
+          {formatItemServiceLabel(option.code, option.name)}
         </option>
       ))}
     </Select>
@@ -4489,7 +4489,6 @@ function mapAdjustmentToEditor(adjustment: InventoryAdjustment): AdjustmentEdito
 
 function mapItemEditorToPayload(editor: ItemEditorState) {
   return {
-    code: editor.code.trim() || undefined,
     name: editor.name.trim(),
     description: editor.description.trim() || undefined,
     internalNotes: editor.internalNotes.trim() || undefined,
@@ -4859,13 +4858,6 @@ function formatVariance(systemQuantity: string, countedQuantity: string) {
     return "";
   }
   return String(counted - system);
-}
-
-function buildInternalItemCodeCandidate() {
-  const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const suffix =
-    `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
-  return `ITEM-${compactDate}-${suffix}`;
 }
 
 function formatCodeName(code: string, name: string, isArabic: boolean) {

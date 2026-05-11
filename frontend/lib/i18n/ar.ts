@@ -315,6 +315,8 @@ const arTranslations: Record<string, string> = {
   "common.action.cancel": "إلغاء",
   "common.action.change": "تغيير",
   "common.action.remove": "إزالة",
+  "common.action.viewDetails": "عرض التفاصيل",
+  "common.action.close": "إغلاق",
   "common.optional": "اختياري",
   "common.loading": "جارٍ التحميل...",
 

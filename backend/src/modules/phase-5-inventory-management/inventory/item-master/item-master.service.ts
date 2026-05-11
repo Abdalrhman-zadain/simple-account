@@ -43,6 +43,12 @@ type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
   };
 }>;
 
+type InventoryItemCodeDb = Pick<Prisma.TransactionClient, "inventoryItem" | "$queryRaw" | "$executeRaw">;
+
+const ITEM_CODE_PREFIX = "ITM";
+const ITEM_CODE_DIGITS = 6;
+const ITEM_CREATE_MAX_ATTEMPTS = 5;
+
 @Injectable()
 export class ItemMasterService {
   readonly accountSelect = {
@@ -219,102 +225,109 @@ export class ItemMasterService {
   }
 
   async create(dto: CreateInventoryItemDto) {
-    const code = dto.code?.trim() || this.generateReference("ITEM");
-    const barcode = this.normalizeOptionalText(dto.barcode);
-    const qrCodeValue = this.normalizeOptionalText(dto.qrCodeValue);
-    const trackInventory = this.resolveTrackInventory(dto.type, dto.trackInventory);
-    const [
-      inventoryAccountId,
-      cogsAccountId,
-      salesAccountId,
-      salesReturnAccountId,
-      adjustmentAccountId,
-      defaultTaxId,
-      preferredWarehouse,
-      itemGroup,
-      itemCategory,
-      unitOfMeasure,
-      uniqueBarcode,
-    ] = await Promise.all([
-      this.validateInventoryAccount(dto.inventoryAccountId),
-      this.validateCogsAccount(dto.cogsAccountId),
-      this.validateSalesAccount(dto.salesAccountId),
-      this.validateSalesReturnAccount(dto.salesReturnAccountId),
-      this.validateAdjustmentAccount(dto.adjustmentAccountId),
-      this.validateTax(dto.taxable ? dto.defaultTaxId : undefined),
-      this.validateWarehouse(dto.preferredWarehouseId),
-      this.itemGroupsService.ensureActiveGroup(dto.itemGroupId),
-      this.itemCategoriesService.ensureActiveCategoryInGroup(dto.itemCategoryId, dto.itemGroupId),
-      this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId),
-      this.ensureUniqueBarcode(barcode),
-    ]);
-    const unitConversions = await this.validateUnitConversions(
-      dto.unitConversions,
-      unitOfMeasure.id,
-      uniqueBarcode,
-    );
-
-    const created = await this.prisma.inventoryItem
-      .create({
-        data: {
-          code,
-          name: dto.name.trim(),
-          description: dto.description?.trim() || null,
-          internalNotes: dto.internalNotes?.trim() || null,
-          itemImageUrl: dto.itemImageUrl?.trim() || null,
-          attachmentsText: dto.attachmentsText?.trim() || null,
-          barcode: uniqueBarcode,
-          qrCodeValue,
-          unitOfMeasure: dto.unitOfMeasure?.trim() || unitOfMeasure.code,
-          unitOfMeasureId: unitOfMeasure.id,
-          category: dto.category?.trim() || itemCategory.name,
-          itemGroupId: itemGroup.id,
-          itemCategoryId: itemCategory.id,
-          type: dto.type,
-          inventoryAccountId,
-          cogsAccountId,
-          salesAccountId,
-          salesReturnAccountId,
-          adjustmentAccountId,
-          defaultSalesPrice: this.parseNullableDecimal(dto.defaultSalesPrice, "Default sales price"),
-          defaultPurchasePrice: this.parseNullableDecimal(dto.defaultPurchasePrice, "Default purchase price"),
-          currencyCode: dto.currencyCode?.trim().toUpperCase() || null,
-          taxable: dto.taxable ?? false,
-          defaultTaxId: defaultTaxId ?? null,
-          trackInventory,
-          reorderLevel: this.parseDecimal(dto.reorderLevel, "Reorder level"),
-          reorderQuantity: this.parseDecimal(
-            dto.reorderQuantity,
-            "Reorder quantity",
-          ),
-          preferredWarehouseId: preferredWarehouse?.id ?? null,
-          preferredWarehouseCode: preferredWarehouse?.code ?? null,
-          unitConversions: {
-            create: unitConversions.map((row) => ({
-              unitId: row.unitId,
-              conversionFactorToBaseUnit: row.conversionFactorToBaseUnit,
-              barcode: row.barcode,
-              defaultSalesPrice: row.defaultSalesPrice,
-              defaultPurchasePrice: row.defaultPurchasePrice,
-              isBaseUnit: row.isBaseUnit,
-            })),
-          },
-        },
-        include: this.itemInclude,
-      })
-      .catch((error: unknown) => {
-        if (this.isCodeConflict(error)) {
-          throw new ConflictException(
-            "An inventory item with this code already exists.",
+    for (let attempt = 0; attempt < ITEM_CREATE_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const created = await this.prisma.$transaction(async (tx) => {
+          const code = await this.allocateNextItemCode(tx);
+          const barcode = this.normalizeOptionalText(dto.barcode);
+          const qrCodeValue = this.normalizeOptionalText(dto.qrCodeValue);
+          const trackInventory = this.resolveTrackInventory(dto.type, dto.trackInventory);
+          const [
+            inventoryAccountId,
+            cogsAccountId,
+            salesAccountId,
+            salesReturnAccountId,
+            adjustmentAccountId,
+            defaultTaxId,
+            preferredWarehouse,
+            itemGroup,
+            itemCategory,
+            unitOfMeasure,
+            uniqueBarcode,
+          ] = await Promise.all([
+            this.validateInventoryAccount(dto.inventoryAccountId),
+            this.validateCogsAccount(dto.cogsAccountId),
+            this.validateSalesAccount(dto.salesAccountId),
+            this.validateSalesReturnAccount(dto.salesReturnAccountId),
+            this.validateAdjustmentAccount(dto.adjustmentAccountId),
+            this.validateTax(dto.taxable ? dto.defaultTaxId : undefined),
+            this.validateWarehouse(dto.preferredWarehouseId),
+            this.itemGroupsService.ensureActiveGroup(dto.itemGroupId),
+            this.itemCategoriesService.ensureActiveCategoryInGroup(dto.itemCategoryId, dto.itemGroupId),
+            this.unitsOfMeasureService.ensureActiveUnit(dto.unitOfMeasureId),
+            this.ensureUniqueBarcode(barcode),
+          ]);
+          const unitConversions = await this.validateUnitConversions(
+            dto.unitConversions,
+            unitOfMeasure.id,
+            uniqueBarcode,
           );
+
+          return tx.inventoryItem.create({
+            data: {
+              code,
+              name: dto.name.trim(),
+              description: dto.description?.trim() || null,
+              internalNotes: dto.internalNotes?.trim() || null,
+              itemImageUrl: dto.itemImageUrl?.trim() || null,
+              attachmentsText: dto.attachmentsText?.trim() || null,
+              barcode: uniqueBarcode,
+              qrCodeValue,
+              unitOfMeasure: dto.unitOfMeasure?.trim() || unitOfMeasure.code,
+              unitOfMeasureId: unitOfMeasure.id,
+              category: dto.category?.trim() || itemCategory.name,
+              itemGroupId: itemGroup.id,
+              itemCategoryId: itemCategory.id,
+              type: dto.type,
+              inventoryAccountId,
+              cogsAccountId,
+              salesAccountId,
+              salesReturnAccountId,
+              adjustmentAccountId,
+              defaultSalesPrice: this.parseNullableDecimal(dto.defaultSalesPrice, "Default sales price"),
+              defaultPurchasePrice: this.parseNullableDecimal(dto.defaultPurchasePrice, "Default purchase price"),
+              currencyCode: dto.currencyCode?.trim().toUpperCase() || null,
+              taxable: dto.taxable ?? false,
+              defaultTaxId: defaultTaxId ?? null,
+              trackInventory,
+              reorderLevel: this.parseDecimal(dto.reorderLevel, "Reorder level"),
+              reorderQuantity: this.parseDecimal(
+                dto.reorderQuantity,
+                "Reorder quantity",
+              ),
+              preferredWarehouseId: preferredWarehouse?.id ?? null,
+              preferredWarehouseCode: preferredWarehouse?.code ?? null,
+              unitConversions: {
+                create: unitConversions.map((row) => ({
+                  unitId: row.unitId,
+                  conversionFactorToBaseUnit: row.conversionFactorToBaseUnit,
+                  barcode: row.barcode,
+                  defaultSalesPrice: row.defaultSalesPrice,
+                  defaultPurchasePrice: row.defaultPurchasePrice,
+                  isBaseUnit: row.isBaseUnit,
+                })),
+              },
+            },
+            include: this.itemInclude,
+          });
+        });
+
+        return this.mapItem(created);
+      } catch (error) {
+        if (this.isCodeConflict(error) && attempt < ITEM_CREATE_MAX_ATTEMPTS - 1) {
+          continue;
+        }
+        if (this.isCodeConflict(error)) {
+          throw new ConflictException("Unable to generate a unique item/service code. Please try again.");
         }
         if (this.isBarcodeConflict(error)) {
           throw new ConflictException("هذا الباركود مستخدم مسبقًا لمادة أخرى");
         }
         throw error;
-      });
+      }
+    }
 
-    return this.mapItem(created);
+    throw new ConflictException("Unable to generate a unique item/service code. Please try again.");
   }
 
   async update(id: string, dto: UpdateInventoryItemDto) {
@@ -872,11 +885,23 @@ export class ItemMasterService {
     };
   }
 
-  private generateReference(prefix: string) {
-    const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const suffix =
-      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
-    return `${prefix}-${compactDate}-${suffix}`;
+  private async allocateNextItemCode(tx: InventoryItemCodeDb) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(847120531)`;
+    const rows = await tx.$queryRaw<Array<{ code: string }>>`
+      SELECT code
+      FROM "InventoryItem"
+      WHERE code ~ ${`^${ITEM_CODE_PREFIX}-[0-9]{${ITEM_CODE_DIGITS}}$`}
+      ORDER BY code DESC
+      LIMIT 1
+    `;
+
+    const lastCode = rows[0]?.code ?? null;
+    const lastNumber = lastCode
+      ? Number.parseInt(lastCode.slice(ITEM_CODE_PREFIX.length + 1), 10)
+      : 0;
+    const nextNumber = Number.isFinite(lastNumber) ? lastNumber + 1 : 1;
+
+    return `${ITEM_CODE_PREFIX}-${nextNumber.toString().padStart(ITEM_CODE_DIGITS, "0")}`;
   }
 
   private isCodeConflict(error: unknown) {

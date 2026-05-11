@@ -281,12 +281,15 @@ export function ItemEditorModal({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="رمز المادة" required labelAlign="end">
+                <Field
+                  label={isArabic ? "رمز المادة / الخدمة" : "Item / Service Code"}
+                  labelAlign="end"
+                >
                   <Input
                     value={editor.code}
-                    onChange={(e) => updateEditor((current) => ({ ...current, code: e.target.value }))}
                     className="text-right border-slate-200 bg-slate-50/70"
-                    placeholder="سيتم التوليد تلقائياً في حال تركه فارغاً"
+                    placeholder={isArabic ? "سيتم التوليد تلقائياً بعد الحفظ" : "Generated automatically after save"}
+                    disabled
                   />
                 </Field>
                 <Field label="اسم المادة" required labelAlign="end">

@@ -18,7 +18,7 @@ import { Button } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatItemServiceLabel } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { Customer, InventoryItem, SalesQuotation } from "@/types/api";
 import {
@@ -54,6 +54,7 @@ type SalesOrderEditorModalProps = {
   isSubmitting: boolean;
   onClose: () => void;
   onChange: (editor: SalesOrderEditorValue) => void;
+  onCustomerChange: (value: string) => void;
   onSubmit: () => void;
 };
 
@@ -69,6 +70,7 @@ export function SalesOrderEditorModal({
   isSubmitting,
   onClose,
   onChange,
+  onCustomerChange,
   onSubmit,
 }: SalesOrderEditorModalProps) {
   const { t, language } = useTranslation();
@@ -192,13 +194,7 @@ export function SalesOrderEditorModal({
                   <div className="relative">
                     <Select
                       value={editor.customerId}
-                      onChange={(event) =>
-                        updateEditor((current) => ({
-                          ...current,
-                          customerId: event.target.value,
-                          sourceQuotationId: "",
-                        }))
-                      }
+                      onChange={(event) => onCustomerChange(event.target.value)}
                       className={cn("border-slate-200 bg-slate-50/70", isArabic ? "arabic-ui pe-12 text-right" : "ps-12")}
                     >
                       <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
@@ -393,7 +389,7 @@ export function SalesOrderEditorModal({
                             </option>
                             {inventoryItems.map((item) => (
                               <option key={item.id} value={item.id}>
-                                {item.code} · {item.name}
+                                {formatItemServiceLabel(item.code, item.name)}
                               </option>
                             ))}
                           </Select>

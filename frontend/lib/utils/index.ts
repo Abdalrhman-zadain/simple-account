@@ -63,3 +63,19 @@ export function cleanDisplayName(name?: string | null) {
     .replace(/^[^0-9A-Za-z\u0600-\u06FF]+:?\s*/, "")
     .trim();
 }
+
+export function formatItemServiceLabel(code?: string | null, name?: string | null) {
+  const normalizedCode = code?.trim();
+  const normalizedName = name?.trim();
+
+  if (normalizedCode && normalizedName) {
+    return `${normalizedCode} - ${normalizedName}`;
+  }
+  if (normalizedCode) {
+    return normalizedCode;
+  }
+  if (normalizedName) {
+    return normalizedName;
+  }
+  return "";
+}
