@@ -686,9 +686,9 @@ export function JournalEntriesPage() {
                                                                     <span className="block font-semibold">
                                                                         {isArabic ? line.accountNameAr || line.accountName : line.accountName}
                                                                     </span>
-                                                                    <span className="block font-mono text-xs text-slate-500">
-                                                                        {line.accountCode}
-                                                                    </span>
+                                                                <span dir="ltr" className="block self-start text-left font-mono text-xs text-slate-500">
+                                                                    {line.accountCode}
+                                                                </span>
                                                                 </div>
                                                             </td>
                                                             <td className={cn("px-6 py-4 align-top text-gray-700", isArabic ? "text-right" : "text-left")}>{line.description || "—"}</td>

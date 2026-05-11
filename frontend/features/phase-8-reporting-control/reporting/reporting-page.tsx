@@ -112,7 +112,7 @@ export function ReportingPage() {
   const [activeDateChip, setActiveDateChip] = useState<"dateFrom" | "dateTo" | "comparisonFrom" | "comparisonTo" | null>(null);
   const [activeSelectChip, setActiveSelectChip] = useState<"basis" | "accountId" | "accountType" | "currencyCode" | "segment3" | "segment4" | "segment5" | "journalEntryTypeId" | null>(null);
 
-  const filters = useMemo<ReportingQuery>(
+  const baseFilters = useMemo<ReportingQuery>(
     () => ({
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
@@ -120,7 +120,6 @@ export function ReportingPage() {
       comparisonTo: comparisonTo || undefined,
       basis: basis || "ACCRUAL",
       includeZeroBalance,
-      accountId: accountId || undefined,
       accountType: accountType || undefined,
       currencyCode: currencyCode || undefined,
       segment3: segment3 || undefined,
@@ -128,26 +127,34 @@ export function ReportingPage() {
       segment5: segment5 || undefined,
       journalEntryTypeId: journalEntryTypeId || undefined,
     }),
-    [accountId, accountType, basis, comparisonFrom, comparisonTo, currencyCode, dateFrom, dateTo, includeZeroBalance, journalEntryTypeId, segment3, segment4, segment5],
+    [accountType, basis, comparisonFrom, comparisonTo, currencyCode, dateFrom, dateTo, includeZeroBalance, journalEntryTypeId, segment3, segment4, segment5],
+  );
+
+  const generalLedgerFilters = useMemo<ReportingQuery>(
+    () => ({
+      ...baseFilters,
+      accountId: accountId || undefined,
+    }),
+    [accountId, baseFilters],
   );
 
   const reportParameters = useMemo<Record<string, unknown>>(
     () => ({
-      dateFrom: filters.dateFrom,
-      dateTo: filters.dateTo,
-      comparisonFrom: filters.comparisonFrom,
-      comparisonTo: filters.comparisonTo,
-      basis: filters.basis,
-      includeZeroBalance: filters.includeZeroBalance,
-      accountId: activeTab === "generalLedger" ? filters.accountId : undefined,
-      accountType: filters.accountType,
-      currencyCode: filters.currencyCode,
-      segment3: filters.segment3,
-      segment4: filters.segment4,
-      segment5: filters.segment5,
-      journalEntryTypeId: filters.journalEntryTypeId,
+      dateFrom: baseFilters.dateFrom,
+      dateTo: baseFilters.dateTo,
+      comparisonFrom: baseFilters.comparisonFrom,
+      comparisonTo: baseFilters.comparisonTo,
+      basis: baseFilters.basis,
+      includeZeroBalance: baseFilters.includeZeroBalance,
+      accountId: activeTab === "generalLedger" ? accountId || undefined : undefined,
+      accountType: baseFilters.accountType,
+      currencyCode: baseFilters.currencyCode,
+      segment3: baseFilters.segment3,
+      segment4: baseFilters.segment4,
+      segment5: baseFilters.segment5,
+      journalEntryTypeId: baseFilters.journalEntryTypeId,
     }),
-    [activeTab, filters],
+    [accountId, activeTab, baseFilters],
   );
 
   const accountsQuery = useQuery({
@@ -195,44 +202,44 @@ export function ReportingPage() {
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["reporting-summary", token, filters],
-    queryFn: () => getReportingSummary(filters, token),
+    queryKey: ["reporting-summary", token, baseFilters],
+    queryFn: () => getReportingSummary(baseFilters, token),
     enabled: Boolean(token),
   });
 
   const trialBalanceQuery = useQuery({
-    queryKey: ["reporting-trial-balance", token, filters],
-    queryFn: () => getReportingTrialBalance(filters, token),
+    queryKey: ["reporting-trial-balance", token, baseFilters],
+    queryFn: () => getReportingTrialBalance(baseFilters, token),
     enabled: Boolean(token) && activeTab === "trialBalance",
   });
 
   const balanceSheetQuery = useQuery({
-    queryKey: ["reporting-balance-sheet", token, filters],
-    queryFn: () => getReportingBalanceSheet(filters, token),
+    queryKey: ["reporting-balance-sheet", token, baseFilters],
+    queryFn: () => getReportingBalanceSheet(baseFilters, token),
     enabled: Boolean(token) && activeTab === "balanceSheet",
   });
 
   const profitLossQuery = useQuery({
-    queryKey: ["reporting-profit-loss", token, filters],
-    queryFn: () => getReportingProfitLoss(filters, token),
+    queryKey: ["reporting-profit-loss", token, baseFilters],
+    queryFn: () => getReportingProfitLoss(baseFilters, token),
     enabled: Boolean(token) && activeTab === "profitLoss",
   });
 
   const cashMovementQuery = useQuery({
-    queryKey: ["reporting-cash-movement", token, filters],
-    queryFn: () => getReportingCashMovement(filters, token),
+    queryKey: ["reporting-cash-movement", token, baseFilters],
+    queryFn: () => getReportingCashMovement(baseFilters, token),
     enabled: Boolean(token) && activeTab === "cashMovement",
   });
 
   const generalLedgerQuery = useQuery({
-    queryKey: ["reporting-general-ledger", token, filters, accountId],
-    queryFn: () => getReportingGeneralLedger({ ...filters, accountId: accountId || undefined }, token),
+    queryKey: ["reporting-general-ledger", token, generalLedgerFilters],
+    queryFn: () => getReportingGeneralLedger(generalLedgerFilters, token),
     enabled: Boolean(token) && activeTab === "generalLedger",
   });
 
   const auditQuery = useQuery({
-    queryKey: ["reporting-audit", token, filters],
-    queryFn: () => getReportingAudit(filters, token),
+    queryKey: ["reporting-audit", token, baseFilters],
+    queryFn: () => getReportingAudit(baseFilters, token),
     enabled: Boolean(token) && activeTab === "audit",
   });
 
