@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -35,12 +36,10 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
-  BankReconciliation,
-  BankReconciliationListItem,
   BankReconciliationStatus,
   CreateBankStatementLinePayload,
 } from "@/types/api";
-import { Button, Card, SidePanel, StatusPill } from "@/components/ui";
+import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 
 type ReconciliationMetrics = {
@@ -364,147 +363,178 @@ export function BankReconciliationsPage() {
   }, [detail, matchedLines, reconciliationLines, unmatchedLines]);
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] min-h-screen gap-0">
-      {/* Main Content */}
-      <div className="flex flex-col min-w-0 bg-gray-50" dir={isArabic ? "rtl" : "ltr"}>
-        {!detail ? (
-          <div className="flex items-center justify-center flex-1">
-            <div className="text-center">
-              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">{labels.selectToView}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Header */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 flex items-center justify-between min-h-24">
-                <div className="flex-1">
-                  <h1 className="text-2xl font-bold text-gray-900">{labels.title}</h1>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {labels.account}: {cleanDisplayName(detail.bankCashAccount.name)} - {detail.bankCashAccount.account.code}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">{formatDate(detail.statementDate)}</p>
-                </div>
-                <div className="flex gap-2 items-center ml-4 flex-shrink-0">
-                  <StatusPill
-                    label={detail.status === "COMPLETED" ? labels.completed : labels.draft}
-                    tone={detail.status === "COMPLETED" ? "positive" : "warning"}
-                  />
-                  <Button variant="secondary" size="sm" className="text-xs">
-                    <Printer className="h-3.5 w-3.5 ms-1" />
-                    {labels.print}
-                  </Button>
-                  <Button variant="secondary" size="sm" className="text-xs">
-                    {labels.save}
-                  </Button>
-                  {detail.status === "DRAFT" ? (
-                    <Button
-                      onClick={() => completeMutation.mutate()}
-                      disabled={
-                        completeMutation.isPending ||
-                        (reconciliationMetrics?.differenceNum ?? 0) !== 0
-                      }
-                      size="sm"
-                      className="text-xs bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <BadgeCheck className="h-3.5 w-3.5 ms-1" />
-                      {labels.complete}
-                    </Button>
-                  ) : null}
-                  <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+    <PageShell>
+      <div dir={isArabic ? "rtl" : "ltr"} className="space-y-6">
+        <SectionHeading title={labels.title} description={labels.listHint} />
 
-              {/* KPI Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <SummaryCard label={labels.reconciliationList} value={rows.length} hint={labels.listHint} />
+          <SummaryCard label={labels.draft} value={rows.filter((row) => row.status === "DRAFT").length} hint={labels.allStatuses} />
+          <SummaryCard label={labels.completed} value={rows.filter((row) => row.status === "COMPLETED").length} hint={labels.readyToComplete} />
+          <SummaryCard
+            label={labels.account}
+            value={activeBankCashAccounts.length}
+            hint={labels.allAccounts}
+          />
+        </div>
+
+        {currentError instanceof Error ? (
+          <Card className="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+            {currentError.message}
+          </Card>
+        ) : null}
+
+        <Card className="p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+            <Select value={bankCashAccountId} onChange={(event) => setBankCashAccountId(event.target.value)}>
+              <option value="">{labels.allAccounts}</option>
+              {activeBankCashAccounts.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.account.code} · {row.name}
+                </option>
+              ))}
+            </Select>
+            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as BankReconciliationStatus | "")}>
+              <option value="">{labels.allStatuses}</option>
+              <option value="DRAFT">{labels.draft}</option>
+              <option value="COMPLETED">{labels.completed}</option>
+            </Select>
+            <Button onClick={() => setIsCreateOpen(true)} className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+              <CirclePlus className="h-4 w-4 shrink-0" />
+              {labels.create}
+            </Button>
+          </div>
+        </Card>
+
+        <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <Card className="overflow-hidden p-0">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <div className="text-sm font-bold text-gray-900">{labels.reconciliationList}</div>
+              <div className="text-xs text-gray-500">{labels.listHint}</div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {rows.length === 0 ? (
+                <div className="px-6 py-10 text-center">
+                  <AlertCircle className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+                  <p className="text-sm text-gray-500">{labels.noReconciliations}</p>
+                </div>
+              ) : (
+                rows.map((row) => (
+                  <button
+                    key={row.id}
+                    onClick={() => { setSelectedId(row.id); setSelectedStatementLineId(null); setSelectedSystemTransactionId(null); }}
+                    className={cn(
+                      "w-full border-r-2 px-6 py-4 text-right transition-colors",
+                      activeSelectedId === row.id ? "border-green-600 bg-green-50" : "border-transparent hover:bg-gray-50",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-bold text-gray-900">{cleanDisplayName(row.bankCashAccount.name)}</div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {row.bankCashAccount.account.code} · {formatDate(row.statementDate)}
+                        </div>
+                      </div>
+                      <StatusPill label={row.status === "COMPLETED" ? labels.completed : labels.draft} tone={row.status === "COMPLETED" ? "positive" : "warning"} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                      <span>{row.summary.reconciledCount} {isArabic ? "مطابقة" : "matched"}</span>
+                      <span className="font-mono font-bold text-gray-900">{formatCurrency(row.statementEndingBalance)}</span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </Card>
+
+          {!detail ? (
+            <Card className="flex min-h-[320px] items-center justify-center">
+              <div className="text-center">
+                <FileText className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                <p className="text-gray-500">{labels.selectToView}</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <Card className="p-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div>
+                    <div className="text-xl font-bold text-gray-900">{cleanDisplayName(detail.bankCashAccount.name)}</div>
+                    <div className="mt-1 text-sm text-gray-600">
+                      {labels.account}: {detail.bankCashAccount.account.code}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">{formatDate(detail.statementDate)}</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill
+                      label={detail.status === "COMPLETED" ? labels.completed : labels.draft}
+                      tone={detail.status === "COMPLETED" ? "positive" : "warning"}
+                    />
+                    <Button variant="secondary" size="sm" className="text-xs">
+                      <Printer className="h-3.5 w-3.5 ms-1" />
+                      {labels.print}
+                    </Button>
+                    <Button variant="secondary" size="sm" className="text-xs">
+                      {labels.save}
+                    </Button>
+                    {detail.status === "DRAFT" ? (
+                      <Button
+                        onClick={() => completeMutation.mutate()}
+                        disabled={completeMutation.isPending || (reconciliationMetrics?.differenceNum ?? 0) !== 0}
+                        size="sm"
+                        className="bg-green-600 text-xs text-white hover:bg-green-700"
+                      >
+                        <BadgeCheck className="h-3.5 w-3.5 ms-1" />
+                        {labels.complete}
+                      </Button>
+                    ) : null}
+                    <button type="button" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+
               {reconciliationMetrics && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-                  <KPICard label={labels.statementBalance} value={reconciliationMetrics.statementBalance} icon={<div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">B</div>} />
-                  <KPICard label={labels.systemBalance} value={reconciliationMetrics.systemBalance} icon={<div className="h-7 w-7 rounded-full bg-purple-100 flex items-center justify-center text-xs font-bold text-purple-600">S</div>} />
-                  <KPICard label={labels.difference} value={reconciliationMetrics.difference} valueColor={reconciliationMetrics.differenceNum !== 0 ? "text-orange-600" : "text-green-600"} icon={<div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-lg", reconciliationMetrics.differenceNum !== 0 ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-600")}>{reconciliationMetrics.differenceNum !== 0 ? "⚠" : "✓"}</div>} />
-                  <KPICard label={labels.netStatement} value={reconciliationMetrics.statementBalance} icon={<div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">S</div>} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                  <KPICard label={labels.statementBalance} value={reconciliationMetrics.statementBalance} icon={<div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">B</div>} />
+                  <KPICard label={labels.systemBalance} value={reconciliationMetrics.systemBalance} icon={<div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-600">S</div>} />
+                  <KPICard label={labels.difference} value={reconciliationMetrics.difference} valueColor={reconciliationMetrics.differenceNum !== 0 ? "text-orange-600" : "text-green-600"} icon={<div className={cn("flex h-7 w-7 items-center justify-center rounded-full text-lg", reconciliationMetrics.differenceNum !== 0 ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-600")}>{reconciliationMetrics.differenceNum !== 0 ? "!" : "✓"}</div>} />
+                  <KPICard label={labels.netStatement} value={reconciliationMetrics.statementBalance} icon={<div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">S</div>} />
                   <KPICard label={labels.matched} value={reconciliationMetrics.matchedAmount} icon={<CheckCircle2 className="h-6 w-6 text-green-600" />} />
-                  <KPICard label={labels.total} value={reconciliationMetrics.totalLines} icon={<div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">#</div>} />
+                  <KPICard label={labels.total} value={reconciliationMetrics.totalLines} icon={<div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">#</div>} />
                 </div>
               )}
 
-              {/* Toolbar */}
-              <div className="bg-white rounded-lg border border-gray-200 p-3 flex items-center justify-between gap-4 mb-6 min-h-14">
-                <div className="flex gap-2 items-center">
-                  <Button variant="secondary" size="sm" className="text-xs py-2">
-                    <CirclePlus className="h-3.5 w-3.5 ms-1" />
-                    {labels.addLine}
-                  </Button>
-                  <Button variant="secondary" size="sm" className="text-xs py-2">
-                    <RefreshCw className="h-3.5 w-3.5 ms-1" />
-                    {labels.import}
-                  </Button>
+              <Card className="p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="secondary" size="sm" className="text-xs py-2">
+                      <CirclePlus className="h-3.5 w-3.5 ms-1" />
+                      {labels.addLine}
+                    </Button>
+                    <Button variant="secondary" size="sm" className="text-xs py-2">
+                      <RefreshCw className="h-3.5 w-3.5 ms-1" />
+                      {labels.import}
+                    </Button>
+                  </div>
+                  <Input placeholder={labels.search} className="h-9 w-full text-xs lg:w-48" />
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Input placeholder={labels.search} className="text-xs h-8 w-40" />
-                </div>
-              </div>
+              </Card>
 
-              {/* Error */}
-              {currentError instanceof Error ? (
-                <Card className="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700 rounded-lg mb-6">
-                  {currentError.message}
-                </Card>
-              ) : null}
-
-              {/* Workspace */}
-              <style>{`
-                .reconciliation-workspace {
-                  display: grid;
-                  grid-template-columns: minmax(380px, 1fr) minmax(240px, 0.6fr) minmax(380px, 1fr);
-                  grid-template-areas: "system match statement";
-                  gap: 16px;
-                  align-items: start;
-                  width: 100%;
-                  min-width: 0;
-                  margin-bottom: 24px;
-                }
-                .statement-panel { grid-area: statement; min-width: 0; }
-                .match-panel { grid-area: match; min-width: 0; }
-                .system-panel { grid-area: system; min-width: 0; }
-                .reconciliation-panel {
-                  background: white;
-                  border: 1px solid #E5E7EB;
-                  border-radius: 12px;
-                  display: flex;
-                  flex-direction: column;
-                  overflow: hidden;
-                  min-height: 420px;
-                }
-                .panel-header {
-                  padding: 12px 16px;
-                  border-bottom: 1px solid #F1F5F9;
-                  background: #F9FAFB;
-                  flex-shrink: 0;
-                }
-                .panel-body {
-                  flex: 1;
-                  overflow-y: auto;
-                  max-height: calc(100vh - 480px);
-                }
-              `}</style>
-
-              <div className="reconciliation-workspace">
+              <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_320px_minmax(0,1fr)]">
                 {/* Right: Bank Statements */}
-                <div className="statement-panel">
-                  <div className="reconciliation-panel">
-                    <div className="panel-header">
-                      <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                <Card className="overflow-hidden p-0">
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-900">
                         {labels.bankStatements} ({reconciliationLines.length})
-                      </h3>
-                    </div>
-                    <div className="panel-body">
+                    </h3>
+                  </div>
+                  <div className="max-h-[420px] overflow-y-auto">
                       {reconciliationLines.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex h-[240px] items-center justify-center">
                           <div className="text-center">
-                            <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <FileText className="mx-auto mb-2 h-8 w-8 text-gray-300" />
                             <p className="text-xs text-gray-500">{labels.noRows}</p>
                           </div>
                         </div>
@@ -535,20 +565,17 @@ export function BankReconciliationsPage() {
                           ))}
                         </div>
                       )}
-                    </div>
                   </div>
-                </div>
+                </Card>
 
                 {/* Middle: Matching */}
-                <div className="match-panel">
-                  <div className="reconciliation-panel">
-                    <div className="panel-header">
-                      <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide text-center">
+                <Card className="overflow-hidden p-0">
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h3 className="text-center text-xs font-bold uppercase tracking-wide text-gray-900">
                         {labels.matching}
-                      </h3>
-                    </div>
-                    <div className="flex-1 flex flex-col overflow-hidden p-4">
-                      <div className="space-y-2 mb-3 flex-1 overflow-y-auto">
+                    </h3>
+                  </div>
+                  <div className="flex flex-col gap-3 p-4">
                         <div className="p-2 border border-gray-200 rounded bg-gray-50">
                           <div className="text-xs text-gray-500 mb-1">{labels.fromStatement}</div>
                           {selectedStatementLineId ? (() => {
@@ -582,8 +609,7 @@ export function BankReconciliationsPage() {
                             ) : null;
                           })() : <p className="text-xs text-gray-500">{labels.select}</p>}
                         </div>
-                      </div>
-                      <div className="space-y-2 flex-shrink-0">
+                      <div className="space-y-2">
                         <Button
                           onClick={() => matchMutation.mutate()}
                           disabled={!selectedStatementLineId || !selectedSystemTransactionId || detail.status === "COMPLETED" || matchMutation.isPending}
@@ -604,23 +630,21 @@ export function BankReconciliationsPage() {
                           </ol>
                         </div>
                       </div>
-                    </div>
                   </div>
-                </div>
+                </Card>
 
                 {/* Left: System Transactions */}
-                <div className="system-panel">
-                  <div className="reconciliation-panel">
-                    <div className="panel-header">
-                      <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                <Card className="overflow-hidden p-0">
+                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-900">
                         {labels.system} ({detail.unmatchedSystemTransactions.length})
-                      </h3>
-                    </div>
-                    <div className="panel-body">
+                    </h3>
+                  </div>
+                  <div className="max-h-[420px] overflow-y-auto">
                       {detail.unmatchedSystemTransactions.length === 0 ? (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex h-[240px] items-center justify-center">
                           <div className="text-center">
-                            <AlertCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-gray-300" />
                             <p className="text-xs text-gray-500">{labels.noTransactions}</p>
                           </div>
                         </div>
@@ -651,14 +675,13 @@ export function BankReconciliationsPage() {
                           ))}
                         </div>
                       )}
-                    </div>
                   </div>
-                </div>
+                </Card>
               </div>
 
               {/* Matched */}
               {matchedLines.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
+                <Card className="overflow-hidden p-0">
                   <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -705,12 +728,12 @@ export function BankReconciliationsPage() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </Card>
               )}
 
               {/* Unresolved */}
               {unmatchedLines.length > 0 && (
-                <div className="bg-white rounded-lg border border-orange-200 overflow-hidden mb-6">
+                <Card className="overflow-hidden border-orange-200 p-0">
                   <div className="px-6 py-4 border-b border-orange-200 bg-orange-50">
                     <h3 className="text-sm font-bold text-orange-900 flex items-center gap-2">
                       <AlertCircle className="h-4 w-4 text-orange-600" />
@@ -741,13 +764,13 @@ export function BankReconciliationsPage() {
                       ))}
                     </div>
                   </div>
-                </div>
+                </Card>
               )}
 
               {/* Status */}
               {reconciliationMetrics && (
                 <div className={cn(
-                  "rounded-lg border p-4 text-sm font-semibold flex items-center gap-3 mb-6",
+                  "flex items-center gap-3 rounded-lg border p-4 text-sm font-semibold",
                   reconciliationMetrics.differenceNum === 0
                     ? "bg-green-50 border-green-200 text-green-800"
                     : "bg-blue-50 border-blue-200 text-blue-800",
@@ -767,8 +790,8 @@ export function BankReconciliationsPage() {
               )}
 
               {/* Forms */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <Card className="p-6">
                   <h3 className="text-sm font-bold text-gray-900 mb-4">{labels.addLine}</h3>
                   <div className="grid gap-3 md:grid-cols-2">
                     <Field label={labels.date}>
@@ -795,9 +818,9 @@ export function BankReconciliationsPage() {
                       {labels.addLine}
                     </Button>
                   </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <Card className="p-6">
                   <h3 className="text-sm font-bold text-gray-900 mb-4">{labels.import}</h3>
                   <Field label={labels.importText} hint={labels.importHint}>
                     <Textarea rows={6} value={importText} placeholder="2026-05-05,FEE-001,Bank fee,0,10" onChange={(event) => { setImportText(event.target.value); setImportError(null); }} />
@@ -813,78 +836,11 @@ export function BankReconciliationsPage() {
                       {labels.import}
                     </Button>
                   </div>
-                </div>
+                </Card>
               </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
-
-      {/* Sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:border-l lg:border-gray-200 lg:bg-white">
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="border-b border-gray-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-gray-900">{labels.reconciliationList}</h2>
-                <p className="mt-1 text-xs text-gray-500">{labels.listHint}</p>
-              </div>
-              <Button size="sm" onClick={() => setIsCreateOpen(true)} className="h-8 bg-green-600 hover:bg-green-700 text-white">
-                <CirclePlus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="border-b border-gray-200 px-4 py-3 space-y-2">
-            <Select value={bankCashAccountId} onChange={(event) => setBankCashAccountId(event.target.value)} className="text-xs">
-              <option value="">{labels.allAccounts}</option>
-              {activeBankCashAccounts.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.account.code} · {row.name}
-                </option>
-              ))}
-            </Select>
-            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as BankReconciliationStatus | "")} className="text-xs">
-              <option value="">{labels.allStatuses}</option>
-              <option value="DRAFT">{labels.draft}</option>
-              <option value="COMPLETED">{labels.completed}</option>
-            </Select>
-          </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {rows.length === 0 ? (
-              <div className="px-6 py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">{labels.noReconciliations}</p>
-              </div>
-            ) : (
-              rows.map((row) => (
-                <button
-                  key={row.id}
-                  onClick={() => { setSelectedId(row.id); setSelectedStatementLineId(null); setSelectedSystemTransactionId(null); }}
-                  className={cn(
-                    "w-full px-4 py-3 text-right transition-all border-r-2",
-                    activeSelectedId === row.id ? "bg-green-50 border-green-600" : "border-transparent hover:bg-gray-50",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-gray-900 text-sm">{cleanDisplayName(row.bankCashAccount.name)}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {row.bankCashAccount.account.code} · {formatDate(row.statementDate)}
-                      </div>
-                    </div>
-                    <StatusPill label={row.status === "COMPLETED" ? labels.completed : labels.draft} tone={row.status === "COMPLETED" ? "positive" : "warning"} />
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-gray-600">
-                    <span>{row.summary.reconciledCount} {isArabic ? "مطابقة" : "matched"}</span>
-                    <span className="font-mono font-bold text-gray-900">{formatCurrency(row.statementEndingBalance)}</span>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Modal */}
@@ -920,7 +876,7 @@ export function BankReconciliationsPage() {
           </div>
         </div>
       </SidePanel>
-    </div>
+    </PageShell>
   );
 }
 
@@ -932,7 +888,7 @@ function KPICard({
 }: {
   label: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon: ReactNode;
   valueColor?: string;
 }) {
   return (
@@ -943,6 +899,16 @@ function KPICard({
       </div>
       <div className="flex-shrink-0">{icon}</div>
     </div>
+  );
+}
+
+function SummaryCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
+  return (
+    <Card className="p-5">
+      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">{label}</div>
+      <div className="mt-2 text-2xl font-black text-gray-900">{value}</div>
+      <div className="mt-1 text-xs text-gray-500">{hint}</div>
+    </Card>
   );
 }
 

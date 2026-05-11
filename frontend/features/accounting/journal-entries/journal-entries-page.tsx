@@ -1,9 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LuPlus as Plus, LuRefreshCw as RefreshCw, LuSend as Send, LuRotateCcw as RotateCcw, LuEye as Eye, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, LuCircleAlert as AlertCircle } from "react-icons/lu";
+import { LuPlus as Plus, LuRefreshCw as RefreshCw, LuSend as Send, LuRotateCcw as RotateCcw, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, LuCircleAlert as AlertCircle } from "react-icons/lu";
 import {
     getJournalEntries,
     createJournalEntry,
@@ -17,7 +18,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/providers/auth-provider";
 import { JournalEntry, JournalEntryLine, AccountOption, JournalEntryType } from "@/types/api";
-import { SectionHeading, StatusPill, Card, Button, SidePanel, TableSkeleton } from "@/components/ui";
+import { SectionHeading, StatusPill, Card, Button, TableSkeleton, PageShell } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
 import { exportOrPrint, formatExportDate, type ExportMode } from "@/lib/export-print";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
@@ -225,7 +226,6 @@ export function JournalEntriesPage() {
     const { t, language } = useTranslation();
     const isArabic = language === "ar";
     const [showCreate, setShowCreate] = useState(false);
-    const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     // Create form state
@@ -322,6 +322,10 @@ export function JournalEntriesPage() {
     const creditTotal = lines.reduce((s, l) => s + Number((parseFloat(l.creditAmount) || 0).toFixed(2)), 0);
     const isBalanced = Math.abs(debitTotal - creditTotal) < 0.001 && debitTotal > 0;
     const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
+    const entries = entriesQuery.data ?? [];
+    const activeTypes = (typesQuery.data ?? []).filter((type: JournalEntryType) => type.isActive);
+    const draftCount = entries.filter((entry) => entry.status === "DRAFT").length;
+    const postedCount = entries.filter((entry) => entry.status === "POSTED").length;
 
     const handleExport = (mode: ExportMode) => {
         exportOrPrint({
@@ -358,314 +362,374 @@ export function JournalEntriesPage() {
     };
 
     return (
-        <div dir={isArabic ? "rtl" : "ltr"} className={cn("space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none", isArabic && "arabic-ui")}>
-            <SectionHeading
-                title={t("journal.title")}
-                description={t("journal.description")}
-                action={
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button onClick={() => setShowCreate(!showCreate)}>
-                            <Plus className="h-4 w-4 mr-2" /> {t("journal.button.newEntry")}
+        <PageShell>
+            <div dir={isArabic ? "rtl" : "ltr"} className={cn("space-y-8 animate-in fade-in duration-200 motion-reduce:animate-none", isArabic && "arabic-ui")}>
+                <SectionHeading
+                    title={t("journal.title")}
+                    description={t("journal.description")}
+                />
+
+                <div className="grid gap-4 md:grid-cols-3">
+                    <SummaryCard label={t("journal.list.title")} value={entries.length} hint={t("journal.list.subtitle")} />
+                    <SummaryCard label={t("journal.status.DRAFT")} value={draftCount} hint={t("journal.button.saveDraft")} />
+                    <SummaryCard label={t("journal.status.POSTED")} value={postedCount} hint={t("journal.action.post")} />
+                </div>
+
+                <Card className="p-5">
+                    <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr_auto_auto]">
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={t("journal.list.searchPlaceholder")}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                        />
+                        <select
+                            value={filterTypeId}
+                            onChange={(e) => setFilterTypeId(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                        >
+                            <option value="">{t("journal.list.allTypes")}</option>
+                            {activeTypes.map((type: JournalEntryType) => (
+                                <option key={type.id} value={type.id}>
+                                    {type.name}
+                                </option>
+                            ))}
+                        </select>
+                        <Button className="gap-2" onClick={() => setShowCreate(!showCreate)}>
+                            <Plus className="h-4 w-4 shrink-0" />
+                            {t("journal.button.newEntry")}
                         </Button>
+                        <div className="flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => entriesQuery.refetch()}
+                                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-teal-500"
+                            >
+                                <RefreshCw className={cn("h-4 w-4", entriesQuery.isFetching && "animate-spin")} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
                         <ExportActions onAction={handleExport} permissions={exportPermissions} disabled={entriesQuery.isLoading} />
                     </div>
-                }
-            />
+                </Card>
 
-            {/* Create Form */}
-            {showCreate && (
-                <Card className="border border-teal-500/20 bg-teal-500/5  p-6">
-                    <h3 className="text-base font-bold text-gray-900 mb-6">{t("journal.create.title")}</h3>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
+                {showCreate && (
+                    <Card className="space-y-6 border border-teal-200 bg-teal-50/40 p-6">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t("journal.field.date")}</label>
-                            <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
+                            <div className="text-base font-bold text-gray-900">{t("journal.create.title")}</div>
+                            <div className="mt-1 text-xs text-gray-500">{t("journal.description")}</div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t("journal.field.description")}</label>
-                            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Electricity bill payment"
-                                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t("journal.field.type")}</label>
-                            <select
-                                value={journalEntryTypeId}
-                                onChange={(e) => setJournalEntryTypeId(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
-                            >
-                                <option value="">{t("journal.none")}</option>
-                                {(typesQuery.data ?? [])
-                                    .filter((t: JournalEntryType) => t.isActive || t.id === journalEntryTypeId)
-                                    .map((t: JournalEntryType) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.name}{t.isActive ? "" : " (inactive)"}
-                                        </option>
-                                    ))}
-                            </select>
-                        </div>
-                        <div className="flex items-end">
-                            <Button type="button" variant="secondary" className="w-full" onClick={() => setShowAddType((v) => !v)}>
-                                {t("journal.button.addType")}
-                            </Button>
-                        </div>
-                    </div>
-
-                    {showAddType && (
-                        <div className="mb-6 rounded-2xl border border-teal-500/20 bg-teal-500/5 p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">{t("journal.field.date")}</label>
                                 <input
-                                    value={newTypeName}
-                                    onChange={(e) => setNewTypeName(e.target.value)}
-                                    placeholder="e.g. Payment, Invoice, Adjustment"
-                                    className="flex-1 rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                    type="date"
+                                    value={entryDate}
+                                    onChange={e => setEntryDate(e.target.value)}
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                                 />
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        disabled={!newTypeName.trim() || createTypeMutation.isPending}
-                                        onClick={() => createTypeMutation.mutate(newTypeName)}
-                                    >
-                                        {createTypeMutation.isPending ? t("journal.type.saving") : t("journal.type.save")}
-                                    </Button>
-                                    <Button type="button" variant="ghost" onClick={() => setShowAddType(false)}>
-                                        {t("journal.button.cancel")}
-                                    </Button>
-                                </div>
                             </div>
-                            {createTypeMutation.isError && (
-                                <div className="mt-2 text-xs text-red-400">
-                                    {(createTypeMutation.error as Error).message || t("journal.type.createError")}
+                            <div>
+                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">{t("journal.field.description")}</label>
+                                <input
+                                    value={description}
+                                    onChange={e => setDescription(e.target.value)}
+                                    placeholder="e.g. Electricity bill payment"
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-500">{t("journal.field.type")}</label>
+                                <select
+                                    value={journalEntryTypeId}
+                                    onChange={(e) => setJournalEntryTypeId(e.target.value)}
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                >
+                                    <option value="">{t("journal.none")}</option>
+                                    {(typesQuery.data ?? [])
+                                        .filter((t: JournalEntryType) => t.isActive || t.id === journalEntryTypeId)
+                                        .map((t: JournalEntryType) => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.name}{t.isActive ? "" : " (inactive)"}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+                            <div className="flex items-end">
+                                <Button type="button" variant="secondary" className="w-full" onClick={() => setShowAddType((v) => !v)}>
+                                    {t("journal.button.addType")}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {showAddType && (
+                            <div className="rounded-2xl border border-teal-200 bg-white p-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                    <input
+                                        value={newTypeName}
+                                        onChange={(e) => setNewTypeName(e.target.value)}
+                                        placeholder="e.g. Payment, Invoice, Adjustment"
+                                        className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            disabled={!newTypeName.trim() || createTypeMutation.isPending}
+                                            onClick={() => createTypeMutation.mutate(newTypeName)}
+                                        >
+                                            {createTypeMutation.isPending ? t("journal.type.saving") : t("journal.type.save")}
+                                        </Button>
+                                        <Button type="button" variant="ghost" onClick={() => setShowAddType(false)}>
+                                            {t("journal.button.cancel")}
+                                        </Button>
+                                    </div>
                                 </div>
+                                {createTypeMutation.isError && (
+                                    <div className="mt-2 text-xs text-red-500">
+                                        {(createTypeMutation.error as Error).message || t("journal.type.createError")}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+                            <table className="w-full min-w-[860px] table-fixed text-sm">
+                                <colgroup>
+                                    <col className="w-[28%]" />
+                                    <col className="w-[34%]" />
+                                    <col className="w-[19%]" />
+                                    <col className="w-[19%]" />
+                                </colgroup>
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <TableHead>{t("journal.lines.account")}</TableHead>
+                                        <TableHead>{t("journal.lines.description")}</TableHead>
+                                        <TableHead className="text-end">{t("journal.lines.debit")}</TableHead>
+                                        <TableHead className="text-end">{t("journal.lines.credit")}</TableHead>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {lines.map((line, i) => (
+                                        <tr key={i} className="border-t border-gray-100">
+                                            <td className="px-4 py-3 align-top">
+                                                <AccountAutocomplete
+                                                    accounts={postingAccounts}
+                                                    value={line.accountId}
+                                                    onChange={(id) => updateLine(i, "accountId", id)}
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3 align-top">
+                                                <input
+                                                    value={line.description}
+                                                    onChange={e => updateLine(i, "description", e.target.value)}
+                                                    placeholder={t("common.optional")}
+                                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3 align-top">
+                                                <input
+                                                    type="number"
+                                                    value={line.debitAmount}
+                                                    onChange={e => updateLine(i, "debitAmount", e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3 align-top">
+                                                <input
+                                                    type="number"
+                                                    value={line.creditAmount}
+                                                    onChange={e => updateLine(i, "creditAmount", e.target.value)}
+                                                    placeholder="0.00"
+                                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="border-t border-gray-200 bg-gray-50">
+                                    <tr>
+                                        <td colSpan={2} className="px-4 py-3">
+                                            <button onClick={() => setLines(p => [...p, { ...EMPTY_LINE }])} className="text-xs font-bold text-teal-600 hover:text-teal-700">
+                                                {t("journal.lines.addLine")}
+                                            </button>
+                                        </td>
+                                        <td className="px-4 py-3 text-end text-sm font-black tabular-nums text-teal-600">{debitTotal.toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-end text-sm font-black tabular-nums text-teal-600">{creditTotal.toFixed(2)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {!isBalanced && debitTotal > 0 && (
+                            <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                <AlertCircle className="h-4 w-4 shrink-0" />
+                                {t("journal.balance.notBalanced", { debit: debitTotal.toFixed(2), credit: creditTotal.toFixed(2) })}
+                            </div>
+                        )}
+                        {isBalanced && (
+                            <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+                                {t("journal.balance.balanced")}
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Button onClick={() => createMutation.mutate()} disabled={!isBalanced || createMutation.isPending}>
+                                {t("journal.button.saveDraft")}
+                            </Button>
+                            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t("journal.button.cancel")}</Button>
+                            {createMutation.isError && (
+                                <p className="text-sm text-red-500">{(createMutation.error as Error).message}</p>
                             )}
                         </div>
-                    )}
+                    </Card>
+                )}
 
-                    {/* Lines */}
-                    <div className="mb-4 overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-600 pr-3">{t("journal.lines.account")}</th>
-                                    <th className="pb-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-600 pr-3">{t("journal.lines.description")}</th>
-                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 w-36 pr-3">{t("journal.lines.debit")}</th>
-                                    <th className="pb-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 w-36">{t("journal.lines.credit")}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="space-y-2">
-                                {lines.map((line, i) => (
-                                    <tr key={i}>
-                                        <td className="py-1.5 pr-3">
-                                            <AccountAutocomplete
-                                                accounts={postingAccounts}
-                                                value={line.accountId}
-                                                onChange={(id) => updateLine(i, "accountId", id)}
-                                            />
-                                        </td>
-                                        <td className="py-1.5 pr-3">
-                                            <input value={line.description} onChange={e => updateLine(i, "description", e.target.value)}
-                                                placeholder={t("common.optional")}
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-gray-900 placeholder:text-gray-300 focus:outline-none" />
-                                        </td>
-                                        <td className="py-1.5 pr-3">
-                                            <input type="number" value={line.debitAmount} onChange={e => updateLine(i, "debitAmount", e.target.value)}
-                                                placeholder="0.00"
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
-                                        </td>
-                                        <td className="py-1.5">
-                                            <input type="number" value={line.creditAmount} onChange={e => updateLine(i, "creditAmount", e.target.value)}
-                                                placeholder="0.00"
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-100 px-2 py-2 text-xs text-right text-gray-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-500/40" />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="border-t border-gray-200">
-                                <tr>
-                                    <td colSpan={2} className="pt-3">
-                                        <button onClick={() => setLines(p => [...p, { ...EMPTY_LINE }])} className="text-xs text-teal-500 hover:text-teal-300 font-bold">
-                                            {t("journal.lines.addLine")}
-                                        </button>
-                                    </td>
-                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400 pr-3">{debitTotal.toFixed(2)}</td>
-                                    <td className="pt-3 text-right text-sm font-black tabular-nums text-teal-400">{creditTotal.toFixed(2)}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                <Card className="overflow-hidden p-0">
+                    <div className="border-b border-gray-200 px-6 py-4">
+                        <div className="text-sm font-bold text-gray-900">{t("journal.list.title")}</div>
+                        <div className="text-xs text-gray-500">{t("journal.list.subtitle")}</div>
                     </div>
 
-                    {!isBalanced && debitTotal > 0 && (
-                        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                            <AlertCircle className="h-4 w-4 shrink-0" />
-                            {t("journal.balance.notBalanced", { debit: debitTotal.toFixed(2), credit: creditTotal.toFixed(2) })}
-                        </div>
-                    )}
-                    {isBalanced && (
-                        <div className="mb-4 flex items-center gap-2 rounded-xl border border-teal-500/20 bg-teal-500/10 px-4 py-3 text-sm text-teal-400">
-                            {t("journal.balance.balanced")}
-                        </div>
-                    )}
+                    <div className="divide-y divide-gray-100">
+                        {entriesQuery.isLoading ? (
+                            <TableSkeleton rows={8} />
+                        ) : !entries.length ? (
+                            <div className="py-16 text-center text-sm text-gray-600">{t("journal.list.empty")}</div>
+                        ) : entries.map((entry: JournalEntry) => (
+                            <div key={entry.id}>
+                                <div
+                                    className="flex cursor-pointer items-start justify-between px-6 py-5 transition-colors hover:bg-gray-50"
+                                    onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                                >
+                                    <div className="flex min-w-0 items-start gap-4">
+                                        <button type="button" className="mt-1 text-gray-600 hover:text-gray-900">
+                                            {expandedId === entry.id ? (
+                                                <ChevronDown className="h-4 w-4" />
+                                            ) : (
+                                                <ChevronRight className={cn("h-4 w-4", isArabic && "rotate-180")} />
+                                            )}
+                                        </button>
+                                        <div className="min-w-0">
+                                            <span className="font-mono text-sm font-bold text-teal-500">{entry.reference}</span>
+                                            <p className="mt-1 text-xs text-gray-500">{entry.description || t("journal.entry.noDescription")}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-xs text-gray-500">{formatDate(entry.entryDate)}</span>
+                                        {entry.journalEntryType?.name && (
+                                            <span className="inline-flex rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-900">
+                                                {entry.journalEntryType.name}
+                                            </span>
+                                        )}
+                                        <JournalStatusPill status={entry.status} />
+                                        <div className="flex items-center gap-2">
+                                            {entry.status === "DRAFT" && (
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.post"))) postMutation.mutate(entry.id); }}
+                                                    className="rounded-md border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-bold text-teal-700 hover:bg-teal-100"
+                                                >
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <Send className="h-3 w-3" />
+                                                        {t("journal.action.post")}
+                                                    </span>
+                                                </button>
+                                            )}
+                                            {entry.status === "POSTED" && !entry.reversalOfId && (
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.reverse"))) reverseMutation.mutate(entry.id); }}
+                                                    className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
+                                                >
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <RotateCcw className="h-3 w-3" />
+                                                        {t("journal.action.reverse")}
+                                                    </span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
 
-                    <div className="flex items-center gap-3">
-                        <Button onClick={() => createMutation.mutate()} disabled={!isBalanced || createMutation.isPending}>
-                            {t("journal.button.saveDraft")}
-                        </Button>
-                        <Button variant="secondary" onClick={() => setShowCreate(false)}>{t("journal.button.cancel")}</Button>
-                        {createMutation.isError && (
-                            <p className="text-sm text-red-400">{(createMutation.error as Error).message}</p>
-                        )}
+                                {expandedId === entry.id && (
+                                    <div className="border-t border-gray-200 bg-gray-50 px-6 py-5">
+                                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+                                            <table className="w-full min-w-[760px] table-fixed text-sm">
+                                                <colgroup>
+                                                    <col className="w-[30%]" />
+                                                    <col className="w-[34%]" />
+                                                    <col className="w-36" />
+                                                    <col className="w-36" />
+                                                </colgroup>
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <TableHead className={isArabic ? "text-right" : "text-left"}>{t("journal.lines.account")}</TableHead>
+                                                        <TableHead className={isArabic ? "text-right" : "text-left"}>{t("journal.lines.description")}</TableHead>
+                                                        <TableHead className="text-end">{t("journal.lines.debit")}</TableHead>
+                                                        <TableHead className="text-end">{t("journal.lines.credit")}</TableHead>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {expandedEntryQuery.isLoading ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="py-6 text-center text-sm text-gray-600">
+                                                                {t("journal.list.loading")}
+                                                            </td>
+                                                        </tr>
+                                                    ) : (expandedEntryQuery.data?.lines ?? []).map((line: JournalEntryLine) => (
+                                                        <tr key={line.id} className="border-t border-gray-100">
+                                                            <td className={cn("px-6 py-4 align-top text-slate-900", isArabic ? "text-right" : "text-left")}>
+                                                                <div className={cn("inline-flex flex-col", isArabic ? "ml-auto items-end text-right" : "mr-auto items-start text-left")}>
+                                                                    <span className="block font-semibold">
+                                                                        {isArabic ? line.accountNameAr || line.accountName : line.accountName}
+                                                                    </span>
+                                                                    <span className="block font-mono text-xs text-slate-500">
+                                                                        {line.accountCode}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className={cn("px-6 py-4 align-top text-gray-700", isArabic ? "text-right" : "text-left")}>{line.description || "—"}</td>
+                                                            <td className="px-6 py-4 text-end align-top font-mono font-bold tabular-nums text-teal-600">
+                                                                {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-end align-top font-mono font-bold tabular-nums text-amber-600">
+                                                                {parseFloat(line.creditAmount) > 0 ? formatCurrency(line.creditAmount) : "—"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </Card>
-            )}
-
-            {/* List */}
-            <Card className="p-0 border border-gray-200 bg-panel/40  overflow-hidden">
-                <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
-                    <div>
-                        <h2 className="text-base font-bold text-gray-900">{t("journal.list.title")}</h2>
-                        <p className="text-xs text-gray-500 mt-0.5">{t("journal.list.subtitle")}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => entriesQuery.refetch()} className="text-gray-500 hover:text-teal-400 transition-all">
-                            <RefreshCw className={cn("h-4 w-4", entriesQuery.isFetching && "animate-spin")} />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="border-b border-gray-200 px-6 py-4 bg-gray-50">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="sm:col-span-2">
-                            <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder={t("journal.list.searchPlaceholder")}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
-                            />
-                        </div>
-                        <div>
-                            <select
-                                value={filterTypeId}
-                                onChange={(e) => setFilterTypeId(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500/40"
-                            >
-                                <option value="">{t("journal.list.allTypes")}</option>
-                                {(typesQuery.data ?? [])
-                                    .filter((t: JournalEntryType) => t.isActive)
-                                    .map((t: JournalEntryType) => (
-                                        <option key={t.id} value={t.id}>
-                                            {t.name}
-                                        </option>
-                                    ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="divide-y divide-white/5">
-                    {entriesQuery.isLoading ? (
-                        <TableSkeleton rows={8} />
-                    ) : !entriesQuery.data?.length ? (
-                        <div className="py-16 text-center text-sm text-gray-600">{t("journal.list.empty")}</div>
-                    ) : entriesQuery.data.map((entry: JournalEntry) => (
-                        <div key={entry.id}>
-                            <div
-                                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                                onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <button className="text-gray-600 hover:text-gray-900">
-                                        {expandedId === entry.id ? (
-                                            <ChevronDown className="h-4 w-4" />
-                                        ) : (
-                                            <ChevronRight className={cn("h-4 w-4", isArabic && "rotate-180")} />
-                                        )}
-                                    </button>
-                                    <div>
-                                        <span className="font-mono text-sm font-bold text-teal-400">{entry.reference}</span>
-                                        <p className="text-xs text-gray-500 mt-0.5">{entry.description || t("journal.entry.noDescription")}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-xs text-gray-500">{formatDate(entry.entryDate)}</span>
-                                    {entry.journalEntryType?.name && (
-                                        <span className="inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-900 border-gray-200">
-                                            {entry.journalEntryType.name}
-                                        </span>
-                                    )}
-                                    <JournalStatusPill status={entry.status} />
-                                    <div className="flex items-center gap-2">
-                                        {entry.status === "DRAFT" && (
-                                            <button
-                                                onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.post"))) postMutation.mutate(entry.id); }}
-                                                className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 px-3 py-1.5 text-xs font-bold text-teal-400 hover:bg-teal-500/20 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md transition-all"
-                                            >
-                                                <Send className="h-3 w-3" /> {t("journal.action.post")}
-                                            </button>
-                                        )}
-                                        {entry.status === "POSTED" && !entry.reversalOfId && (
-                                            <button
-                                                onClick={e => { e.stopPropagation(); if (confirm(t("journal.confirm.reverse"))) reverseMutation.mutate(entry.id); }}
-                                                className="flex items-center gap-1.5 rounded-lg bg-gray-100 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-orange-400 hover:border-orange-400/20 hover:bg-orange-400/10 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md transition-all"
-                                            >
-                                                <RotateCcw className="h-3 w-3" /> {t("journal.action.reverse")}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {expandedId === entry.id && (
-                                <div className="border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-10">
-                                    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-                                        <table className="w-full min-w-[760px] text-xs">
-                                            <thead className="bg-slate-100">
-                                                <tr className="border-b border-slate-200 text-slate-600">
-                                                    <th className="px-5 py-3 text-start font-black uppercase tracking-wider">{t("journal.lines.account")}</th>
-                                                    <th className="px-5 py-3 text-start font-black uppercase tracking-wider">{t("journal.lines.description")}</th>
-                                                    <th className="w-36 px-5 py-3 text-end font-black uppercase tracking-wider">{t("journal.lines.debit")}</th>
-                                                    <th className="w-36 px-5 py-3 text-end font-black uppercase tracking-wider">{t("journal.lines.credit")}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {expandedEntryQuery.isLoading ? (
-                                                    <tr>
-                                                        <td colSpan={4} className="py-6 text-center text-xs text-gray-600">
-                                                            {t("journal.list.loading")}
-                                                        </td>
-                                                    </tr>
-                                                ) : (expandedEntryQuery.data?.lines ?? []).map((line: JournalEntryLine) => (
-                                                    <tr key={line.id} className="hover:bg-slate-50">
-                                                        <td className="px-5 py-3 text-slate-900">
-                                                            <div className={cn("flex flex-col", isArabic ? "items-end text-right" : "items-start text-left")}>
-                                                                <span className="font-bold">
-                                                                    {isArabic ? line.accountNameAr || line.accountName : line.accountName}
-                                                                </span>
-                                                                <span className="font-mono text-[11px] text-slate-400">
-                                                                    {line.accountCode}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-5 py-3 text-start text-slate-500">{line.description || "—"}</td>
-                                                        <td className="px-5 py-3 text-end tabular-nums text-teal-500 font-black">
-                                                            {parseFloat(line.debitAmount) > 0 ? formatCurrency(line.debitAmount) : "—"}
-                                                        </td>
-                                                        <td className="px-5 py-3 text-end tabular-nums text-orange-500 font-black">
-                                                            {parseFloat(line.creditAmount) > 0 ? formatCurrency(line.creditAmount) : "—"}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </Card>
-        </div>
+            </div>
+        </PageShell>
     );
+}
+
+function SummaryCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
+    return (
+        <Card className="p-5">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">{label}</div>
+            <div className="mt-2 text-2xl font-black text-gray-900">{value}</div>
+            <div className="mt-1 text-xs text-gray-500">{hint}</div>
+        </Card>
+    );
+}
+
+function TableHead({
+    children,
+    className,
+}: {
+    children: ReactNode;
+    className?: string;
+}) {
+    return <th className={cn("px-6 py-3 text-start text-[10px] font-bold uppercase tracking-widest text-gray-600", className)}>{children}</th>;
 }
