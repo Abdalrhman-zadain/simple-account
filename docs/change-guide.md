@@ -169,17 +169,20 @@ Where to edit:
 What else to check:
 
 - sales document tax choices should come from active `Tax` master data (`GET /taxes/active`) rather than manual free-text or arbitrary tax values
+- tax setup now has two layers: `Tax` stays the master for actual codes/rates/accounts, while `TaxTreatment` stores customer-facing business treatment defaults and may optionally point to a default tax code
 - sales document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - customer records must remain deactivatable without deleting history
 - customer creation supports either creating a new posting receivable account automatically under `1121000 Customer Receivables / ذمم عملاء` or linking an existing active posting Asset account from that same subtree
 - customer sales-rep assignment should use optional `salesRepId` to an active Sales & Receivables `SalesRepresentative` for follow-up, reports, commissions, and collections; never substitute the representative's employee-payables account for the customer receivable account
 - sales representative account linking may create a new posting liability account under `2130000 Employee Payables / ذمم الموظفين`, link an existing active posting account from that subtree, or leave the representative without an account; this link remains employee-side context only
 - customer names should remain unique, and automatic customer-receivable account creation must not create a second detail account with the same customer name under `1121000`
+- customer creation and editing must require an active `TaxTreatment`; the old free-text tax-information field is no longer the authoritative sales tax selector
 - deactivated customers must not be selectable for new quotations, sales orders, invoices, receipts, or credit notes
 - quotation drafts must stay editable until approved/cancelled, and approved quotations must preserve downstream traceability after conversion
 - sales quotation lines may now optionally link to active inventory items for UI-assisted item/service selection, but `itemName`, `description`, and `revenueAccountId` must remain persisted on the quotation line so commercial history does not depend on future item-master edits
 - sales-order lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the order line so downstream invoice conversion keeps commercial traceability even if the item master changes later
 - sales-invoice lines may now optionally link to active inventory items for UI-assisted item/service selection, and `itemName`, `description`, and resolved revenue-account context must remain persisted on the invoice line so posted commercial history stays readable even if the item master changes later
+- selecting or changing an invoice customer should offer to re-apply the customer's tax-treatment default across existing draft invoice lines, and newly added lines should inherit that same default tax automatically
 - converting an approved quotation or sales order into an invoice should prefill the invoice editor, let the user choose revenue accounts per line, and only call the convert API when the draft is saved
 - the quotation editor supports both `save draft` and immediate `approve quotation` from the same form; when approving a brand-new quotation, the UI should save first and then approve the created draft in the same flow
 - sales-order drafts must stay editable until confirmed, and confirmed orders must preserve quotation/invoice traceability

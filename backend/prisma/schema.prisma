@@ -515,6 +515,7 @@ model Tax {
   taxAccountId         String?
   taxAccount           Account?              @relation("TaxAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
   isActive             Boolean               @default(true)
+  defaultForTreatments TaxTreatment[]        @relation("TaxTreatmentDefaultTax")
   purchaseOrderLines   PurchaseOrderLine[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
   debitNoteLines       DebitNoteLine[]
@@ -529,6 +530,23 @@ model Tax {
   @@index([isActive])
   @@index([taxType])
   @@index([taxAccountId])
+}
+
+model TaxTreatment {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  arabicName    String
+  englishName   String
+  description   String?
+  defaultTaxId  String?
+  defaultTax    Tax?       @relation("TaxTreatmentDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
+  isActive      Boolean    @default(true)
+  customers     Customer[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([isActive, code])
+  @@index([defaultTaxId])
 }
 
 model JournalEntryType {
@@ -594,6 +612,8 @@ model Customer {
   name                 String
   contactInfo          String?
   taxInfo              String?
+  taxTreatmentId       String
+  taxTreatment         TaxTreatment          @relation(fields: [taxTreatmentId], references: [id], onDelete: Restrict)
   salesRepresentative  String?
   salesRepId           String?
   salesRep             SalesRepresentative?  @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
@@ -613,6 +633,7 @@ model Customer {
 
   @@index([isActive, name])
   @@index([salesRepId])
+  @@index([taxTreatmentId])
 }
 
 model SalesRepresentative {

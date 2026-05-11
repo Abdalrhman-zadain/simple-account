@@ -18,7 +18,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Customer, InventoryItem } from "@/types/api";
+import type { Customer, InventoryItem, Tax } from "@/types/api";
 import { useAuth } from "@/providers/auth-provider";
 import {
   calculateQuotationTotals,
@@ -48,6 +48,8 @@ type SalesDocumentEditorModalProps = {
   isInventoryItemsLoading: boolean;
   revenueAccounts: RevenueAccountOption[];
   isSubmitting: boolean;
+  defaultLineTax?: Tax | null;
+  allowTaxOverride?: boolean;
   onClose: () => void;
   onReferenceChange: (value: string) => void;
   onDateChange: (value: string) => void;
@@ -79,6 +81,8 @@ export function SalesDocumentEditorModal({
   isInventoryItemsLoading,
   revenueAccounts,
   isSubmitting,
+  defaultLineTax,
+  allowTaxOverride = true,
   onClose,
   onReferenceChange,
   onDateChange,
@@ -116,7 +120,15 @@ export function SalesDocumentEditorModal({
   };
 
   const addLine = () => {
-    onLinesChange([...lines, createEmptyLine()]);
+    onLinesChange([
+      ...lines,
+      withCalculatedLineAmount({
+        ...createEmptyLine(),
+        taxId: defaultLineTax?.id ?? "",
+        taxRate: defaultLineTax ? String(defaultLineTax.rate) : "",
+        taxAmount: "",
+      }),
+    ]);
   };
 
   if (!isOpen) {
@@ -298,7 +310,7 @@ export function SalesDocumentEditorModal({
                             t("salesReceivables.field.quantity"),
                             t("salesReceivables.field.unitPrice"),
                             t("salesReceivables.field.discountAmount"),
-                            t("salesReceivables.field.taxAmount"),
+                            t("salesReceivables.field.tax"),
                             t("salesReceivables.field.description"),
                           ].map((label, labelIndex) => (
                             <div
@@ -416,6 +428,7 @@ export function SalesDocumentEditorModal({
 
                           <Select
                             value={line.taxId}
+                            disabled={!allowTaxOverride}
                             onChange={(event) => {
                               const selectedTax = taxes.find((tax) => tax.id === event.target.value);
                               updateLine(line.key, (current) => ({
@@ -425,9 +438,9 @@ export function SalesDocumentEditorModal({
                                 taxAmount: selectedTax ? current.taxAmount : "",
                               }));
                             }}
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                            className={cn("border-slate-200 bg-white disabled:cursor-not-allowed disabled:bg-slate-100", isArabic && "arabic-ui text-right")}
                           >
-                            <option value="">{t("salesReceivables.field.taxAmount")}</option>
+                            <option value="">{t("salesReceivables.field.tax")}</option>
                             {taxes.map((tax) => (
                               <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
                             ))}

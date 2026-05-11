@@ -103,6 +103,7 @@ Accounting meaning:
 Main models:
 
 - `Customer`
+- `TaxTreatment`
 - `SalesRepresentative`
 - `SalesQuotation`
 - `SalesQuotationLine`
@@ -117,7 +118,8 @@ Main models:
 
 Key fields:
 
-- customer `code`, `name`, `contactInfo`, `taxInfo`, optional legacy `salesRepresentative`, optional relational `salesRepId`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
+- tax treatment `code`, `arabicName`, `englishName`, optional `description`, optional `defaultTaxId`, `isActive`, and timestamps
+- customer `code`, `name`, `contactInfo`, required `taxTreatmentId`, optional legacy `taxInfo`, optional legacy `salesRepresentative`, optional relational `salesRepId`, `paymentTerms`, `creditLimit`, `currentBalance`, and `isActive`
 - sales representative `code`, `name`, `phone`, `email`, `defaultCommissionRate`, optional `employeeReceivableAccountId`, `status`, and linked customer count
 - quotation/order/invoice/credit-note `reference`, `status`, date fields, `currencyCode`, totals, and source-document references where applicable
 - invoice `dueDate`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, and `journalEntryId`
@@ -132,7 +134,9 @@ Key fields:
 Accounting meaning:
 
 - customer receivable control links each customer to one posting receivable account
+- `Tax` remains the master table for actual tax codes/rates, while `TaxTreatment` stores business tax behavior such as taxable, zero-rated, exempt, out-of-scope, and reverse-charge defaults
 - customer creation can automatically create the linked posting receivable account under `1121000 Customer Receivables / ذمم عملاء`, or link an existing active posting Asset account from that subtree; sales invoices, receipts, and credit notes use the customer's linked posting account rather than receivables header accounts
+- each customer must reference one active `TaxTreatment`; the selected treatment can optionally point to a default `Tax` record that downstream invoice entry uses for default line taxation
 - customer `salesRepId` links to an active `SalesRepresentative` record managed inside Sales & Receivables for follow-up, reporting, commissions, collection ownership, and future sales-rep analysis; it never replaces the customer's receivable account and is not used as the invoice receivable posting account
 - a sales representative may either have no employee-payables account, create one automatically under `2130000 Employee Payables / ذمم الموظفين`, or link an existing active posting account from that subtree; that account is used only for employee-side advances, custody, settlements, and commissions, not customer receivables
 - customer names are treated as unique by the Sales & Receivables service, and automatic receivable account creation rejects duplicate detail-account names under `1121000`
@@ -140,6 +144,7 @@ Accounting meaning:
 - quotation lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so the commercial document remains readable even if the item master changes later
 - sales-order lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so downstream invoicing can inherit the item link without depending on future item-master edits
 - sales-invoice lines may optionally point to an inventory/service item while still storing editable `itemName` snapshots so posted invoice history stays linked to the item card without depending on future item-master edits
+- when a sales invoice customer is selected, draft invoice lines inherit the customer's tax-treatment default tax; out-of-scope treatment clears line tax, and reverse-charge behavior currently follows the treatment's configured default tax when one exists, otherwise no tax is defaulted
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
 - sales-invoice posting uses the customer's linked receivable account only; sales representative links and employee payable accounts remain non-posting context for customer invoices

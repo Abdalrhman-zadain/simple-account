@@ -20,16 +20,19 @@ import {
     getPaymentMethodTypes,
     getPaymentTerms,
     getSegmentDefinitions,
+    getTaxTreatments,
     getTaxes,
+    createTaxTreatment,
     updateAccountSubtype,
     updateJournalEntryType,
     updatePaymentMethodType,
     updateSegmentValue,
+    updateTaxTreatment,
     updateTax,
     deleteTax,
 } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
-import { AccountOption, AccountSubtype, JournalEntryType, PaymentMethodType, SegmentDefinition, SegmentValue, Tax, TaxType } from "@/types/api";
+import { AccountOption, AccountSubtype, JournalEntryType, PaymentMethodType, SegmentDefinition, SegmentValue, Tax, TaxTreatment, TaxType } from "@/types/api";
 import { SectionHeading, StatusPill, Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
@@ -56,12 +59,31 @@ type TaxEditorState = {
     isActive: boolean;
 };
 
+type TaxTreatmentEditorState = {
+    id?: string;
+    code: string;
+    arabicName: string;
+    englishName: string;
+    description: string;
+    defaultTaxId: string;
+    isActive: boolean;
+};
+
 const emptyTaxEditor: TaxEditorState = {
     taxCode: "",
     taxName: "",
     rate: "",
     taxType: "SALES",
     taxAccountId: "",
+    isActive: true,
+};
+
+const emptyTaxTreatmentEditor: TaxTreatmentEditorState = {
+    code: "",
+    arabicName: "",
+    englishName: "",
+    description: "",
+    defaultTaxId: "",
     isActive: true,
 };
 
@@ -92,6 +114,8 @@ export function MasterDataPage() {
     const [newPaymentMethodTypeName, setNewPaymentMethodTypeName] = useState("");
     const [showAddPaymentMethodType, setShowAddPaymentMethodType] = useState(false);
     const [taxEditor, setTaxEditor] = useState<TaxEditorState | null>(null);
+    const [taxTreatmentEditor, setTaxTreatmentEditor] = useState<TaxTreatmentEditorState | null>(null);
+    const [taxSetupView, setTaxSetupView] = useState<"taxes" | "treatments">("taxes");
 
     const { data: definitions = [], isLoading } = useQuery({
         queryKey: ["segment-definitions", token],
@@ -116,6 +140,11 @@ export function MasterDataPage() {
     const { data: taxes = [], isLoading: isLoadingTaxes, isError: isTaxesError, error: taxesError } = useQuery({
         queryKey: ["taxes", token],
         queryFn: () => getTaxes(token),
+    });
+
+    const { data: taxTreatments = [], isLoading: isLoadingTaxTreatments, isError: isTaxTreatmentsError, error: taxTreatmentsError } = useQuery({
+        queryKey: ["tax-treatments", token],
+        queryFn: () => getTaxTreatments(token),
     });
 
     const { data: paymentTerms = [], isLoading: isLoadingPaymentTerms } = useQuery({
@@ -235,12 +264,32 @@ export function MasterDataPage() {
         },
     });
 
+    const saveTaxTreatmentMutation = useMutation({
+        mutationFn: (editor: TaxTreatmentEditorState) => {
+            const payload = {
+                code: editor.code,
+                arabicName: editor.arabicName,
+                englishName: editor.englishName,
+                description: editor.description || null,
+                defaultTaxId: editor.defaultTaxId || null,
+                isActive: editor.isActive,
+            };
+            return editor.id
+                ? updateTaxTreatment(editor.id, payload, token)
+                : createTaxTreatment(payload, token);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["tax-treatments"] });
+            setTaxTreatmentEditor(null);
+        },
+    });
+
     const deleteTaxMutation = useMutation({
         mutationFn: (id: string) => deleteTax(id, token),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["taxes"] }),
     });
 
-    if (isLoading || isLoadingSubtypes || isLoadingTypes || isLoadingPaymentMethodTypes || isLoadingTaxes) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
+    if (isLoading || isLoadingSubtypes || isLoadingTypes || isLoadingPaymentMethodTypes || isLoadingTaxes || isLoadingTaxTreatments) return <div className="flex items-center justify-center py-40 text-gray-500">{t("master.loading")}</div>;
 
     const TABS = [
         ...definitions.map((def) => ({ kind: "segment" as const, def })),
@@ -264,6 +313,21 @@ export function MasterDataPage() {
             isActive: tax.isActive,
         } : emptyTaxEditor);
     };
+    const openTaxTreatmentEditor = (treatment?: TaxTreatment) => {
+        setTaxTreatmentEditor(
+            treatment
+                ? {
+                    id: treatment.id,
+                    code: treatment.code,
+                    arabicName: treatment.arabicName,
+                    englishName: treatment.englishName,
+                    description: treatment.description ?? "",
+                    defaultTaxId: treatment.defaultTaxId ?? "",
+                    isActive: treatment.isActive,
+                }
+                : emptyTaxTreatmentEditor,
+        );
+    };
     const accountLabel = (account?: AccountOption | null) =>
         account ? `${account.code} - ${account.nameAr || account.name}` : t("master.taxes.noAccount");
     const selectedTaxTypeRequiresAccount = taxEditor?.taxType === "SALES" || taxEditor?.taxType === "PURCHASE";
@@ -286,6 +350,11 @@ export function MasterDataPage() {
         Number(taxEditor?.rate) >= 0 &&
         Number(taxEditor?.rate) <= 100 &&
         (!selectedTaxTypeRequiresAccount || taxEditor?.taxAccountId)
+    );
+    const canSaveTaxTreatment = Boolean(
+        taxTreatmentEditor?.code.trim() &&
+        taxTreatmentEditor?.arabicName.trim() &&
+        taxTreatmentEditor?.englishName.trim()
     );
 
     return (
@@ -331,6 +400,8 @@ export function MasterDataPage() {
                                 setShowAddPaymentMethodType(false);
                                 setPaymentMethodTypeEditingId(null);
                                 setTaxEditor(null);
+                                setTaxTreatmentEditor(null);
+                                setTaxSetupView("taxes");
                             }}
                             className={cn(
                                 "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold border transition-all",
@@ -806,69 +877,152 @@ export function MasterDataPage() {
                             <h2 className="text-base font-bold text-gray-900">{t("master.section.taxes.title")}</h2>
                             <p className="text-xs text-gray-500 mt-0.5">{t("master.section.taxes.description")}</p>
                         </div>
-                        <Button onClick={() => openTaxEditor()}>
-                            <Plus className="h-4 w-4 mr-2" /> {t("master.section.taxes.add")}
+                        <Button onClick={() => (taxSetupView === "taxes" ? openTaxEditor() : openTaxTreatmentEditor())}>
+                            <Plus className="h-4 w-4 mr-2" /> {taxSetupView === "taxes" ? t("master.section.taxes.add") : t("master.section.taxTreatments.add")}
                         </Button>
                     </div>
 
-                    {isTaxesError && (
+                    <div className="flex flex-wrap gap-2 border-b border-gray-200 px-6 py-4">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTaxSetupView("taxes");
+                                setTaxEditor(null);
+                                setTaxTreatmentEditor(null);
+                            }}
+                            className={cn(
+                                "rounded-xl border px-4 py-2 text-sm font-bold transition-all",
+                                taxSetupView === "taxes"
+                                    ? "border-green-500 bg-green-50 text-green-700"
+                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                            )}
+                        >
+                            {t("master.tab.taxes")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTaxSetupView("treatments");
+                                setTaxEditor(null);
+                                setTaxTreatmentEditor(null);
+                            }}
+                            className={cn(
+                                "rounded-xl border px-4 py-2 text-sm font-bold transition-all",
+                                taxSetupView === "treatments"
+                                    ? "border-green-500 bg-green-50 text-green-700"
+                                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                            )}
+                        >
+                            {t("master.tab.taxTreatments")}
+                        </button>
+                    </div>
+
+                    {taxSetupView === "taxes" && isTaxesError && (
                         <div className="border-b border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
                             {(taxesError as Error)?.message || t("master.taxes.error")}
+                        </div>
+                    )}
+                    {taxSetupView === "treatments" && isTaxTreatmentsError && (
+                        <div className="border-b border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
+                            {(taxTreatmentsError as Error)?.message || t("master.taxTreatments.error")}
                         </div>
                     )}
 
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="border-b border-gray-200 bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxCode")}</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxName")}</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.rate")}</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxType")}</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxAccount")}</th>
-                                    <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 text-center">{t("common.table.status")}</th>
-                                    <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.actions")}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {taxes.length === 0 ? (
-                                    <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-600">{t("master.taxes.empty")}</td></tr>
-                                ) : taxes.map((tax) => (
-                                    <tr key={tax.id} className="group hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4"><span className="font-mono text-xs font-bold text-green-600">{tax.taxCode}</span></td>
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{tax.taxName}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-700">{Number(tax.rate).toFixed(2)}%</td>
-                                        <td className="px-6 py-4 text-sm text-gray-700">{t(`master.taxes.type.${tax.taxType}`)}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-700">{accountLabel(tax.taxAccount)}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <StatusPill label={tax.isActive ? t("common.status.active") : t("common.status.inactive")} tone={tax.isActive ? "positive" : "neutral"} />
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => openTaxEditor(tax)}
-                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-400/10 transition-all"
-                                                    title={t("common.action.edit")}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm(t("common.confirm.delete", { name: tax.taxName }))) deleteTaxMutation.mutate(tax.id);
-                                                    }}
-                                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-400/10 transition-all"
-                                                    title={t("common.action.delete")}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
+                            {taxSetupView === "taxes" ? (
+                                <>
+                                    <thead className="border-b border-gray-200 bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxCode")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxName")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.rate")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxType")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxes.taxAccount")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 text-center">{t("common.table.status")}</th>
+                                            <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.actions")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {taxes.length === 0 ? (
+                                            <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-600">{t("master.taxes.empty")}</td></tr>
+                                        ) : taxes.map((tax) => (
+                                            <tr key={tax.id} className="group hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4"><span className="font-mono text-xs font-bold text-green-600">{tax.taxCode}</span></td>
+                                                <td className="px-6 py-4 text-sm font-medium text-gray-900">{tax.taxName}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">{Number(tax.rate).toFixed(2)}%</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">{t(`master.taxes.type.${tax.taxType}`)}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">{accountLabel(tax.taxAccount)}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <StatusPill label={tax.isActive ? t("common.status.active") : t("common.status.inactive")} tone={tax.isActive ? "positive" : "neutral"} />
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => openTaxEditor(tax)}
+                                                            className="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-400/10 transition-all"
+                                                            title={t("common.action.edit")}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm(t("common.confirm.delete", { name: tax.taxName }))) deleteTaxMutation.mutate(tax.id);
+                                                            }}
+                                                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-400/10 transition-all"
+                                                            title={t("common.action.delete")}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </>
+                            ) : (
+                                <>
+                                    <thead className="border-b border-gray-200 bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxTreatments.code")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxTreatments.arabicName")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxTreatments.englishName")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("master.taxTreatments.defaultTax")}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-600 text-center">{t("common.table.status")}</th>
+                                            <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-600">{t("common.table.actions")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        {taxTreatments.length === 0 ? (
+                                            <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-600">{t("master.taxTreatments.empty")}</td></tr>
+                                        ) : taxTreatments.map((treatment) => (
+                                            <tr key={treatment.id} className="group hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4"><span className="font-mono text-xs font-bold text-green-600">{treatment.code}</span></td>
+                                                <td className="px-6 py-4 text-sm font-medium text-gray-900">{treatment.arabicName}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">{treatment.englishName}</td>
+                                                <td className="px-6 py-4 text-sm text-gray-700">{treatment.defaultTax ? `${treatment.defaultTax.taxCode} - ${treatment.defaultTax.taxName}` : t("master.taxTreatments.noDefaultTax")}</td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <StatusPill label={treatment.isActive ? t("common.status.active") : t("common.status.inactive")} tone={treatment.isActive ? "positive" : "neutral"} />
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => openTaxTreatmentEditor(treatment)}
+                                                            className="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-400/10 transition-all"
+                                                            title={t("common.action.edit")}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </>
+                            )}
                         </table>
                     </div>
-                    {deleteTaxMutation.isError && (
+                    {taxSetupView === "taxes" && deleteTaxMutation.isError && (
                         <div className="border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
                             {(deleteTaxMutation.error as Error).message || t("master.taxes.deleteError")}
                         </div>
@@ -952,6 +1106,84 @@ export function MasterDataPage() {
                         <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
                             <Button variant="secondary" onClick={() => setTaxEditor(null)}>{t("common.action.cancel")}</Button>
                             <Button onClick={() => saveTaxMutation.mutate(taxEditor)} disabled={!canSaveTax || saveTaxMutation.isPending}>
+                                <Check className="h-4 w-4 mr-2" /> {t("common.action.save")}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {taxTreatmentEditor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                            <h3 className="text-base font-bold text-gray-900">
+                                {taxTreatmentEditor.id ? t("master.taxTreatments.modal.editTitle") : t("master.taxTreatments.modal.createTitle")}
+                            </h3>
+                            <button onClick={() => setTaxTreatmentEditor(null)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="grid gap-4 px-6 py-5 sm:grid-cols-2">
+                            <Field label={t("master.taxTreatments.code")}>
+                                <input
+                                    value={taxTreatmentEditor.code}
+                                    onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, code: event.target.value.toUpperCase() }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <Field label={t("master.taxTreatments.defaultTax")}>
+                                <select
+                                    value={taxTreatmentEditor.defaultTaxId}
+                                    onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, defaultTaxId: event.target.value }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                >
+                                    <option value="">{t("master.taxTreatments.defaultTaxPlaceholder")}</option>
+                                    {taxes.map((tax) => <option key={tax.id} value={tax.id}>{tax.taxCode} - {tax.taxName}</option>)}
+                                </select>
+                            </Field>
+                            <Field label={t("master.taxTreatments.arabicName")}>
+                                <input
+                                    value={taxTreatmentEditor.arabicName}
+                                    onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, arabicName: event.target.value }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <Field label={t("master.taxTreatments.englishName")}>
+                                <input
+                                    value={taxTreatmentEditor.englishName}
+                                    onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, englishName: event.target.value }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                />
+                            </Field>
+                            <div className="sm:col-span-2">
+                                <Field label={t("master.taxTreatments.description")}>
+                                    <textarea
+                                        value={taxTreatmentEditor.description}
+                                        onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, description: event.target.value }))}
+                                        className="min-h-24 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                    />
+                                </Field>
+                            </div>
+                            <Field label={t("common.table.status")}>
+                                <select
+                                    value={taxTreatmentEditor.isActive ? "true" : "false"}
+                                    onChange={(event) => setTaxTreatmentEditor((current) => current && ({ ...current, isActive: event.target.value === "true" }))}
+                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                                >
+                                    <option value="true">{t("common.status.active")}</option>
+                                    <option value="false">{t("common.status.inactive")}</option>
+                                </select>
+                            </Field>
+                        </div>
+                        {saveTaxTreatmentMutation.isError && (
+                            <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {(saveTaxTreatmentMutation.error as Error).message || t("master.taxTreatments.saveError")}
+                            </div>
+                        )}
+                        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+                            <Button variant="secondary" onClick={() => setTaxTreatmentEditor(null)}>{t("common.action.cancel")}</Button>
+                            <Button onClick={() => saveTaxTreatmentMutation.mutate(taxTreatmentEditor)} disabled={!canSaveTaxTreatment || saveTaxTreatmentMutation.isPending}>
                                 <Check className="h-4 w-4 mr-2" /> {t("common.action.save")}
                             </Button>
                         </div>

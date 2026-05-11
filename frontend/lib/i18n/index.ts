@@ -438,6 +438,7 @@ const enTranslations: Record<string, string> = {
   "master.tab.paymentMethodTypes": "Payment Account Types",
   "master.tab.paymentTerms": "Payment Terms",
   "master.tab.taxes": "Tax",
+  "master.tab.taxTreatments": "Tax Treatments",
   "master.section.accountSubtypes.title": "Account Classes (Subtypes)",
   "master.section.accountSubtypes.description":
     "Create your own account classes like Bank, Cash, Receivable, Payable, etc.",
@@ -454,6 +455,7 @@ const enTranslations: Record<string, string> = {
   "master.section.taxes.description":
     "Manage tax types, rates, and accounting accounts for later use in sales and purchase invoices.",
   "master.section.taxes.add": "Add Tax",
+  "master.section.taxTreatments.add": "Add Tax Treatment",
   "master.accountSubtypes.createError": "Failed to create account class.",
   "master.journalEntryTypes.createError":
     "Failed to create journal entry type.",
@@ -508,6 +510,19 @@ const enTranslations: Record<string, string> = {
   "master.taxes.type.ZERO_RATED": "Zero Rated",
   "master.taxes.type.EXEMPT": "Exempt",
   "master.taxes.type.OUT_OF_SCOPE": "Out of Scope",
+  "master.taxTreatments.empty":
+    "No tax treatments yet. Add a tax treatment to start.",
+  "master.taxTreatments.error": "Could not load tax treatments.",
+  "master.taxTreatments.saveError": "Failed to save tax treatment.",
+  "master.taxTreatments.code": "Code",
+  "master.taxTreatments.arabicName": "Arabic Name",
+  "master.taxTreatments.englishName": "English Name",
+  "master.taxTreatments.defaultTax": "Default Tax",
+  "master.taxTreatments.defaultTaxPlaceholder": "No default tax",
+  "master.taxTreatments.noDefaultTax": "No default tax",
+  "master.taxTreatments.description": "Description",
+  "master.taxTreatments.modal.createTitle": "Add Tax Treatment",
+  "master.taxTreatments.modal.editTitle": "Edit Tax Treatment",
   
   "master.paymentTerms.title": "Payment Terms",
   "master.paymentTerms.description": "Manage payment term configurations for suppliers",
@@ -891,6 +906,7 @@ Object.assign(enTranslations, {
   "salesReceivables.field.contactInformation": "Contact Information",
   "salesReceivables.field.paymentTerms": "Payment Terms",
   "salesReceivables.field.taxInformation": "Tax Information",
+  "salesReceivables.field.taxTreatment": "Tax Treatment",
   "salesReceivables.field.salesRepresentative": "Sales Representative",
   "salesReceivables.field.receivableAccount": "Receivable Account",
   "salesReceivables.field.quotationDate": "Quotation Date",
@@ -914,6 +930,7 @@ Object.assign(enTranslations, {
   "salesReceivables.field.quantity": "Quantity",
   "salesReceivables.field.unitPrice": "Unit Price",
   "salesReceivables.field.discountAmount": "Discount Amount",
+  "salesReceivables.field.tax": "Tax",
   "salesReceivables.field.taxAmount": "Tax Amount",
   "salesReceivables.field.lineAmount": "Line Amount",
   "salesReceivables.field.unapplied": "Unapplied",
@@ -980,6 +997,11 @@ Object.assign(enTranslations, {
   "salesReceivables.confirm.postInvoice": 'Post invoice "{reference}" now?',
   "salesReceivables.confirm.postCreditNote":
     'Post credit note "{reference}" now?',
+  "salesReceivables.empty.selectTaxTreatment": "Select a tax treatment",
+  "salesReceivables.validation.taxTreatmentRequired":
+    "Tax Treatment is required",
+  "salesReceivables.confirm.applyCustomerTaxTreatment":
+    "Apply the selected customer's tax treatment to the existing invoice lines for {name}?",
 });
 
 Object.assign(enTranslations, {

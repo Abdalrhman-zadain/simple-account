@@ -36,6 +36,7 @@ import {
   getAccountOptions,
   getAccountsTree,
   getAgingReport,
+  getActiveTaxTreatments,
   getBankCashAccounts,
   getBankCashTransactions,
   getCreditNotes,
@@ -69,6 +70,8 @@ import type {
   SalesOrder,
   SalesQuotation,
   SalesLinePayload,
+  Tax,
+  TaxTreatment,
 } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
@@ -94,7 +97,7 @@ type CustomerEditorState = {
   code: string;
   name: string;
   contactInfo: string;
-  taxInfo: string;
+  taxTreatmentId: string;
   salesRepresentative: string;
   salesRepId: string;
   paymentTerms: string;
@@ -167,7 +170,7 @@ const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
   code: "",
   name: "",
   contactInfo: "",
-  taxInfo: "",
+  taxTreatmentId: "",
   salesRepresentative: "",
   salesRepId: "",
   paymentTerms: "",
@@ -414,6 +417,12 @@ export function SalesReceivablesPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const activeTaxTreatmentsQuery = useQuery({
+    queryKey: ["tax-treatments", "active", token],
+    queryFn: () => getActiveTaxTreatments(token),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const agingQuery = useQuery({
     queryKey: queryKeys.salesAging(token, agingDate),
     queryFn: () => getAgingReport(agingDate, token),
@@ -425,7 +434,7 @@ export function SalesReceivablesPage() {
         {
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || undefined,
-          taxInfo: customerEditor.taxInfo || undefined,
+          taxTreatmentId: customerEditor.taxTreatmentId,
           salesRepId: customerEditor.salesRepId || undefined,
           salesRepresentative:
             activeSalesReps.find((rep) => rep.id === customerEditor.salesRepId)?.name ||
@@ -457,7 +466,7 @@ export function SalesReceivablesPage() {
         {
           name: customerEditor.name,
           contactInfo: customerEditor.contactInfo || "",
-          taxInfo: customerEditor.taxInfo || "",
+          taxTreatmentId: customerEditor.taxTreatmentId,
           salesRepId: customerEditor.salesRepId,
           salesRepresentative:
             activeSalesReps.find((rep) => rep.id === customerEditor.salesRepId)?.name ||
@@ -691,6 +700,39 @@ export function SalesReceivablesPage() {
     });
     setIsInvoiceEditorOpen(true);
     setActiveTab("invoices");
+  };
+
+  const handleInvoiceCustomerChange = (value: string) => {
+    const nextCustomer =
+      activeCustomers.find((row) => row.id === value) ??
+      customers.find((row) => row.id === value) ??
+      null;
+    const nextLines = applyCustomerTaxTreatmentToLines(
+      invoiceEditor.lines,
+      nextCustomer?.taxTreatment ?? null,
+    );
+    const hasExistingLines = hasMeaningfulSalesLines(invoiceEditor.lines);
+    const changingCustomer =
+      Boolean(invoiceEditor.customerId) && invoiceEditor.customerId !== value;
+
+    if (changingCustomer && hasExistingLines) {
+      const confirmed = window.confirm(
+        t("salesReceivables.confirm.applyCustomerTaxTreatment", {
+          name: nextCustomer?.name ?? "",
+        }),
+      );
+
+      if (!confirmed) {
+        setInvoiceEditor((current) => ({ ...current, customerId: value }));
+        return;
+      }
+    }
+
+    setInvoiceEditor((current) => ({
+      ...current,
+      customerId: value,
+      lines: nextLines,
+    }));
   };
 
   const saveInvoiceFromEditor = async () => {
@@ -1024,6 +1066,7 @@ export function SalesReceivablesPage() {
   const customers = customersQuery.data ?? [];
   const salesReps = salesRepsQuery.data ?? [];
   const activeSalesReps = activeSalesRepsQuery.data ?? [];
+  const activeTaxTreatments = activeTaxTreatmentsQuery.data ?? [];
   const receivableAccounts = useMemo(() => {
     const tree = receivableAccountsTreeQuery.data ?? [];
     const customerReceivablesRoot = findAccountTreeNode(
@@ -1082,6 +1125,14 @@ export function SalesReceivablesPage() {
   const selectedReceipt = customerReceipts.find((row) => row.id === selectedReceiptId) ?? null;
   const selectedReceiptAllocationInvoice =
     receiptAllocationInvoices.find((row) => row.id === receiptEditor.allocationInvoiceId) ?? null;
+  const selectedInvoiceEditorCustomer =
+    activeCustomers.find((row) => row.id === invoiceEditor.customerId) ??
+    customers.find((row) => row.id === invoiceEditor.customerId) ??
+    null;
+  const selectedInvoiceDefaultTax = resolveTaxTreatmentDefaultTax(
+    selectedInvoiceEditorCustomer?.taxTreatment ?? null,
+  );
+  const canOverrideInvoiceTax = user?.role === "ADMIN";
   const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
 
   const handleCustomersExport = (mode: ExportMode) => {
@@ -1196,6 +1247,11 @@ export function SalesReceivablesPage() {
 
   const errorMessage = currentError instanceof Error ? currentError.message : null;
   const saveCustomerFromEditor = () => {
+    if (!customerEditor.taxTreatmentId) {
+      setCustomerEditorClientError(t("salesReceivables.validation.taxTreatmentRequired"));
+      return;
+    }
+
     if (!customerEditor.receivableAccountLinkMode) {
       setCustomerEditorClientError("يرجى تحديد طريقة ربط حساب الذمم.");
       return;
@@ -1416,7 +1472,7 @@ export function SalesReceivablesPage() {
                                         code: row.code,
                                         name: row.name,
                                         contactInfo: row.contactInfo ?? "",
-                                        taxInfo: row.taxInfo ?? "",
+                                        taxTreatmentId: row.taxTreatmentId,
                                         salesRepresentative: row.salesRepresentative ?? "",
                                         salesRepId: row.salesRepId ?? "",
                                         paymentTerms: row.paymentTerms ?? "",
@@ -2551,6 +2607,12 @@ export function SalesReceivablesPage() {
         title={customerEditor.id ? t("salesReceivables.dialog.editCustomer") : t("salesReceivables.dialog.newCustomer")}
       >
         <div className="space-y-5">
+          {customerEditorClientError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {customerEditorClientError}
+            </div>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("salesReceivables.metric.creditLimit")} required>
               <Input
@@ -2577,8 +2639,18 @@ export function SalesReceivablesPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.taxInformation")}>
-              <Input value={customerEditor.taxInfo} onChange={(event) => setCustomerEditor((current) => ({ ...current, taxInfo: event.target.value }))} />
+            <Field label={t("salesReceivables.field.taxTreatment")} required>
+              <Select
+                value={customerEditor.taxTreatmentId}
+                onChange={(event) => setCustomerEditor((current) => ({ ...current, taxTreatmentId: event.target.value }))}
+              >
+                <option value="">{t("salesReceivables.empty.selectTaxTreatment")}</option>
+                {activeTaxTreatments.map((treatment) => (
+                  <option key={treatment.id} value={treatment.id}>
+                    {treatment.code} - {treatment.arabicName}
+                  </option>
+                ))}
+              </Select>
             </Field>
             <Field label="مندوب المبيعات" hint={!activeSalesReps.length ? "لا يوجد مندوبي مبيعات نشطون" : undefined}>
               <Select
@@ -2602,7 +2674,7 @@ export function SalesReceivablesPage() {
             </Field>
           </div>
 
-          <Field label="حساب ذمم العميل" required error={customerEditorClientError ?? undefined}>
+          <Field label="حساب ذمم العميل" required>
             <div className="mb-2 text-sm font-semibold text-gray-900">
               طريقة ربط حساب الذمم <span className="text-base leading-none text-red-500">*</span>
             </div>
@@ -2750,11 +2822,13 @@ export function SalesReceivablesPage() {
         isInventoryItemsLoading={inventoryItemsQuery.isLoading}
         revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={isInvoiceSaving || createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
+        defaultLineTax={selectedInvoiceDefaultTax}
+        allowTaxOverride={canOverrideInvoiceTax}
         onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
         onDateChange={(value) => setInvoiceEditor((current) => ({ ...current, invoiceDate: value }))}
         onSecondaryDateChange={(value) => setInvoiceEditor((current) => ({ ...current, dueDate: value }))}
         onCurrencyChange={(value) => setInvoiceEditor((current) => ({ ...current, currencyCode: value.toUpperCase() }))}
-        onCustomerChange={(value) => setInvoiceEditor((current) => ({ ...current, customerId: value }))}
+        onCustomerChange={handleInvoiceCustomerChange}
         onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
         onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
         onSubmit={() => {
@@ -3256,6 +3330,51 @@ function mapLineForConversion(line: {
     lineAmount: Number(line.lineAmount),
     revenueAccountId: line.revenueAccount?.id ?? undefined,
   };
+}
+
+function resolveTaxTreatmentDefaultTax(taxTreatment: Customer["taxTreatment"] | null | undefined) {
+  if (!taxTreatment) {
+    return null;
+  }
+
+  if (taxTreatment.code === "OUT_OF_SCOPE") {
+    return null;
+  }
+
+  return taxTreatment.defaultTax ?? null;
+}
+
+function applyCustomerTaxTreatmentToLines(
+  lines: SalesLineEditorState[],
+  taxTreatment: Customer["taxTreatment"] | null | undefined,
+) {
+  const defaultTax = resolveTaxTreatmentDefaultTax(taxTreatment);
+
+  return lines.map((line) =>
+    withCalculatedLineAmount({
+      ...line,
+      taxId: defaultTax?.id ?? "",
+      taxRate: defaultTax ? String(defaultTax.rate) : "",
+      taxAmount: "",
+    }),
+  );
+}
+
+function hasMeaningfulSalesLines(lines: SalesLineEditorState[]) {
+  return lines.some((line) =>
+    Boolean(
+      line.itemId ||
+      line.itemName.trim() ||
+      line.description.trim() ||
+      line.revenueAccountId ||
+      (line.quantity.trim() && line.quantity.trim() !== "1") ||
+      line.unitPrice.trim() ||
+      line.discountAmount.trim() ||
+      line.taxId ||
+      line.taxAmount.trim() ||
+      line.lineAmount.trim(),
+    ),
+  );
 }
 
 function validateQuotationEditorState(

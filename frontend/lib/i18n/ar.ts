@@ -272,6 +272,7 @@ const arTranslations: Record<string, string> = {
   "master.tab.paymentMethodTypes": "أنواع حسابات الدفع",
   "master.tab.paymentTerms": "شروط الدفع",
   "master.tab.taxes": "الضرائب",
+  "master.tab.taxTreatments": "المعاملات الضريبية",
   "master.section.accountSubtypes.title": "تصنيفات الحسابات (فئات فرعية)",
   "master.section.accountSubtypes.description":
     "أنشئ تصنيفات للحسابات مثل بنك، نقد، ذمم مدينة، ذمم دائنة، وغيرها.",
@@ -288,6 +289,7 @@ const arTranslations: Record<string, string> = {
   "master.section.taxes.description":
     "إدارة أنواع الضرائب ونسبها وحساباتها المحاسبية لاستخدامها لاحقًا في فواتير المبيعات والمشتريات.",
   "master.section.taxes.add": "إضافة ضريبة",
+  "master.section.taxTreatments.add": "إضافة معاملة ضريبية",
   "master.accountSubtypes.createError": "فشل إنشاء تصنيف الحساب.",
   "master.journalEntryTypes.createError": "فشل إنشاء نوع قيد اليومية.",
   "master.paymentMethodTypes.createError": "فشل إنشاء نوع وسيلة الدفع.",
@@ -340,6 +342,19 @@ const arTranslations: Record<string, string> = {
   "master.taxes.type.ZERO_RATED": "صفرية",
   "master.taxes.type.EXEMPT": "معفى",
   "master.taxes.type.OUT_OF_SCOPE": "خارج نطاق الضريبة",
+  "master.taxTreatments.empty":
+    "لا توجد معاملات ضريبية بعد. أضف معاملة ضريبية للبدء.",
+  "master.taxTreatments.error": "تعذر تحميل المعاملات الضريبية.",
+  "master.taxTreatments.saveError": "فشل حفظ المعاملة الضريبية.",
+  "master.taxTreatments.code": "الكود",
+  "master.taxTreatments.arabicName": "الاسم بالعربية",
+  "master.taxTreatments.englishName": "الاسم بالإنجليزية",
+  "master.taxTreatments.defaultTax": "الضريبة الافتراضية",
+  "master.taxTreatments.defaultTaxPlaceholder": "بدون ضريبة افتراضية",
+  "master.taxTreatments.noDefaultTax": "بدون ضريبة افتراضية",
+  "master.taxTreatments.description": "الوصف",
+  "master.taxTreatments.modal.createTitle": "إضافة معاملة ضريبية",
+  "master.taxTreatments.modal.editTitle": "تعديل معاملة ضريبية",
   
   "master.paymentTerms.title": "شروط الدفع",
   "master.paymentTerms.description": "إدارة إعدادات شروط الدفع للموردين",
@@ -797,6 +812,7 @@ Object.assign(arTranslations, {
   "salesReceivables.field.contactInformation": "بيانات التواصل",
   "salesReceivables.field.paymentTerms": "شروط الدفع",
   "salesReceivables.field.taxInformation": "المعلومات الضريبية",
+  "salesReceivables.field.taxTreatment": "المعاملة الضريبية",
   "salesReceivables.field.salesRepresentative": "مندوب المبيعات",
   "salesReceivables.field.receivableAccount": "حساب الذمم",
   "salesReceivables.field.quotationDate": "تاريخ عرض السعر",
@@ -815,6 +831,7 @@ Object.assign(arTranslations, {
   "salesReceivables.field.revenueAccount": "حساب الإيراد",
   "salesReceivables.field.quantity": "الكمية",
   "salesReceivables.field.unitPrice": "سعر الوحدة",
+  "salesReceivables.field.tax": "الضريبة",
   "salesReceivables.field.lineAmount": "مبلغ السطر",
   "salesReceivables.field.unapplied": "غير المخصص",
   "salesReceivables.field.bankCash": "البنك/الصندوق",
@@ -879,6 +896,11 @@ Object.assign(arTranslations, {
   "salesReceivables.confirm.postInvoice": 'ترحيل الفاتورة "{reference}" الآن؟',
   "salesReceivables.confirm.postCreditNote":
     'ترحيل إشعار الدائن "{reference}" الآن؟',
+  "salesReceivables.empty.selectTaxTreatment": "اختر معاملة ضريبية",
+  "salesReceivables.validation.taxTreatmentRequired":
+    "المعاملة الضريبية مطلوبة",
+  "salesReceivables.confirm.applyCustomerTaxTreatment":
+    "هل تريد تطبيق المعاملة الضريبية الخاصة بالعميل المحدد على بنود الفاتورة الحالية للعميل {name}؟",
 });
 
 Object.assign(arTranslations, {

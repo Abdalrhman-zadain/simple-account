@@ -95,6 +95,9 @@ export class SalesReceivablesService {
               { code: { contains: search, mode: "insensitive" } },
               { contactInfo: { contains: search, mode: "insensitive" } },
               { taxInfo: { contains: search, mode: "insensitive" } },
+              { taxTreatment: { code: { contains: search, mode: "insensitive" } } },
+              { taxTreatment: { arabicName: { contains: search, mode: "insensitive" } } },
+              { taxTreatment: { englishName: { contains: search, mode: "insensitive" } } },
               {
                 salesRepresentative: { contains: search, mode: "insensitive" },
               },
@@ -119,13 +122,14 @@ export class SalesReceivablesService {
         await this.ensureUniqueCustomerName(dto.name, tx);
         const receivableAccountId = await this.resolveCustomerReceivableAccount(dto, tx);
         const salesRep = await this.resolveActiveSalesRep(dto.salesRepId, tx);
+        const taxTreatmentId = await this.resolveActiveTaxTreatment(dto.taxTreatmentId, tx);
 
         return tx.customer.create({
           data: {
             code,
             name: dto.name.trim(),
             contactInfo: dto.contactInfo?.trim() || null,
-            taxInfo: dto.taxInfo?.trim() || null,
+            taxTreatmentId,
             salesRepresentative: salesRep?.name ?? dto.salesRepresentative?.trim() ?? null,
             salesRepId: salesRep?.id ?? null,
             paymentTerms: dto.paymentTerms?.trim() || null,
@@ -154,6 +158,10 @@ export class SalesReceivablesService {
       await this.ensureReceivableAccount(dto.receivableAccountId);
     }
     const salesRep = await this.resolveActiveSalesRep(dto.salesRepId, this.prisma);
+    const taxTreatmentId =
+      dto.taxTreatmentId === undefined
+        ? current.taxTreatmentId
+        : await this.resolveActiveTaxTreatment(dto.taxTreatmentId, this.prisma);
     if (dto.name !== undefined) {
       await this.ensureUniqueCustomerName(dto.name, this.prisma, id);
     }
@@ -174,8 +182,7 @@ export class SalesReceivablesService {
           dto.contactInfo === undefined
             ? undefined
             : dto.contactInfo.trim() || null,
-        taxInfo:
-          dto.taxInfo === undefined ? undefined : dto.taxInfo.trim() || null,
+        taxTreatmentId,
         salesRepresentative,
         salesRepId:
           dto.salesRepId === undefined
@@ -2549,7 +2556,12 @@ export class SalesReceivablesService {
   private quotationInclude() {
     return {
       customer: {
-        include: { receivableAccount: { select: this.accountSummarySelect() } },
+        include: {
+          receivableAccount: { select: this.accountSummarySelect() },
+          taxTreatment: {
+            include: { defaultTax: { select: this.taxSummarySelect() } },
+          },
+        },
       },
       lines: {
         include: { revenueAccount: { select: this.accountSummarySelect() } },
@@ -2561,7 +2573,12 @@ export class SalesReceivablesService {
   private salesOrderInclude() {
     return {
       customer: {
-        include: { receivableAccount: { select: this.accountSummarySelect() } },
+        include: {
+          receivableAccount: { select: this.accountSummarySelect() },
+          taxTreatment: {
+            include: { defaultTax: { select: this.taxSummarySelect() } },
+          },
+        },
       },
       sourceQuotation: { select: { id: true, reference: true } },
       salesInvoices: {
@@ -2577,7 +2594,12 @@ export class SalesReceivablesService {
   private invoiceInclude() {
     return {
       customer: {
-        include: { receivableAccount: { select: this.accountSummarySelect() } },
+        include: {
+          receivableAccount: { select: this.accountSummarySelect() },
+          taxTreatment: {
+            include: { defaultTax: { select: this.taxSummarySelect() } },
+          },
+        },
       },
       sourceQuotation: { select: { id: true, reference: true } },
       sourceSalesOrder: { select: { id: true, reference: true } },
@@ -2592,7 +2614,12 @@ export class SalesReceivablesService {
   private creditNoteInclude() {
     return {
       customer: {
-        include: { receivableAccount: { select: this.accountSummarySelect() } },
+        include: {
+          receivableAccount: { select: this.accountSummarySelect() },
+          taxTreatment: {
+            include: { defaultTax: { select: this.taxSummarySelect() } },
+          },
+        },
       },
       salesInvoice: { select: { id: true, reference: true } },
       lines: {
@@ -2632,6 +2659,31 @@ export class SalesReceivablesService {
         creditLimit: row.customer.creditLimit.toString(),
         currentBalance: row.customer.currentBalance.toString(),
         receivableAccount: row.customer.receivableAccount,
+        taxTreatment: row.customer.taxTreatment
+          ? {
+              id: row.customer.taxTreatment.id,
+              code: row.customer.taxTreatment.code,
+              arabicName: row.customer.taxTreatment.arabicName,
+              englishName: row.customer.taxTreatment.englishName,
+              description: row.customer.taxTreatment.description,
+              isActive: row.customer.taxTreatment.isActive,
+              defaultTax: row.customer.taxTreatment.defaultTax
+                ? {
+                    id: row.customer.taxTreatment.defaultTax.id,
+                    taxCode: row.customer.taxTreatment.defaultTax.taxCode,
+                    taxName: row.customer.taxTreatment.defaultTax.taxName,
+                    rate: row.customer.taxTreatment.defaultTax.rate.toString(),
+                    taxType: row.customer.taxTreatment.defaultTax.taxType,
+                    taxAccountId: row.customer.taxTreatment.defaultTax.taxAccountId,
+                    isActive: row.customer.taxTreatment.defaultTax.isActive,
+                    createdAt: row.customer.taxTreatment.defaultTax.createdAt.toISOString(),
+                    updatedAt: row.customer.taxTreatment.defaultTax.updatedAt.toISOString(),
+                  }
+                : null,
+              createdAt: row.customer.taxTreatment.createdAt.toISOString(),
+              updatedAt: row.customer.taxTreatment.updatedAt.toISOString(),
+            }
+          : null,
       },
       lines: row.lines.map((line: any) => this.mapDocumentLine(line)),
       createdAt: row.createdAt.toISOString(),
@@ -2663,6 +2715,31 @@ export class SalesReceivablesService {
         creditLimit: row.customer.creditLimit.toString(),
         currentBalance: row.customer.currentBalance.toString(),
         receivableAccount: row.customer.receivableAccount,
+        taxTreatment: row.customer.taxTreatment
+          ? {
+              id: row.customer.taxTreatment.id,
+              code: row.customer.taxTreatment.code,
+              arabicName: row.customer.taxTreatment.arabicName,
+              englishName: row.customer.taxTreatment.englishName,
+              description: row.customer.taxTreatment.description,
+              isActive: row.customer.taxTreatment.isActive,
+              defaultTax: row.customer.taxTreatment.defaultTax
+                ? {
+                    id: row.customer.taxTreatment.defaultTax.id,
+                    taxCode: row.customer.taxTreatment.defaultTax.taxCode,
+                    taxName: row.customer.taxTreatment.defaultTax.taxName,
+                    rate: row.customer.taxTreatment.defaultTax.rate.toString(),
+                    taxType: row.customer.taxTreatment.defaultTax.taxType,
+                    taxAccountId: row.customer.taxTreatment.defaultTax.taxAccountId,
+                    isActive: row.customer.taxTreatment.defaultTax.isActive,
+                    createdAt: row.customer.taxTreatment.defaultTax.createdAt.toISOString(),
+                    updatedAt: row.customer.taxTreatment.defaultTax.updatedAt.toISOString(),
+                  }
+                : null,
+              createdAt: row.customer.taxTreatment.createdAt.toISOString(),
+              updatedAt: row.customer.taxTreatment.updatedAt.toISOString(),
+            }
+          : null,
       },
       salesInvoices: row.salesInvoices.map((invoice: any) => ({
         ...invoice,
@@ -2704,6 +2781,31 @@ export class SalesReceivablesService {
         creditLimit: row.customer.creditLimit.toString(),
         currentBalance: row.customer.currentBalance.toString(),
         receivableAccount: row.customer.receivableAccount,
+        taxTreatment: row.customer.taxTreatment
+          ? {
+              id: row.customer.taxTreatment.id,
+              code: row.customer.taxTreatment.code,
+              arabicName: row.customer.taxTreatment.arabicName,
+              englishName: row.customer.taxTreatment.englishName,
+              description: row.customer.taxTreatment.description,
+              isActive: row.customer.taxTreatment.isActive,
+              defaultTax: row.customer.taxTreatment.defaultTax
+                ? {
+                    id: row.customer.taxTreatment.defaultTax.id,
+                    taxCode: row.customer.taxTreatment.defaultTax.taxCode,
+                    taxName: row.customer.taxTreatment.defaultTax.taxName,
+                    rate: row.customer.taxTreatment.defaultTax.rate.toString(),
+                    taxType: row.customer.taxTreatment.defaultTax.taxType,
+                    taxAccountId: row.customer.taxTreatment.defaultTax.taxAccountId,
+                    isActive: row.customer.taxTreatment.defaultTax.isActive,
+                    createdAt: row.customer.taxTreatment.defaultTax.createdAt.toISOString(),
+                    updatedAt: row.customer.taxTreatment.defaultTax.updatedAt.toISOString(),
+                  }
+                : null,
+              createdAt: row.customer.taxTreatment.createdAt.toISOString(),
+              updatedAt: row.customer.taxTreatment.updatedAt.toISOString(),
+            }
+          : null,
       },
       lines: row.lines.map((line: any) => this.mapDocumentLine(line)),
       createdAt: row.createdAt.toISOString(),
@@ -2736,6 +2838,31 @@ export class SalesReceivablesService {
         creditLimit: row.customer.creditLimit.toString(),
         currentBalance: row.customer.currentBalance.toString(),
         receivableAccount: row.customer.receivableAccount,
+        taxTreatment: row.customer.taxTreatment
+          ? {
+              id: row.customer.taxTreatment.id,
+              code: row.customer.taxTreatment.code,
+              arabicName: row.customer.taxTreatment.arabicName,
+              englishName: row.customer.taxTreatment.englishName,
+              description: row.customer.taxTreatment.description,
+              isActive: row.customer.taxTreatment.isActive,
+              defaultTax: row.customer.taxTreatment.defaultTax
+                ? {
+                    id: row.customer.taxTreatment.defaultTax.id,
+                    taxCode: row.customer.taxTreatment.defaultTax.taxCode,
+                    taxName: row.customer.taxTreatment.defaultTax.taxName,
+                    rate: row.customer.taxTreatment.defaultTax.rate.toString(),
+                    taxType: row.customer.taxTreatment.defaultTax.taxType,
+                    taxAccountId: row.customer.taxTreatment.defaultTax.taxAccountId,
+                    isActive: row.customer.taxTreatment.defaultTax.isActive,
+                    createdAt: row.customer.taxTreatment.defaultTax.createdAt.toISOString(),
+                    updatedAt: row.customer.taxTreatment.defaultTax.updatedAt.toISOString(),
+                  }
+                : null,
+              createdAt: row.customer.taxTreatment.createdAt.toISOString(),
+              updatedAt: row.customer.taxTreatment.updatedAt.toISOString(),
+            }
+          : null,
       },
       lines: row.lines.map((line: any) => this.mapDocumentLine(line)),
       createdAt: row.createdAt.toISOString(),
@@ -2776,6 +2903,9 @@ export class SalesReceivablesService {
   private customerInclude() {
     return {
       receivableAccount: { select: this.accountSummarySelect() },
+      taxTreatment: {
+        include: { defaultTax: { select: this.taxSummarySelect() } },
+      },
       salesRep: {
         select: {
           id: true,
@@ -2791,6 +2921,20 @@ export class SalesReceivablesService {
     return {
       employeeReceivableAccount: { select: this.accountSummarySelect() },
       _count: { select: { customers: true } },
+    };
+  }
+
+  private taxSummarySelect() {
+    return {
+      id: true,
+      taxCode: true,
+      taxName: true,
+      rate: true,
+      taxType: true,
+      taxAccountId: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
     };
   }
 
@@ -2888,6 +3032,30 @@ export class SalesReceivablesService {
     }
 
     return salesRep;
+  }
+
+  private async resolveActiveTaxTreatment(
+    taxTreatmentId: string | undefined,
+    db: SalesReceivablesDb,
+  ) {
+    const normalizedId = taxTreatmentId?.trim();
+    if (!normalizedId) {
+      throw new BadRequestException("Tax treatment is required.");
+    }
+
+    const taxTreatment = await db.taxTreatment.findUnique({
+      where: { id: normalizedId },
+      select: { id: true, isActive: true },
+    });
+
+    if (!taxTreatment) {
+      throw new BadRequestException("The selected tax treatment does not exist.");
+    }
+    if (!taxTreatment.isActive) {
+      throw new BadRequestException("The selected tax treatment is inactive.");
+    }
+
+    return taxTreatment.id;
   }
 
   private async ensureEmployeePayableAccount(accountId: string, db: SalesReceivablesDb = this.prisma) {

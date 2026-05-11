@@ -80,6 +80,7 @@ import {
   CreateSupplierPaymentPayload,
   CreateSupplierPayload,
   CreateTaxPayload,
+  CreateTaxTreatmentPayload,
   CreateBankCashAccountPayload,
   CreateLinkedBankCashAccountPayload,
   CreateLinkedBankCashAccountResponse,
@@ -179,6 +180,7 @@ import {
   Supplier,
   SupplierBalance,
   Tax,
+  TaxTreatment,
   PaymentTerm,
   PurchaseRequestStatusNotePayload,
   SupplierTransactionsResponse,
@@ -223,6 +225,7 @@ import {
   UpdateSupplierPaymentPayload,
   UpdateSupplierPayload,
   UpdateTaxPayload,
+  UpdateTaxTreatmentPayload,
   UpdatePaymentTermPayload,
   UpdateSegmentValuePayload,
 } from "@/types/api";
@@ -2900,6 +2903,37 @@ export async function updateTax(id: string, payload: UpdateTaxPayload, token?: s
 export async function deleteTax(id: string, token?: string | null) {
   return apiRequest<Tax>(`/taxes/${id}`, {
     method: "DELETE",
+    token,
+  });
+}
+
+export async function getTaxTreatments(token?: string | null) {
+  return apiRequest<TaxTreatment[]>("/taxes/treatments", { token });
+}
+
+export async function getActiveTaxTreatments(token?: string | null) {
+  return apiRequest<TaxTreatment[]>("/taxes/treatments/active", { token });
+}
+
+export async function createTaxTreatment(
+  payload: CreateTaxTreatmentPayload,
+  token?: string | null,
+) {
+  return apiRequest<TaxTreatment>("/taxes/treatments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    token,
+  });
+}
+
+export async function updateTaxTreatment(
+  id: string,
+  payload: UpdateTaxTreatmentPayload,
+  token?: string | null,
+) {
+  return apiRequest<TaxTreatment>(`/taxes/treatments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
     token,
   });
 }

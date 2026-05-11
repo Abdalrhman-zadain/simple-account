@@ -718,7 +718,7 @@ export class ItemMasterService {
   }
 
   private resolveTrackInventory(type: InventoryItemType, requested?: boolean | null) {
-    if (type === "NON_STOCK" || type === "SERVICE") {
+    if (type === "SERVICE") {
       return false;
     }
 

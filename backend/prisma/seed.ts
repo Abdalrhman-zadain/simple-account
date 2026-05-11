@@ -757,6 +757,57 @@ async function main() {
     ],
   });
 
+  const [vat16, vat0, exemptTax] = await Promise.all([
+    prisma.tax.findUniqueOrThrow({ where: { taxCode: 'VAT16' } }),
+    prisma.tax.findUniqueOrThrow({ where: { taxCode: 'VAT0' } }),
+    prisma.tax.findUniqueOrThrow({ where: { taxCode: 'EXEMPT' } }),
+  ]);
+
+  await prisma.taxTreatment.createMany({
+    data: [
+      {
+        code: 'TAXABLE',
+        arabicName: 'خاضع للضريبة',
+        englishName: 'Taxable',
+        description: 'Default taxable sales treatment.',
+        defaultTaxId: vat16.id,
+        isActive: true,
+      },
+      {
+        code: 'ZERO_RATED',
+        arabicName: 'نسبة صفرية',
+        englishName: 'Zero-rated',
+        description: 'Zero-rated sales treatment.',
+        defaultTaxId: vat0.id,
+        isActive: true,
+      },
+      {
+        code: 'EXEMPT',
+        arabicName: 'معفى',
+        englishName: 'Exempt',
+        description: 'Exempt sales treatment.',
+        defaultTaxId: exemptTax.id,
+        isActive: true,
+      },
+      {
+        code: 'OUT_OF_SCOPE',
+        arabicName: 'خارج نطاق الضريبة',
+        englishName: 'Out of Scope',
+        description: 'Out of scope sales treatment with no default tax.',
+        defaultTaxId: null,
+        isActive: true,
+      },
+      {
+        code: 'REVERSE_CHARGE',
+        arabicName: 'توريد عكسي',
+        englishName: 'Reverse Charge',
+        description: 'Reverse charge treatment. Default tax can be configured later if needed.',
+        defaultTaxId: null,
+        isActive: true,
+      },
+    ],
+  });
+
 
 
   // Inventory Units of Measure

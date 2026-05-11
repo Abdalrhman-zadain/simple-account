@@ -131,6 +131,19 @@ export type Tax = {
   updatedAt: string;
 };
 
+export type TaxTreatment = {
+  id: string;
+  code: string;
+  arabicName: string;
+  englishName: string;
+  description?: string | null;
+  defaultTaxId?: string | null;
+  defaultTax?: Tax | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CreateTaxPayload = {
   taxCode: string;
   taxName: string;
@@ -141,6 +154,17 @@ export type CreateTaxPayload = {
 };
 
 export type UpdateTaxPayload = Partial<CreateTaxPayload>;
+
+export type CreateTaxTreatmentPayload = {
+  code: string;
+  arabicName: string;
+  englishName: string;
+  description?: string | null;
+  defaultTaxId?: string | null;
+  isActive?: boolean;
+};
+
+export type UpdateTaxTreatmentPayload = Partial<CreateTaxTreatmentPayload>;
 
 export type DueDateCalculationMethod = "IMMEDIATE" | "DAYS_AFTER" | "END_OF_MONTH" | "MANUAL";
 
@@ -1844,6 +1868,8 @@ export type Customer = {
   name: string;
   contactInfo?: string | null;
   taxInfo?: string | null;
+  taxTreatmentId: string;
+  taxTreatment: TaxTreatment | null;
   salesRepresentative?: string | null;
   salesRepId?: string | null;
   salesRep?: {
@@ -2523,6 +2549,7 @@ export type SalesQuotation = {
     creditLimit: string;
     currentBalance: string;
     receivableAccount: Customer["receivableAccount"];
+    taxTreatment: Customer["taxTreatment"];
   };
   lines: SalesLine[];
   createdAt: string;
@@ -2584,6 +2611,7 @@ export type SalesInvoice = {
     creditLimit: string;
     currentBalance: string;
     receivableAccount: Customer["receivableAccount"];
+    taxTreatment: Customer["taxTreatment"];
   };
   lines: SalesLine[];
   createdAt: string;
@@ -2740,7 +2768,7 @@ export type CreateCustomerPayload = {
   code?: string;
   name: string;
   contactInfo?: string;
-  taxInfo?: string;
+  taxTreatmentId: string;
   salesRepresentative?: string;
   salesRepId?: string;
   paymentTerms?: string;
@@ -2752,7 +2780,7 @@ export type CreateCustomerPayload = {
 export type UpdateCustomerPayload = Partial<{
   name: string;
   contactInfo: string;
-  taxInfo: string;
+  taxTreatmentId: string;
   salesRepresentative: string;
   salesRepId: string;
   paymentTerms: string;

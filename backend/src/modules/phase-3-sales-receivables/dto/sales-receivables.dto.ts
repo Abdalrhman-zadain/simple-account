@@ -105,10 +105,8 @@ export class CreateCustomerDto {
   @Length(0, 255)
   contactInfo?: string;
 
-  @IsOptional()
   @IsString()
-  @Length(0, 120)
-  taxInfo?: string;
+  taxTreatmentId!: string;
 
   @IsOptional()
   @IsString()
@@ -151,8 +149,7 @@ export class UpdateCustomerDto {
 
   @IsOptional()
   @IsString()
-  @Length(0, 120)
-  taxInfo?: string;
+  taxTreatmentId?: string;
 
   @IsOptional()
   @IsString()
