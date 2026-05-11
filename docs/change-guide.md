@@ -190,6 +190,7 @@ What else to check:
 - sales document references must remain unique across quotations, sales orders, invoices, receipts, and credit notes
 - customer balance must increase on posted invoices and decrease on posted credit notes
 - customer receipts created from Sales must still use the Phase 2 bank/cash posting behavior and remain allocatable to one or more invoices
+- the Sales receipt UI may collect optional invoice-allocation input inside the same customer-receipt form instead of a separate workspace, but it must still create/post the receipt first and then run allocation without changing posting invariants
 - receipt allocations must allow partial and multi-receipt behavior while preventing over-allocation
 - invoice outstanding/allocation status must stay consistent after postings and allocations
 - aging buckets must be derived from posted outstanding balances as of the report date, using due date when available

@@ -9,7 +9,6 @@ import {
   LuFileMinus as FileMinus,
   LuFilePlus2 as FilePlus,
   LuFileText as FileText,
-  LuHandshake as Handshake,
   LuReceiptText as ReceiptText,
   LuScrollText as ScrollText,
   LuUsers as Users,
@@ -62,7 +61,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type {
-  AllocationStatus,
   AccountTreeNode,
   Customer,
   CustomerReceipt,
@@ -89,7 +87,7 @@ import { ReceiptEditorModal } from "./components/receipt-editor-modal";
 import { SalesDocumentEditorModal } from "./components/sales-document-editor-modal";
 import { SalesOrderEditorModal } from "./components/sales-order-editor-modal";
 
-type SalesTab = "customers" | "sales-reps" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "allocations" | "aging";
+type SalesTab = "customers" | "sales-reps" | "quotations" | "orders" | "invoices" | "receipts" | "credit-notes" | "aging";
 
 type CustomerEditorState = {
   id?: string;
@@ -161,6 +159,8 @@ type ReceiptEditorState = {
   amount: string;
   bankCashAccountId: string;
   description: string;
+  allocationInvoiceId: string;
+  allocationAmount: string;
 };
 
 const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
@@ -228,6 +228,8 @@ const EMPTY_RECEIPT_EDITOR = (): ReceiptEditorState => ({
   amount: "",
   bankCashAccountId: "",
   description: "",
+  allocationInvoiceId: "",
+  allocationAmount: "",
 });
 
 export function SalesReceivablesPage() {
@@ -283,9 +285,6 @@ export function SalesReceivablesPage() {
   const [isReceiptEditorOpen, setIsReceiptEditorOpen] = useState(false);
   const [receiptEditor, setReceiptEditor] = useState<ReceiptEditorState>(EMPTY_RECEIPT_EDITOR);
 
-  const [allocationInvoiceId, setAllocationInvoiceId] = useState("");
-  const [allocationReceiptId, setAllocationReceiptId] = useState("");
-  const [allocationAmount, setAllocationAmount] = useState("");
   const [agingDate, setAgingDate] = useState(new Date().toISOString().slice(0, 10));
 
   const customersQuery = useQuery({
@@ -977,6 +976,14 @@ export function SalesReceivablesPage() {
     },
   });
 
+  const allocateReceiptMutation = useMutation({
+    mutationFn: (payload: { salesInvoiceId: string; receiptTransactionId: string; amount: number }) =>
+      allocateReceipt(payload, token),
+    onSuccess: async () => {
+      await invalidateSalesReceivables(queryClient);
+    },
+  });
+
   const createReceiptMutation = useMutation({
     mutationFn: () =>
       createCustomerReceipt(
@@ -992,25 +999,25 @@ export function SalesReceivablesPage() {
       ),
     onSuccess: async (created) => {
       await invalidateSalesReceivables(queryClient);
+      if (receiptEditor.allocationInvoiceId) {
+        const allocationAmount = Number(
+          receiptEditor.allocationAmount ||
+            Math.min(
+              Number(receiptEditor.amount || 0),
+              Number(selectedReceiptAllocationInvoice?.outstandingAmount || 0),
+            ),
+        );
+        if (allocationAmount > 0) {
+          await allocateReceiptMutation.mutateAsync({
+            salesInvoiceId: receiptEditor.allocationInvoiceId,
+            receiptTransactionId: created.id,
+            amount: Number(allocationAmount.toFixed(2)),
+          });
+        }
+      }
       setSelectedReceiptId(created.id);
       setIsReceiptEditorOpen(false);
       setReceiptEditor(EMPTY_RECEIPT_EDITOR());
-    },
-  });
-
-  const allocateReceiptMutation = useMutation({
-    mutationFn: () =>
-      allocateReceipt(
-        {
-          salesInvoiceId: allocationInvoiceId,
-          receiptTransactionId: allocationReceiptId,
-          amount: Number(allocationAmount),
-        },
-        token,
-      ),
-    onSuccess: async () => {
-      await invalidateSalesReceivables(queryClient);
-      setAllocationAmount("");
     },
   });
 
@@ -1063,6 +1070,9 @@ export function SalesReceivablesPage() {
   const creditNotes = creditNotesQuery.data ?? [];
   const postedReceipts = (postedReceiptsQuery.data ?? []).filter((row) => row.kind === "RECEIPT");
   const customerReceipts = customerReceiptsQuery.data ?? [];
+  const receiptAllocationInvoices = openInvoices.filter(
+    (invoice) => !receiptEditor.customerId || invoice.customer.id === receiptEditor.customerId,
+  );
 
   const selectedCustomer = customers.find((row) => row.id === selectedCustomerId) ?? activeCustomers.find((row) => row.id === selectedCustomerId) ?? null;
   const selectedQuotation = quotations.find((row) => row.id === selectedQuotationId) ?? null;
@@ -1070,7 +1080,8 @@ export function SalesReceivablesPage() {
   const selectedInvoice = invoices.find((row) => row.id === selectedInvoiceId) ?? postedInvoices.find((row) => row.id === selectedInvoiceId) ?? null;
   const selectedCreditNote = creditNotes.find((row) => row.id === selectedCreditNoteId) ?? null;
   const selectedReceipt = customerReceipts.find((row) => row.id === selectedReceiptId) ?? null;
-  const selectedInvoiceForAllocation = openInvoices.find((row) => row.id === allocationInvoiceId) ?? null;
+  const selectedReceiptAllocationInvoice =
+    receiptAllocationInvoices.find((row) => row.id === receiptEditor.allocationInvoiceId) ?? null;
   const exportPermissions = { canPrint: true, canExportPdf: true, canExportExcel: true };
 
   const handleCustomersExport = (mode: ExportMode) => {
@@ -1250,13 +1261,12 @@ export function SalesReceivablesPage() {
 
   const tabs: Array<{ id: SalesTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "customers", label: t("salesReceivables.tab.customers"), icon: Users },
-    { id: "sales-reps", label: "مندوبي المبيعات", icon: Handshake },
+    { id: "sales-reps", label: "مندوبي المبيعات", icon: Users },
     { id: "quotations", label: t("salesReceivables.tab.quotations"), icon: FilePlus },
     { id: "orders", label: t("salesReceivables.tab.orders"), icon: ScrollText },
     { id: "invoices", label: t("salesReceivables.tab.invoices"), icon: FileText },
     { id: "receipts", label: t("salesReceivables.tab.receipts"), icon: ReceiptText },
     { id: "credit-notes", label: t("salesReceivables.tab.creditNotes"), icon: FileMinus },
-    { id: "allocations", label: t("salesReceivables.tab.allocations"), icon: Handshake },
     { id: "aging", label: t("salesReceivables.tab.aging"), icon: BookText },
   ];
 
@@ -2317,162 +2327,6 @@ export function SalesReceivablesPage() {
         </div>
       ) : null}
 
-      {activeTab === "allocations" ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <SummaryCard label={t("salesReceivables.summary.openInvoices")} value={openInvoices.length} hint={t("salesReceivables.hint.allOutstandingPostedInvoices")} />
-            <SummaryCard label={t("salesReceivables.summary.postedReceipts")} value={postedReceipts.length} hint={t("salesReceivables.hint.availableReceiptTransactions")} />
-            <SummaryCard
-              label={t("salesReceivables.summary.openValue")}
-              value={formatCurrency(openInvoices.reduce((sum, row) => sum + Number(row.outstandingAmount), 0))}
-              hint={t("salesReceivables.hint.stillWaitingToBeAllocated")}
-            />
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <Card className="space-y-5">
-              <div>
-                <div className="text-lg font-bold text-gray-900">{t("salesReceivables.section.allocatePostedReceipts")}</div>
-                <div className="text-sm text-gray-500">{t("salesReceivables.section.allocatePostedReceiptsDescription")}</div>
-              </div>
-
-              <Field label={t("salesReceivables.field.invoice")}>
-                <Select
-                  value={allocationInvoiceId}
-                  onChange={(event) => {
-                    setAllocationInvoiceId(event.target.value);
-                    setSelectedInvoiceId(event.target.value || null);
-                  }}
-                >
-                  <option value="">{t("salesReceivables.empty.selectOpenInvoice")}</option>
-                  {openInvoices.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.reference} · {row.customer.name} · {formatCurrency(row.outstandingAmount)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Field label={t("salesReceivables.field.receiptTransaction")}>
-                <Select value={allocationReceiptId} onChange={(event) => setAllocationReceiptId(event.target.value)}>
-                  <option value="">{t("salesReceivables.empty.selectPostedReceipt")}</option>
-                  {postedReceipts.map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.reference} · {row.bankCashAccount?.name ?? t("salesReceivables.empty.receipt")} · {formatCurrency(row.amount)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Field
-                label={t("salesReceivables.field.allocationAmount")}
-                hint={selectedInvoiceForAllocation ? t("salesReceivables.field.currentOutstandingBalance", { amount: formatCurrency(selectedInvoiceForAllocation.outstandingAmount) }) : undefined}
-              >
-                <Input type="number" min="0.01" step="0.01" value={allocationAmount} onChange={(event) => setAllocationAmount(event.target.value)} />
-              </Field>
-
-              <div className="flex justify-end">
-                <Button onClick={() => allocateReceiptMutation.mutate()} disabled={allocateReceiptMutation.isPending}>
-                  <ReceiptText className="mr-2 h-4 w-4" />
-                  {t("salesReceivables.action.allocateReceipt")}
-                </Button>
-              </div>
-            </Card>
-
-            <div className="grid gap-6">
-              <Card className="overflow-hidden p-0">
-                <div className="border-b border-gray-200 px-6 py-4">
-                  <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.openInvoices")}</div>
-                  <div className="text-xs text-gray-500">{t("salesReceivables.section.openInvoicesDescription")}</div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <TableHead>{t("salesReceivables.field.invoice")}</TableHead>
-                        <TableHead>{t("salesReceivables.field.customer")}</TableHead>
-                        <TableHead className="text-right">{t("salesReceivables.field.allocated")}</TableHead>
-                        <TableHead className="text-right">{t("salesReceivables.field.outstanding")}</TableHead>
-                        <TableHead className="text-center">{t("salesReceivables.field.status")}</TableHead>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {openInvoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
-                            {t("salesReceivables.empty.noOpenPostedInvoices")}
-                          </td>
-                        </tr>
-                      ) : (
-                        openInvoices.map((row) => (
-                          <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", allocationInvoiceId === row.id && "bg-gray-50")}>
-                            <td className="px-6 py-4">
-                              <button type="button" className="text-left font-bold text-gray-900" onClick={() => setAllocationInvoiceId(row.id)}>
-                                {row.reference}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-semibold text-gray-900">{row.customer.name}</div>
-                              <div className="text-xs text-gray-500">{row.customer.code}</div>
-                            </td>
-                            <td className="px-6 py-4 text-right font-mono text-gray-700">{formatCurrency(row.allocatedAmount)}</td>
-                            <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.outstandingAmount)}</td>
-                            <td className="px-6 py-4 text-center">
-                              <StatusPill label={friendlyAllocationStatus(row.allocationStatus)} tone={row.allocationStatus === "FULLY_ALLOCATED" ? "positive" : "warning"} />
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-
-              <Card className="overflow-hidden p-0">
-                <div className="border-b border-gray-200 px-6 py-4">
-                  <div className="text-sm font-bold text-gray-900">{t("salesReceivables.section.postedReceipts")}</div>
-                  <div className="text-xs text-gray-500">{t("salesReceivables.section.postedReceiptsDescription")}</div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <TableHead>{t("salesReceivables.field.reference")}</TableHead>
-                        <TableHead>{t("salesReceivables.field.bankCash")}</TableHead>
-                        <TableHead>{t("salesReceivables.field.date")}</TableHead>
-                        <TableHead className="text-right">{t("salesReceivables.field.amount")}</TableHead>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {postedReceipts.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
-                            {t("salesReceivables.empty.noPostedReceipts")}
-                          </td>
-                        </tr>
-                      ) : (
-                        postedReceipts.map((row) => (
-                          <tr key={row.id} className={cn("border-t border-gray-100 hover:bg-gray-50", allocationReceiptId === row.id && "bg-gray-50")}>
-                            <td className="px-6 py-4">
-                              <button type="button" className="text-left font-bold text-gray-900" onClick={() => setAllocationReceiptId(row.id)}>
-                                {row.reference}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700">{row.bankCashAccount?.name ?? t("salesReceivables.empty.receipt")}</td>
-                            <td className="px-6 py-4 text-gray-700">{formatDate(row.transactionDate)}</td>
-                            <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">{formatCurrency(row.amount)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {activeTab === "aging" ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-5">
@@ -2936,7 +2790,9 @@ export function SalesReceivablesPage() {
         editor={receiptEditor}
         customers={activeCustomers}
         bankCashAccounts={bankCashAccountsQuery.data ?? []}
-        isSubmitting={createReceiptMutation.isPending}
+        openInvoices={receiptAllocationInvoices}
+        selectedInvoice={selectedReceiptAllocationInvoice}
+        isSubmitting={createReceiptMutation.isPending || allocateReceiptMutation.isPending}
         onChange={setReceiptEditor}
         onSubmit={() => createReceiptMutation.mutate()}
       />
@@ -3400,10 +3256,6 @@ function mapLineForConversion(line: {
     lineAmount: Number(line.lineAmount),
     revenueAccountId: line.revenueAccount?.id ?? undefined,
   };
-}
-
-function friendlyAllocationStatus(status: AllocationStatus) {
-  return status.replaceAll("_", " ");
 }
 
 function validateQuotationEditorState(
