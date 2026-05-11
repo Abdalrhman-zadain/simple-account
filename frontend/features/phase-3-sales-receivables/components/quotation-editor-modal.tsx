@@ -35,6 +35,7 @@ export type SalesLineEditorState = {
   taxAmount: string;
   lineAmount: string;
   revenueAccountId: string;
+  unitOfMeasureId?: string;
 };
 
 export type QuotationEditorState = {
@@ -81,6 +82,57 @@ export function createEmptyLine(): SalesLineEditorState {
     taxAmount: "",
     lineAmount: "",
     revenueAccountId: "",
+    unitOfMeasureId: "",
+  });
+}
+
+export function applyItemToSalesLine(
+  line: SalesLineEditorState,
+  item: InventoryItem | null,
+  customer: Customer | null,
+  allTaxes: { id: string; rate: string | number }[],
+  shouldUpdatePrice: boolean = true,
+): SalesLineEditorState {
+  if (!item) {
+    return {
+      ...line,
+      itemId: "",
+      itemName: "",
+      description: "",
+      unitPrice: shouldUpdatePrice ? "" : line.unitPrice,
+      revenueAccountId: "",
+      unitOfMeasureId: "",
+    };
+  }
+
+  // Default tax from customer's Tax Treatment
+  let taxId = line.taxId;
+  let taxRate = line.taxRate;
+
+  if (customer?.taxTreatment) {
+    const treatment = customer.taxTreatment;
+    if (treatment.defaultTaxId) {
+      const tax = allTaxes.find((t) => t.id === treatment.defaultTaxId);
+      if (tax) {
+        taxId = tax.id;
+        taxRate = String(tax.rate);
+      }
+    } else if (treatment.code === "OUT_OF_SCOPE" || treatment.englishName?.toUpperCase() === "OUT OF SCOPE") {
+      taxId = "";
+      taxRate = "";
+    }
+  }
+
+  return withCalculatedLineAmount({
+    ...line,
+    itemId: item.id,
+    itemName: item.name,
+    description: item.description || "",
+    unitPrice: shouldUpdatePrice ? (item.defaultSalesPrice || "0") : line.unitPrice,
+    revenueAccountId: item.salesAccount?.id || line.revenueAccountId,
+    unitOfMeasureId: item.unitOfMeasureId || "",
+    taxId,
+    taxRate,
   });
 }
 
@@ -336,6 +388,25 @@ export function QuotationEditorModal({
                       )}
                     />
                   </div>
+                  <div className="mt-2">
+                    <div className={cn(
+                      "inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm ring-1 ring-inset",
+                      editor.customerId 
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200" 
+                        : "bg-slate-50 text-slate-500 ring-slate-200"
+                    )}>
+                      <span className={cn(isArabic && "arabic-ui")}>
+                        {t("salesReceivables.field.customerTaxTreatment")}: {" "}
+                        {editor.customerId ? (
+                          customers.find(c => c.id === editor.customerId)?.taxTreatment ? (
+                            isArabic 
+                              ? customers.find(c => c.id === editor.customerId)?.taxTreatment?.arabicName 
+                              : customers.find(c => c.id === editor.customerId)?.taxTreatment?.englishName
+                          ) : t("salesReceivables.empty.notSet")
+                        ) : t("salesReceivables.empty.selectCustomerToViewTaxTreatment")}
+                      </span>
+                    </div>
+                  </div>
                 </Field>
 
                 <Field label={t("salesReceivables.field.currency")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
@@ -420,7 +491,7 @@ export function QuotationEditorModal({
 
                     <div className="overflow-x-auto">
                       <div className="min-w-[1320px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
@@ -429,8 +500,7 @@ export function QuotationEditorModal({
                             t("salesReceivables.field.quantity"),
                             t("salesReceivables.field.unitPrice"),
                             t("salesReceivables.field.discountAmount"),
-                            t("salesReceivables.field.taxAmount"),
-                            t("salesReceivables.field.description"),
+                            t("salesReceivables.field.tax"),
                           ].map((label, labelIndex) => (
                             <div
                               key={`${line.key}-label-${labelIndex}`}
@@ -444,15 +514,14 @@ export function QuotationEditorModal({
                               labelIndex !== 2 &&
                               labelIndex !== 3 &&
                               labelIndex !== 6 &&
-                              labelIndex !== 7 &&
-                              labelIndex !== 8 ? (
+                              labelIndex !== 7 ? (
                                 <span className="ms-1 text-red-500">*</span>
                               ) : null}
                             </div>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
@@ -461,16 +530,21 @@ export function QuotationEditorModal({
                             value={line.itemId}
                             onChange={(event) => {
                               const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                itemId: item?.id ?? "",
-                                itemName: item?.name ?? current.itemName,
-                                description:
-                                  current.description.trim() || !item
-                                    ? current.description
-                                    : item.description ?? item.name,
-                                revenueAccountId: item?.salesAccount?.id ?? current.revenueAccountId,
-                              }));
+                              const customer = customers.find((c) => c.id === editor.customerId) ?? null;
+
+                              let shouldUpdatePrice = true;
+                              if (line.unitPrice && line.unitPrice !== "0" && line.itemId) {
+                                const prevItem = inventoryItems.find((i) => i.id === line.itemId);
+                                if (prevItem && line.unitPrice !== prevItem.defaultSalesPrice) {
+                                  if (!confirm(t("salesReceivables.message.confirmPriceUpdate"))) {
+                                    shouldUpdatePrice = false;
+                                  }
+                                }
+                              }
+
+                              updateLine(line.key, (current) =>
+                                applyItemToSalesLine(current, item, customer, taxes, shouldUpdatePrice),
+                              );
                             }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
@@ -559,19 +633,11 @@ export function QuotationEditorModal({
                             }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
-                            <option value="">{t("salesReceivables.field.taxAmount")}</option>
+                            <option value="">{t("salesReceivables.field.tax")}</option>
                             {taxes.map((tax) => (
                               <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
                             ))}
                           </Select>
-
-                          <Input
-                            value={line.description}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
                         </div>
 
                         <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">

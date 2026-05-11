@@ -22,6 +22,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import type { Customer, InventoryItem, SalesQuotation } from "@/types/api";
 import {
+  applyItemToSalesLine,
   calculateQuotationTotals,
   createEmptyLine,
   type SalesLineEditorState,
@@ -49,6 +50,7 @@ type SalesOrderEditorModalProps = {
   quotations: SalesQuotation[];
   inventoryItems: InventoryItem[];
   isInventoryItemsLoading: boolean;
+  revenueAccounts: { id: string; code: string; name: string }[];
   isSubmitting: boolean;
   onClose: () => void;
   onChange: (editor: SalesOrderEditorValue) => void;
@@ -63,6 +65,7 @@ export function SalesOrderEditorModal({
   quotations,
   inventoryItems,
   isInventoryItemsLoading,
+  revenueAccounts,
   isSubmitting,
   onClose,
   onChange,
@@ -207,6 +210,25 @@ export function SalesOrderEditorModal({
                     </Select>
                     <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
                   </div>
+                  <div className="mt-2">
+                    <div className={cn(
+                      "inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm ring-1 ring-inset",
+                      editor.customerId 
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200" 
+                        : "bg-slate-50 text-slate-500 ring-slate-200"
+                    )}>
+                      <span className={cn(isArabic && "arabic-ui")}>
+                        {t("salesReceivables.field.customerTaxTreatment")}: {" "}
+                        {editor.customerId ? (
+                          customers.find(c => c.id === editor.customerId)?.taxTreatment ? (
+                            isArabic 
+                              ? customers.find(c => c.id === editor.customerId)?.taxTreatment?.arabicName 
+                              : customers.find(c => c.id === editor.customerId)?.taxTreatment?.englishName
+                          ) : t("salesReceivables.empty.notSet")
+                        ) : t("salesReceivables.empty.selectCustomerToViewTaxTreatment")}
+                      </span>
+                    </div>
+                  </div>
                 </Field>
 
                 <Field label={t("salesReceivables.field.sourceQuotation")} labelClassName={isArabic ? "arabic-ui" : undefined}>
@@ -307,17 +329,17 @@ export function SalesOrderEditorModal({
                     </div>
 
                     <div className="overflow-x-auto">
-                      <div className="min-w-[1240px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_2fr_1.6fr_0.85fr_0.95fr_1.15fr_1fr_1fr] gap-3">
+                      <div className="min-w-[1320px]">
+                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
                             t("salesReceivables.field.itemSnapshot"),
+                            t("salesReceivables.field.revenueAccount"),
                             t("salesReceivables.field.quantity"),
                             t("salesReceivables.field.unitPrice"),
-                            t("salesReceivables.field.description"),
                             t("salesReceivables.field.discountAmount"),
-                            t("salesReceivables.field.taxAmount"),
+                            t("salesReceivables.field.tax"),
                           ].map((label, labelIndex) => (
                             <div
                               key={`${line.key}-label-${labelIndex}`}
@@ -327,14 +349,17 @@ export function SalesOrderEditorModal({
                               )}
                             >
                               {label}
-                              {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 5 ? (
+                              {labelIndex > 0 &&
+                              labelIndex !== 2 &&
+                              labelIndex !== 6 &&
+                              labelIndex !== 7 ? (
                                 <span className="ms-1 text-red-500">*</span>
                               ) : null}
                             </div>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_2fr_1.6fr_0.85fr_0.95fr_1.15fr_1fr_1fr] gap-3">
+                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
@@ -343,16 +368,21 @@ export function SalesOrderEditorModal({
                             value={line.itemId}
                             onChange={(event) => {
                               const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                itemId: item?.id ?? "",
-                                itemName: item?.name ?? current.itemName,
-                                description:
-                                  current.description.trim() || !item
-                                    ? current.description
-                                    : item.description ?? item.name,
-                                revenueAccountId: item?.salesAccount?.id ?? current.revenueAccountId,
-                              }));
+                              const customer = customers.find((c) => c.id === editor.customerId) ?? null;
+
+                              let shouldUpdatePrice = true;
+                              if (line.unitPrice && line.unitPrice !== "0" && line.itemId) {
+                                const prevItem = inventoryItems.find((i) => i.id === line.itemId);
+                                if (prevItem && line.unitPrice !== prevItem.defaultSalesPrice) {
+                                  if (!confirm(t("salesReceivables.message.confirmPriceUpdate"))) {
+                                    shouldUpdatePrice = false;
+                                  }
+                                }
+                              }
+
+                              updateLine(line.key, (current) =>
+                                applyItemToSalesLine(current, item, customer, taxes, shouldUpdatePrice),
+                              );
                             }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
@@ -377,6 +407,24 @@ export function SalesOrderEditorModal({
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
 
+                          <Select
+                            value={line.revenueAccountId}
+                            onChange={(event) =>
+                              updateLine(line.key, (current) => ({
+                                ...current,
+                                revenueAccountId: event.target.value,
+                              }))
+                            }
+                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                          >
+                            <option value="">{t("salesReceivables.empty.selectRevenueAccount")}</option>
+                            {revenueAccounts.map((account) => (
+                              <option key={account.id} value={account.id}>
+                                {account.code} · {account.name}
+                              </option>
+                            ))}
+                          </Select>
+
                           <Input
                             type="number"
                             min="0"
@@ -395,14 +443,6 @@ export function SalesOrderEditorModal({
                             value={line.unitPrice}
                             onChange={(event) =>
                               updateLine(line.key, (current) => ({ ...current, unitPrice: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-
-                          <Input
-                            value={line.description}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
                             }
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           />
@@ -431,7 +471,7 @@ export function SalesOrderEditorModal({
                             }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
-                            <option value="">{t("salesReceivables.field.taxAmount")}</option>
+                            <option value="">{t("salesReceivables.field.tax")}</option>
                             {taxes.map((tax) => (
                               <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
                             ))}

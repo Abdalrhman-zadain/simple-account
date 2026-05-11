@@ -21,6 +21,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type { Customer, InventoryItem, Tax } from "@/types/api";
 import { useAuth } from "@/providers/auth-provider";
 import {
+  applyItemToSalesLine,
   calculateQuotationTotals,
   createEmptyLine,
   type SalesLineEditorState,
@@ -225,6 +226,25 @@ export function SalesDocumentEditorModal({
                     </Select>
                     <UserRound className={cn("pointer-events-none absolute top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400", isArabic ? "left-4" : "right-4")} />
                   </div>
+                  <div className="mt-2">
+                    <div className={cn(
+                      "inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm ring-1 ring-inset",
+                      customerId 
+                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200" 
+                        : "bg-slate-50 text-slate-500 ring-slate-200"
+                    )}>
+                      <span className={cn(isArabic && "arabic-ui")}>
+                        {t("salesReceivables.field.customerTaxTreatment")}: {" "}
+                        {customerId ? (
+                          customers.find(c => c.id === customerId)?.taxTreatment ? (
+                            isArabic 
+                              ? customers.find(c => c.id === customerId)?.taxTreatment?.arabicName 
+                              : customers.find(c => c.id === customerId)?.taxTreatment?.englishName
+                          ) : t("salesReceivables.empty.notSet")
+                        ) : t("salesReceivables.empty.selectCustomerToViewTaxTreatment")}
+                      </span>
+                    </div>
+                  </div>
                 </Field>
 
                 <Field label={t("salesReceivables.field.currency")} required labelClassName={isArabic ? "arabic-ui" : undefined}>
@@ -301,7 +321,7 @@ export function SalesDocumentEditorModal({
 
                     <div className="overflow-x-auto">
                       <div className="min-w-[1320px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
@@ -311,7 +331,6 @@ export function SalesDocumentEditorModal({
                             t("salesReceivables.field.unitPrice"),
                             t("salesReceivables.field.discountAmount"),
                             t("salesReceivables.field.tax"),
-                            t("salesReceivables.field.description"),
                           ].map((label, labelIndex) => (
                             <div
                               key={`${line.key}-label-${labelIndex}`}
@@ -324,15 +343,14 @@ export function SalesDocumentEditorModal({
                               {labelIndex > 0 &&
                               labelIndex !== 2 &&
                               labelIndex !== 6 &&
-                              labelIndex !== 7 &&
-                              labelIndex !== 8 ? (
+                              labelIndex !== 7 ? (
                                 <span className="ms-1 text-red-500">*</span>
                               ) : null}
                             </div>
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
@@ -341,16 +359,21 @@ export function SalesDocumentEditorModal({
                             value={line.itemId}
                             onChange={(event) => {
                               const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                itemId: item?.id ?? "",
-                                itemName: item?.name ?? current.itemName,
-                                description:
-                                  current.description.trim() || !item
-                                    ? current.description
-                                    : item.description ?? item.name,
-                                revenueAccountId: item?.salesAccount?.id ?? current.revenueAccountId,
-                              }));
+                              const customer = customers.find((c) => c.id === customerId) ?? null;
+
+                              let shouldUpdatePrice = true;
+                              if (line.unitPrice && line.unitPrice !== "0" && line.itemId) {
+                                const prevItem = inventoryItems.find((i) => i.id === line.itemId);
+                                if (prevItem && line.unitPrice !== prevItem.defaultSalesPrice) {
+                                  if (!confirm(t("salesReceivables.message.confirmPriceUpdate"))) {
+                                    shouldUpdatePrice = false;
+                                  }
+                                }
+                              }
+
+                              updateLine(line.key, (current) =>
+                                applyItemToSalesLine(current, item, customer, taxes, shouldUpdatePrice),
+                              );
                             }}
                             className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                           >
@@ -445,14 +468,6 @@ export function SalesDocumentEditorModal({
                               <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
                             ))}
                           </Select>
-
-                          <Input
-                            value={line.description}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, description: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
                         </div>
 
                         <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">

@@ -587,7 +587,7 @@ Object.assign(arTranslations, {
   "salesReceivables.field.dueDate": "تاريخ الاستحقاق",
   "salesReceivables.field.itemOrService": "المادة / الخدمة",
   "salesReceivables.field.discountAmount": "قيمة الخصم",
-  "salesReceivables.field.taxAmount": "قيمة الضريبة",
+  "salesReceivables.field.taxAmount": "الضريبة",
 });
 
 Object.assign(arTranslations, {
@@ -901,6 +901,11 @@ Object.assign(arTranslations, {
     "المعاملة الضريبية مطلوبة",
   "salesReceivables.confirm.applyCustomerTaxTreatment":
     "هل تريد تطبيق المعاملة الضريبية الخاصة بالعميل المحدد على بنود الفاتورة الحالية للعميل {name}؟",
+  "salesReceivables.message.confirmPriceUpdate":
+    "سيتم تحديث سعر الوحدة بناءً على المادة الجديدة. هل تريد المتابعة؟",
+  "salesReceivables.field.uom": "وحدة القياس",
+  "salesReceivables.field.customerTaxTreatment": "المعاملة الضريبية للعميل",
+  "salesReceivables.empty.selectCustomerToViewTaxTreatment": "اختر العميل لعرض المعاملة الضريبية",
 });
 
 Object.assign(arTranslations, {

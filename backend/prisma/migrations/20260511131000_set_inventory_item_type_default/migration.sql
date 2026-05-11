@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "InventoryItem" ALTER COLUMN "type" SET DEFAULT 'FINISHED_GOOD';

@@ -2788,6 +2788,7 @@ export function SalesReceivablesPage() {
         quotations={matchingCustomerQuotations}
         inventoryItems={inventoryItems}
         isInventoryItemsLoading={inventoryItemsQuery.isLoading}
+        revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={createOrderMutation.isPending || updateOrderMutation.isPending}
         onChange={setOrderEditor}
         onSubmit={() => (orderEditor.id ? updateOrderMutation.mutate() : createOrderMutation.mutate())}

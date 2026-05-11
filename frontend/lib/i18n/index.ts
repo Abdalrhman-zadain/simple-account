@@ -1002,6 +1002,11 @@ Object.assign(enTranslations, {
     "Tax Treatment is required",
   "salesReceivables.confirm.applyCustomerTaxTreatment":
     "Apply the selected customer's tax treatment to the existing invoice lines for {name}?",
+  "salesReceivables.message.confirmPriceUpdate":
+    "The unit price will be updated based on the new selected item. Do you want to continue?",
+  "salesReceivables.field.uom": "Unit of Measure",
+  "salesReceivables.field.customerTaxTreatment": "Customer Tax Treatment",
+  "salesReceivables.empty.selectCustomerToViewTaxTreatment": "Select a customer to view tax treatment",
 });
 
 Object.assign(enTranslations, {

@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "InventoryItemType" ADD VALUE 'FINISHED_GOOD';
+ALTER TYPE "InventoryItemType" ADD VALUE 'MANUFACTURED_ITEM';
