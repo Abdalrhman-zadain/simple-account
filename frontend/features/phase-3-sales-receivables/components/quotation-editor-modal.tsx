@@ -490,8 +490,8 @@ export function QuotationEditorModal({
                     </div>
 
                     <div className="overflow-x-auto">
-                      <div className="min-w-[1320px]">
-                        <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
+                      <div className="min-w-[1400px]">
+                        <div className="mb-3 grid grid-cols-[0.4fr_2.4fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_2fr] gap-3">
                           {[
                             "#",
                             t("salesReceivables.field.itemOrService"),
@@ -512,7 +512,6 @@ export function QuotationEditorModal({
                               {label}
                               {labelIndex > 0 &&
                               labelIndex !== 2 &&
-                              labelIndex !== 3 &&
                               labelIndex !== 6 &&
                               labelIndex !== 7 ? (
                                 <span className="ms-1 text-red-500">*</span>
@@ -521,7 +520,7 @@ export function QuotationEditorModal({
                           ))}
                         </div>
 
-                        <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_2.35fr] gap-3">
+                        <div className="grid grid-cols-[0.4fr_2.4fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_2fr] gap-3">
                           <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                             {index + 1}
                           </div>
