@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { Prisma } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
+import { AccountsService } from '../../../phase-1-accounting-foundation/accounting-core/chart-of-accounts/accounts.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 
@@ -9,6 +10,11 @@ type SupplierListQuery = {
   isActive?: string;
   search?: string;
 };
+
+type SuppliersDb = Prisma.TransactionClient | PrismaService;
+
+const PAYABLES_HEADER_CODE = '2110000';
+const SUPPLIER_AUTO_PAYABLE_SUBTYPE = 'Payable';
 
 type SupplierWithPayableAccount = Prisma.SupplierGetPayload<{
   include: {
@@ -38,7 +44,10 @@ type SupplierWithPayableAccount = Prisma.SupplierGetPayload<{
 
 @Injectable()
 export class SuppliersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accountsService: AccountsService,
+  ) {}
 
   async list(query: SupplierListQuery = {}) {
     const search = query.search?.trim();
@@ -89,60 +98,63 @@ export class SuppliersService {
   }
 
   async create(dto: CreateSupplierDto) {
-    const payableAccount = await this.ensurePayableAccount(dto.payableAccountId);
-    const code = dto.code?.trim() || this.generateReference('SUP');
-    const defaultCurrency = dto.defaultCurrency.trim().toUpperCase();
+    return this.prisma.$transaction(async (tx) => {
+      const code = dto.code?.trim() || this.generateReference('SUP');
+      const defaultCurrency = dto.defaultCurrency.trim().toUpperCase();
 
-    if (defaultCurrency !== payableAccount.currencyCode.toUpperCase()) {
-      throw new BadRequestException('Default supplier currency must match the selected payable account currency.');
-    }
+      try {
+        if (dto.payableAccountLinkMode === 'AUTO' && !dto.name?.trim()) {
+          throw new BadRequestException('يرجى إدخال اسم المورد قبل إنشاء حساب دائن تلقائي.');
+        }
 
-    try {
-      const created = await this.prisma.supplier.create({
-        data: {
-          code,
-          name: dto.name.trim(),
-          contactInfo: dto.contactInfo?.trim() || null,
-          phone: dto.phone?.trim() || null,
-          email: dto.email?.trim() || null,
-          address: dto.address?.trim() || null,
-          paymentTermId: dto.paymentTermId || null,
-          taxInfo: dto.taxInfo?.trim() || null,
-          defaultCurrency,
-          payableAccountId: payableAccount.id,
-        },
-        include: {
-          payableAccount: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              type: true,
-              currencyCode: true,
-              isActive: true,
-              isPosting: true,
+        const payableAccountId = await this.resolveSupplierPayableAccount(dto, defaultCurrency, tx);
+
+        const created = await tx.supplier.create({
+          data: {
+            code,
+            name: dto.name.trim(),
+            contactInfo: dto.contactInfo?.trim() || null,
+            phone: dto.phone?.trim() || null,
+            email: dto.email?.trim() || null,
+            address: dto.address?.trim() || null,
+            paymentTermId: dto.paymentTermId || null,
+            taxInfo: dto.taxInfo?.trim() || null,
+            defaultCurrency,
+            payableAccountId,
+          },
+          include: {
+            payableAccount: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                type: true,
+                currencyCode: true,
+                isActive: true,
+                isPosting: true,
+              },
+            },
+            paymentTerm: {
+              select: {
+                id: true,
+                name: true,
+                nameAr: true,
+                calculationMethod: true,
+                numberOfDays: true,
+                isActive: true,
+              },
             },
           },
-          paymentTerm: {
-            select: {
-              id: true,
-              name: true,
-              nameAr: true,
-              calculationMethod: true,
-              numberOfDays: true,
-              isActive: true,
-            },
-          },
-        },
-      });
+        });
 
-      return this.mapSupplier(created);
-    } catch (error) {
-      if (this.isUniqueCodeConflict(error)) {
-        throw new ConflictException('A supplier with this code already exists.');
+        return this.mapSupplier(created);
+      } catch (error) {
+        if (this.isUniqueCodeConflict(error)) {
+          throw new ConflictException('A supplier with this code already exists.');
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   async update(id: string, dto: UpdateSupplierDto) {
@@ -328,8 +340,54 @@ export class SuppliersService {
     return supplier;
   }
 
-  private async ensurePayableAccount(id: string) {
-    const account = await this.prisma.account.findUnique({
+  private async resolveSupplierPayableAccount(
+    dto: CreateSupplierDto,
+    defaultCurrency: string,
+    db: SuppliersDb,
+  ) {
+    if (!dto.payableAccountLinkMode) {
+      throw new BadRequestException('يرجى تحديد طريقة ربط حساب الدائن.');
+    }
+
+    if (dto.payableAccountLinkMode === 'EXISTING') {
+      if (!dto.payableAccountId) {
+        throw new BadRequestException('يرجى اختيار حساب دائن المورد قبل الحفظ.');
+      }
+
+      const payableAccount = await this.ensurePayableAccount(dto.payableAccountId, db);
+      if (defaultCurrency !== payableAccount.currencyCode.toUpperCase()) {
+        throw new BadRequestException('Default supplier currency must match the selected payable account currency.');
+      }
+      return payableAccount.id;
+    }
+
+    const parentAccount = await this.getSupplierPayablesHeaderAccount(db);
+    await this.ensureUniqueSupplierPayableAccountName(dto.name, parentAccount.id, db);
+    await db.accountSubtype.upsert({
+      where: { name: SUPPLIER_AUTO_PAYABLE_SUBTYPE },
+      create: { name: SUPPLIER_AUTO_PAYABLE_SUBTYPE, isActive: true },
+      update: { isActive: true },
+    });
+
+    const account = await this.accountsService.createWithinTransaction(
+      {
+        name: dto.name.trim(),
+        nameAr: dto.name.trim(),
+        type: 'LIABILITY',
+        subtype: SUPPLIER_AUTO_PAYABLE_SUBTYPE,
+        isPosting: true,
+        allowManualPosting: true,
+        currencyCode: defaultCurrency,
+        parentAccountId: parentAccount.id,
+      },
+      db as never,
+    );
+
+    return account.id;
+  }
+
+  private async ensurePayableAccount(id: string, db: SuppliersDb = this.prisma) {
+    const account = await db.account.findUnique({
       where: { id },
       select: {
         id: true,
@@ -353,6 +411,50 @@ export class SuppliersService {
     }
 
     return account;
+  }
+
+  private async ensureUniqueSupplierPayableAccountName(
+    name: string,
+    parentAccountId: string,
+    db: SuppliersDb,
+  ) {
+    const normalizedName = name.trim();
+    const existingAccount = await db.account.findFirst({
+      where: {
+        parentAccountId,
+        OR: [
+          { name: { equals: normalizedName, mode: 'insensitive' } },
+          { nameAr: { equals: normalizedName, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException('يوجد حساب دائن بنفس اسم المورد تحت الموردين.');
+    }
+  }
+
+  private async getSupplierPayablesHeaderAccount(db: SuppliersDb) {
+    const payablesHeader = await db.account.findUnique({
+      where: { code: PAYABLES_HEADER_CODE },
+      select: {
+        id: true,
+        type: true,
+        isActive: true,
+        isPosting: true,
+        currencyCode: true,
+      },
+    });
+
+    if (!payablesHeader) {
+      throw new BadRequestException(`Payables header account ${PAYABLES_HEADER_CODE} was not found.`);
+    }
+    if (!payablesHeader.isActive || payablesHeader.isPosting || payablesHeader.type !== 'LIABILITY') {
+      throw new BadRequestException('Payables header account must be an active Liability header account.');
+    }
+
+    return payablesHeader;
   }
 
   private async getSupplierOrThrow(id: string) {

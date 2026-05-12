@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Length } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 
 export class CreateSupplierDto {
   @IsOptional()
@@ -44,5 +44,10 @@ export class CreateSupplierDto {
   defaultCurrency!: string;
 
   @IsString()
-  payableAccountId!: string;
+  @IsIn(['AUTO', 'EXISTING'])
+  payableAccountLinkMode!: 'AUTO' | 'EXISTING';
+
+  @IsOptional()
+  @IsString()
+  payableAccountId?: string;
 }

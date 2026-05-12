@@ -232,6 +232,7 @@ What else to check:
 - purchase document lines should persist both `taxId` and the calculated `taxAmount` so historical documents remain readable if a tax is later deactivated
 - keep the purchases module split by subdomain ownership such as suppliers, requests, orders, invoices, payments, debit notes, posting/accounting, and validation/control
 - route files must stay thin and compose the owning Phase 4 feature page
+- supplier creation should support either creating a new posting payable account automatically under `2110000 Accounts Payable / الذمم الدائنة` or linking an existing active posting Liability account from that same subtree
 - purchase-request and purchase-order lines may now optionally link to active inventory items for UI-assisted selection, and `itemName` plus line description must remain persisted on the line so operational history does not depend on future item-master edits
 - posting must reuse Phase 1 journal-entry and posting services instead of writing ledger effects directly
 - supplier payments that affect bank/cash must integrate with the existing Phase 2 bank/cash module rather than duplicating payment posting behavior

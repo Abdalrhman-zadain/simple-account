@@ -39,6 +39,7 @@ import {
   createSupplierPayment,
   createSupplier,
   deactivateSupplier,
+  getAccountsTree,
   getActivePaymentTerms,
   getBankCashAccounts,
   getAccountOptions,
@@ -80,7 +81,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { AccountOption, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
+import type { AccountOption, AccountTreeNode, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchaseReceipt, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
@@ -112,6 +113,7 @@ type SupplierEditorState = {
   paymentTermId: string;
   taxInfo: string;
   defaultCurrency: string;
+  payableAccountLinkMode: "" | "AUTO" | "EXISTING";
   payableAccountId: string;
 };
 
@@ -255,6 +257,7 @@ const EMPTY_SUPPLIER_EDITOR: SupplierEditorState = {
   paymentTermId: "",
   taxInfo: "",
   defaultCurrency: "JOD",
+  payableAccountLinkMode: "",
   payableAccountId: "",
 };
 
@@ -372,9 +375,9 @@ export function PurchasesPage() {
     queryFn: () => getSuppliers({ search: supplierSearch, isActive: supplierStatusFilter }, token),
   });
 
-  const payableAccountsQuery = useQuery({
-    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", type: "LIABILITY", view: "selector" }),
-    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", type: "LIABILITY" }, token),
+  const payableAccountsTreeQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isActive: "true", type: "LIABILITY" }),
+    queryFn: () => getAccountsTree({ isActive: "true", type: "LIABILITY" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -409,6 +412,24 @@ export function PurchasesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const activePaymentTerms = paymentTermsQuery.data ?? [];
+  const payableAccounts = useMemo(() => {
+    const tree = payableAccountsTreeQuery.data ?? [];
+    const accountsPayableRoot = findAccountTreeNode(
+      tree,
+      (node) =>
+        node.code === "2110000" ||
+        node.name.trim().toLowerCase() === "accounts payable" ||
+        node.nameAr?.trim() === "الذمم الدائنة",
+    );
+
+    if (!accountsPayableRoot) {
+      return [];
+    }
+
+    return flattenPostingAccounts(accountsPayableRoot.children).filter(
+      (account) => account.isActive && account.type === "LIABILITY",
+    );
+  }, [payableAccountsTreeQuery.data]);
 
   const supplierBalanceQuery = useQuery({
     queryKey: queryKeys.purchaseSupplierBalance(token, selectedSupplierId),
@@ -540,7 +561,11 @@ export function PurchasesPage() {
           paymentTermId: supplierEditor.paymentTermId || undefined,
           taxInfo: supplierEditor.taxInfo || undefined,
           defaultCurrency: supplierEditor.defaultCurrency || "JOD",
-          payableAccountId: supplierEditor.payableAccountId,
+          payableAccountLinkMode: supplierEditor.payableAccountLinkMode as "AUTO" | "EXISTING",
+          payableAccountId:
+            supplierEditor.payableAccountLinkMode === "EXISTING"
+              ? supplierEditor.payableAccountId
+              : undefined,
         },
         token,
       ),
@@ -2413,16 +2438,74 @@ export function PurchasesPage() {
                   </button>
                 </div>
               </Field>
-              <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
-                <Select value={supplierEditor.payableAccountId} onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}>
-                  <option value="">{t("purchases.empty.selectPayableAccount")}</option>
-                  {(payableAccountsQuery.data ?? []).map((row) => (
-                    <option key={row.id} value={row.id}>
-                      {row.code} · {row.name} ({row.currencyCode})
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <div className="space-y-3">
+                {!supplierEditor.id ? (
+                  <Field label={t("purchases.field.payableAccount")} required>
+                    <div className="mb-2 text-sm font-semibold text-gray-900">
+                      طريقة ربط حساب الدائن <span className="text-base leading-none text-red-500">*</span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                          supplierEditor.payableAccountLinkMode === "AUTO"
+                            ? "border-teal-500 bg-teal-50 text-teal-800"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                        )}
+                        onClick={() =>
+                          setSupplierEditor((current) => ({
+                            ...current,
+                            payableAccountLinkMode: "AUTO",
+                            payableAccountId: "",
+                          }))
+                        }
+                      >
+                        إنشاء حساب تلقائي
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                          supplierEditor.payableAccountLinkMode === "EXISTING"
+                            ? "border-teal-500 bg-teal-50 text-teal-800"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                        )}
+                        onClick={() =>
+                          setSupplierEditor((current) => ({
+                            ...current,
+                            payableAccountLinkMode: "EXISTING",
+                          }))
+                        }
+                      >
+                        اختيار حساب موجود
+                      </button>
+                    </div>
+                  </Field>
+                ) : null}
+
+                {!supplierEditor.id && supplierEditor.payableAccountLinkMode === "AUTO" ? (
+                  <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-900">
+                    سيتم إنشاء حساب دائن جديد باسم المورد تحت حساب الذمم الدائنة.
+                  </div>
+                ) : null}
+
+                {supplierEditor.id || supplierEditor.payableAccountLinkMode === "EXISTING" ? (
+                  <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
+                    <Select
+                      value={supplierEditor.payableAccountId}
+                      onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}
+                    >
+                      <option value="">{t("purchases.empty.selectPayableAccount")}</option>
+                      {payableAccounts.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.code} · {row.nameAr || row.name} ({row.currencyCode})
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -4168,6 +4251,7 @@ export function PurchasesPage() {
       paymentTermId: supplier.paymentTermId ?? "",
       taxInfo: supplier.taxInfo ?? "",
       defaultCurrency: supplier.defaultCurrency,
+      payableAccountLinkMode: "EXISTING",
       payableAccountId: supplier.payableAccount.id,
     });
     setIsSupplierEditorOpen(true);
@@ -4726,13 +4810,44 @@ function getSupplierFormError(editor: SupplierEditorState) {
   if (!editor.name.trim()) {
     return "Supplier name is required. اسم المورد مطلوب.";
   }
-  if (!editor.payableAccountId) {
+  if (!editor.payableAccountLinkMode) {
+    return "Payable account link mode is required. طريقة ربط حساب الدائن مطلوبة.";
+  }
+  if (editor.payableAccountLinkMode === "AUTO" && !editor.name.trim()) {
+    return "Supplier name is required before creating an automatic payable account. أدخل اسم المورد قبل إنشاء الحساب التلقائي.";
+  }
+  if (editor.payableAccountLinkMode === "EXISTING" && !editor.payableAccountId) {
     return "Default payable account is required. حساب الدائنين الافتراضي مطلوب.";
   }
   if (!editor.defaultCurrency.trim()) {
     return "Default currency is required. العملة الافتراضية مطلوبة.";
   }
   return null;
+}
+
+function findAccountTreeNode(
+  nodes: AccountTreeNode[],
+  predicate: (node: AccountTreeNode) => boolean,
+): AccountTreeNode | null {
+  for (const node of nodes) {
+    if (predicate(node)) {
+      return node;
+    }
+
+    const nestedMatch = findAccountTreeNode(node.children, predicate);
+    if (nestedMatch) {
+      return nestedMatch;
+    }
+  }
+
+  return null;
+}
+
+function flattenPostingAccounts(nodes: AccountTreeNode[]): AccountTreeNode[] {
+  return nodes.flatMap((node) => [
+    ...(node.isPosting ? [node] : []),
+    ...flattenPostingAccounts(node.children),
+  ]);
 }
 
 function getPurchaseRequestFormError(editor: PurchaseRequestEditorState) {

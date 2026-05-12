@@ -1938,7 +1938,8 @@ export type CreateSupplierPayload = {
   paymentTermId?: string;
   taxInfo?: string;
   defaultCurrency: string;
-  payableAccountId: string;
+  payableAccountLinkMode: "AUTO" | "EXISTING";
+  payableAccountId?: string;
 };
 
 export type UpdateSupplierPayload = Partial<CreateSupplierPayload>;

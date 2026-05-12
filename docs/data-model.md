@@ -193,6 +193,7 @@ Key fields:
 Accounting meaning:
 
 - supplier masters link each supplier to one posting payable account and preserve history after deactivation
+- supplier creation supports either creating a new posting payable account automatically under `2110000 Accounts Payable / الذمم الدائنة` or linking an existing active posting Liability account from that same subtree
 - seeded liability chart structure places supplier payables at `2110001`, sales-tax payables by rate at `2121001` through `2121007`, employee payable posting accounts at `2130001` through `2130003`, and non-current liability headers under `2200000`
 - purchase requests are internal pre-procurement documents with draft, submitted, approved, rejected, and closed states
 - request status transitions are stored separately so approval history remains auditable
