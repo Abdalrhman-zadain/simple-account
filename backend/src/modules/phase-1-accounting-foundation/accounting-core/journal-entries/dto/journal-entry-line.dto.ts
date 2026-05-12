@@ -34,6 +34,28 @@ export class CreateJournalEntryDto {
   @Length(0, 255)
   description?: string;
 
+  @IsOptional()
+  @IsString()
+  sourceType?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  sourceNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  customerId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 8)
+  currencyCode?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => JournalEntryLineDto)

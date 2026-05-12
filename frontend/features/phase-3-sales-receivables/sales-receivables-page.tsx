@@ -1214,6 +1214,10 @@ export function SalesReceivablesPage() {
           bankCashAccountId: receiptEditor.bankCashAccountId,
           description: receiptEditor.description || undefined,
           linkedInvoiceId: receiptEditor.allocationInvoiceId || undefined,
+          allocationAmount:
+            receiptEditor.allocationInvoiceId && allocationAmount > 0
+              ? Number(allocationAmount.toFixed(2))
+              : undefined,
           sourceAction: receiptEditor.sourceAction ?? "STANDARD_RECEIPT",
         },
         token,
@@ -1221,22 +1225,6 @@ export function SalesReceivablesPage() {
     },
     onSuccess: async (created) => {
       await invalidateSalesReceivables(queryClient);
-      if (receiptEditor.allocationInvoiceId) {
-        const allocationAmount = Number(
-          receiptEditor.allocationAmount ||
-            Math.min(
-              Number(receiptEditor.amount || 0),
-              Number(selectedReceiptAllocationInvoice?.outstandingAmount || 0),
-            ),
-        );
-        if (allocationAmount > 0) {
-          await allocateReceiptMutation.mutateAsync({
-            salesInvoiceId: receiptEditor.allocationInvoiceId,
-            receiptTransactionId: created.id,
-            amount: Number(allocationAmount.toFixed(2)),
-          });
-        }
-      }
       setSelectedReceiptId(created.id);
       setIsReceiptEditorOpen(false);
       setReceiptEditor(EMPTY_RECEIPT_EDITOR());
@@ -1402,6 +1390,14 @@ export function SalesReceivablesPage() {
         { label: "إجمالي المتبقي", value: formatExportMoney(invoices.reduce((sum, row) => sum + Number(row.outstandingAmount), 0), "JOD") },
       ],
     });
+  };
+
+  const openJournalEntry = (journalReference?: string | null) => {
+    if (!journalReference) {
+      return;
+    }
+
+    window.location.assign(`/journal-entries?reference=${encodeURIComponent(journalReference)}`);
   };
 
   const matchingCustomerInvoices = useMemo(
@@ -2259,6 +2255,17 @@ export function SalesReceivablesPage() {
               </div>
               {selectedInvoice ? (
                 <>
+                  {selectedInvoice.journalReference ? (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                        onClick={() => openJournalEntry(selectedInvoice.journalReference)}
+                      >
+                        {t("salesReceivables.action.viewJournal")}
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 md:grid-cols-2">
                     <MiniMetric label={t("salesReceivables.metric.invoiceTotal")} value={formatCurrency(selectedInvoice.totalAmount)} />
                     <MiniMetric label={t("salesReceivables.metric.outstanding")} value={formatCurrency(selectedInvoice.outstandingAmount)} />
@@ -2356,12 +2363,25 @@ export function SalesReceivablesPage() {
                 <div className="text-sm text-gray-500">{selectedReceipt?.customer ? `${selectedReceipt.customer.code} · ${selectedReceipt.customer.name}` : t("salesReceivables.section.receiptDetailsEmpty")}</div>
               </div>
               {selectedReceipt ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <MiniMetric label={t("salesReceivables.field.amount")} value={formatCurrency(selectedReceipt.amount)} />
-                  <MiniMetric label={t("salesReceivables.field.allocated")} value={formatCurrency(selectedReceipt.allocatedAmount)} />
-                  <MiniMetric label={t("salesReceivables.field.unapplied")} value={formatCurrency(selectedReceipt.unappliedAmount)} />
-                  <MiniMetric label={t("salesReceivables.field.bankCash")} value={selectedReceipt.bankCashAccount?.name ?? t("salesReceivables.empty.notSet")} />
-                </div>
+                <>
+                  {selectedReceipt.journalReference ? (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                        onClick={() => openJournalEntry(selectedReceipt.journalReference)}
+                      >
+                        {t("salesReceivables.action.viewJournal")}
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <MiniMetric label={t("salesReceivables.field.amount")} value={formatCurrency(selectedReceipt.amount)} />
+                    <MiniMetric label={t("salesReceivables.field.allocated")} value={formatCurrency(selectedReceipt.allocatedAmount)} />
+                    <MiniMetric label={t("salesReceivables.field.unapplied")} value={formatCurrency(selectedReceipt.unappliedAmount)} />
+                    <MiniMetric label={t("salesReceivables.field.bankCash")} value={selectedReceipt.bankCashAccount?.name ?? t("salesReceivables.empty.notSet")} />
+                  </div>
+                </>
               ) : <div className="text-sm text-gray-500">{t("salesReceivables.section.receiptDetailsEmpty")}</div>}
             </Card>
           </div>
@@ -2512,6 +2532,17 @@ export function SalesReceivablesPage() {
               </div>
               {selectedCreditNote ? (
                 <>
+                  {selectedCreditNote.journalReference ? (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="rounded-md border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                        onClick={() => openJournalEntry(selectedCreditNote.journalReference)}
+                      >
+                        {t("salesReceivables.action.viewJournal")}
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="grid gap-3 md:grid-cols-2">
                     <MiniMetric label={t("salesReceivables.field.creditNoteTotal")} value={formatCurrency(selectedCreditNote.totalAmount)} />
                     <MiniMetric label={t("salesReceivables.field.status")} value={selectedCreditNote.status === "DRAFT" ? t("salesReceivables.status.draft") : t("salesReceivables.status.posted")} />

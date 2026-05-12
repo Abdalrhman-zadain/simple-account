@@ -519,6 +519,12 @@ export class CreateCustomerReceiptDto {
   linkedInvoiceId?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  allocationAmount?: number;
+
+  @IsOptional()
   @IsString()
   @IsIn(["STANDARD_RECEIPT", "POST_AND_CREATE_RECEIPT"])
   sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";

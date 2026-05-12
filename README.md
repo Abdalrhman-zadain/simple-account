@@ -218,6 +218,14 @@ npm run test:watch
 
 ### Frontend Checks
 
+## Checks Passed
+
+```text
+backend: npm run build
+backend: npm run test -- sales-receivables.service.spec.ts
+frontend: npm run typecheck
+```
+
 The frontend does not currently have a test runner script. Use TypeScript checking to validate frontend code:
 
 ```powershell

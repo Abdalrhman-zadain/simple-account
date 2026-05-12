@@ -685,6 +685,7 @@ Object.assign(arTranslations, {
   "salesReceivables.action.postInvoice": "ترحيل الفاتورة",
   "salesReceivables.action.createReceipt": "إنشاء المقبوض",
   "salesReceivables.action.postAndCreateReceipt": "ترحيل وإنشاء مقبوض",
+  "salesReceivables.action.viewJournal": "عرض القيد المحاسبي",
   "salesReceivables.action.cancel": "إلغاء",
   "salesReceivables.status.active": "نشط",
   "salesReceivables.status.inactive": "غير نشط",

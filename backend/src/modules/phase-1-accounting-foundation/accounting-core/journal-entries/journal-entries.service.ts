@@ -15,6 +15,7 @@ import { CreateJournalEntryDto, JournalEntryLineDto, UpdateJournalEntryDto } fro
 import { JournalEntryResponse } from './journal-entry-response';
 
 type EntryWithLines = JournalEntry & { lines: JournalEntryLine[] };
+type JournalDb = Prisma.TransactionClient | PrismaService;
 
 @Injectable()
 export class JournalEntriesService {
@@ -23,7 +24,8 @@ export class JournalEntriesService {
     private readonly referenceService: ReferenceService,
   ) { }
 
-  async create(dto: CreateJournalEntryDto): Promise<JournalEntryResponse> {
+  async create(dto: CreateJournalEntryDto, options?: { tx?: JournalDb }): Promise<JournalEntryResponse> {
+    const db = options?.tx ?? this.prisma;
     this.validateLines(dto.lines);
     await this.ensureAccountsArePostable(dto.lines);
     const nextTypeId = dto.journalEntryTypeId ?? null;
@@ -32,9 +34,9 @@ export class JournalEntriesService {
     }
 
     const entryDate = new Date(dto.entryDate);
-    const period = await this.resolveFiscalPeriod(entryDate);
+    const period = await this.resolveFiscalPeriod(entryDate, db);
 
-    const created = await this.prisma.journalEntry.create({
+    const created = await db.journalEntry.create({
       data: {
         reference: this.referenceService.generateJournalEntryReference(entryDate),
         entryDate,
@@ -47,7 +49,7 @@ export class JournalEntriesService {
       },
     });
 
-    return this.getById(created.id);
+    return this.getById(created.id, db);
   }
 
   async list(filters?: {
@@ -91,8 +93,8 @@ export class JournalEntriesService {
     return entries.map((entry) => this.toResponse(entry as EntryWithLines & { reversalOfId?: string | null }, { includeLines }));
   }
 
-  async getById(id: string): Promise<JournalEntryResponse> {
-    const entry = await this.prisma.journalEntry.findUnique({
+  async getById(id: string, db: JournalDb = this.prisma): Promise<JournalEntryResponse> {
+    const entry = await db.journalEntry.findUnique({
       where: { id },
       include: {
         lines: { include: { account: { select: { code: true, name: true, nameAr: true } } }, orderBy: { lineNumber: 'asc' } },
@@ -247,8 +249,8 @@ export class JournalEntriesService {
     return this.ensureAccountsArePostable(lines);
   }
 
-  private async resolveFiscalPeriod(date: Date) {
-    const period = await this.prisma.fiscalPeriod.findFirst({
+  private async resolveFiscalPeriod(date: Date, db: JournalDb = this.prisma) {
+    const period = await db.fiscalPeriod.findFirst({
       where: {
         startDate: { lte: date },
         endDate: { gte: date },
@@ -285,6 +287,11 @@ export class JournalEntriesService {
       reference: entry.reference,
       status: entry.status,
       entryDate: entry.entryDate.toISOString(),
+      sourceType: null,
+      sourceId: null,
+      sourceNumber: null,
+      customerId: null,
+      currencyCode: null,
       journalEntryTypeId: entry.journalEntryTypeId ?? null,
       journalEntryType: (entry as any).journalEntryType ?? null,
       description: entry.description,

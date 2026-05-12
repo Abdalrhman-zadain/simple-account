@@ -2886,6 +2886,7 @@ export type CreateCustomerReceiptPayload = {
   settlementReference?: string;
   description?: string;
   linkedInvoiceId?: string;
+  allocationAmount?: number;
   sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";
 };
 

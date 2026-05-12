@@ -763,6 +763,7 @@ Object.assign(enTranslations, {
   "salesReceivables.action.postInvoice": "Post Invoice",
   "salesReceivables.action.createReceipt": "Create Receipt",
   "salesReceivables.action.postAndCreateReceipt": "Post & Create Receipt",
+  "salesReceivables.action.viewJournal": "View Journal Entry",
   "salesReceivables.action.toOrder": "Convert to Order",
   "salesReceivables.action.toInvoice": "Convert to Invoice",
   "salesReceivables.action.cancel": "Cancel",

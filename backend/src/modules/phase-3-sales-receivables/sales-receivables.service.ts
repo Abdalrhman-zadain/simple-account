@@ -1063,90 +1063,114 @@ export class SalesReceivablesService {
   }
 
   async postInvoice(id: string, dto: PostSalesInvoiceDto = {}, user?: AuthUser) {
-    const invoice = await this.prisma.salesInvoice.findUnique({
+    const existingInvoice = await this.prisma.salesInvoice.findUnique({
       where: { id },
       include: {
         customer: { include: { receivableAccount: true } },
         lines: { orderBy: { lineNumber: "asc" } },
       },
     });
-    if (!invoice) {
+    if (!existingInvoice) {
       throw new BadRequestException(`Sales invoice ${id} was not found.`);
     }
-    if (invoice.status !== SalesInvoiceStatus.DRAFT) {
+    if (existingInvoice.journalEntryId) {
+      throw new BadRequestException("Sales invoice is already posted.");
+    }
+    if (existingInvoice.status !== SalesInvoiceStatus.DRAFT) {
       throw new BadRequestException("Only draft invoices can be posted.");
     }
-    if (!invoice.customer.isActive) {
-      throw new BadRequestException(
-        "Deactivated customers cannot be selected for new transactions.",
-      );
-    }
-    if (Number(invoice.totalAmount) <= 0) {
-      throw new BadRequestException(
-        "Sales invoices require a total amount greater than zero.",
-      );
-    }
 
-    const totalAmount = Number(invoice.totalAmount);
-    if (
-      Number(invoice.customer.creditLimit) > 0 &&
-      Number(invoice.customer.currentBalance) + totalAmount >
-        Number(invoice.customer.creditLimit)
-    ) {
-      throw new BadRequestException(
-        "Posting this invoice exceeds the customer credit limit.",
-      );
-    }
-
-    const description = invoice.description
-      ? `${invoice.reference} - ${invoice.description}`
-      : invoice.reference;
-    const taxAmount = Number(invoice.taxAmount);
-    const taxAccountId =
-      taxAmount > 0 ? await this.getSalesTaxAccountId() : null;
-
-    const journal = await this.journalEntriesService.create({
-      entryDate: invoice.invoiceDate.toISOString(),
-      description,
-      lines: [
-        {
-          accountId: invoice.customer.receivableAccountId,
-          description,
-          debitAmount: totalAmount,
-          creditAmount: 0,
+    const result = await this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.salesInvoice.findUnique({
+        where: { id },
+        include: {
+          customer: { include: { receivableAccount: true } },
+          lines: { orderBy: { lineNumber: "asc" } },
         },
-        ...invoice.lines.map((line) => ({
-          accountId: line.revenueAccountId,
-          description: line.description ?? description,
-          debitAmount: 0,
-          creditAmount: Number(line.lineSubtotalAmount) + (taxAccountId ? 0 : Number(line.taxAmount)),
-        })),
-        ...(taxAccountId
-          ? [
-              {
-                accountId: taxAccountId,
-                description: `${description} tax`,
-                debitAmount: 0,
-                creditAmount: taxAmount,
-              },
-            ]
-          : []),
-      ],
-    });
+      });
+      if (!invoice) {
+        throw new BadRequestException(`Sales invoice ${id} was not found.`);
+      }
+      if (invoice.journalEntryId || invoice.status !== SalesInvoiceStatus.DRAFT) {
+        throw new BadRequestException("Sales invoice is already posted.");
+      }
+      if (!invoice.customerId) {
+        throw new BadRequestException("Customer is required.");
+      }
+      if (!invoice.invoiceDate) {
+        throw new BadRequestException("Invoice date is required.");
+      }
+      if (!invoice.currencyCode?.trim()) {
+        throw new BadRequestException("Currency is required.");
+      }
+      if (!invoice.customer.isActive) {
+        throw new BadRequestException(
+          "Deactivated customers cannot be selected for new transactions.",
+        );
+      }
+      if (!invoice.customer.receivableAccountId) {
+        throw new BadRequestException("Customer receivable account is not configured.");
+      }
+      if (!invoice.lines.length) {
+        throw new BadRequestException("At least one invoice line is required.");
+      }
 
-    const posted = await this.postingService.post(journal.id);
-    const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
+      for (const line of invoice.lines) {
+        if (!line.itemName?.trim() && !line.description?.trim() && !line.itemId) {
+          throw new BadRequestException(
+            `Line ${line.lineNumber} requires an item/service or description.`,
+          );
+        }
+        if (Number(line.quantity) <= 0) {
+          throw new BadRequestException(`Quantity must be greater than zero for line ${line.lineNumber}.`);
+        }
+        if (Number(line.unitPrice) < 0) {
+          throw new BadRequestException(`Unit price must be greater than or equal to zero for line ${line.lineNumber}.`);
+        }
+        if (!line.revenueAccountId) {
+          throw new BadRequestException(`Revenue account is required for line ${line.lineNumber}.`);
+        }
+      }
 
-    await this.prisma.$transaction(async (tx) => {
+      const totalAmount = Number(invoice.totalAmount);
+      if (totalAmount <= 0) {
+        throw new BadRequestException(
+          "Sales invoices require a total amount greater than zero.",
+        );
+      }
+      if (
+        Number(invoice.customer.creditLimit) > 0 &&
+        Number(invoice.customer.currentBalance) + totalAmount >
+          Number(invoice.customer.creditLimit)
+      ) {
+        throw new BadRequestException(
+          "Posting this invoice exceeds the customer credit limit.",
+        );
+      }
+
+      const description = invoice.description
+        ? `${invoice.reference} - ${invoice.description}`
+        : invoice.reference;
+      const journalLines = await this.buildSalesInvoiceJournalLines(tx, invoice, description);
+      this.ensureBalancedJournal(journalLines);
+
+      const journal = await this.journalEntriesService.create(
+        {
+          entryDate: invoice.invoiceDate.toISOString(),
+          description,
+          lines: journalLines,
+        },
+        { tx },
+      );
+
+      const posted = await this.postingService.post(journal.id, tx as never);
+      const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
+      const nextStatus = this.deriveInvoiceStatus(totalAmount, 0, invoice.dueDate, postedAt);
+
       await tx.salesInvoice.update({
         where: { id: invoice.id },
         data: {
-          status: this.deriveInvoiceStatus(
-            totalAmount,
-            0,
-            invoice.dueDate,
-            postedAt,
-          ),
+          status: nextStatus,
           journalEntryId: posted.id,
           postedAt,
         },
@@ -1156,22 +1180,30 @@ export class SalesReceivablesService {
         data: { currentBalance: { increment: this.toAmount(totalAmount) } },
       });
       await this.recomputeInvoiceAmounts(tx, invoice.id);
+
+      return {
+        invoiceId: invoice.id,
+        invoiceReference: invoice.reference,
+        sourceSalesOrderId: invoice.sourceSalesOrderId,
+        journalEntryId: posted.id,
+        status: nextStatus,
+      };
     });
 
     await this.auditService.log({
       userId: user?.userId,
       entity: "SalesInvoice",
-      entityId: invoice.id,
+      entityId: result.invoiceId,
       action: AuditAction.POST,
       details: {
-        reference: invoice.reference,
-        status: this.deriveInvoiceStatus(totalAmount, 0, invoice.dueDate, postedAt),
-        journalEntryId: posted.id,
+        reference: result.invoiceReference,
+        status: result.status,
+        journalEntryId: result.journalEntryId,
         sourceAction: dto.sourceAction ?? "STANDARD_POST",
       },
     });
 
-    await this.refreshSalesOrderStatus(invoice.sourceSalesOrderId ?? undefined);
+    await this.refreshSalesOrderStatus(result.sourceSalesOrderId ?? undefined);
     const updated = await this.getInvoiceOrThrow(id);
     return this.mapInvoice(updated);
   }
@@ -1442,98 +1474,220 @@ export class SalesReceivablesService {
       orderBy: [{ transactionDate: "desc" }, { createdAt: "desc" }],
     });
 
-    return rows.map((row) => {
-      const allocatedAmount = row.receiptAllocations.reduce(
-        (sum, item) => sum + Number(item.amount),
-        0,
-      );
-      const unappliedAmount = Math.max(0, Number(row.amount) - allocatedAmount);
-      return {
-        id: row.id,
-        reference: row.reference,
-        status: row.status,
-        receiptDate: row.transactionDate.toISOString(),
-        amount: row.amount.toString(),
-        allocatedAmount: allocatedAmount.toFixed(2),
-        unappliedAmount: unappliedAmount.toFixed(2),
-        settlementReference: row.description,
-        journalEntryId: row.journalEntryId,
-        journalReference: row.journalEntry?.reference ?? null,
-        postedAt: row.postedAt?.toISOString() ?? null,
-        customer: row.customer,
-        bankCashAccount: row.bankCashAccount
-          ? {
-              id: row.bankCashAccount.id,
-              name: row.bankCashAccount.name,
-              type: row.bankCashAccount.type,
-              currencyCode: row.bankCashAccount.currencyCode,
-              account: row.bankCashAccount.account,
-            }
-          : null,
-      };
-    });
+    return rows.map((row) => this.mapCustomerReceiptTransaction(row));
   }
 
   async createCustomerReceipt(dto: CreateCustomerReceiptDto, user?: AuthUser) {
-    const customer = await this.ensureActiveCustomer(dto.customerId);
-    if (dto.linkedInvoiceId) {
-      const linkedInvoice = await this.prisma.salesInvoice.findUnique({
-        where: { id: dto.linkedInvoiceId },
-        select: { id: true, customerId: true, outstandingAmount: true, reference: true },
-      });
-      if (!linkedInvoice) {
-        throw new BadRequestException("Linked invoice was not found.");
-      }
-      if (linkedInvoice.customerId !== customer.id) {
-        throw new BadRequestException(
-          "Receipt and linked invoice must belong to the same customer.",
-        );
-      }
-      if (Number(linkedInvoice.outstandingAmount) <= 0) {
-        throw new BadRequestException(
-          "Linked invoice does not have any outstanding balance.",
-        );
-      }
+    if (!dto.customerId) {
+      throw new BadRequestException("Customer is required.");
+    }
+    if (!dto.receiptDate) {
+      throw new BadRequestException("Receipt date is required.");
+    }
+    if (dto.amount <= 0) {
+      throw new BadRequestException("Receipt amount must be greater than zero.");
+    }
+    if (!dto.bankCashAccountId) {
+      throw new BadRequestException("Bank/Cash account is required to post the receipt.");
     }
 
-    const created = await this.bankCashTransactionsService.createReceipt({
-      reference: dto.reference,
-      transactionDate: dto.receiptDate,
-      amount: dto.amount,
-      bankCashAccountId: dto.bankCashAccountId,
-      counterAccountId: customer.receivableAccountId,
-      counterpartyName: customer.name,
-      description:
-        dto.settlementReference?.trim() || dto.description?.trim() || undefined,
-      customerId: customer.id,
-    });
+    const result = await this.prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findUnique({
+        where: { id: dto.customerId },
+        include: { receivableAccount: true },
+      });
+      if (!customer || !customer.isActive) {
+        throw new BadRequestException("Customer is required.");
+      }
+      if (!customer.receivableAccountId) {
+        throw new BadRequestException("Customer receivable account is not configured.");
+      }
 
-    const posted = await this.bankCashTransactionsService.post(created.id);
-    await this.prisma.customer.update({
-      where: { id: customer.id },
-      data: {
-        currentBalance: {
-          decrement: this.toAmount(dto.amount),
+      const bankCashAccount = await tx.bankCashAccount.findUnique({
+        where: { id: dto.bankCashAccountId },
+        include: {
+          account: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              currencyCode: true,
+              isActive: true,
+              isPosting: true,
+            },
+          },
         },
-      },
+      });
+      if (!bankCashAccount || !bankCashAccount.isActive || !bankCashAccount.account.isActive || !bankCashAccount.account.isPosting) {
+        throw new BadRequestException("Bank/Cash account is required to post the receipt.");
+      }
+
+      const reference = dto.reference?.trim() || this.generateReference("RCPT");
+      const description = dto.settlementReference?.trim() || dto.description?.trim() || null;
+      const amount = Number(dto.amount.toFixed(2));
+
+      const created = await tx.bankCashTransaction.create({
+        data: {
+          kind: BankCashTransactionKind.RECEIPT,
+          status: BankCashTransactionStatus.DRAFT,
+          reference,
+          transactionDate: new Date(dto.receiptDate),
+          amount: this.toAmount(amount),
+          customerId: customer.id,
+          bankCashAccountId: bankCashAccount.id,
+          counterAccountId: customer.receivableAccountId,
+          counterpartyName: customer.name,
+          description,
+        },
+        include: {
+          customer: { select: { id: true, code: true, name: true } },
+          bankCashAccount: {
+            include: { account: { select: this.accountSummarySelect() } },
+          },
+        },
+      });
+
+      const journalLines = [
+        {
+          accountId: bankCashAccount.account.id,
+          description: description ?? reference,
+          debitAmount: amount,
+          creditAmount: 0,
+        },
+        {
+          accountId: customer.receivableAccountId,
+          description: description ?? reference,
+          debitAmount: 0,
+          creditAmount: amount,
+        },
+      ];
+      this.ensureBalancedJournal(journalLines);
+
+      const journal = await this.journalEntriesService.create(
+        {
+          entryDate: new Date(dto.receiptDate).toISOString(),
+          description: description ?? reference,
+          lines: journalLines,
+        },
+        { tx },
+      );
+      const postedJournal = await this.postingService.post(journal.id, tx as never);
+      const postedAt = postedJournal.postedAt ? new Date(postedJournal.postedAt) : new Date();
+
+      const updatedReceipt = await tx.bankCashTransaction.update({
+        where: { id: created.id },
+        data: {
+          status: BankCashTransactionStatus.POSTED,
+          journalEntryId: postedJournal.id,
+          postedAt,
+        },
+        include: {
+          customer: { select: { id: true, code: true, name: true } },
+          bankCashAccount: {
+            include: { account: { select: this.accountSummarySelect() } },
+          },
+          receiptAllocations: { select: { amount: true } },
+          journalEntry: { select: { id: true, reference: true } },
+        },
+      });
+
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: {
+          currentBalance: {
+            decrement: this.toAmount(amount),
+          },
+        },
+      });
+
+      let allocationResult: Awaited<ReturnType<SalesReceivablesService["recomputeInvoiceAmounts"]>> | null = null;
+      let allocationId: string | null = null;
+      let linkedInvoiceReference: string | null = null;
+      if (dto.linkedInvoiceId) {
+        const linkedInvoice = await tx.salesInvoice.findUnique({
+          where: { id: dto.linkedInvoiceId },
+          select: {
+            id: true,
+            customerId: true,
+            reference: true,
+            outstandingAmount: true,
+            sourceSalesOrderId: true,
+          },
+        });
+        if (!linkedInvoice) {
+          throw new BadRequestException("Linked invoice was not found.");
+        }
+        if (linkedInvoice.customerId !== customer.id) {
+          throw new BadRequestException("Receipt and linked invoice must belong to the same customer.");
+        }
+        if (Number(linkedInvoice.outstandingAmount) <= 0) {
+          throw new BadRequestException("Linked invoice does not have any outstanding balance.");
+        }
+
+        const requestedAllocation = Number(
+          (dto.allocationAmount ?? Math.min(amount, Number(linkedInvoice.outstandingAmount))).toFixed(2),
+        );
+        if (requestedAllocation > amount) {
+          throw new BadRequestException("Allocation amount cannot be greater than the receipt amount.");
+        }
+        if (requestedAllocation > Number(linkedInvoice.outstandingAmount)) {
+          throw new BadRequestException("Allocation amount exceeds invoice outstanding balance.");
+        }
+
+        if (requestedAllocation > 0) {
+          const allocation = await tx.receiptAllocation.create({
+            data: {
+              salesInvoiceId: linkedInvoice.id,
+              bankCashTransactionId: created.id,
+              amount: this.toAmount(requestedAllocation),
+            },
+          });
+          allocationId = allocation.id;
+          linkedInvoiceReference = linkedInvoice.reference;
+          allocationResult = await this.recomputeInvoiceAmounts(tx, linkedInvoice.id);
+        }
+      }
+
+      return {
+        receipt: updatedReceipt,
+        allocationResult,
+        allocationId,
+        linkedInvoiceReference,
+      };
     });
 
     await this.auditService.log({
       userId: user?.userId,
       entity: "CustomerReceipt",
-      entityId: posted.id,
+      entityId: result.receipt.id,
       action: AuditAction.POST,
       details: {
-        reference: posted.reference,
-        amount: posted.amount,
-        customerId: customer.id,
+        reference: result.receipt.reference,
+        amount: result.receipt.amount.toString(),
+        customerId: result.receipt.customer?.id ?? dto.customerId,
         linkedInvoiceId: dto.linkedInvoiceId ?? null,
         sourceAction: dto.sourceAction ?? "STANDARD_RECEIPT",
-        journalEntryId: posted.journalEntryId ?? null,
+        journalEntryId: result.receipt.journalEntryId ?? null,
+        allocationId: result.allocationId,
       },
     });
 
-    return posted;
+    if (dto.linkedInvoiceId && result.receipt.id) {
+      await this.auditService.log({
+        userId: user?.userId,
+        entity: "SalesInvoice",
+        entityId: dto.linkedInvoiceId,
+        action: AuditAction.UPDATE,
+        details: {
+          receiptTransactionId: result.receipt.id,
+          receiptReference: result.receipt.reference,
+          linkedInvoiceReference: result.linkedInvoiceReference,
+          allocationId: result.allocationId,
+        },
+      });
+    }
+
+    return this.mapCustomerReceiptTransaction(result.receipt);
   }
 
   async allocateReceipt(dto: AllocateReceiptDto, user?: AuthUser) {
@@ -2683,6 +2837,157 @@ export class SalesReceivablesService {
     });
 
     return account?.id ?? null;
+  }
+
+  private async buildSalesInvoiceJournalLines(
+    tx: Prisma.TransactionClient,
+    invoice: {
+      id: string;
+      reference: string;
+      customerId: string;
+      customer: { receivableAccountId: string };
+      lines: Array<{
+        lineNumber: number;
+        description: string | null;
+        revenueAccountId: string;
+        taxId: string | null;
+        taxAmount: Prisma.Decimal | number;
+        lineSubtotalAmount: Prisma.Decimal | number;
+      }>;
+      totalAmount: Prisma.Decimal | number;
+    },
+    description: string,
+  ) {
+    const revenueByAccount = new Map<string, number>();
+    for (const line of invoice.lines) {
+      const current = revenueByAccount.get(line.revenueAccountId) ?? 0;
+      revenueByAccount.set(
+        line.revenueAccountId,
+        Number((current + Number(line.lineSubtotalAmount)).toFixed(2)),
+      );
+    }
+
+    const taxIds = Array.from(
+      new Set(invoice.lines.map((line) => line.taxId).filter(Boolean)),
+    ) as string[];
+    const taxes = taxIds.length
+      ? await tx.tax.findMany({
+          where: { id: { in: taxIds }, isActive: true },
+          select: {
+            id: true,
+            taxName: true,
+            taxAccountId: true,
+            taxAccount: {
+              select: {
+                id: true,
+                isActive: true,
+                isPosting: true,
+                allowManualPosting: true,
+              },
+            },
+          },
+        })
+      : [];
+    const taxMap = new Map(taxes.map((tax) => [tax.id, tax]));
+    const taxByAccount = new Map<string, number>();
+    for (const line of invoice.lines) {
+      const taxAmount = Number(line.taxAmount);
+      if (taxAmount <= 0) {
+        continue;
+      }
+      if (!line.taxId) {
+        const fallbackTaxAccountId = await this.getSalesTaxAccountId();
+        if (!fallbackTaxAccountId) {
+          throw new BadRequestException("Output VAT account is required because tax is applied.");
+        }
+        const current = taxByAccount.get(fallbackTaxAccountId) ?? 0;
+        taxByAccount.set(
+          fallbackTaxAccountId,
+          Number((current + taxAmount).toFixed(2)),
+        );
+        continue;
+      }
+
+      const tax = taxMap.get(line.taxId);
+      if (!tax?.taxAccountId || !tax.taxAccount?.isActive || !tax.taxAccount.isPosting || !tax.taxAccount.allowManualPosting) {
+        throw new BadRequestException("Output VAT account is required because tax is applied.");
+      }
+      const current = taxByAccount.get(tax.taxAccountId) ?? 0;
+      taxByAccount.set(
+        tax.taxAccountId,
+        Number((current + taxAmount).toFixed(2)),
+      );
+    }
+
+    return [
+      {
+        accountId: invoice.customer.receivableAccountId,
+        description,
+        debitAmount: Number(invoice.totalAmount),
+        creditAmount: 0,
+      },
+      ...Array.from(revenueByAccount.entries()).map(([accountId, amount]) => ({
+        accountId,
+        description,
+        debitAmount: 0,
+        creditAmount: Number(amount.toFixed(2)),
+      })),
+      ...Array.from(taxByAccount.entries()).map(([accountId, amount]) => ({
+        accountId,
+        description: `${description} tax`,
+        debitAmount: 0,
+        creditAmount: Number(amount.toFixed(2)),
+      })),
+    ];
+  }
+
+  private ensureBalancedJournal(
+    lines: Array<{
+      debitAmount: number;
+      creditAmount: number;
+    }>,
+  ) {
+    const totalDebit = Number(
+      lines.reduce((sum, line) => sum + Number(line.debitAmount), 0).toFixed(2),
+    );
+    const totalCredit = Number(
+      lines.reduce((sum, line) => sum + Number(line.creditAmount), 0).toFixed(2),
+    );
+    if (totalDebit !== totalCredit) {
+      throw new BadRequestException("Journal entry is not balanced.");
+    }
+  }
+
+  private mapCustomerReceiptTransaction(row: any) {
+    const allocatedAmount = row.receiptAllocations.reduce(
+      (sum: number, item: { amount: Prisma.Decimal | number }) =>
+        sum + Number(item.amount),
+      0,
+    );
+    const unappliedAmount = Math.max(0, Number(row.amount) - allocatedAmount);
+    return {
+      id: row.id,
+      reference: row.reference,
+      status: row.status,
+      receiptDate: row.transactionDate.toISOString(),
+      amount: row.amount.toString(),
+      allocatedAmount: allocatedAmount.toFixed(2),
+      unappliedAmount: unappliedAmount.toFixed(2),
+      settlementReference: row.description,
+      journalEntryId: row.journalEntryId,
+      journalReference: row.journalEntry?.reference ?? null,
+      postedAt: row.postedAt?.toISOString() ?? null,
+      customer: row.customer,
+      bankCashAccount: row.bankCashAccount
+        ? {
+            id: row.bankCashAccount.id,
+            name: row.bankCashAccount.name,
+            type: row.bankCashAccount.type,
+            currencyCode: row.bankCashAccount.currencyCode,
+            account: row.bankCashAccount.account,
+          }
+        : null,
+    };
   }
 
   private quotationInclude() {

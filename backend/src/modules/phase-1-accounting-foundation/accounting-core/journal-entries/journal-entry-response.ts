@@ -15,6 +15,11 @@ export type JournalEntryResponse = {
   reference: string;
   status: 'DRAFT' | 'POSTED';
   entryDate: string;
+  sourceType: string | null;
+  sourceId: string | null;
+  sourceNumber: string | null;
+  customerId: string | null;
+  currencyCode: string | null;
   journalEntryTypeId: string | null;
   journalEntryType: { id: string; name: string } | null;
   description: string | null;

@@ -17,8 +17,8 @@ export class PostingService {
     private readonly journalEntriesService: JournalEntriesService,
   ) { }
 
-  async post(entryId: string) {
-    const postedEntryId = await this.prisma.$transaction(async (tx) => {
+  async post(entryId: string, existingTx?: TransactionClient) {
+    const executePost = async (tx: TransactionClient) => {
       const entry = await tx.journalEntry.findUnique({
         where: { id: entryId },
         include: { lines: { orderBy: { lineNumber: 'asc' } } },
@@ -73,9 +73,15 @@ export class PostingService {
       });
 
       return updated.id;
-    });
+    };
 
-    return this.journalEntriesService.getById(postedEntryId);
+    const postedEntryId = existingTx
+      ? await executePost(existingTx)
+      : await this.prisma.$transaction(async (tx) => executePost(tx));
+
+    return existingTx
+      ? this.journalEntriesService.getById(postedEntryId, existingTx as never)
+      : this.journalEntriesService.getById(postedEntryId);
   }
 
   private async validatePostingAccounts(tx: TransactionClient, accountIds: string[]) {
