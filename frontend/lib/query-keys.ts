@@ -118,6 +118,9 @@ export const queryKeys = {
   purchaseSuppliers(token: string | null, params: SuppliersQuery = {}) {
     return ["purchase-suppliers", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },
+  purchaseSupplierById(token: string | null, id: string | null) {
+    return ["purchase-supplier", token, id] as const;
+  },
   purchaseRequests(token: string | null, params: PurchaseRequestsQuery = {}) {
     return ["purchase-requests", token, normalizeObject(params as unknown as Record<string, unknown>)] as const;
   },

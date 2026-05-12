@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 
 import { JwtAuthGuard } from '../../../platform/auth/guards/jwt-auth.guard';
 import {
@@ -30,37 +31,37 @@ export class PurchaseRequestsController {
   }
 
   @Post()
-  create(@Body() dto: CreatePurchaseRequestDto) {
-    return this.service.create(dto);
+  create(@Req() req: Request & { user?: any }, @Body() dto: CreatePurchaseRequestDto) {
+    return this.service.create(dto, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePurchaseRequestDto) {
-    return this.service.update(id, dto);
+  update(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: UpdatePurchaseRequestDto) {
+    return this.service.update(id, dto, req.user);
   }
 
   @Post(':id/submit')
-  submit(@Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
-    return this.service.submit(id, dto.note);
+  submit(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
+    return this.service.submit(id, dto.note, req.user);
   }
 
   @Post(':id/approve')
-  approve(@Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
-    return this.service.approve(id, dto.note);
+  approve(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
+    return this.service.approve(id, dto.note, req.user);
   }
 
   @Post(':id/reject')
-  reject(@Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
-    return this.service.reject(id, dto.note);
+  reject(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
+    return this.service.reject(id, dto.note, req.user);
   }
 
   @Post(':id/close')
-  close(@Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
-    return this.service.close(id, dto.note);
+  close(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: PurchaseRequestStatusNoteDto) {
+    return this.service.close(id, dto.note, req.user);
   }
 
   @Post(':id/convert-to-order')
-  convertToOrder(@Param('id') id: string, @Body() dto: ConvertPurchaseRequestToOrderDto) {
-    return this.service.convertToOrder(id, dto);
+  convertToOrder(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: ConvertPurchaseRequestToOrderDto) {
+    return this.service.convertToOrder(id, dto, req.user);
   }
 }

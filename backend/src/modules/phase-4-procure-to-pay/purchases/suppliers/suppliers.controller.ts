@@ -15,6 +15,11 @@ export class SuppliersController {
     return this.service.list({ isActive, search });
   }
 
+  @Get(':id')
+  getById(@Param('id') id: string) {
+    return this.service.getById(id);
+  }
+
   @Post()
   create(@Body() dto: CreateSupplierDto) {
     return this.service.create(dto);

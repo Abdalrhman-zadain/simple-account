@@ -90,6 +90,21 @@ type PurchaseInvoiceWithRelations = Prisma.PurchaseInvoiceGetPayload<{
   };
 }>;
 
+type LinkedSourceRequest = {
+  id: string;
+  reference: string;
+  status: string;
+  requestDate: Date;
+};
+
+type InvoiceSourceRequestRow = {
+  purchaseInvoiceId: string;
+  requestId: string;
+  reference: string;
+  status: string;
+  requestDate: Date;
+};
+
 @Injectable()
 export class PurchaseInvoicesService {
   constructor(
@@ -103,6 +118,18 @@ export class PurchaseInvoicesService {
 
   async list(query: PurchaseInvoiceListQuery = {}) {
     const search = query.search?.trim();
+    const matchingInvoiceIds = search
+      ? (
+          await this.prisma.$queryRaw<Array<{ id: string }>>(
+            Prisma.sql`
+              SELECT i."id"
+              FROM "PurchaseInvoice" i
+              INNER JOIN "PurchaseRequest" r ON r."id" = i."sourcePurchaseRequestId"
+              WHERE r."reference" ILIKE ${`%${search}%`}
+            `,
+          )
+        ).map((row) => row.id)
+      : [];
     const rows = await this.prisma.purchaseInvoice.findMany({
       where: {
         supplierId: query.supplierId,
@@ -115,6 +142,9 @@ export class PurchaseInvoicesService {
               { supplier: { code: { contains: search, mode: 'insensitive' } } },
               { supplier: { name: { contains: search, mode: 'insensitive' } } },
               { sourcePurchaseOrder: { reference: { contains: search, mode: 'insensitive' } } },
+              ...(matchingInvoiceIds.length
+                ? [{ id: { in: matchingInvoiceIds } }]
+                : []),
               { lines: { some: { itemName: { contains: search, mode: 'insensitive' } } } },
               { lines: { some: { description: { contains: search, mode: 'insensitive' } } } },
               { lines: { some: { account: { code: { contains: search, mode: 'insensitive' } } } } },
@@ -126,7 +156,7 @@ export class PurchaseInvoicesService {
       orderBy: [{ invoiceDate: 'desc' }, { createdAt: 'desc' }],
     });
 
-    return rows.map((row) => this.mapPurchaseInvoice(row));
+    return this.enrichAndMapPurchaseInvoices(rows);
   }
 
   async getById(id: string) {
@@ -137,7 +167,8 @@ export class PurchaseInvoicesService {
     if (!row) {
       throw new BadRequestException(`Purchase invoice ${id} was not found.`);
     }
-    return this.mapPurchaseInvoice(row);
+    const [mapped] = await this.enrichAndMapPurchaseInvoices([row]);
+    return mapped;
   }
 
   async create(dto: CreatePurchaseInvoiceDto) {
@@ -152,6 +183,9 @@ export class PurchaseInvoicesService {
 
     if (dto.sourcePurchaseOrderId) {
       await this.ensurePurchaseOrderSource(dto.sourcePurchaseOrderId, supplier.id);
+    }
+    if (dto.sourcePurchaseRequestId) {
+      await this.ensurePurchaseRequestSource(dto.sourcePurchaseRequestId);
     }
 
     try {
@@ -177,6 +211,10 @@ export class PurchaseInvoicesService {
         include: this.purchaseInvoiceInclude(),
       });
 
+      if (dto.sourcePurchaseRequestId) {
+        await this.setInvoiceSourcePurchaseRequest(created.id, dto.sourcePurchaseRequestId);
+      }
+
       await this.auditService.log({
         entity: 'PurchaseInvoice',
         entityId: created.id,
@@ -184,7 +222,8 @@ export class PurchaseInvoicesService {
         details: { status: created.status, reference: created.reference },
       });
 
-      return this.mapPurchaseInvoice(created);
+      const [mapped] = await this.enrichAndMapPurchaseInvoices([created]);
+      return mapped;
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
         throw new ConflictException('A purchase invoice with this reference already exists.');
@@ -203,9 +242,15 @@ export class PurchaseInvoicesService {
     const supplier = await this.suppliersService.ensureActiveSupplier(nextSupplierId);
     const nextSourcePurchaseOrderId =
       dto.sourcePurchaseOrderId === undefined ? current.sourcePurchaseOrderId ?? undefined : dto.sourcePurchaseOrderId || undefined;
+    const currentSourcePurchaseRequestId = await this.getInvoiceSourcePurchaseRequestId(id);
+    const nextSourcePurchaseRequestId =
+      dto.sourcePurchaseRequestId === undefined ? currentSourcePurchaseRequestId ?? undefined : dto.sourcePurchaseRequestId || undefined;
 
     if (nextSourcePurchaseOrderId) {
       await this.ensurePurchaseOrderSource(nextSourcePurchaseOrderId, supplier.id);
+    }
+    if (nextSourcePurchaseRequestId) {
+      await this.ensurePurchaseRequestSource(nextSourcePurchaseRequestId);
     }
 
     const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
@@ -244,6 +289,10 @@ export class PurchaseInvoicesService {
         });
       });
 
+      if (dto.sourcePurchaseRequestId !== undefined) {
+        await this.setInvoiceSourcePurchaseRequest(id, dto.sourcePurchaseRequestId || null);
+      }
+
       await this.auditService.log({
         entity: 'PurchaseInvoice',
         entityId: updated.id,
@@ -251,7 +300,8 @@ export class PurchaseInvoicesService {
         details: { status: updated.status, reference: updated.reference },
       });
 
-      return this.mapPurchaseInvoice(updated);
+      const [mapped] = await this.enrichAndMapPurchaseInvoices([updated]);
+      return mapped;
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
         throw new ConflictException('A purchase invoice with this reference already exists.');
@@ -353,7 +403,8 @@ export class PurchaseInvoicesService {
       details: { status: updated.status, reference: updated.reference, journalEntryId: posted.id },
     });
 
-    return this.mapPurchaseInvoice(updated);
+    const [mapped] = await this.enrichAndMapPurchaseInvoices([updated]);
+    return mapped;
   }
 
   async reverse(id: string, dto: ReverseJournalEntryDto) {
@@ -428,7 +479,8 @@ export class PurchaseInvoicesService {
       details: { status: updated.status, reference: updated.reference, journalEntryId: invoice.journalEntryId },
     });
 
-    return this.mapPurchaseInvoice(updated);
+    const [mapped] = await this.enrichAndMapPurchaseInvoices([updated]);
+    return mapped;
   }
 
   private async resolveLines(lines: PurchaseInvoiceLineDto[]) {
@@ -620,7 +672,81 @@ export class PurchaseInvoicesService {
     return order;
   }
 
-  private mapPurchaseInvoice(row: PurchaseInvoiceWithRelations) {
+  private async ensurePurchaseRequestSource(id: string) {
+    const request = await this.prisma.purchaseRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!request) {
+      throw new BadRequestException('Linked purchase request was not found.');
+    }
+    if (request.status !== 'APPROVED') {
+      throw new BadRequestException('Linked purchase request must be approved before use in a purchase invoice.');
+    }
+
+    return request;
+  }
+
+  private async getInvoiceSourcePurchaseRequestId(invoiceId: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ sourcePurchaseRequestId: string | null }>>(
+      Prisma.sql`
+        SELECT "sourcePurchaseRequestId"
+        FROM "PurchaseInvoice"
+        WHERE "id" = ${invoiceId}
+        LIMIT 1
+      `,
+    );
+    return rows[0]?.sourcePurchaseRequestId ?? null;
+  }
+
+  private async setInvoiceSourcePurchaseRequest(invoiceId: string, purchaseRequestId: string | null) {
+    await this.prisma.$executeRaw(
+      Prisma.sql`
+        UPDATE "PurchaseInvoice"
+        SET "sourcePurchaseRequestId" = ${purchaseRequestId}
+        WHERE "id" = ${invoiceId}
+      `,
+    );
+  }
+
+  private async enrichAndMapPurchaseInvoices(rows: PurchaseInvoiceWithRelations[]) {
+    const invoiceIds = rows.map((row) => row.id);
+    const sourceRequestRows = invoiceIds.length
+      ? await this.prisma.$queryRaw<InvoiceSourceRequestRow[]>(
+          Prisma.sql`
+            SELECT
+              i."id" AS "purchaseInvoiceId",
+              r."id" AS "requestId",
+              r."reference",
+              r."status",
+              r."requestDate"
+            FROM "PurchaseInvoice" i
+            INNER JOIN "PurchaseRequest" r ON r."id" = i."sourcePurchaseRequestId"
+            WHERE i."id" IN (${Prisma.join(invoiceIds)})
+          `,
+        )
+      : [];
+
+    const requestsByInvoiceId = new Map<string, LinkedSourceRequest>(
+      sourceRequestRows.map((row) => [
+        row.purchaseInvoiceId,
+        {
+          id: row.requestId,
+          reference: row.reference,
+          status: row.status,
+          requestDate: row.requestDate,
+        },
+      ]),
+    );
+
+    return rows.map((row) => this.mapPurchaseInvoice(row, requestsByInvoiceId.get(row.id)));
+  }
+
+  private mapPurchaseInvoice(row: PurchaseInvoiceWithRelations, sourcePurchaseRequest?: LinkedSourceRequest) {
     return {
       id: row.id,
       reference: row.reference,
@@ -651,6 +777,14 @@ export class PurchaseInvoicesService {
             reference: row.sourcePurchaseOrder.reference,
             status: row.sourcePurchaseOrder.status,
             orderDate: row.sourcePurchaseOrder.orderDate.toISOString(),
+          }
+        : null,
+      sourcePurchaseRequest: sourcePurchaseRequest
+        ? {
+            id: sourcePurchaseRequest.id,
+            reference: sourcePurchaseRequest.reference,
+            status: sourcePurchaseRequest.status,
+            requestDate: sourcePurchaseRequest.requestDate.toISOString(),
           }
         : null,
       lines: row.lines.map((line) => ({

@@ -17,6 +17,8 @@ type PurchaseRequestListQuery = {
   dateTo?: string;
 };
 
+type AuthUser = { userId?: string; email?: string; role?: string };
+
 type ResolvedPurchaseRequestLine = {
   itemId: string | null;
   itemName: string | null;
@@ -48,6 +50,35 @@ type PurchaseRequestWithRelations = Prisma.PurchaseRequestGetPayload<{
   };
 }>;
 
+type RequestHistoryUser = {
+  id: string;
+  name: string | null;
+  email: string;
+};
+
+type RequestHistoryRow = {
+  id: string;
+  purchaseRequestId: string;
+  status: PurchaseRequestStatus;
+  note: string | null;
+  changedAt: Date;
+  userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+};
+
+type LinkedRequestInvoice = {
+  id: string;
+  reference: string;
+  status: string;
+  invoiceDate: Date;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+  };
+};
+
 @Injectable()
 export class PurchaseRequestsService {
   constructor(
@@ -75,7 +106,7 @@ export class PurchaseRequestsService {
       orderBy: [{ requestDate: 'desc' }, { createdAt: 'desc' }],
     });
 
-    return rows.map((row) => this.mapPurchaseRequest(row));
+    return this.enrichAndMapPurchaseRequests(rows);
   }
 
   async getById(id: string) {
@@ -88,40 +119,45 @@ export class PurchaseRequestsService {
       throw new BadRequestException(`Purchase request ${id} was not found.`);
     }
 
-    return this.mapPurchaseRequest(row);
+    const [mapped] = await this.enrichAndMapPurchaseRequests([row]);
+    return mapped;
   }
 
-  async create(dto: CreatePurchaseRequestDto) {
-    const reference = dto.reference?.trim() || this.generateReference('PR');
+  async create(dto: CreatePurchaseRequestDto, user?: AuthUser) {
+    const requestDate = new Date(dto.requestDate);
+    const reference = await this.generateDailyReference(requestDate);
     const lines = await this.resolveLines(dto.lines);
 
     try {
-      console.error("DEBUG createPurchaseRequest - resolved lines:",
-        JSON.stringify(lines.map(l => ({
-          itemId: l.itemId,
-          itemName: l.itemName,
-          quantity: l.quantity,
-        })), null, 2)
-      );
-      const created = await this.prisma.purchaseRequest.create({
-        data: {
-          reference,
-          requestDate: new Date(dto.requestDate),
-          description: dto.description?.trim() || null,
-          lines: {
-            create: lines.map((line, index) => this.buildPurchaseRequestLineCreateInput(line, index + 1)),
-          },
-          statusHistory: {
-            create: {
-              status: PurchaseRequestStatus.DRAFT,
-              note: 'Request created in draft status.',
+      const created = await this.prisma.$transaction(async (tx) => {
+        const request = await tx.purchaseRequest.create({
+          data: {
+            reference,
+            requestDate,
+            description: dto.description?.trim() || null,
+            lines: {
+              create: lines.map((line, index) => this.buildPurchaseRequestLineCreateInput(line, index + 1)),
             },
           },
-        },
-        include: this.purchaseRequestInclude(),
+        });
+
+        await tx.$executeRaw(
+          Prisma.sql`
+            INSERT INTO "PurchaseRequestStatusHistory"
+              ("id", "purchaseRequestId", "status", "note", "changedAt", "createdAt", "userId")
+            VALUES
+              (${crypto.randomUUID()}, ${request.id}, ${PurchaseRequestStatus.DRAFT}::"PurchaseRequestStatus", ${'Request created in draft status.'}, NOW(), NOW(), ${user?.userId || null})
+          `,
+        );
+
+        return tx.purchaseRequest.findUniqueOrThrow({
+          where: { id: request.id },
+          include: this.purchaseRequestInclude(),
+        });
       });
 
-      return this.mapPurchaseRequest(created);
+      const [mapped] = await this.enrichAndMapPurchaseRequests([created]);
+      return mapped;
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
         throw new ConflictException('A purchase request with this reference already exists.');
@@ -130,7 +166,7 @@ export class PurchaseRequestsService {
     }
   }
 
-  async update(id: string, dto: UpdatePurchaseRequestDto) {
+  async update(id: string, dto: UpdatePurchaseRequestDto, _user?: AuthUser) {
     const current = await this.getPurchaseRequestOrThrow(id);
     if (!this.hasStatus(current.status, [PurchaseRequestStatus.DRAFT, PurchaseRequestStatus.REJECTED])) {
       throw new BadRequestException('Only draft or rejected purchase requests can be edited.');
@@ -147,7 +183,6 @@ export class PurchaseRequestsService {
         return tx.purchaseRequest.update({
           where: { id },
           data: {
-            reference: dto.reference?.trim(),
             requestDate: dto.requestDate ? new Date(dto.requestDate) : undefined,
             description: dto.description === undefined ? undefined : dto.description.trim() || null,
             lines: lines
@@ -160,7 +195,8 @@ export class PurchaseRequestsService {
         });
       });
 
-      return this.mapPurchaseRequest(updated);
+      const [mapped] = await this.enrichAndMapPurchaseRequests([updated]);
+      return mapped;
     } catch (error) {
       if (this.isUniqueConflict(error, 'reference')) {
         throw new ConflictException('A purchase request with this reference already exists.');
@@ -169,35 +205,35 @@ export class PurchaseRequestsService {
     }
   }
 
-  async submit(id: string, note?: string) {
+  async submit(id: string, note?: string, user?: AuthUser) {
     return this.changeStatus(id, PurchaseRequestStatus.SUBMITTED, {
       allowedCurrentStatuses: [PurchaseRequestStatus.DRAFT, PurchaseRequestStatus.REJECTED],
-      note: note?.trim() || 'Purchase request submitted for approval.',
-    });
+      note: note?.trim() || 'Purchase request sent for approval.',
+    }, user);
   }
 
-  async approve(id: string, note?: string) {
+  async approve(id: string, note?: string, user?: AuthUser) {
     return this.changeStatus(id, PurchaseRequestStatus.APPROVED, {
       allowedCurrentStatuses: [PurchaseRequestStatus.SUBMITTED],
       note: note?.trim() || 'Purchase request approved.',
-    });
+    }, user);
   }
 
-  async reject(id: string, note?: string) {
+  async reject(id: string, note?: string, user?: AuthUser) {
     return this.changeStatus(id, PurchaseRequestStatus.REJECTED, {
       allowedCurrentStatuses: [PurchaseRequestStatus.SUBMITTED],
       note: note?.trim() || 'Purchase request rejected.',
-    });
+    }, user);
   }
 
-  async close(id: string, note?: string) {
+  async close(id: string, note?: string, user?: AuthUser) {
     return this.changeStatus(id, PurchaseRequestStatus.CLOSED, {
       allowedCurrentStatuses: [PurchaseRequestStatus.APPROVED, PurchaseRequestStatus.REJECTED],
       note: note?.trim() || 'Purchase request closed.',
-    });
+    }, user);
   }
 
-  async convertToOrder(id: string, dto: ConvertPurchaseRequestToOrderDto) {
+  async convertToOrder(id: string, dto: ConvertPurchaseRequestToOrderDto, user?: AuthUser) {
     const request = await this.prisma.purchaseRequest.findUnique({
       where: { id },
       include: {
@@ -218,14 +254,6 @@ export class PurchaseRequestsService {
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
-        console.error("DEBUG convertPurchaseRequestToOrder - request.lines:",
-          JSON.stringify(request.lines.map(l => ({
-            id: l.id,
-            itemId: l.itemId,
-            itemName: l.itemName,
-            quantity: l.quantity,
-          })), null, 2)
-        );
         const order = await tx.purchaseOrder.create({
           data: {
             reference,
@@ -258,22 +286,22 @@ export class PurchaseRequestsService {
           },
         });
 
-        const updatedRequest = await tx.purchaseRequest.update({
+        await tx.$executeRaw(
+          Prisma.sql`
+            INSERT INTO "PurchaseRequestStatusHistory"
+              ("id", "purchaseRequestId", "status", "note", "changedAt", "createdAt", "userId")
+            VALUES
+              (${crypto.randomUUID()}, ${request.id}, ${request.status}::"PurchaseRequestStatus", ${`Converted to purchase order ${order.reference}.`}, NOW(), NOW(), ${user?.userId || null})
+          `,
+        );
+
+        const updatedRequest = await tx.purchaseRequest.findUniqueOrThrow({
           where: { id: request.id },
-          data: {
-            status: PurchaseRequestStatus.CLOSED,
-            statusHistory: {
-              create: {
-                status: PurchaseRequestStatus.CLOSED,
-                note: `Converted to purchase order ${order.reference}.`,
-              },
-            },
-          },
           include: this.purchaseRequestInclude(),
         });
 
         return {
-          purchaseRequest: this.mapPurchaseRequest(updatedRequest),
+          purchaseRequest: (await this.enrichAndMapPurchaseRequests([updatedRequest]))[0],
           purchaseOrder: {
             id: order.id,
             reference: order.reference,
@@ -298,6 +326,7 @@ export class PurchaseRequestsService {
     id: string,
     nextStatus: PurchaseRequestStatus,
     options: { allowedCurrentStatuses: PurchaseRequestStatus[]; note: string },
+    user?: AuthUser,
   ) {
     const current = await this.getPurchaseRequestOrThrow(id);
 
@@ -307,21 +336,31 @@ export class PurchaseRequestsService {
       );
     }
 
-    const updated = await this.prisma.purchaseRequest.update({
-      where: { id },
-      data: {
-        status: nextStatus,
-        statusHistory: {
-          create: {
-            status: nextStatus,
-            note: options.note,
-          },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.purchaseRequest.update({
+        where: { id },
+        data: {
+          status: nextStatus,
         },
-      },
-      include: this.purchaseRequestInclude(),
+      });
+
+      await tx.$executeRaw(
+        Prisma.sql`
+          INSERT INTO "PurchaseRequestStatusHistory"
+            ("id", "purchaseRequestId", "status", "note", "changedAt", "createdAt", "userId")
+          VALUES
+            (${crypto.randomUUID()}, ${id}, ${nextStatus}::"PurchaseRequestStatus", ${options.note}, NOW(), NOW(), ${user?.userId || null})
+        `,
+      );
+
+      return tx.purchaseRequest.findUniqueOrThrow({
+        where: { id },
+        include: this.purchaseRequestInclude(),
+      });
     });
 
-    return this.mapPurchaseRequest(updated);
+    const [mapped] = await this.enrichAndMapPurchaseRequests([updated]);
+    return mapped;
   }
 
   private async resolveLines(lines: PurchaseRequestLineDto[]): Promise<ResolvedPurchaseRequestLine[]> {
@@ -406,7 +445,97 @@ export class PurchaseRequestsService {
     return row;
   }
 
-  private mapPurchaseRequest(row: PurchaseRequestWithRelations) {
+  private async enrichAndMapPurchaseRequests(rows: PurchaseRequestWithRelations[]) {
+    const requestIds = rows.map((row) => row.id);
+
+    const [historyRows, invoiceRows] = await Promise.all([
+      requestIds.length
+        ? this.prisma.$queryRaw<RequestHistoryRow[]>(
+            Prisma.sql`
+              SELECT
+                h."id",
+                h."purchaseRequestId",
+                h."status",
+                h."note",
+                h."changedAt",
+                h."userId",
+                u."name" AS "userName",
+                u."email" AS "userEmail"
+              FROM "PurchaseRequestStatusHistory" h
+              LEFT JOIN "User" u ON u."id" = h."userId"
+              WHERE h."purchaseRequestId" IN (${Prisma.join(requestIds)})
+              ORDER BY h."changedAt" DESC
+            `,
+          )
+        : Promise.resolve([]),
+      requestIds.length
+        ? this.prisma.$queryRaw<
+            Array<{
+              id: string;
+              reference: string;
+              status: string;
+              invoiceDate: Date;
+              sourcePurchaseRequestId: string;
+              supplierId: string;
+              supplierCode: string;
+              supplierName: string;
+            }>
+          >(
+            Prisma.sql`
+              SELECT
+                i."id",
+                i."reference",
+                i."status",
+                i."invoiceDate",
+                i."sourcePurchaseRequestId",
+                s."id" AS "supplierId",
+                s."code" AS "supplierCode",
+                s."name" AS "supplierName"
+              FROM "PurchaseInvoice" i
+              INNER JOIN "Supplier" s ON s."id" = i."supplierId"
+              WHERE i."sourcePurchaseRequestId" IN (${Prisma.join(requestIds)})
+              ORDER BY i."invoiceDate" DESC
+            `,
+          )
+        : Promise.resolve([]),
+    ]);
+
+    const historyByRequestId = new Map<string, RequestHistoryRow[]>();
+    for (const historyRow of historyRows) {
+      const bucket = historyByRequestId.get(historyRow.purchaseRequestId) ?? [];
+      bucket.push(historyRow);
+      historyByRequestId.set(historyRow.purchaseRequestId, bucket);
+    }
+
+    const invoicesByRequestId = new Map<string, LinkedRequestInvoice[]>();
+    for (const invoice of invoiceRows) {
+      const key = invoice.sourcePurchaseRequestId;
+      if (!key) continue;
+      const bucket = invoicesByRequestId.get(key) ?? [];
+      bucket.push({
+        id: invoice.id,
+        reference: invoice.reference,
+        status: invoice.status,
+        invoiceDate: invoice.invoiceDate,
+        supplier: {
+          id: invoice.supplierId,
+          code: invoice.supplierCode,
+          name: invoice.supplierName,
+        },
+      });
+      invoicesByRequestId.set(key, bucket);
+    }
+
+    return rows.map((row) =>
+      this.mapPurchaseRequest(row, historyByRequestId.get(row.id) ?? [], invoicesByRequestId.get(row.id) ?? []),
+    );
+  }
+
+  private mapPurchaseRequest(
+    row: PurchaseRequestWithRelations,
+    historyRows: RequestHistoryRow[],
+    linkedPurchaseInvoices: LinkedRequestInvoice[],
+  ) {
     return {
       id: row.id,
       reference: row.reference,
@@ -419,6 +548,7 @@ export class PurchaseRequestsService {
       canReject: row.status === PurchaseRequestStatus.SUBMITTED,
       canClose: this.hasStatus(row.status, [PurchaseRequestStatus.APPROVED, PurchaseRequestStatus.REJECTED]),
       canConvertToOrder: row.status === PurchaseRequestStatus.APPROVED,
+      canConvertToInvoice: row.status === PurchaseRequestStatus.APPROVED,
       lines: row.lines.map((line) => ({
         id: line.id,
         lineNumber: line.lineNumber,
@@ -429,11 +559,19 @@ export class PurchaseRequestsService {
         requestedDeliveryDate: line.requestedDeliveryDate?.toISOString() ?? null,
         justification: line.justification,
       })),
-      statusHistory: row.statusHistory.map((entry) => ({
+      statusHistory: historyRows.map((entry) => ({
         id: entry.id,
         status: entry.status,
         note: entry.note,
         changedAt: entry.changedAt.toISOString(),
+        userId: entry.userId,
+        user: entry.userId
+          ? {
+              id: entry.userId,
+              name: entry.userName,
+              email: entry.userEmail ?? '',
+            }
+          : null,
       })),
       linkedPurchaseOrders: row.purchaseOrders.map((order) => ({
         id: order.id,
@@ -441,6 +579,13 @@ export class PurchaseRequestsService {
         status: order.status,
         orderDate: order.orderDate.toISOString(),
         supplier: order.supplier,
+      })),
+      linkedPurchaseInvoices: linkedPurchaseInvoices.map((invoice) => ({
+        id: invoice.id,
+        reference: invoice.reference,
+        status: invoice.status,
+        invoiceDate: invoice.invoiceDate.toISOString(),
+        supplier: invoice.supplier,
       })),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -480,6 +625,36 @@ export class PurchaseRequestsService {
     const compactDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
     return `${prefix}-${compactDate}-${suffix}`;
+  }
+
+  private async generateDailyReference(requestDate: Date) {
+    const compactDate = requestDate.toISOString().slice(0, 10).replace(/-/g, '');
+    const prefix = `PR-${compactDate}-`;
+    const rows = await this.prisma.purchaseRequest.findMany({
+      where: {
+        reference: {
+          startsWith: prefix,
+        },
+      },
+      select: {
+        reference: true,
+      },
+    });
+
+    let maxSequence = 0;
+    for (const row of rows) {
+      const match = row.reference.match(new RegExp(`^PR-${compactDate}-(\\d+)$`));
+      if (!match) {
+        continue;
+      }
+
+      const parsed = Number(match[1]);
+      if (Number.isFinite(parsed) && parsed > maxSequence) {
+        maxSequence = parsed;
+      }
+    }
+
+    return `PR-${compactDate}-${maxSequence + 1}`;
   }
 
   private hasStatus(current: PurchaseRequestStatus, allowed: PurchaseRequestStatus[]) {

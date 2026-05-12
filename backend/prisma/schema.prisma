@@ -533,17 +533,17 @@ model Tax {
 }
 
 model TaxTreatment {
-  id            String     @id @default(cuid())
-  code          String     @unique
-  arabicName    String
-  englishName   String
-  description   String?
-  defaultTaxId  String?
-  defaultTax    Tax?       @relation("TaxTreatmentDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
-  isActive      Boolean    @default(true)
-  customers     Customer[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  code         String     @unique
+  arabicName   String
+  englishName  String
+  description  String?
+  defaultTaxId String?
+  defaultTax   Tax?       @relation("TaxTreatmentDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
+  isActive     Boolean    @default(true)
+  customers    Customer[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([isActive, code])
   @@index([defaultTaxId])
@@ -595,18 +595,26 @@ model JournalEntry {
   fixedAssetDepreciationRun FixedAssetDepreciationRun? @relation("FixedAssetDepreciationRunToJournalEntry")
   fixedAssetDisposal        FixedAssetDisposal?        @relation("FixedAssetDisposalToJournalEntry")
 
+  sourceType   String?
+  sourceId     String?
+  sourceNumber String?
+  customerId   String?
+  customer     Customer? @relation("CustomerToJournalEntry", fields: [customerId], references: [id])
+  currencyCode String?   @db.VarChar(12)
+
   createdById String?
   createdBy   User?   @relation("JournalCreator", fields: [createdById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([status, entryDate])
   @@index([fiscalPeriodId])
   @@index([journalEntryTypeId])
-}
+  @@index([sourceType, sourceId])
+  @@index([customerId])
+  }
 
-model Customer {
+  model Customer {
   id                   String                @id @default(cuid())
   code                 String                @unique
   name                 String
@@ -628,8 +636,10 @@ model Customer {
   invoices             SalesInvoice[]
   creditNotes          CreditNote[]
   bankCashTransactions BankCashTransaction[]
+  journalEntries       JournalEntry[]        @relation("CustomerToJournalEntry")
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
+
 
   @@index([isActive, name])
   @@index([salesRepId])
@@ -697,49 +707,49 @@ model Supplier {
 }
 
 model InventoryItem {
-  id                     String                      @id @default(cuid())
-  code                   String                      @unique
+  id                     String                        @id @default(cuid())
+  code                   String                        @unique
   name                   String
   description            String?
-  internalNotes          String?                     @db.Text
+  internalNotes          String?                       @db.Text
   itemImageUrl           String?
-  attachmentsText        String?                     @db.Text
-  barcode                String?                     @unique
-  qrCodeValue            String?                     @db.Text
+  attachmentsText        String?                       @db.Text
+  barcode                String?                       @unique
+  qrCodeValue            String?                       @db.Text
   unitOfMeasure          String
   unitOfMeasureId        String?
-  unitOfMeasureRef       InventoryUnitOfMeasure?     @relation(fields: [unitOfMeasureId], references: [id], onDelete: Restrict)
+  unitOfMeasureRef       InventoryUnitOfMeasure?       @relation(fields: [unitOfMeasureId], references: [id], onDelete: Restrict)
   category               String?
   itemGroupId            String?
-  itemGroup              InventoryItemGroup?         @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
+  itemGroup              InventoryItemGroup?           @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
   itemCategoryId         String?
-  itemCategory           InventoryItemCategory?      @relation(fields: [itemCategoryId], references: [id], onDelete: Restrict)
-  type                   InventoryItemType           @default(FINISHED_GOOD)
+  itemCategory           InventoryItemCategory?        @relation(fields: [itemCategoryId], references: [id], onDelete: Restrict)
+  type                   InventoryItemType             @default(FINISHED_GOOD)
   inventoryAccountId     String?
-  inventoryAccount       Account?                    @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  inventoryAccount       Account?                      @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
   cogsAccountId          String?
-  cogsAccount            Account?                    @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
+  cogsAccount            Account?                      @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
   salesAccountId         String?
-  salesAccount           Account?                    @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
+  salesAccount           Account?                      @relation("InventoryItemSalesAccount", fields: [salesAccountId], references: [id], onDelete: Restrict)
   salesReturnAccountId   String?
-  salesReturnAccount     Account?                    @relation("InventoryItemSalesReturnAccount", fields: [salesReturnAccountId], references: [id], onDelete: Restrict)
+  salesReturnAccount     Account?                      @relation("InventoryItemSalesReturnAccount", fields: [salesReturnAccountId], references: [id], onDelete: Restrict)
   adjustmentAccountId    String?
-  adjustmentAccount      Account?                    @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
-  defaultSalesPrice      Decimal?                    @db.Decimal(18, 4)
-  defaultPurchasePrice   Decimal?                    @db.Decimal(18, 4)
-  currencyCode           String?                     @db.VarChar(12)
-  taxable                Boolean                     @default(false)
+  adjustmentAccount      Account?                      @relation("InventoryItemAdjustmentAccount", fields: [adjustmentAccountId], references: [id], onDelete: Restrict)
+  defaultSalesPrice      Decimal?                      @db.Decimal(18, 4)
+  defaultPurchasePrice   Decimal?                      @db.Decimal(18, 4)
+  currencyCode           String?                       @db.VarChar(12)
+  taxable                Boolean                       @default(false)
   defaultTaxId           String?
-  defaultTax             Tax?                        @relation("InventoryItemDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
-  trackInventory         Boolean                     @default(true)
-  reorderLevel           Decimal                     @default(0) @db.Decimal(18, 4)
-  reorderQuantity        Decimal                     @default(0) @db.Decimal(18, 4)
+  defaultTax             Tax?                          @relation("InventoryItemDefaultTax", fields: [defaultTaxId], references: [id], onDelete: Restrict)
+  trackInventory         Boolean                       @default(true)
+  reorderLevel           Decimal                       @default(0) @db.Decimal(18, 4)
+  reorderQuantity        Decimal                       @default(0) @db.Decimal(18, 4)
   preferredWarehouseId   String?
-  preferredWarehouse     InventoryWarehouse?         @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
+  preferredWarehouse     InventoryWarehouse?           @relation("InventoryItemPreferredWarehouse", fields: [preferredWarehouseId], references: [id], onDelete: Restrict)
   preferredWarehouseCode String?
-  isActive               Boolean                     @default(true)
-  onHandQuantity         Decimal                     @default(0) @db.Decimal(18, 4)
-  valuationAmount        Decimal                     @default(0) @db.Decimal(18, 2)
+  isActive               Boolean                       @default(true)
+  onHandQuantity         Decimal                       @default(0) @db.Decimal(18, 4)
+  valuationAmount        Decimal                       @default(0) @db.Decimal(18, 2)
   goodsReceiptLines      InventoryGoodsReceiptLine[]
   goodsIssueLines        InventoryGoodsIssueLine[]
   transferLines          InventoryTransferLine[]
@@ -747,15 +757,15 @@ model InventoryItem {
   salesQuotationLines    SalesQuotationLine[]
   salesOrderLines        SalesOrderLine[]
   salesInvoiceLines      SalesInvoiceLine[]
-  purchaseRequestLines   PurchaseRequestLine[]       @relation("PurchaseRequestLineInventoryItem")
-  purchaseOrderLines     PurchaseOrderLine[]         @relation("PurchaseOrderLineInventoryItem")
+  purchaseRequestLines   PurchaseRequestLine[]         @relation("PurchaseRequestLineInventoryItem")
+  purchaseOrderLines     PurchaseOrderLine[]           @relation("PurchaseOrderLineInventoryItem")
   purchaseInvoiceLines   PurchaseInvoiceLine[]
   unitConversions        InventoryItemUnitConversion[]
   warehouseBalances      InventoryWarehouseBalance[]
   costLayers             InventoryCostLayer[]
   stockMovements         InventoryStockMovement[]
-  createdAt              DateTime                    @default(now())
-  updatedAt              DateTime                    @updatedAt
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
 
   @@index([type, isActive])
   @@index([name])
@@ -794,32 +804,32 @@ model InventoryItemGroup {
 }
 
 model InventoryItemCategory {
-  id          String               @id @default(cuid())
-  code        String               @unique
+  id          String             @id @default(cuid())
+  code        String             @unique
   name        String
   description String?
   itemGroupId String
-  itemGroup   InventoryItemGroup   @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
-  isActive    Boolean              @default(true)
+  itemGroup   InventoryItemGroup @relation(fields: [itemGroupId], references: [id], onDelete: Restrict)
+  isActive    Boolean            @default(true)
   items       InventoryItem[]
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([itemGroupId, isActive, name])
 }
 
 model InventoryUnitOfMeasure {
-  id               String          @id @default(cuid())
-  code             String          @unique
+  id               String                        @id @default(cuid())
+  code             String                        @unique
   name             String
   description      String?
   unitType         String?
-  decimalPrecision Int             @default(0)
-  isActive         Boolean         @default(true)
+  decimalPrecision Int                           @default(0)
+  isActive         Boolean                       @default(true)
   items            InventoryItem[]
   itemConversions  InventoryItemUnitConversion[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
 
   @@index([isActive, name])
 }
@@ -1565,16 +1575,17 @@ model InventoryStockMovement {
 }
 
 model PurchaseRequest {
-  id             String                         @id @default(cuid())
-  reference      String                         @unique
-  status         PurchaseRequestStatus          @default(DRAFT)
-  requestDate    DateTime
-  description    String?
-  lines          PurchaseRequestLine[]
-  statusHistory  PurchaseRequestStatusHistory[]
-  purchaseOrders PurchaseOrder[]
-  createdAt      DateTime                       @default(now())
-  updatedAt      DateTime                       @updatedAt
+  id               String                         @id @default(cuid())
+  reference        String                         @unique
+  status           PurchaseRequestStatus          @default(DRAFT)
+  requestDate      DateTime
+  description      String?
+  lines            PurchaseRequestLine[]
+  statusHistory    PurchaseRequestStatusHistory[]
+  purchaseOrders   PurchaseOrder[]
+  purchaseInvoices PurchaseInvoice[]              @relation("PurchaseRequestToPurchaseInvoices")
+  createdAt        DateTime                       @default(now())
+  updatedAt        DateTime                       @updatedAt
 
   @@index([status, requestDate])
 }
@@ -1605,12 +1616,15 @@ model PurchaseRequestStatusHistory {
   id                String                @id @default(cuid())
   purchaseRequestId String
   purchaseRequest   PurchaseRequest       @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  userId            String?
+  user              User?                 @relation("UserPurchaseRequestStatusHistory", fields: [userId], references: [id])
   status            PurchaseRequestStatus
   note              String?
   changedAt         DateTime              @default(now())
   createdAt         DateTime              @default(now())
 
   @@index([purchaseRequestId, changedAt])
+  @@index([userId])
 }
 
 model PurchaseOrder {
@@ -1699,35 +1713,38 @@ model PurchaseReceiptLine {
 }
 
 model PurchaseInvoice {
-  id                    String                      @id @default(cuid())
-  reference             String                      @unique
-  status                PurchaseInvoiceStatus       @default(DRAFT)
-  invoiceDate           DateTime
-  supplierId            String
-  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  currencyCode          String                      @default("JOD")
-  description           String?
-  sourcePurchaseOrderId String?
-  sourcePurchaseOrder   PurchaseOrder?              @relation(fields: [sourcePurchaseOrderId], references: [id], onDelete: Restrict)
-  subtotalAmount        Decimal                     @default(0) @db.Decimal(18, 2)
-  discountAmount        Decimal                     @default(0) @db.Decimal(18, 2)
-  taxAmount             Decimal                     @default(0) @db.Decimal(18, 2)
-  totalAmount           Decimal                     @default(0) @db.Decimal(18, 2)
-  allocatedAmount       Decimal                     @default(0) @db.Decimal(18, 2)
-  outstandingAmount     Decimal                     @default(0) @db.Decimal(18, 2)
-  allocationStatus      AllocationStatus            @default(UNALLOCATED)
-  journalEntryId        String?                     @unique
-  journalEntry          JournalEntry?               @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
-  lines                 PurchaseInvoiceLine[]
-  supplierAllocations   SupplierPaymentAllocation[]
-  debitNotes            DebitNote[]
-  postedAt              DateTime?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
+  id                      String                      @id @default(cuid())
+  reference               String                      @unique
+  status                  PurchaseInvoiceStatus       @default(DRAFT)
+  invoiceDate             DateTime
+  supplierId              String
+  supplier                Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  currencyCode            String                      @default("JOD")
+  description             String?
+  sourcePurchaseOrderId   String?
+  sourcePurchaseOrder     PurchaseOrder?              @relation(fields: [sourcePurchaseOrderId], references: [id], onDelete: Restrict)
+  sourcePurchaseRequestId String?
+  sourcePurchaseRequest   PurchaseRequest?            @relation("PurchaseRequestToPurchaseInvoices", fields: [sourcePurchaseRequestId], references: [id], onDelete: Restrict)
+  subtotalAmount          Decimal                     @default(0) @db.Decimal(18, 2)
+  discountAmount          Decimal                     @default(0) @db.Decimal(18, 2)
+  taxAmount               Decimal                     @default(0) @db.Decimal(18, 2)
+  totalAmount             Decimal                     @default(0) @db.Decimal(18, 2)
+  allocatedAmount         Decimal                     @default(0) @db.Decimal(18, 2)
+  outstandingAmount       Decimal                     @default(0) @db.Decimal(18, 2)
+  allocationStatus        AllocationStatus            @default(UNALLOCATED)
+  journalEntryId          String?                     @unique
+  journalEntry            JournalEntry?               @relation("PurchaseInvoiceToJournalEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  lines                   PurchaseInvoiceLine[]
+  supplierAllocations     SupplierPaymentAllocation[]
+  debitNotes              DebitNote[]
+  postedAt                DateTime?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
 
   @@index([supplierId, status, invoiceDate])
   @@index([allocationStatus])
   @@index([sourcePurchaseOrderId])
+  @@index([sourcePurchaseRequestId])
 }
 
 model PurchaseInvoiceLine {
@@ -2244,11 +2261,12 @@ model User {
   parentUser    User?   @relation("UserHierarchy", fields: [parentUserId], references: [id])
   childrenUsers User[]  @relation("UserHierarchy")
 
-  createdAccounts    Account[]           @relation("AccountCreator")
-  updatedAccounts    Account[]           @relation("AccountUpdater")
-  createdJournals    JournalEntry[]      @relation("JournalCreator")
-  createdLedgerLines LedgerTransaction[] @relation("LedgerCreator")
-  auditLogs          AuditLog[]
+  createdAccounts                     Account[]                      @relation("AccountCreator")
+  updatedAccounts                     Account[]                      @relation("AccountUpdater")
+  createdJournals                     JournalEntry[]                 @relation("JournalCreator")
+  createdLedgerLines                  LedgerTransaction[]            @relation("LedgerCreator")
+  purchaseRequestStatusHistoryEntries PurchaseRequestStatusHistory[] @relation("UserPurchaseRequestStatusHistory")
+  auditLogs                           AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

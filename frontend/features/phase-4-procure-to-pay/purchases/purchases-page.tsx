@@ -1,8 +1,9 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   LuCalendarDays as CalendarDays,
   LuCheck as Check,
@@ -23,13 +24,10 @@ import {
 } from "react-icons/lu";
 
 import {
-  approvePurchaseRequest,
   cancelDebitNote,
-  closePurchaseRequest,
   closePurchaseOrder,
   cancelPurchaseOrder,
   cancelSupplierPayment,
-  convertPurchaseRequestToOrder,
   createDebitNote,
   createPaymentTerm,
   createPurchaseInvoice,
@@ -67,8 +65,6 @@ import {
   getSupplierTransactions,
   getSuppliers,
   postDebitNote,
-  rejectPurchaseRequest,
-  submitPurchaseRequest,
   postSupplierPayment,
   updateDebitNote,
   updatePurchaseInvoice,
@@ -132,13 +128,6 @@ type PurchaseRequestEditorState = {
   requestDate: string;
   description: string;
   lines: PurchaseRequestLineEditorState[];
-};
-
-type PurchaseRequestConversionState = {
-  supplierId: string;
-  orderDate: string;
-  currencyCode: string;
-  description: string;
 };
 
 type PurchaseOrderLineEditorState = {
@@ -206,6 +195,7 @@ type PurchaseInvoiceEditorState = {
   currencyCode: string;
   description: string;
   sourcePurchaseOrderId: string;
+  sourcePurchaseRequestId: string;
   lines: PurchaseInvoiceLineEditorState[];
 };
 
@@ -267,13 +257,6 @@ const EMPTY_REQUEST_EDITOR = (): PurchaseRequestEditorState => ({
   lines: [createEmptyRequestLine()],
 });
 
-const EMPTY_CONVERSION_EDITOR = (): PurchaseRequestConversionState => ({
-  supplierId: "",
-  orderDate: todayValue(),
-  currencyCode: "JOD",
-  description: "",
-});
-
 const EMPTY_ORDER_EDITOR = (): PurchaseOrderEditorState => ({
   orderDate: todayValue(),
   supplierId: "",
@@ -297,6 +280,7 @@ const EMPTY_INVOICE_EDITOR = (): PurchaseInvoiceEditorState => ({
   currencyCode: "JOD",
   description: "",
   sourcePurchaseOrderId: "",
+  sourcePurchaseRequestId: "",
   lines: [createEmptyInvoiceLine()],
 });
 
@@ -325,6 +309,8 @@ export function PurchasesPage() {
   const { t, language } = useTranslation();
   const isArabic = language === "ar";
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [workspace, setWorkspace] = useState<Workspace>("suppliers");
 
@@ -336,11 +322,8 @@ export function PurchasesPage() {
 
   const [requestSearch, setRequestSearch] = useState("");
   const [requestStatusFilter, setRequestStatusFilter] = useState<"" | "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "CLOSED">("");
-  const [selectedPurchaseRequestId, setSelectedPurchaseRequestId] = useState<string | null>(null);
   const [isRequestEditorOpen, setIsRequestEditorOpen] = useState(false);
   const [requestEditor, setRequestEditor] = useState<PurchaseRequestEditorState>(EMPTY_REQUEST_EDITOR);
-  const [isConversionOpen, setIsConversionOpen] = useState(false);
-  const [conversionEditor, setConversionEditor] = useState<PurchaseRequestConversionState>(EMPTY_CONVERSION_EDITOR);
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<
     "" | "DRAFT" | "ISSUED" | "PARTIALLY_RECEIVED" | "FULLY_RECEIVED" | "CANCELLED" | "CLOSED"
@@ -431,18 +414,6 @@ export function PurchasesPage() {
     );
   }, [payableAccountsTreeQuery.data]);
 
-  const supplierBalanceQuery = useQuery({
-    queryKey: queryKeys.purchaseSupplierBalance(token, selectedSupplierId),
-    queryFn: () => getSupplierBalance(selectedSupplierId!, token),
-    enabled: Boolean(selectedSupplierId),
-  });
-
-  const supplierTransactionsQuery = useQuery({
-    queryKey: queryKeys.purchaseSupplierTransactions(token, selectedSupplierId),
-    queryFn: () => getSupplierTransactions(selectedSupplierId!, token),
-    enabled: Boolean(selectedSupplierId),
-  });
-
   const purchaseRequestsQuery = useQuery({
     queryKey: queryKeys.purchaseRequests(token, {
       search: requestSearch,
@@ -458,10 +429,12 @@ export function PurchasesPage() {
       ),
   });
 
-  const purchaseRequestDetailQuery = useQuery({
-    queryKey: queryKeys.purchaseRequestById(token, selectedPurchaseRequestId),
-    queryFn: () => getPurchaseRequestById(selectedPurchaseRequestId!, token),
-    enabled: Boolean(selectedPurchaseRequestId),
+  const sourcePurchaseRequestId = searchParams.get("sourceRequestId");
+  const activeSourcePurchaseRequestId = sourcePurchaseRequestId || invoiceEditor.sourcePurchaseRequestId || null;
+  const sourcePurchaseRequestQuery = useQuery({
+    queryKey: queryKeys.purchaseRequestById(token, activeSourcePurchaseRequestId),
+    queryFn: () => getPurchaseRequestById(activeSourcePurchaseRequestId!, token),
+    enabled: Boolean(activeSourcePurchaseRequestId),
   });
 
   const purchaseOrdersQuery = useQuery({
@@ -640,7 +613,6 @@ export function PurchasesPage() {
       ),
     onSuccess: async (created) => {
       await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(created.id);
       closeRequestEditor();
     },
   });
@@ -658,59 +630,7 @@ export function PurchasesPage() {
       ),
     onSuccess: async (updated) => {
       await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(updated.id);
       closeRequestEditor();
-    },
-  });
-
-  const submitPurchaseRequestMutation = useMutation({
-    mutationFn: (id: string) => submitPurchaseRequest(id, {}, token),
-    onSuccess: async (updated) => {
-      await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(updated.id);
-    },
-  });
-
-  const approvePurchaseRequestMutation = useMutation({
-    mutationFn: (id: string) => approvePurchaseRequest(id, {}, token),
-    onSuccess: async (updated) => {
-      await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(updated.id);
-    },
-  });
-
-  const rejectPurchaseRequestMutation = useMutation({
-    mutationFn: (id: string) => rejectPurchaseRequest(id, {}, token),
-    onSuccess: async (updated) => {
-      await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(updated.id);
-    },
-  });
-
-  const closePurchaseRequestMutation = useMutation({
-    mutationFn: (id: string) => closePurchaseRequest(id, {}, token),
-    onSuccess: async (updated) => {
-      await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(updated.id);
-    },
-  });
-
-  const convertPurchaseRequestMutation = useMutation({
-    mutationFn: () =>
-      convertPurchaseRequestToOrder(
-        selectedPurchaseRequestId!,
-        {
-          supplierId: conversionEditor.supplierId,
-          orderDate: conversionEditor.orderDate,
-          currencyCode: conversionEditor.currencyCode || undefined,
-          description: conversionEditor.description || undefined,
-        },
-        token,
-      ),
-    onSuccess: async (result) => {
-      await invalidatePurchases(queryClient);
-      setSelectedPurchaseRequestId(result.purchaseRequest.id);
-      closeConversionEditor();
     },
   });
 
@@ -829,6 +749,7 @@ export function PurchasesPage() {
           currencyCode: invoiceEditor.currencyCode || undefined,
           description: invoiceEditor.description || undefined,
           sourcePurchaseOrderId: invoiceEditor.sourcePurchaseOrderId || undefined,
+          sourcePurchaseRequestId: invoiceEditor.sourcePurchaseRequestId || undefined,
           lines: mapInvoiceEditorLines(invoiceEditor.lines),
         },
         token,
@@ -850,6 +771,7 @@ export function PurchasesPage() {
           currencyCode: invoiceEditor.currencyCode || undefined,
           description: invoiceEditor.description || undefined,
           sourcePurchaseOrderId: invoiceEditor.sourcePurchaseOrderId || undefined,
+          sourcePurchaseRequestId: invoiceEditor.sourcePurchaseRequestId || undefined,
           lines: mapInvoiceEditorLines(invoiceEditor.lines),
         },
         token,
@@ -1010,16 +932,8 @@ export function PurchasesPage() {
   });
 
   const suppliers = suppliersQuery.data ?? [];
-  const selectedSupplier = useMemo(
-    () => suppliers.find((row) => row.id === selectedSupplierId) ?? null,
-    [suppliers, selectedSupplierId],
-  );
 
   const purchaseRequests = purchaseRequestsQuery.data ?? [];
-  const selectedPurchaseRequest =
-    purchaseRequestDetailQuery.data ??
-    purchaseRequests.find((row) => row.id === selectedPurchaseRequestId) ??
-    null;
   const purchaseOrders = purchaseOrdersQuery.data ?? [];
   const selectedPurchaseOrder =
     purchaseOrderDetailQuery.data ??
@@ -1149,14 +1063,6 @@ export function PurchasesPage() {
   const supplierFormError = getSupplierFormError(supplierEditor);
   const requestSaveError = getMutationErrorMessage(createPurchaseRequestMutation.error ?? updatePurchaseRequestMutation.error);
   const requestFormError = getPurchaseRequestFormError(requestEditor);
-  const requestActionError = getMutationErrorMessage(
-    submitPurchaseRequestMutation.error ??
-      approvePurchaseRequestMutation.error ??
-      rejectPurchaseRequestMutation.error ??
-      closePurchaseRequestMutation.error,
-  );
-  const conversionError = getMutationErrorMessage(convertPurchaseRequestMutation.error);
-  const conversionFormError = getPurchaseRequestConversionError(conversionEditor, t);
   const orderSaveError = getMutationErrorMessage(createPurchaseOrderMutation.error ?? updatePurchaseOrderMutation.error);
   const orderFormError = getPurchaseOrderFormError(orderEditor, t);
   const receiptSaveError = getMutationErrorMessage(receivePurchaseOrderMutation.error);
@@ -1183,11 +1089,6 @@ export function PurchasesPage() {
     postDebitNoteMutation.error ?? cancelDebitNoteMutation.error ?? reverseDebitNoteMutation.error,
   );
 
-  const activeActionMutationPending =
-    submitPurchaseRequestMutation.isPending ||
-    approvePurchaseRequestMutation.isPending ||
-    rejectPurchaseRequestMutation.isPending ||
-    closePurchaseRequestMutation.isPending;
   const activeOrderActionMutationPending =
     issuePurchaseOrderMutation.isPending ||
     receivePurchaseOrderMutation.isPending ||
@@ -1223,6 +1124,62 @@ export function PurchasesPage() {
     { id: "payments", label: t("purchases.workspace.payments"), icon: ReceiptText },
     { id: "notes", label: t("purchases.workspace.debitNotes"), icon: FileMinus },
   ];
+  const requestedWorkspace = searchParams.get("tab");
+
+  useEffect(() => {
+    if (!requestedWorkspace) return;
+    if (!workspaceTabs.some((tab) => tab.id === requestedWorkspace)) return;
+    if (workspace === requestedWorkspace) return;
+    setWorkspace(requestedWorkspace as Workspace);
+  }, [requestedWorkspace, workspace, workspaceTabs]);
+
+  useEffect(() => {
+    if (!sourcePurchaseRequestId || !sourcePurchaseRequestQuery.data) return;
+    if (workspace === "invoices") return;
+
+    const request = sourcePurchaseRequestQuery.data;
+    const defaultSupplier = activeSuppliers[0];
+
+    setWorkspace("invoices");
+    createPurchaseInvoiceMutation.reset();
+    updatePurchaseInvoiceMutation.reset();
+    setInvoiceEditor({
+      ...EMPTY_INVOICE_EDITOR(),
+      invoiceDate: todayValue(),
+      supplierId: defaultSupplier?.id ?? "",
+      currencyCode: defaultSupplier?.defaultCurrency ?? "JOD",
+      description: request.description ?? "",
+      sourcePurchaseRequestId: request.id,
+      lines: request.lines.map((line) => ({
+        key: line.id,
+        itemId: line.itemId ?? "",
+        itemName: line.itemName ?? "",
+        description: line.description,
+        quantity: line.quantity,
+        unitPrice: "",
+        discountAmount: "0.00",
+        taxId: "",
+        taxRate: "",
+        taxAmount: "0.00",
+        accountId: "",
+      })),
+    });
+    setIsInvoiceEditorOpen(true);
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString());
+    nextSearchParams.set("tab", "invoices");
+    nextSearchParams.delete("sourceRequestId");
+    router.replace(`/purchases?${nextSearchParams.toString()}`);
+  }, [
+    activeSuppliers,
+    createPurchaseInvoiceMutation,
+    router,
+    searchParams,
+    sourcePurchaseRequestId,
+    sourcePurchaseRequestQuery.data,
+    updatePurchaseInvoiceMutation,
+    workspace,
+  ]);
 
   return (
     <PageShell>
@@ -1366,7 +1323,7 @@ export function PurchasesPage() {
                           </td>
                           <td className="px-6 py-4 align-top">
                             <div className="flex flex-wrap justify-center gap-2">
-                              <Button variant="secondary" size="sm" onClick={() => setSelectedSupplierId(row.id)}>
+                              <Button variant="secondary" size="sm" onClick={() => router.push(`/purchases/suppliers/${row.id}`)}>
                                 {t("purchases.action.view")}
                               </Button>
                               {row.isActive ? (
@@ -1389,54 +1346,6 @@ export function PurchasesPage() {
               </div>
             </Card>
 
-            <Card className="space-y-5">
-              <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.section.supplierDetails")}</div>
-              {!selectedSupplier ? (
-                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
-                  {t("purchases.empty.selectSupplier")}
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <MiniMetric label={t("purchases.metric.currentBalance")} value={formatCurrency(supplierBalanceQuery.data?.currentBalance ?? selectedSupplier.currentBalance)} />
-                    <MiniMetric label={t("purchases.metric.outstandingBalance")} value={formatCurrency(supplierBalanceQuery.data?.outstandingBalance ?? selectedSupplier.currentBalance)} />
-                    <MiniMetric label={t("purchases.metric.status")} value={selectedSupplier.isActive ? t("purchases.status.active") : t("purchases.status.inactive")} />
-                  </div>
-                  <div className="overflow-hidden rounded-2xl border border-gray-200">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <TableHead>{t("purchases.table.transactionType")}</TableHead>
-                          <TableHead>{t("purchases.table.reference")}</TableHead>
-                          <TableHead>{t("purchases.table.date")}</TableHead>
-                          <TableHead>{t("purchases.table.amount")}</TableHead>
-                          <TableHead>{t("purchases.table.transactionStatus")}</TableHead>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(supplierTransactionsQuery.data?.transactions ?? []).length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
-                              {t("purchases.empty.transactions")}
-                            </td>
-                          </tr>
-                        ) : (
-                          (supplierTransactionsQuery.data?.transactions ?? []).map((row) => (
-                            <tr key={row.id} className="border-t border-gray-100">
-                              <td className="px-6 py-4">{row.type}</td>
-                              <td className="px-6 py-4">{row.reference}</td>
-                              <td className="px-6 py-4">{formatDate(row.date)}</td>
-                              <td className="px-6 py-4">{formatCurrency(row.amount)}</td>
-                              <td className="px-6 py-4">{row.status}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </Card>
           </>
         ) : workspace === "requests" ? (
           <>
@@ -1488,7 +1397,7 @@ export function PurchasesPage() {
                       </tr>
                     ) : (
                       purchaseRequests.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100", selectedPurchaseRequestId === row.id && "bg-gray-50/70")}>
+                        <tr key={row.id} className="border-t border-gray-100">
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
                             <div className="text-xs text-gray-500">{row.description || t("purchases.requests.empty.noDescription")}</div>
@@ -1500,7 +1409,7 @@ export function PurchasesPage() {
                           </td>
                           <td className="px-6 py-4 align-top">
                             <div className="flex flex-wrap gap-2">
-                              <Button variant="secondary" size="sm" onClick={() => setSelectedPurchaseRequestId(row.id)}>
+                              <Button variant="secondary" size="sm" onClick={() => router.push(`/purchases/requests/${row.id}`)}>
                                 {t("purchases.action.view")}
                               </Button>
                               {row.canEdit ? (
@@ -1516,148 +1425,6 @@ export function PurchasesPage() {
                   </tbody>
                 </table>
               </div>
-            </Card>
-
-            <Card className="space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-black uppercase tracking-[0.22em] text-gray-500">{t("purchases.requests.section.details")}</div>
-                {selectedPurchaseRequest ? (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPurchaseRequest.canSubmit ? (
-                      <Button variant="secondary" size="sm" disabled={activeActionMutationPending} onClick={() => confirmAndRun(t("purchases.requests.confirm.submit"), () => submitPurchaseRequestMutation.mutate(selectedPurchaseRequest.id))}>
-                        {t("purchases.action.submitRequest")}
-                      </Button>
-                    ) : null}
-                    {selectedPurchaseRequest.canApprove ? (
-                      <Button size="sm" disabled={activeActionMutationPending} onClick={() => confirmAndRun(t("purchases.requests.confirm.approve"), () => approvePurchaseRequestMutation.mutate(selectedPurchaseRequest.id))}>
-                        {t("purchases.action.approveRequest")}
-                      </Button>
-                    ) : null}
-                    {selectedPurchaseRequest.canReject ? (
-                      <Button variant="danger" size="sm" disabled={activeActionMutationPending} onClick={() => confirmAndRun(t("purchases.requests.confirm.reject"), () => rejectPurchaseRequestMutation.mutate(selectedPurchaseRequest.id))}>
-                        {t("purchases.action.rejectRequest")}
-                      </Button>
-                    ) : null}
-                    {selectedPurchaseRequest.canClose ? (
-                      <Button variant="secondary" size="sm" disabled={activeActionMutationPending} onClick={() => confirmAndRun(t("purchases.requests.confirm.close"), () => closePurchaseRequestMutation.mutate(selectedPurchaseRequest.id))}>
-                        {t("purchases.action.closeRequest")}
-                      </Button>
-                    ) : null}
-                    {selectedPurchaseRequest.canConvertToOrder ? (
-                      <Button size="sm" onClick={openConversionEditor}>
-                        {t("purchases.action.convertToOrder")}
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              {requestActionError ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                  {requestActionError}
-                </div>
-              ) : null}
-
-              {convertPurchaseRequestMutation.data ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                  {t("purchases.requests.success.converted", { reference: convertPurchaseRequestMutation.data.purchaseOrder.reference })}
-                </div>
-              ) : null}
-
-              {!selectedPurchaseRequest ? (
-                <div className="rounded-2xl border border-dashed border-gray-300 px-6 py-8 text-sm text-gray-500">
-                  {t("purchases.requests.empty.selectRequest")}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <MiniMetric label={t("purchases.requests.metric.date")} value={formatDate(selectedPurchaseRequest.requestDate)} />
-                    <MiniMetric label={t("purchases.requests.metric.lines")} value={String(selectedPurchaseRequest.lines.length)} />
-                    <MiniMetric label={t("purchases.requests.metric.status")} value={translatePurchaseRequestStatus(selectedPurchaseRequest.status, t)} />
-                    <MiniMetric label={t("purchases.requests.metric.linkedOrders")} value={String(selectedPurchaseRequest.linkedPurchaseOrders.length)} />
-                  </div>
-
-                  <div className="grid gap-6 xl:grid-cols-2">
-                    <Card className="space-y-4">
-                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.requests.section.lines")}</div>
-                      <div className="space-y-3">
-                        {selectedPurchaseRequest.lines.map((line) => (
-                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="font-bold text-gray-900">
-                                {line.itemName || line.description}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {t("purchases.requests.line.quantity", { quantity: line.quantity })}
-                              </div>
-                            </div>
-                            <div className="mt-2 text-sm text-gray-600">{line.description}</div>
-                            <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-                              <span>{t("purchases.requests.field.deliveryDate")}: {line.requestedDeliveryDate ? formatDate(line.requestedDeliveryDate) : t("purchases.requests.empty.notSet")}</span>
-                              <span>{t("purchases.requests.field.justification")}: {line.justification || t("purchases.requests.empty.notSet")}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-
-                    <Card className="space-y-4">
-                      <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.requests.section.history")}</div>
-                      {selectedPurchaseRequest.statusHistory.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                          {t("purchases.requests.empty.history")}
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {selectedPurchaseRequest.statusHistory.map((entry) => (
-                            <div key={entry.id} className="rounded-2xl border border-gray-200 px-4 py-4">
-                              <div className="flex items-center justify-between gap-3">
-                                <StatusPill label={translatePurchaseRequestStatus(entry.status, t)} tone={statusTone(entry.status)} />
-                                <div className="text-xs text-gray-500">{formatDate(entry.changedAt)}</div>
-                              </div>
-                              <div className="mt-2 text-sm text-gray-600">{entry.note || t("purchases.requests.empty.noNote")}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-                  </div>
-
-                  <Card className="space-y-4">
-                    <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.requests.section.linkedOrders")}</div>
-                    {selectedPurchaseRequest.linkedPurchaseOrders.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                        {t("purchases.requests.empty.linkedOrders")}
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-2xl border border-gray-200">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <TableHead>{t("purchases.requests.table.orderReference")}</TableHead>
-                              <TableHead>{t("purchases.requests.table.orderDate")}</TableHead>
-                              <TableHead>{t("purchases.requests.table.orderSupplier")}</TableHead>
-                              <TableHead>{t("purchases.requests.table.status")}</TableHead>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {selectedPurchaseRequest.linkedPurchaseOrders.map((order) => (
-                              <tr key={order.id} className="border-t border-gray-100">
-                                <td className="px-6 py-4">{order.reference}</td>
-                                <td className="px-6 py-4">{formatDate(order.orderDate)}</td>
-                                <td className="px-6 py-4">{order.supplier.code} · {order.supplier.name}</td>
-                                <td className="px-6 py-4">
-                                  <StatusPill label={translatePurchaseOrderStatus(order.status, t)} tone="neutral" />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-              )}
             </Card>
           </>
         ) : workspace === "orders" ? (
@@ -1935,7 +1702,9 @@ export function PurchasesPage() {
                         <tr key={row.id} className={cn("border-t border-gray-100", selectedPurchaseInvoiceId === row.id && "bg-gray-50/70")}>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
-                            <div className="text-xs text-gray-500">{row.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
+                            <div className="text-xs text-gray-500">
+                              {row.sourcePurchaseOrder?.reference || row.sourcePurchaseRequest?.reference || t("purchases.invoices.empty.manual")}
+                            </div>
                           </td>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.supplier.code} · {row.supplier.name}</div>
@@ -2011,6 +1780,7 @@ export function PurchasesPage() {
                         </div>
                         <div className="rounded-2xl border border-gray-200 px-4 py-4">
                           <div>{t("purchases.invoices.field.sourceOrder")}: {selectedPurchaseInvoice.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
+                          <div className="mt-2">{t("purchases.invoices.field.sourceRequest")}: {selectedPurchaseInvoice.sourcePurchaseRequest?.reference || t("purchases.invoices.empty.manual")}</div>
                           <div className="mt-2">{t("purchases.invoices.field.description")}: {selectedPurchaseInvoice.description || t("purchases.requests.empty.noDescription")}</div>
                           <div className="mt-2">{t("purchases.invoices.field.postedAt")}: {selectedPurchaseInvoice.postedAt ? formatDate(selectedPurchaseInvoice.postedAt) : t("purchases.invoices.empty.notPosted")}</div>
                         </div>
@@ -2405,17 +2175,25 @@ export function PurchasesPage() {
         >
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.field.code")}>
+                <Input
+                  value={supplierEditor.code || t("purchases.placeholder.autoGenerated")}
+                  readOnly
+                  disabled
+                  className="bg-gray-50 font-mono text-xs font-bold"
+                />
+              </Field>
               <Field label={t("purchases.field.name")} required>
                 <Input value={supplierEditor.name} placeholder={t("purchases.placeholder.name")} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
               </Field>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("purchases.field.defaultCurrency")} required>
                 <Select value={supplierEditor.defaultCurrency} onChange={(event) => setSupplierEditor((current) => ({ ...current, defaultCurrency: event.target.value.toUpperCase() }))}>
                   <option value="JOD">{t("purchases.currency.jod")}</option>
                 </Select>
               </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("purchases.field.paymentTerms")}>
                 <div className="flex gap-2">
                   <Select value={supplierEditor.paymentTermId} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTermId: event.target.value }))}>
@@ -2834,59 +2612,6 @@ export function PurchasesPage() {
             </div>
           </div>
         ) : null}
-
-        <SidePanel
-          isOpen={isConversionOpen}
-          onClose={closeConversionEditor}
-          title={t("purchases.dialog.convertToOrder")}
-        >
-          <div className="space-y-5">
-            <Field label={t("purchases.requests.field.supplier")}>
-              <Select value={conversionEditor.supplierId} onChange={(event) => setConversionEditor((current) => ({ ...current, supplierId: event.target.value }))}>
-                <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
-                {activeSuppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.code} · {supplier.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.requests.field.orderDate")}>
-                <Input type="date" value={conversionEditor.orderDate} onChange={(event) => setConversionEditor((current) => ({ ...current, orderDate: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.requests.field.currency")}>
-                <Input value={conversionEditor.currencyCode} maxLength={8} onChange={(event) => setConversionEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))} />
-              </Field>
-            </div>
-
-            <Field label={t("purchases.requests.field.orderDescription")}>
-              <Textarea rows={3} value={conversionEditor.description} onChange={(event) => setConversionEditor((current) => ({ ...current, description: event.target.value }))} />
-            </Field>
-
-            {conversionFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {conversionFormError}
-              </div>
-            ) : null}
-
-            {conversionError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {conversionError}
-              </div>
-            ) : null}
-
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeConversionEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => convertPurchaseRequestMutation.mutate()} disabled={Boolean(conversionFormError) || convertPurchaseRequestMutation.isPending}>
-                {t("purchases.action.convertToOrder")}
-              </Button>
-            </div>
-          </div>
-        </SidePanel>
 
         {isOrderEditorOpen ? (
           <div className="fixed inset-0 z-50 p-3 sm:p-6">
@@ -3355,6 +3080,7 @@ export function PurchasesPage() {
                         <Select
                           value={invoiceEditor.sourcePurchaseOrderId}
                           onChange={(event) => setInvoiceEditor((current) => ({ ...current, sourcePurchaseOrderId: event.target.value }))}
+                          disabled={Boolean(invoiceEditor.sourcePurchaseRequestId)}
                           className={cn("border-slate-200 bg-slate-50/70", isArabic && "arabic-ui text-right")}
                         >
                           <option value="">{t("purchases.invoices.empty.manual")}</option>
@@ -3368,6 +3094,19 @@ export function PurchasesPage() {
                         </Select>
                       </Field>
                     </div>
+
+                    {invoiceEditor.sourcePurchaseRequestId ? (
+                      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                        <Field label={t("purchases.invoices.field.sourceRequest")} labelClassName={isArabic ? "arabic-ui" : undefined}>
+                          <Input
+                            value={sourcePurchaseRequestQuery.data?.reference ?? invoiceEditor.sourcePurchaseRequestId}
+                            readOnly
+                            disabled
+                            className={cn("border-slate-200 bg-slate-100 text-slate-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                          />
+                        </Field>
+                      </div>
+                    ) : null}
 
                     <div className="mt-4">
                       <Field label={t("purchases.invoices.field.description")} labelClassName={isArabic ? "arabic-ui" : undefined}>
@@ -4323,24 +4062,6 @@ export function PurchasesPage() {
     }));
   }
 
-  function openConversionEditor() {
-    convertPurchaseRequestMutation.reset();
-    const defaultSupplier = activeSuppliers[0];
-    setConversionEditor({
-      supplierId: defaultSupplier?.id ?? "",
-      orderDate: todayValue(),
-      currencyCode: defaultSupplier?.defaultCurrency ?? "JOD",
-      description: selectedPurchaseRequest?.description ?? "",
-    });
-    setIsConversionOpen(true);
-  }
-
-  function closeConversionEditor() {
-    convertPurchaseRequestMutation.reset();
-    setConversionEditor(EMPTY_CONVERSION_EDITOR());
-    setIsConversionOpen(false);
-  }
-
   function openNewPurchaseOrderEditor() {
     createPurchaseOrderMutation.reset();
     updatePurchaseOrderMutation.reset();
@@ -4491,6 +4212,7 @@ export function PurchasesPage() {
       currencyCode: invoice.currencyCode,
       description: invoice.description ?? "",
       sourcePurchaseOrderId: invoice.sourcePurchaseOrder?.id ?? "",
+      sourcePurchaseRequestId: invoice.sourcePurchaseRequest?.id ?? "",
       lines: invoice.lines.map((line) => ({
         key: line.id,
         itemId: line.itemId ?? line.item?.id ?? "",
@@ -4867,16 +4589,6 @@ function getPurchaseRequestFormError(editor: PurchaseRequestEditorState) {
     if (!line.quantity || Number(line.quantity) <= 0) {
       return "Each request line needs a quantity greater than zero. كل سطر طلب يحتاج إلى كمية أكبر من صفر.";
     }
-  }
-  return null;
-}
-
-function getPurchaseRequestConversionError(editor: PurchaseRequestConversionState, t: any) {
-  if (!editor.supplierId) {
-    return t("purchases.requests.empty.selectSupplier");
-  }
-  if (!editor.orderDate) {
-    return t("purchases.orders.field.orderDate") + " مطلوب.";
   }
   return null;
 }

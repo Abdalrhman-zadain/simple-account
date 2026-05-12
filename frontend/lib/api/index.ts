@@ -1404,6 +1404,13 @@ export async function getSuppliers(
   return apiRequest<Supplier[]>(`/purchases/suppliers${suffix}`, { token });
 }
 
+export async function getSupplierById(
+  id: string,
+  token?: string | null,
+) {
+  return apiRequest<Supplier>(`/purchases/suppliers/${id}`, { token });
+}
+
 export async function createSupplier(
   payload: CreateSupplierPayload,
   token?: string | null,

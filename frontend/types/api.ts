@@ -2017,6 +2017,12 @@ export type PurchaseRequestStatusHistoryEntry = {
   status: PurchaseRequestStatus;
   note?: string | null;
   changedAt: string;
+  userId?: string | null;
+  user?: {
+    id: string;
+    name?: string | null;
+    email: string;
+  } | null;
 };
 
 export type PurchaseRequestLinkedOrder = {
@@ -2024,6 +2030,18 @@ export type PurchaseRequestLinkedOrder = {
   reference: string;
   status: PurchaseOrderStatus;
   orderDate: string;
+  supplier: {
+    id: string;
+    code: string;
+    name: string;
+  };
+};
+
+export type PurchaseRequestLinkedInvoice = {
+  id: string;
+  reference: string;
+  status: PurchaseInvoiceStatus;
+  invoiceDate: string;
   supplier: {
     id: string;
     code: string;
@@ -2043,9 +2061,11 @@ export type PurchaseRequest = {
   canReject: boolean;
   canClose: boolean;
   canConvertToOrder: boolean;
+  canConvertToInvoice: boolean;
   lines: PurchaseRequestLine[];
   statusHistory: PurchaseRequestStatusHistoryEntry[];
   linkedPurchaseOrders: PurchaseRequestLinkedOrder[];
+  linkedPurchaseInvoices: PurchaseRequestLinkedInvoice[];
   createdAt: string;
   updatedAt: string;
 };
@@ -2300,6 +2320,12 @@ export type PurchaseInvoice = {
     status: PurchaseOrderStatus;
     orderDate: string;
   } | null;
+  sourcePurchaseRequest?: {
+    id: string;
+    reference: string;
+    status: PurchaseRequestStatus;
+    requestDate: string;
+  } | null;
   lines: PurchaseInvoiceLine[];
   createdAt: string;
   updatedAt: string;
@@ -2332,6 +2358,7 @@ export type CreatePurchaseInvoicePayload = {
   currencyCode?: string;
   description?: string;
   sourcePurchaseOrderId?: string;
+  sourcePurchaseRequestId?: string;
   lines: PurchaseInvoiceLinePayload[];
 };
 

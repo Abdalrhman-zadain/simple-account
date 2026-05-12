@@ -79,6 +79,10 @@ export class CreatePurchaseInvoiceDto {
   @IsString()
   sourcePurchaseOrderId?: string;
 
+  @IsOptional()
+  @IsString()
+  sourcePurchaseRequestId?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
@@ -113,6 +117,10 @@ export class UpdatePurchaseInvoiceDto {
   @IsOptional()
   @IsString()
   sourcePurchaseOrderId?: string;
+
+  @IsOptional()
+  @IsString()
+  sourcePurchaseRequestId?: string;
 
   @IsOptional()
   @IsArray()

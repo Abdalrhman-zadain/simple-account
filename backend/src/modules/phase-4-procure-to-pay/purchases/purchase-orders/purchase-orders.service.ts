@@ -391,7 +391,7 @@ export class PurchaseOrdersService {
     if (!request) {
       throw new BadRequestException('Linked purchase request was not found.');
     }
-    if (request.status !== PurchaseRequestStatus.APPROVED && request.status !== PurchaseRequestStatus.CLOSED) {
+    if (request.status !== PurchaseRequestStatus.APPROVED) {
       throw new BadRequestException('Linked purchase request must be approved before use in a purchase order.');
     }
     return request;

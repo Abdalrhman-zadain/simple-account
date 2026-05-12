@@ -99,7 +99,7 @@ export class SuppliersService {
 
   async create(dto: CreateSupplierDto) {
     return this.prisma.$transaction(async (tx) => {
-      const code = dto.code?.trim() || this.generateReference('SUP');
+      const code = dto.code?.trim() || (await this.getNextSupplierCode(tx));
       const defaultCurrency = dto.defaultCurrency.trim().toUpperCase();
 
       try {
@@ -155,6 +155,37 @@ export class SuppliersService {
         throw error;
       }
     });
+  }
+
+  async getById(id: string) {
+    const supplier = await this.getSupplierOrThrow(id);
+    return this.mapSupplier(supplier);
+  }
+
+  private async getNextSupplierCode(tx: SuppliersDb): Promise<string> {
+    const suppliers = await tx.supplier.findMany({
+      where: {
+        code: {
+          startsWith: 'SUP-',
+        },
+      },
+      select: {
+        code: true,
+      },
+    });
+
+    let maxNumber = 0;
+    for (const supplier of suppliers) {
+      const match = supplier.code.match(/^SUP-(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+
+    return `SUP-${maxNumber + 1}`;
   }
 
   async update(id: string, dto: UpdateSupplierDto) {

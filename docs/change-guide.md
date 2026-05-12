@@ -234,6 +234,10 @@ What else to check:
 - route files must stay thin and compose the owning Phase 4 feature page
 - supplier creation should support either creating a new posting payable account automatically under `2110000 Accounts Payable / الذمم الدائنة` or linking an existing active posting Liability account from that same subtree
 - purchase-request and purchase-order lines may now optionally link to active inventory items for UI-assisted selection, and `itemName` plus line description must remain persisted on the line so operational history does not depend on future item-master edits
+- purchase-request list actions should stay inside the table `الإجراءات` column, while request review, approval, rejection, and conversion actions belong on the dedicated `/purchases/requests/[id]` details page
+- purchase-request references now follow the daily sequence format `PR-YYYYMMDD-N`; new logic must ignore legacy random codes when calculating the next daily number
+- request conversion rules must keep source traceability into downstream purchase orders and draft purchase invoices, and only approved requests may be converted
+- request status history should retain both timestamp and acting user when workflow actions are recorded
 - posting must reuse Phase 1 journal-entry and posting services instead of writing ledger effects directly
 - supplier payments that affect bank/cash must integrate with the existing Phase 2 bank/cash module rather than duplicating payment posting behavior
 - Arabic and English terminology must stay aligned when new purchase workflows or statuses are added
