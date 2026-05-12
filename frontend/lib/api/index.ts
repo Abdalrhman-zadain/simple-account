@@ -183,6 +183,7 @@ import {
   TaxTreatment,
   PaymentTerm,
   PurchaseRequestStatusNotePayload,
+  PostSalesInvoicePayload,
   SupplierTransactionsResponse,
   SuppliersQuery,
   CreditNote,
@@ -2240,9 +2241,14 @@ export async function updateSalesInvoice(
   });
 }
 
-export async function postSalesInvoice(id: string, token?: string | null) {
+export async function postSalesInvoice(
+  id: string,
+  payload: PostSalesInvoicePayload = {},
+  token?: string | null,
+) {
   return apiRequest<SalesInvoice>(`/sales-receivables/invoices/${id}/post`, {
     method: "POST",
+    body: JSON.stringify(payload),
     token,
   });
 }

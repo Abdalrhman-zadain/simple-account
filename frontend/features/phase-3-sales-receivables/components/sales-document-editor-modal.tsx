@@ -7,6 +7,7 @@ import {
   LuCirclePlus as CirclePlus,
   LuFileText as FileText,
   LuPackage2 as Package2,
+  LuReceiptText as ReceiptText,
   LuSave as Save,
   LuTrash2 as Trash2,
   LuUserRound as UserRound,
@@ -59,8 +60,15 @@ type SalesDocumentEditorModalProps = {
   onCustomerChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onLinesChange: (lines: SalesLineEditorState[]) => void;
-  onSubmit: () => void;
-  submitLabel: string;
+  onDraftSubmit: () => void;
+  draftSubmitLabel: string;
+  onPostSubmit?: () => void;
+  postSubmitLabel?: string;
+  onPostAndCreateReceiptSubmit?: () => void;
+  postAndCreateReceiptLabel?: string;
+  postAndCreateReceiptTooltip?: string;
+  isPostSubmitting?: boolean;
+  isPostAndCreateReceiptSubmitting?: boolean;
 };
 
 export function SalesDocumentEditorModal({
@@ -92,8 +100,15 @@ export function SalesDocumentEditorModal({
   onCustomerChange,
   onDescriptionChange,
   onLinesChange,
-  onSubmit,
-  submitLabel,
+  onDraftSubmit,
+  draftSubmitLabel,
+  onPostSubmit,
+  postSubmitLabel,
+  onPostAndCreateReceiptSubmit,
+  postAndCreateReceiptLabel,
+  postAndCreateReceiptTooltip,
+  isPostSubmitting = false,
+  isPostAndCreateReceiptSubmitting = false,
 }: SalesDocumentEditorModalProps) {
   const { t, language } = useTranslation();
   const { token } = useAuth();
@@ -523,13 +538,40 @@ export function SalesDocumentEditorModal({
         </div>
 
         <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
-          <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button
+              onClick={onDraftSubmit}
+              disabled={isSubmitting || isPostSubmitting || isPostAndCreateReceiptSubmitting}
+              className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+            >
+              <Save className="h-4 w-4" />
+              {draftSubmitLabel}
+            </Button>
+            {onPostSubmit && postSubmitLabel ? (
+              <Button
+                variant="secondary"
+                onClick={onPostSubmit}
+                disabled={isSubmitting || isPostSubmitting || isPostAndCreateReceiptSubmitting}
+                className="rounded-2xl border-emerald-200 px-6 text-emerald-700 hover:bg-emerald-50"
+              >
+                <FileText className="h-4 w-4" />
+                {postSubmitLabel}
+              </Button>
+            ) : null}
+            {onPostAndCreateReceiptSubmit && postAndCreateReceiptLabel ? (
+              <Button
+                variant="secondary"
+                onClick={onPostAndCreateReceiptSubmit}
+                disabled={isSubmitting || isPostSubmitting || isPostAndCreateReceiptSubmitting}
+                title={postAndCreateReceiptTooltip}
+                className="rounded-2xl border-sky-200 px-6 text-sky-700 hover:bg-sky-50"
+              >
+                <ReceiptText className="h-4 w-4" />
+                {postAndCreateReceiptLabel}
+              </Button>
+            ) : null}
             <Button variant="secondary" onClick={onClose} className="rounded-2xl px-6">
               {t("salesReceivables.action.cancel")}
-            </Button>
-            <Button onClick={onSubmit} disabled={isSubmitting} className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700">
-              <Save className="h-4 w-4" />
-              {submitLabel}
             </Button>
           </div>
         </div>

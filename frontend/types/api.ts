@@ -2855,6 +2855,10 @@ export type CreateSalesInvoicePayload = {
 
 export type UpdateSalesInvoicePayload = Partial<CreateSalesInvoicePayload>;
 
+export type PostSalesInvoicePayload = {
+  sourceAction?: "STANDARD_POST" | "POST_AND_CREATE_RECEIPT";
+};
+
 export type CreateCreditNotePayload = {
   reference?: string;
   noteDate: string;
@@ -2881,6 +2885,8 @@ export type CreateCustomerReceiptPayload = {
   bankCashAccountId: string;
   settlementReference?: string;
   description?: string;
+  linkedInvoiceId?: string;
+  sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";
 };
 
 export type CreateBankCashAccountPayload = {

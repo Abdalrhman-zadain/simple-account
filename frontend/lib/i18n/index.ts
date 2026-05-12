@@ -760,7 +760,9 @@ Object.assign(enTranslations, {
   "salesReceivables.action.createCustomer": "Create Customer",
   "salesReceivables.action.saveChanges": "Save Changes",
   "salesReceivables.action.saveDraft": "Save Draft",
+  "salesReceivables.action.postInvoice": "Post Invoice",
   "salesReceivables.action.createReceipt": "Create Receipt",
+  "salesReceivables.action.postAndCreateReceipt": "Post & Create Receipt",
   "salesReceivables.action.toOrder": "Convert to Order",
   "salesReceivables.action.toInvoice": "Convert to Invoice",
   "salesReceivables.action.cancel": "Cancel",
@@ -997,11 +999,23 @@ Object.assign(enTranslations, {
   "salesReceivables.confirm.deactivateCustomer":
     'Deactivate customer "{name}"? Historical transactions will remain available.',
   "salesReceivables.confirm.postInvoice": 'Post invoice "{reference}" now?',
+  "salesReceivables.confirm.postInvoiceAndCreateReceipt":
+    'Post invoice "{reference}" and open a linked customer receipt?',
   "salesReceivables.confirm.postCreditNote":
     'Post credit note "{reference}" now?',
   "salesReceivables.empty.selectTaxTreatment": "Select a tax treatment",
   "salesReceivables.validation.taxTreatmentRequired":
     "Tax Treatment is required",
+  "salesReceivables.validation.bankCashAccountRequired":
+    "Bank/Cash account is required before creating the receipt.",
+  "salesReceivables.validation.receiptAmountRequired":
+    "Receipt amount must be greater than zero.",
+  "salesReceivables.validation.allocationExceedsOutstanding":
+    "Allocation amount cannot exceed the invoice outstanding balance.",
+  "salesReceivables.validation.receiptCreationFailed":
+    "Receipt creation failed. Please review the entered values and try again.",
+  "salesReceivables.tooltip.postAndCreateReceipt":
+    "Posts the invoice, then opens the receipt form to collect and allocate the payment.",
   "salesReceivables.confirm.applyCustomerTaxTreatment":
     "Apply the selected customer's tax treatment to the existing invoice lines for {name}?",
   "salesReceivables.message.confirmPriceUpdate":

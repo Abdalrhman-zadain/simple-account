@@ -164,6 +164,7 @@ type ReceiptEditorState = {
   description: string;
   allocationInvoiceId: string;
   allocationAmount: string;
+  sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";
 };
 
 const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
@@ -233,6 +234,7 @@ const EMPTY_RECEIPT_EDITOR = (): ReceiptEditorState => ({
   description: "",
   allocationInvoiceId: "",
   allocationAmount: "",
+  sourceAction: "STANDARD_RECEIPT",
 });
 
 export function SalesReceivablesPage() {
@@ -288,6 +290,7 @@ export function SalesReceivablesPage() {
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [isReceiptEditorOpen, setIsReceiptEditorOpen] = useState(false);
   const [receiptEditor, setReceiptEditor] = useState<ReceiptEditorState>(EMPTY_RECEIPT_EDITOR);
+  const [receiptEditorLockedToInvoice, setReceiptEditorLockedToInvoice] = useState(false);
 
   const [agingDate, setAgingDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -378,8 +381,8 @@ export function SalesReceivablesPage() {
   });
 
   const postedInvoicesQuery = useQuery({
-    queryKey: queryKeys.salesInvoices(token, { status: "POSTED" }),
-    queryFn: () => getSalesInvoices({ status: "POSTED" }, token),
+    queryKey: queryKeys.salesInvoices(token, { search: "__receipt-allocation-source__" }),
+    queryFn: () => getSalesInvoices({}, token),
     staleTime: 30_000,
   });
 
@@ -807,56 +810,130 @@ export function SalesReceivablesPage() {
     }));
   };
 
+  const openReceiptEditorForInvoice = (
+    invoice: {
+      id: string;
+      reference: string;
+      invoiceDate: string;
+      currencyCode: string;
+      outstandingAmount: string;
+      customer: { id: string };
+    },
+    sourceAction: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT",
+  ) => {
+    const outstandingAmount = Number(invoice.outstandingAmount || 0);
+    const receiptAmount = outstandingAmount > 0 ? outstandingAmount.toFixed(2) : "";
+
+    setReceiptEditor({
+      ...EMPTY_RECEIPT_EDITOR(),
+      customerId: invoice.customer.id,
+      receiptDate: invoice.invoiceDate.slice(0, 10),
+      amount: receiptAmount,
+      allocationInvoiceId: invoice.id,
+      allocationAmount: receiptAmount,
+      description: `Receipt against Sales Invoice ${invoice.reference}`,
+      sourceAction,
+    });
+    setReceiptEditorLockedToInvoice(true);
+    setIsReceiptEditorOpen(true);
+    setActiveTab("receipts");
+    setSelectedInvoiceId(invoice.id);
+  };
+
+  const persistInvoiceFromEditor = async () => {
+    if (invoiceEditor.id) {
+      return updateInvoiceMutation.mutateAsync();
+    }
+
+    const payload = {
+      reference: invoiceEditor.reference || undefined,
+      invoiceDate: invoiceEditor.invoiceDate,
+      dueDate: invoiceEditor.dueDate || undefined,
+      currencyCode: invoiceEditor.currencyCode || undefined,
+      customerId: invoiceEditor.customerId,
+      description: invoiceEditor.description || undefined,
+      lines: mapSalesLines(invoiceEditor.lines),
+    };
+
+    if (invoiceEditor.sourceSalesOrderId) {
+      return convertSalesOrderToInvoice(
+        invoiceEditor.sourceSalesOrderId,
+        {
+          ...payload,
+          sourceQuotationId: invoiceEditor.sourceQuotationId || undefined,
+          sourceSalesOrderId: invoiceEditor.sourceSalesOrderId,
+        },
+        token,
+      );
+    }
+
+    if (invoiceEditor.sourceQuotationId) {
+      return convertQuotationToInvoice(
+        invoiceEditor.sourceQuotationId,
+        {
+          ...payload,
+          sourceQuotationId: invoiceEditor.sourceQuotationId,
+        },
+        token,
+      );
+    }
+
+    return createInvoiceMutation.mutateAsync();
+  };
+
   const saveInvoiceFromEditor = async () => {
     setIsInvoiceSaving(true);
 
     try {
-      if (invoiceEditor.id) {
-        const updated = await updateInvoiceMutation.mutateAsync();
-        await invalidateSalesReceivables(queryClient);
-        setSelectedInvoiceId(updated.id);
-        setIsInvoiceEditorOpen(false);
-        setInvoiceEditor(EMPTY_INVOICE_EDITOR());
-        return;
-      }
-
-      const payload = {
-        reference: invoiceEditor.reference || undefined,
-        invoiceDate: invoiceEditor.invoiceDate,
-        dueDate: invoiceEditor.dueDate || undefined,
-        currencyCode: invoiceEditor.currencyCode || undefined,
-        customerId: invoiceEditor.customerId,
-        description: invoiceEditor.description || undefined,
-        lines: mapSalesLines(invoiceEditor.lines),
-      };
-
-      const savedInvoice = invoiceEditor.sourceSalesOrderId
-        ? await convertSalesOrderToInvoice(
-            invoiceEditor.sourceSalesOrderId,
-            {
-              ...payload,
-              sourceQuotationId: invoiceEditor.sourceQuotationId || undefined,
-              sourceSalesOrderId: invoiceEditor.sourceSalesOrderId,
-            },
-            token,
-          )
-        : invoiceEditor.sourceQuotationId
-          ? await convertQuotationToInvoice(
-              invoiceEditor.sourceQuotationId,
-              {
-                ...payload,
-                sourceQuotationId: invoiceEditor.sourceQuotationId,
-              },
-              token,
-            )
-          : await createInvoiceMutation.mutateAsync();
-
+      const savedInvoice = await persistInvoiceFromEditor();
       await invalidateSalesReceivables(queryClient);
       setSelectedInvoiceId(savedInvoice.id);
       setIsInvoiceEditorOpen(false);
       setInvoiceEditor(EMPTY_INVOICE_EDITOR());
     } catch {
       // Keep the editor open so the user can fix line revenue accounts or other validation issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  };
+
+  const saveAndPostInvoiceFromEditor = async () => {
+    setIsInvoiceSaving(true);
+
+    try {
+      const savedInvoice = await persistInvoiceFromEditor();
+      await invalidateSalesReceivables(queryClient);
+      const postedInvoice = await postInvoiceMutation.mutateAsync({
+        id: savedInvoice.id,
+        sourceAction: "STANDARD_POST",
+      });
+      setSelectedInvoiceId(postedInvoice.id);
+      setSelectedCustomerId(postedInvoice.customer.id);
+      setIsInvoiceEditorOpen(false);
+      setInvoiceEditor(EMPTY_INVOICE_EDITOR());
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  };
+
+  const saveAndCreateReceiptFromInvoiceEditor = async () => {
+    setIsInvoiceSaving(true);
+
+    try {
+      const savedInvoice = await persistInvoiceFromEditor();
+      await invalidateSalesReceivables(queryClient);
+      const postedInvoice = await postInvoiceMutation.mutateAsync({
+        id: savedInvoice.id,
+        sourceAction: "POST_AND_CREATE_RECEIPT",
+      });
+      setSelectedCustomerId(postedInvoice.customer.id);
+      setIsInvoiceEditorOpen(false);
+      setInvoiceEditor(EMPTY_INVOICE_EDITOR());
+      openReceiptEditorForInvoice(postedInvoice, "POST_AND_CREATE_RECEIPT");
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
     } finally {
       setIsInvoiceSaving(false);
     }
@@ -1019,7 +1096,10 @@ export function SalesReceivablesPage() {
   });
 
   const postInvoiceMutation = useMutation({
-    mutationFn: (id: string) => postSalesInvoice(id, token),
+    mutationFn: (payload: {
+      id: string;
+      sourceAction?: "STANDARD_POST" | "POST_AND_CREATE_RECEIPT";
+    }) => postSalesInvoice(payload.id, { sourceAction: payload.sourceAction }, token),
     onSuccess: async (updated) => {
       await invalidateSalesReceivables(queryClient);
       setSelectedInvoiceId(updated.id);
@@ -1099,18 +1179,46 @@ export function SalesReceivablesPage() {
   });
 
   const createReceiptMutation = useMutation({
-    mutationFn: () =>
-      createCustomerReceipt(
+    mutationFn: () => {
+      const receiptAmount = Number(receiptEditor.amount || 0);
+      const selectedAllocationInvoice =
+        receiptAllocationInvoices.find((row) => row.id === receiptEditor.allocationInvoiceId) ??
+        null;
+      const allocationAmount = Number(
+        receiptEditor.allocationAmount ||
+          Math.min(
+            Number(receiptEditor.amount || 0),
+            Number(selectedAllocationInvoice?.outstandingAmount || 0),
+          ),
+      );
+
+      if (!receiptEditor.bankCashAccountId) {
+        throw new Error(t("salesReceivables.validation.bankCashAccountRequired"));
+      }
+      if (receiptAmount <= 0) {
+        throw new Error(t("salesReceivables.validation.receiptAmountRequired"));
+      }
+      if (
+        selectedAllocationInvoice &&
+        allocationAmount > Number(selectedAllocationInvoice.outstandingAmount || 0)
+      ) {
+        throw new Error(t("salesReceivables.validation.allocationExceedsOutstanding"));
+      }
+
+      return createCustomerReceipt(
         {
           reference: receiptEditor.reference || undefined,
           receiptDate: receiptEditor.receiptDate,
           customerId: receiptEditor.customerId,
-          amount: Number(receiptEditor.amount || 0),
+          amount: receiptAmount,
           bankCashAccountId: receiptEditor.bankCashAccountId,
           description: receiptEditor.description || undefined,
+          linkedInvoiceId: receiptEditor.allocationInvoiceId || undefined,
+          sourceAction: receiptEditor.sourceAction ?? "STANDARD_RECEIPT",
         },
         token,
-      ),
+      );
+    },
     onSuccess: async (created) => {
       await invalidateSalesReceivables(queryClient);
       if (receiptEditor.allocationInvoiceId) {
@@ -1132,8 +1240,21 @@ export function SalesReceivablesPage() {
       setSelectedReceiptId(created.id);
       setIsReceiptEditorOpen(false);
       setReceiptEditor(EMPTY_RECEIPT_EDITOR());
+      setReceiptEditorLockedToInvoice(false);
     },
   });
+
+  const handleCreateReceiptSubmit = async () => {
+    try {
+      await createReceiptMutation.mutateAsync();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("salesReceivables.validation.receiptCreationFailed");
+      window.alert(message);
+    }
+  };
 
   const customers = customersQuery.data ?? [];
   const salesReps = salesRepsQuery.data ?? [];
@@ -1180,7 +1301,9 @@ export function SalesReceivablesPage() {
   const quotations = quotationsQuery.data ?? [];
   const salesOrders = salesOrdersQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
-  const postedInvoices = postedInvoicesQuery.data ?? [];
+  const postedInvoices = (postedInvoicesQuery.data ?? []).filter(
+    (invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED",
+  );
   const openInvoices = postedInvoices.filter((invoice) => Number(invoice.outstandingAmount) > 0);
   const creditNotes = creditNotesQuery.data ?? [];
   const postedReceipts = (postedReceiptsQuery.data ?? []).filter((row) => row.kind === "RECEIPT");
@@ -2078,10 +2201,32 @@ export function SalesReceivablesPage() {
                                   </button>
                                   <button
                                     type="button"
+                                    className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100"
+                                    onClick={() => {
+                                      if (window.confirm(t("salesReceivables.confirm.postInvoiceAndCreateReceipt", { reference: row.reference }))) {
+                                        postInvoiceMutation
+                                          .mutateAsync({
+                                            id: row.id,
+                                            sourceAction: "POST_AND_CREATE_RECEIPT",
+                                          })
+                                          .then((postedInvoice) => {
+                                            openReceiptEditorForInvoice(postedInvoice, "POST_AND_CREATE_RECEIPT");
+                                          })
+                                          .catch(() => undefined);
+                                      }
+                                    }}
+                                  >
+                                    {t("salesReceivables.action.postAndCreateReceipt")}
+                                  </button>
+                                  <button
+                                    type="button"
                                     className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
                                     onClick={() => {
                                       if (window.confirm(t("salesReceivables.confirm.postInvoice", { reference: row.reference }))) {
-                                        postInvoiceMutation.mutate(row.id);
+                                        postInvoiceMutation.mutate({
+                                          id: row.id,
+                                          sourceAction: "STANDARD_POST",
+                                        });
                                       }
                                     }}
                                   >
@@ -2162,7 +2307,7 @@ export function SalesReceivablesPage() {
           <Card className="p-5">
             <div className="grid gap-4 lg:grid-cols-[1.2fr_auto]">
               <Input value={receiptSearch} onChange={(event) => setReceiptSearch(event.target.value)} placeholder={t("salesReceivables.filters.searchReceipts")} />
-              <Button className="gap-2" onClick={() => { setReceiptEditor(EMPTY_RECEIPT_EDITOR()); setIsReceiptEditorOpen(true); }}>
+              <Button className="gap-2" onClick={() => { setReceiptEditor(EMPTY_RECEIPT_EDITOR()); setReceiptEditorLockedToInvoice(false); setIsReceiptEditorOpen(true); }}>
                 <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newReceipt")}
               </Button>
@@ -2864,16 +3009,21 @@ export function SalesReceivablesPage() {
         onCustomerChange={handleInvoiceCustomerChange}
         onDescriptionChange={(value) => setInvoiceEditor((current) => ({ ...current, description: value }))}
         onLinesChange={(lines) => setInvoiceEditor((current) => ({ ...current, lines }))}
-        onSubmit={() => {
+        onDraftSubmit={() => {
           void saveInvoiceFromEditor();
         }}
-        submitLabel={
-          invoiceEditor.id
-            ? t("salesReceivables.action.saveChanges")
-            : invoiceEditor.sourceQuotationId || invoiceEditor.sourceSalesOrderId
-              ? t("salesReceivables.action.toInvoice")
-              : t("salesReceivables.action.saveDraft")
-        }
+        draftSubmitLabel={t("salesReceivables.action.saveDraft")}
+        onPostSubmit={() => {
+          void saveAndPostInvoiceFromEditor();
+        }}
+        postSubmitLabel={t("salesReceivables.action.postInvoice")}
+        onPostAndCreateReceiptSubmit={() => {
+          void saveAndCreateReceiptFromInvoiceEditor();
+        }}
+        postAndCreateReceiptLabel={t("salesReceivables.action.postAndCreateReceipt")}
+        postAndCreateReceiptTooltip={t("salesReceivables.tooltip.postAndCreateReceipt")}
+        isPostSubmitting={postInvoiceMutation.isPending}
+        isPostAndCreateReceiptSubmitting={postInvoiceMutation.isPending}
       />
 
       <CreditNoteEditorModal
@@ -2892,7 +3042,10 @@ export function SalesReceivablesPage() {
 
       <ReceiptEditorModal
         isOpen={isReceiptEditorOpen}
-        onClose={() => setIsReceiptEditorOpen(false)}
+        onClose={() => {
+          setIsReceiptEditorOpen(false);
+          setReceiptEditorLockedToInvoice(false);
+        }}
         title={t("salesReceivables.dialog.newReceipt")}
         editor={receiptEditor}
         customers={activeCustomers}
@@ -2900,8 +3053,11 @@ export function SalesReceivablesPage() {
         openInvoices={receiptAllocationInvoices}
         selectedInvoice={selectedReceiptAllocationInvoice}
         isSubmitting={createReceiptMutation.isPending || allocateReceiptMutation.isPending}
+        lockCustomerAndInvoice={receiptEditorLockedToInvoice}
         onChange={setReceiptEditor}
-        onSubmit={() => createReceiptMutation.mutate()}
+        onSubmit={() => {
+          void handleCreateReceiptSubmit();
+        }}
       />
 
       {false ? (

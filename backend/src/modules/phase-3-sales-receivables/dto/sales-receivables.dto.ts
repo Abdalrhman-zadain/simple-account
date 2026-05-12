@@ -430,6 +430,13 @@ export class UpdateSalesInvoiceDto {
   lines?: SalesLineDto[];
 }
 
+export class PostSalesInvoiceDto {
+  @IsOptional()
+  @IsString()
+  @IsIn(["STANDARD_POST", "POST_AND_CREATE_RECEIPT"])
+  sourceAction?: "STANDARD_POST" | "POST_AND_CREATE_RECEIPT";
+}
+
 export class CreateCreditNoteDto extends SalesDocumentBaseDto {
   @IsDateString()
   noteDate!: string;
@@ -506,6 +513,15 @@ export class CreateCustomerReceiptDto {
   @IsString()
   @Length(0, 255)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  linkedInvoiceId?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(["STANDARD_RECEIPT", "POST_AND_CREATE_RECEIPT"])
+  sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";
 }
 
 export class AllocateReceiptDto {

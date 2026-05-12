@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from "express";
 
 import { JwtAuthGuard } from '../platform/auth/guards/jwt-auth.guard';
 import {
@@ -6,6 +7,7 @@ import {
   CreateCreditNoteDto,
   CreateCustomerDto,
   CreateCustomerReceiptDto,
+  PostSalesInvoiceDto,
   CreateSalesRepresentativeDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
@@ -163,18 +165,18 @@ export class SalesReceivablesController {
   }
 
   @Post('invoices')
-  createInvoice(@Body() dto: CreateSalesInvoiceDto) {
-    return this.service.createInvoice(dto);
+  createInvoice(@Req() req: Request & { user?: any }, @Body() dto: CreateSalesInvoiceDto) {
+    return this.service.createInvoice(dto, req.user);
   }
 
   @Patch('invoices/:id')
-  updateInvoice(@Param('id') id: string, @Body() dto: UpdateSalesInvoiceDto) {
-    return this.service.updateInvoice(id, dto);
+  updateInvoice(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: UpdateSalesInvoiceDto) {
+    return this.service.updateInvoice(id, dto, req.user);
   }
 
   @Post('invoices/:id/post')
-  postInvoice(@Param('id') id: string) {
-    return this.service.postInvoice(id);
+  postInvoice(@Req() req: Request & { user?: any }, @Param('id') id: string, @Body() dto: PostSalesInvoiceDto) {
+    return this.service.postInvoice(id, dto, req.user);
   }
 
   @Get('credit-notes')
@@ -209,13 +211,13 @@ export class SalesReceivablesController {
   }
 
   @Post('receipts')
-  createCustomerReceipt(@Body() dto: CreateCustomerReceiptDto) {
-    return this.service.createCustomerReceipt(dto);
+  createCustomerReceipt(@Req() req: Request & { user?: any }, @Body() dto: CreateCustomerReceiptDto) {
+    return this.service.createCustomerReceipt(dto, req.user);
   }
 
   @Post('receipt-allocations')
-  allocateReceipt(@Body() dto: AllocateReceiptDto) {
-    return this.service.allocateReceipt(dto);
+  allocateReceipt(@Req() req: Request & { user?: any }, @Body() dto: AllocateReceiptDto) {
+    return this.service.allocateReceipt(dto, req.user);
   }
 
   @Get('reports/aging')

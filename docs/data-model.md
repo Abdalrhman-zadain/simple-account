@@ -149,9 +149,12 @@ Accounting meaning:
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
 - sales-invoice posting uses the customer's linked receivable account only; sales representative links and employee payable accounts remain non-posting context for customer invoices
 - customer receipts are stored as Phase 2 posted receipt transactions and can be created from either the Sales module or the Bank & Cash module
+- the Sales invoice form may launch a guided `Post & Create Receipt` handoff that posts the invoice first, then opens a separate customer-receipt document prefilled with the invoice/customer/currency/outstanding context; the receipt remains its own Phase 2 posted transaction plus allocation record
+- draft invoice saves remain non-posting document writes only, while normal invoice posting and `Post & Create Receipt` both create the same invoice journal entry before any receipt activity begins
 - posting creates journal/ledger history and links each document to its generated journal reference
 - customer balance is incremented on posted invoices and decremented on posted credit notes
 - receipt allocation updates invoice outstanding status while preventing over-allocation
+- audit history may record the special `Post & Create Receipt` source action on the invoice posting event and store the linked invoice/receipt references on the corresponding receipt/invoice audit entries
 - aging is derived from posted invoice outstanding balances by age bucket using due date when present
 
 ### Purchases

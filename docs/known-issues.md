@@ -67,6 +67,7 @@ What this means for future edits:
 Current limitation:
 
 - the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace. Customer and sales-invoice list print/PDF/Excel output is available through the shared frontend export engine, but formal single-document outputs and customer statement output are still not implemented.
+- the Sales invoice editor now includes a guided `Post & Create Receipt` action that opens a prefilled linked receipt while preserving separate invoice and receipt postings; customer statement output and formal single-document print layouts are still not implemented.
 - printable quote/order/invoice outputs and customer statement output are still not implemented.
 - sales invoice posting still uses the legacy sales tax/VAT liability-account lookup for journal posting; document entry can now select a `Tax` master record and store `taxId`, but posting has not yet been fully refactored to post each line against that tax record's mapped account.
 

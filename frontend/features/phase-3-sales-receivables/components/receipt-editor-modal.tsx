@@ -24,6 +24,7 @@ type ReceiptEditorValue = {
   description: string;
   allocationInvoiceId: string;
   allocationAmount: string;
+  sourceAction?: "STANDARD_RECEIPT" | "POST_AND_CREATE_RECEIPT";
 };
 
 type AllocationInvoiceOption = Pick<SalesInvoice, "id" | "reference" | "outstandingAmount" | "customer">;
@@ -37,6 +38,7 @@ type ReceiptEditorModalProps = {
   openInvoices: AllocationInvoiceOption[];
   selectedInvoice: AllocationInvoiceOption | null;
   isSubmitting: boolean;
+  lockCustomerAndInvoice?: boolean;
   onClose: () => void;
   onChange: (editor: ReceiptEditorValue) => void;
   onSubmit: () => void;
@@ -51,6 +53,7 @@ export function ReceiptEditorModal({
   openInvoices,
   selectedInvoice,
   isSubmitting,
+  lockCustomerAndInvoice = false,
   onClose,
   onChange,
   onSubmit,
@@ -123,6 +126,7 @@ export function ReceiptEditorModal({
                   <div className="relative">
                     <Select
                       value={editor.customerId}
+                      disabled={lockCustomerAndInvoice}
                       onChange={(event) =>
                         onChange({
                           ...editor,
@@ -131,7 +135,7 @@ export function ReceiptEditorModal({
                           allocationAmount: "",
                         })
                       }
-                      className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
+                        className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
                     >
                       <option value="">{t("salesReceivables.empty.selectActiveCustomer")}</option>
                       {customers.map((row) => (
@@ -203,6 +207,7 @@ export function ReceiptEditorModal({
                     <Field label={t("salesReceivables.field.linkedInvoice")} labelAlign={isArabic ? "end" : "start"}>
                       <Select
                         value={editor.allocationInvoiceId}
+                        disabled={lockCustomerAndInvoice}
                         onChange={(event) => {
                           const nextInvoice = openInvoices.find((row) => row.id === event.target.value) ?? null;
                           onChange({
@@ -236,6 +241,14 @@ export function ReceiptEditorModal({
                       />
                     </Field>
                   </div>
+
+                  {lockCustomerAndInvoice && selectedInvoice ? (
+                    <div className={cn("rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800", isArabic ? "text-right" : "text-left")}>
+                      {isArabic
+                        ? "تم ربط هذا المقبوض بهذه الفاتورة تلقائيًا. يمكنك تعديل مبلغ المقبوض أو مبلغ التخصيص بشرط ألا يتجاوز المتبقي على الفاتورة."
+                        : "This receipt is linked to the selected invoice. You can reduce the receipt or allocation amount, but it cannot exceed the invoice outstanding balance."}
+                    </div>
+                  ) : null}
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4">

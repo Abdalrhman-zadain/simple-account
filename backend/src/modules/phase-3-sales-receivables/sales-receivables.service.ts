@@ -4,6 +4,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 import {
+  AuditAction,
   BankCashTransactionKind,
   BankCashTransactionStatus,
   CreditNoteStatus,
@@ -15,6 +16,7 @@ import {
 } from "../../generated/prisma";
 
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../phase-1-accounting-foundation/accounting-core/audit/audit.service";
 import { BankCashTransactionsService } from "../phase-2-bank-cash-management/bank-cash-transactions/bank-cash-transactions.service";
 import { AccountsService } from "../phase-1-accounting-foundation/accounting-core/chart-of-accounts/accounts.service";
 import { JournalEntriesService } from "../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service";
@@ -24,6 +26,7 @@ import {
   CreateCreditNoteDto,
   CreateCustomerDto,
   CreateCustomerReceiptDto,
+  PostSalesInvoiceDto,
   CreateSalesRepresentativeDto,
   CreateSalesInvoiceDto,
   CreateSalesOrderDto,
@@ -51,6 +54,7 @@ type ReceiptQuery = {
 };
 
 type SalesReceivablesDb = Prisma.TransactionClient | PrismaService;
+type AuthUser = { userId?: string; email?: string; role?: string };
 
 const CUSTOMER_RECEIVABLES_PARENT_CODE = "1121000";
 const RECEIVABLES_HEADER_CODE = "1120000";
@@ -75,6 +79,7 @@ type ResolvedLine = {
 export class SalesReceivablesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
     private readonly bankCashTransactionsService: BankCashTransactionsService,
     private readonly accountsService: AccountsService,
     private readonly journalEntriesService: JournalEntriesService,
@@ -860,7 +865,7 @@ export class SalesReceivablesService {
     return rows.map((row) => this.mapInvoice(row));
   }
 
-  async createInvoice(dto: CreateSalesInvoiceDto) {
+  async createInvoice(dto: CreateSalesInvoiceDto, user?: AuthUser) {
     const customer = await this.ensureActiveCustomer(dto.customerId);
     await this.ensureInvoiceSources(
       dto.sourceQuotationId,
@@ -910,6 +915,19 @@ export class SalesReceivablesService {
         include: this.invoiceInclude(),
       });
 
+      await this.auditService.log({
+        userId: user?.userId,
+        entity: "SalesInvoice",
+        entityId: created.id,
+        action: AuditAction.CREATE,
+        details: {
+          reference: created.reference,
+          status: created.status,
+          savedAsDraft: true,
+          sourceAction: "SAVE_DRAFT",
+        },
+      });
+
       await this.refreshSalesOrderStatus(
         created.sourceSalesOrderId ?? undefined,
       );
@@ -924,7 +942,7 @@ export class SalesReceivablesService {
     }
   }
 
-  async updateInvoice(id: string, dto: UpdateSalesInvoiceDto) {
+  async updateInvoice(id: string, dto: UpdateSalesInvoiceDto, user?: AuthUser) {
     const invoice = await this.getInvoiceOrThrow(id);
     if (invoice.status !== SalesInvoiceStatus.DRAFT) {
       throw new BadRequestException(
@@ -1017,6 +1035,19 @@ export class SalesReceivablesService {
         });
       });
 
+      await this.auditService.log({
+        userId: user?.userId,
+        entity: "SalesInvoice",
+        entityId: updated.id,
+        action: AuditAction.UPDATE,
+        details: {
+          reference: updated.reference,
+          status: updated.status,
+          savedAsDraft: updated.status === SalesInvoiceStatus.DRAFT,
+          sourceAction: "SAVE_DRAFT",
+        },
+      });
+
       await this.refreshSalesOrderStatus(
         updated.sourceSalesOrderId ?? undefined,
       );
@@ -1031,7 +1062,7 @@ export class SalesReceivablesService {
     }
   }
 
-  async postInvoice(id: string) {
+  async postInvoice(id: string, dto: PostSalesInvoiceDto = {}, user?: AuthUser) {
     const invoice = await this.prisma.salesInvoice.findUnique({
       where: { id },
       include: {
@@ -1125,6 +1156,19 @@ export class SalesReceivablesService {
         data: { currentBalance: { increment: this.toAmount(totalAmount) } },
       });
       await this.recomputeInvoiceAmounts(tx, invoice.id);
+    });
+
+    await this.auditService.log({
+      userId: user?.userId,
+      entity: "SalesInvoice",
+      entityId: invoice.id,
+      action: AuditAction.POST,
+      details: {
+        reference: invoice.reference,
+        status: this.deriveInvoiceStatus(totalAmount, 0, invoice.dueDate, postedAt),
+        journalEntryId: posted.id,
+        sourceAction: dto.sourceAction ?? "STANDARD_POST",
+      },
     });
 
     await this.refreshSalesOrderStatus(invoice.sourceSalesOrderId ?? undefined);
@@ -1430,8 +1474,28 @@ export class SalesReceivablesService {
     });
   }
 
-  async createCustomerReceipt(dto: CreateCustomerReceiptDto) {
+  async createCustomerReceipt(dto: CreateCustomerReceiptDto, user?: AuthUser) {
     const customer = await this.ensureActiveCustomer(dto.customerId);
+    if (dto.linkedInvoiceId) {
+      const linkedInvoice = await this.prisma.salesInvoice.findUnique({
+        where: { id: dto.linkedInvoiceId },
+        select: { id: true, customerId: true, outstandingAmount: true, reference: true },
+      });
+      if (!linkedInvoice) {
+        throw new BadRequestException("Linked invoice was not found.");
+      }
+      if (linkedInvoice.customerId !== customer.id) {
+        throw new BadRequestException(
+          "Receipt and linked invoice must belong to the same customer.",
+        );
+      }
+      if (Number(linkedInvoice.outstandingAmount) <= 0) {
+        throw new BadRequestException(
+          "Linked invoice does not have any outstanding balance.",
+        );
+      }
+    }
+
     const created = await this.bankCashTransactionsService.createReceipt({
       reference: dto.reference,
       transactionDate: dto.receiptDate,
@@ -1454,10 +1518,25 @@ export class SalesReceivablesService {
       },
     });
 
+    await this.auditService.log({
+      userId: user?.userId,
+      entity: "CustomerReceipt",
+      entityId: posted.id,
+      action: AuditAction.POST,
+      details: {
+        reference: posted.reference,
+        amount: posted.amount,
+        customerId: customer.id,
+        linkedInvoiceId: dto.linkedInvoiceId ?? null,
+        sourceAction: dto.sourceAction ?? "STANDARD_RECEIPT",
+        journalEntryId: posted.journalEntryId ?? null,
+      },
+    });
+
     return posted;
   }
 
-  async allocateReceipt(dto: AllocateReceiptDto) {
+  async allocateReceipt(dto: AllocateReceiptDto, user?: AuthUser) {
     const invoice = await this.prisma.salesInvoice.findUnique({
       where: { id: dto.salesInvoiceId },
       include: { customer: true },
@@ -1554,6 +1633,21 @@ export class SalesReceivablesService {
     });
 
     await this.refreshSalesOrderStatus(invoice.sourceSalesOrderId ?? undefined);
+
+    await this.auditService.log({
+      userId: user?.userId,
+      entity: "SalesInvoice",
+      entityId: invoice.id,
+      action: AuditAction.UPDATE,
+      details: {
+        reference: invoice.reference,
+        receiptTransactionId: receipt.id,
+        receiptReference: receipt.reference,
+        allocationId: updatedAllocation.allocation.id,
+        allocationAmount: requestedAmount.toFixed(2),
+        linkedFrom: "CustomerReceipt",
+      },
+    });
 
     return {
       allocation: {

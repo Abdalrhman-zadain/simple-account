@@ -682,7 +682,9 @@ Object.assign(arTranslations, {
   "salesReceivables.action.createCustomer": "إنشاء عميل",
   "salesReceivables.action.saveChanges": "حفظ التغييرات",
   "salesReceivables.action.saveDraft": "حفظ كمسودة",
+  "salesReceivables.action.postInvoice": "ترحيل الفاتورة",
   "salesReceivables.action.createReceipt": "إنشاء المقبوض",
+  "salesReceivables.action.postAndCreateReceipt": "ترحيل وإنشاء مقبوض",
   "salesReceivables.action.cancel": "إلغاء",
   "salesReceivables.status.active": "نشط",
   "salesReceivables.status.inactive": "غير نشط",
@@ -896,11 +898,23 @@ Object.assign(arTranslations, {
   "salesReceivables.confirm.deactivateCustomer":
     'تعطيل العميل "{name}"؟ سيبقى التاريخ المحاسبي محفوظاً.',
   "salesReceivables.confirm.postInvoice": 'ترحيل الفاتورة "{reference}" الآن؟',
+  "salesReceivables.confirm.postInvoiceAndCreateReceipt":
+    'ترحيل الفاتورة "{reference}" وفتح مقبوض عميل مرتبط بها؟',
   "salesReceivables.confirm.postCreditNote":
     'ترحيل إشعار الدائن "{reference}" الآن؟',
   "salesReceivables.empty.selectTaxTreatment": "اختر معاملة ضريبية",
   "salesReceivables.validation.taxTreatmentRequired":
     "المعاملة الضريبية مطلوبة",
+  "salesReceivables.validation.bankCashAccountRequired":
+    "يجب اختيار حساب بنك/صندوق قبل إنشاء المقبوض.",
+  "salesReceivables.validation.receiptAmountRequired":
+    "يجب أن يكون مبلغ المقبوض أكبر من صفر.",
+  "salesReceivables.validation.allocationExceedsOutstanding":
+    "لا يجوز أن يتجاوز مبلغ التخصيص الرصيد المتبقي على الفاتورة.",
+  "salesReceivables.validation.receiptCreationFailed":
+    "تعذّر إنشاء المقبوض. يرجى مراجعة البيانات المدخلة ثم المحاولة مرة أخرى.",
+  "salesReceivables.tooltip.postAndCreateReceipt":
+    "يرحّل الفاتورة ثم يفتح شاشة المقبوضات لتحصيل المبلغ وربطه بالفاتورة.",
   "salesReceivables.confirm.applyCustomerTaxTreatment":
     "هل تريد تطبيق المعاملة الضريبية الخاصة بالعميل المحدد على بنود الفاتورة الحالية للعميل {name}؟",
   "salesReceivables.message.confirmPriceUpdate":
