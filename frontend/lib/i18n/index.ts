@@ -1213,6 +1213,7 @@ Object.assign(enTranslations, {
 
 Object.assign(enTranslations, {
   "purchases.action.newOrder": "New Purchase Order",
+  "purchases.action.backToOrders": "Back to Orders",
   "purchases.action.issueOrder": "Issue",
   "purchases.action.receiveOrder": "Receive",
   "purchases.action.receiveAndPost": "Receive & Post",
@@ -1260,10 +1261,12 @@ Object.assign(enTranslations, {
     "No purchase orders match the current filters.",
   "purchases.orders.empty.selectOrder":
     "Select a purchase order to review its lines and receipt status.",
+  "purchases.orders.empty.noDescription": "No description",
   "purchases.orders.empty.manual": "Manual order",
   "purchases.orders.empty.receipts":
     "No receipt records were posted for this purchase order yet.",
   "purchases.orders.empty.notPosted": "Not posted yet",
+  "purchases.orders.state.loadingDetails": "Loading purchase order details...",
   "purchases.orders.field.reference": "Purchase Order Reference",
   "purchases.orders.field.referenceHint":
     "Leave blank to let the system generate a unique reference.",

@@ -138,6 +138,7 @@ These URLs are current public interfaces and should be treated as stable unless 
 - `/bank-reconciliations`
 - `/sales-receivables`
 - `/purchases`
+- `/purchases/orders/[id]`
 - `/purchases/requests/[id]`
 - `/purchases/suppliers/[id]`
 - `/inventory`

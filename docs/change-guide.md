@@ -235,6 +235,7 @@ What else to check:
 - supplier creation should support either creating a new posting payable account automatically under `2110000 Accounts Payable / الذمم الدائنة` or linking an existing active posting Liability account from that same subtree
 - purchase-request and purchase-order lines may now optionally link to active inventory items for UI-assisted selection, and `itemName` plus line description must remain persisted on the line so operational history does not depend on future item-master edits
 - purchase-request list actions should stay inside the table `الإجراءات` column, while request review, approval, rejection, and conversion actions belong on the dedicated `/purchases/requests/[id]` details page
+- purchase-order list `عرض` actions may open the dedicated `/purchases/orders/[id]` details page so users can review summary, lines, and receipt history without overloading the workspace list
 - purchase-request references now follow the daily sequence format `PR-YYYYMMDD-N`; new logic must ignore legacy random codes when calculating the next daily number
 - request conversion rules must keep source traceability into downstream purchase orders and draft purchase invoices, and only approved requests may be converted
 - request status history should retain both timestamp and acting user when workflow actions are recorded

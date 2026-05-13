@@ -1187,6 +1187,7 @@ Object.assign(arTranslations, {
 
 Object.assign(arTranslations, {
   "purchases.action.newOrder": "أمر شراء جديد",
+  "purchases.action.backToOrders": "العودة إلى أوامر الشراء",
   "purchases.action.issueOrder": "إصدار",
   "purchases.action.markPartiallyReceived": "استلام جزئي",
   "purchases.action.markFullyReceived": "استلام كلي",
@@ -1227,8 +1228,10 @@ Object.assign(arTranslations, {
   "purchases.orders.empty.list": "لا توجد أوامر شراء تطابق الفلاتر الحالية.",
   "purchases.orders.empty.selectOrder":
     "اختر أمر شراء لمراجعة بنوده وحالة الاستلام.",
+  "purchases.orders.empty.noDescription": "لا يوجد وصف",
   "purchases.orders.empty.manual": "أمر يدوي",
   "purchases.orders.empty.selectItemOrService": "اختر الصنف أو الخدمة",
+  "purchases.orders.state.loadingDetails": "جارٍ تحميل تفاصيل أمر الشراء...",
   "purchases.orders.field.reference": "مرجع أمر الشراء",
   "purchases.orders.field.referenceHint":
     "اتركه فارغاً ليقوم النظام بتوليد مرجع فريد.",
