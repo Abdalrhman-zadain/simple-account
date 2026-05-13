@@ -1,0 +1,105 @@
+I need to connect Purchase Invoices with Inventory.
+
+Currently, purchase invoices create accounting entries only, but they do not update inventory quantities or inventory value.
+
+Required changes:
+
+1. Add warehouseId to each Purchase Invoice Line.
+- warehouseId should be required only when the selected item is an inventory item.
+- When an item is selected, automatically fill warehouseId from the item's defaultWarehouseId.
+- The user can change the warehouse manually.
+- Service items should not require warehouseId and should not create inventory movements.
+
+2. When posting a Purchase Invoice:
+- Keep the existing accounting posting logic.
+- For each inventory item line, create an InventoryMovement with:
+  movementType = PURCHASE_RECEIPT
+  sourceType = PURCHASE_INVOICE
+  sourceId = purchaseInvoice.id
+  sourceLineId = purchaseInvoiceLine.id
+  itemId = line.itemId
+  warehouseId = line.warehouseId
+  inQty = line.quantity
+  outQty = 0
+  unitCost = net unit cost from invoice line
+  totalCost = quantity * unitCost
+
+3. Update or create ItemWarehouseBalance for each itemId + warehouseId:
+- quantityOnHand += line.quantity
+- inventoryValue += totalCost
+- averageCost = inventoryValue / quantityOnHand
+- quantityAvailable = quantityOnHand - quantityReserved
+
+4. Prevent duplicate inventory movements:
+- Before creating an InventoryMovement, check if a movement already exists for the same sourceType and sourceLineId.
+- If it exists, do not create another movement.
+
+5. All posting should run inside a database transaction:
+- If accounting posting fails, inventory should not update.
+- If inventory update fails, accounting posting should rollback.
+
+6. Purchase invoice line posting account:
+- If item is inventory item, default the posting account from item.inventoryAccountId.
+- If item is service/expense, default the posting account from item.expenseAccountId or selected expense account.
+- Inventory items should debit Inventory account.
+- Service items should debit Expense account.
+
+
+
+
+
+
+I need to connect Sales Invoices with Inventory.
+
+Currently, sales invoices create accounting entries only, but they do not reduce inventory quantities or inventory value.
+
+Required changes:
+
+1. Add warehouseId to each Sales Invoice Line.
+- warehouseId should be required only when the selected item is an inventory item.
+- When an inventory item is selected, automatically fill warehouseId from item.defaultWarehouseId.
+- The user can change the warehouse manually.
+- Service items should not require warehouseId and should not create inventory movements.
+
+2. When posting a Sales Invoice:
+- Keep the existing sales accounting posting logic.
+- For each inventory item line, validate available quantity from ItemWarehouseBalance using itemId + warehouseId.
+- If quantityAvailable is less than the sold quantity, block posting with a clear validation error.
+
+3. For each inventory item line, create an InventoryMovement:
+- movementType = SALES_ISSUE
+- sourceType = SALES_INVOICE
+- sourceId = salesInvoice.id
+- sourceLineId = salesInvoiceLine.id
+- itemId = line.itemId
+- warehouseId = line.warehouseId
+- inQty = 0
+- outQty = line.quantity
+- unitCost = current averageCost from ItemWarehouseBalance
+- totalCost = line.quantity * averageCost
+
+4. Update ItemWarehouseBalance:
+- quantityOnHand -= line.quantity
+- inventoryValue -= totalCost
+- quantityAvailable = quantityOnHand - quantityReserved
+- averageCost = inventoryValue / quantityOnHand when quantityOnHand > 0
+- if quantityOnHand becomes 0, set inventoryValue = 0 and averageCost = 0
+
+5. Create COGS journal entry for inventory items:
+- Debit item.cogsAccountId with totalCost
+- Credit item.inventoryAccountId with totalCost
+
+6. Prevent duplicate inventory movements:
+- Before creating an InventoryMovement, check if a movement already exists for the same sourceType and sourceLineId.
+- If it exists, do not create another movement.
+
+7. All posting must run inside one database transaction:
+- If sales accounting posting fails, inventory should not update.
+- If inventory update fails, accounting posting should rollback.
+- If COGS posting fails, both sales posting and inventory movement should rollback.
+
+8. Service items:
+- Should only create revenue accounting entries.
+- Should not require warehouseId.
+- Should not create InventoryMovement.
+- Should not create COGS entry.
