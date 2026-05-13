@@ -22,6 +22,10 @@ export class DebitNoteLineDto {
   @Min(0)
   amount!: number;
 
+  @IsOptional()
+  @IsString()
+  discountAccountId?: string;
+
   @Type(() => Number)
   @IsNumber()
   @Min(0)

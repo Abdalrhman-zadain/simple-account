@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 
 import { JwtAuthGuard } from '../../../platform/auth/guards/jwt-auth.guard';
 import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
@@ -27,13 +27,13 @@ export class DebitNotesController {
   }
 
   @Post()
-  create(@Body() dto: CreateDebitNoteDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateDebitNoteDto, @Req() req: any) {
+    return this.service.create(dto, req.user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDebitNoteDto) {
-    return this.service.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateDebitNoteDto, @Req() req: any) {
+    return this.service.update(id, dto, req.user);
   }
 
   @Post(':id/post')

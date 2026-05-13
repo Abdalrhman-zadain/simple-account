@@ -8,9 +8,10 @@ import { SupplierPaymentsModule } from './supplier-payments/supplier-payments.mo
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { PaymentTermsController } from './payment-terms.controller';
 import { PaymentTermsService } from './payment-terms.service';
+import { PurchasePolicyModule } from './policy/policy.module';
 
 @Module({
-  imports: [SuppliersModule, PurchaseRequestsModule, PurchaseOrdersModule, PurchaseReceiptsModule, PurchaseInvoicesModule, SupplierPaymentsModule, DebitNotesModule],
+  imports: [SuppliersModule, PurchaseRequestsModule, PurchaseOrdersModule, PurchaseReceiptsModule, PurchaseInvoicesModule, SupplierPaymentsModule, DebitNotesModule, PurchasePolicyModule],
   controllers: [PaymentTermsController],
   providers: [PaymentTermsService],
   exports: [PaymentTermsService],

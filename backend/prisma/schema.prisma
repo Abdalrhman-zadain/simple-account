@@ -339,6 +339,7 @@ model Account {
   salesRepEmployeeReceivableAccounts        SalesRepresentative[]   @relation("SalesRepEmployeeReceivableAccount")
   purchaseRequestExpenseLines               PurchaseRequestLine[]   @relation("PurchaseRequestExpenseAccount")
   purchaseInvoiceAccountLines               PurchaseInvoiceLine[]   @relation("PurchaseInvoiceClassificationAccount")
+  debitNoteDiscountLines                    DebitNoteLine[]         @relation("DebitNoteDiscountAccount")
   salesQuotationRevenueLines                SalesQuotationLine[]    @relation("SalesQuotationRevenueAccount")
   salesOrderRevenueLines                    SalesOrderLine[]        @relation("SalesOrderRevenueAccount")
   salesInvoiceRevenueLines                  SalesInvoiceLine[]      @relation("SalesInvoiceRevenueAccount")
@@ -364,6 +365,7 @@ model Account {
   fixedAssetDisposalProceedsAccounts        FixedAssetDisposal[]    @relation("FixedAssetDisposalProceedsAccount")
   fixedAssetDisposalExpenseClearingAccounts FixedAssetDisposal[]    @relation("FixedAssetDisposalExpenseClearingAccount")
   taxes                                     Tax[]                   @relation("TaxAccount")
+  purchaseDiscountPolicies                  PurchasePolicy[]        @relation("PurchasePolicyDiscountAccount")
 
   createdById String?
   createdBy   User?   @relation("AccountCreator", fields: [createdById], references: [id])
@@ -1844,6 +1846,8 @@ model DebitNoteLine {
   lineNumber      Int
   quantity        Decimal   @default(1) @db.Decimal(18, 4)
   amount          Decimal   @default(0) @db.Decimal(18, 2)
+  discountAccountId String?
+  discountAccount Account?  @relation("DebitNoteDiscountAccount", fields: [discountAccountId], references: [id], onDelete: Restrict)
   taxId           String?
   tax             Tax?      @relation(fields: [taxId], references: [id], onDelete: Restrict)
   taxAmount       Decimal   @default(0) @db.Decimal(18, 2)
@@ -1852,7 +1856,18 @@ model DebitNoteLine {
   createdAt       DateTime  @default(now())
 
   @@unique([debitNoteId, lineNumber])
+  @@index([discountAccountId])
   @@index([taxId])
+}
+
+model PurchasePolicy {
+  id                        String   @id
+  purchaseDiscountAccountId String?
+  purchaseDiscountAccount   Account? @relation("PurchasePolicyDiscountAccount", fields: [purchaseDiscountAccountId], references: [id], onDelete: Restrict)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@index([purchaseDiscountAccountId])
 }
 
 model SalesQuotation {

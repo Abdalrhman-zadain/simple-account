@@ -170,6 +170,7 @@ import {
   PurchaseRequest,
   PurchaseRequestConversionResult,
   PurchaseOrder,
+  PurchasePolicy,
   PurchaseReceipt,
   PurchaseInvoice,
   SupplierPayment,
@@ -1921,6 +1922,10 @@ export async function postDebitNote(id: string, token?: string | null) {
     method: "POST",
     token,
   });
+}
+
+export async function getPurchasePolicy(token?: string | null) {
+  return apiRequest<PurchasePolicy>("/purchases/policy", { token });
 }
 
 export async function reverseDebitNote(id: string, token?: string | null) {

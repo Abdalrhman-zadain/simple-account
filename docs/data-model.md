@@ -187,7 +187,8 @@ Key fields:
 - supplier payment `reference`, `status`, `paymentDate`, `supplierId`, `amount`, `allocatedAmount`, `unappliedAmount`, `bankCashAccountId`, and optional `bankCashTransactionId`
 - supplier payment allocation `amount`, `allocatedAt`, `purchaseInvoiceId`, and `supplierPaymentId`
 - debit note `reference`, `status`, `noteDate`, `supplierId`, optional `purchaseInvoiceId`, `currencyCode`, `subtotalAmount`, `taxAmount`, `totalAmount`, and optional `journalEntryId`
-- debit note line `quantity`, `amount`, `taxAmount`, `reason`, and `lineTotalAmount`
+- debit note line `quantity`, `amount`, `discountAccountId`, `taxId`, `taxAmount`, `reason`, and `lineTotalAmount`
+- purchase policy single-row configuration with `purchaseDiscountAccountId`
 - purchase-order, purchase-invoice, and debit-note lines may optionally reference `Tax` through `taxId`; the stored `taxAmount` remains the historical calculated amount
 
 Accounting meaning:
@@ -204,7 +205,9 @@ Accounting meaning:
 - posted supplier payments decrement supplier balances and recompute invoice allocated/outstanding amounts while preventing over-allocation
 - the Purchase Invoice workspace may launch a guided `Post and Create Supplier Payment` handoff that posts the invoice first, then opens a separate supplier-payment draft prefilled with the supplier, invoice reference, outstanding amount, and linked allocation; payment posting remains a separate Bank & Cash-backed journal event
 - debit notes can be drafted, optionally linked to purchase invoices, then posted to reduce supplier balances and reduce the remaining payable amount of linked purchase invoices
-- debit notes are operationally posted today, but they do not yet create their own purchase journal entries
+- debit note lines default their credit-side purchase discount / purchase returns account from Phase 4 purchase policy, while authorized accounting users may override that account per line
+- posted debit notes create journal history that debits the supplier payable account, credits the purchase discount / purchase returns account, and credits mapped input VAT accounts for any tax reduction
+- when a debit note is linked to a purchase invoice, payable reduction still uses the linked invoice's supplier/AP posting account and updates invoice outstanding after posting or reversal
 
 ### Inventory
 

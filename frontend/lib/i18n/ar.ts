@@ -1473,8 +1473,13 @@ Object.assign(arTranslations, {
     "مثال: خصم من المورد على فاتورة الشراء رقم PI-2026-0045",
   "purchases.debitNotes.discountNotice.discountDetails": "بنود الخصم",
   "purchases.debitNotes.discountNotice.discountDetailsHint":
-    "أضف بنود الخصم وحدد الحساب المحاسبي المتأثر.",
-  "purchases.debitNotes.discountNotice.discountAccount": "الحساب المحاسبي المتأثر",
+    "أضف نوع الخصم والضريبة وحساب الخصم / مردودات المشتريات لكل بند.",
+  "purchases.debitNotes.discountNotice.discountType": "نوع الخصم",
+  "purchases.debitNotes.discountNotice.discountAccount": "حساب الخصم / مردودات المشتريات",
+  "purchases.debitNotes.discountNotice.selectDiscountAccount": "اختر حساب الخصم / المردودات",
+  "purchases.debitNotes.discountNotice.accountFromSettingsPending": "بانتظار تحميل الحساب الافتراضي من الإعدادات",
+  "purchases.debitNotes.discountNotice.accountFromSettingsHint":
+    "يتم اعتماد حساب الخصم من إعدادات محاسبة المشتريات افتراضياً، ولا يمكن تجاوزه إلا للمستخدمين المخولين محاسبياً.",
   "purchases.debitNotes.discountNotice.amountBeforeTax": "مبلغ الخصم قبل الضريبة",
   "purchases.debitNotes.discountNotice.defaultReason": "خصم بعد الشراء",
   "purchases.debitNotes.discountNotice.priceCorrection": "تصحيح سعر الشراء",
@@ -1487,17 +1492,18 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.discountNotice.linesTotal": "إجمالي الخصم",
   "purchases.debitNotes.discountNotice.journalPreview": "معاينة القيد المحاسبي",
   "purchases.debitNotes.discountNotice.postingHint":
-    "عند اعتماد إشعار الخصم، سيتم تخفيض رصيد المورد وتعديل الحساب المحاسبي المرتبط.",
+    "عند الترحيل سيتم تخفيض ذمم المورد، وإثبات قيد دائن على حساب الخصم / مردودات المشتريات، وتخفيض ضريبة المدخلات عند وجود ضريبة.",
   "purchases.debitNotes.discountNotice.journalDebit": "من ح / الموردين (حساب دائن)",
-  "purchases.debitNotes.discountNotice.journalCreditLinked":
-    "إلى ح / حسابات بنود فاتورة الشراء المرتبطة",
-  "purchases.debitNotes.discountNotice.journalCreditStandalone":
-    "إلى ح / حساب تعديل مشتريات",
+  "purchases.debitNotes.discountNotice.journalCreditDiscount":
+    "إلى ح / حساب الخصم أو مردودات المشتريات",
+  "purchases.debitNotes.discountNotice.journalCreditTax":
+    "إلى ح / ضريبة المدخلات",
   "purchases.debitNotes.discountNotice.subtotalBeforeTax": "الإجمالي قبل الضريبة",
   "purchases.debitNotes.discountNotice.totalDiscount": "إجمالي خصم إشعار الخصم",
   "purchases.debitNotes.discountNotice.supplierBalanceWarning":
     "سيتم تخفيض المبلغ المستحق على المورد وفقاً لهذا الخصم.",
   "purchases.debitNotes.discountNotice.approveAndIssue": "اعتماد وترحيل إشعار الخصم",
+  "purchases.debitNotes.discountNotice.approveAndPost": "اعتماد وترحيل إشعار الخصم",
   "purchases.debitNotes.line.label": "البند {index}",
   "purchases.debitNotes.line.qtyAmount":
     "الكمية {quantity} · المبلغ الأساسي {amount}",

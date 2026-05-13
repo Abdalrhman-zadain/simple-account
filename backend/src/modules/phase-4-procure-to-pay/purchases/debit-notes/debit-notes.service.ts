@@ -7,6 +7,7 @@ import { JournalEntriesService } from '../../../phase-1-accounting-foundation/ac
 import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
 import { PostingService } from '../../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
 import { ReversalService } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal.service';
+import { PurchasePolicyService } from '../policy/policy.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { CreateDebitNoteDto, DebitNoteLineDto, UpdateDebitNoteDto } from './dto/debit-notes.dto';
 
@@ -21,17 +22,21 @@ type DebitNoteListQuery = {
 type ResolvedDebitNoteLine = {
   quantity: number;
   amount: number;
+  discountAccountId: string;
   taxId: string | null;
   taxAmount: number;
   reason: string;
   lineTotalAmount: number;
 };
 
+type AuthUser = { userId?: string; email?: string; role?: string };
+
 @Injectable()
 export class DebitNotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly suppliersService: SuppliersService,
+    private readonly purchasePolicyService: PurchasePolicyService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
     private readonly reversalService: ReversalService,
@@ -74,13 +79,13 @@ export class DebitNotesService {
     return this.mapDebitNote(row);
   }
 
-  async create(dto: CreateDebitNoteDto) {
+  async create(dto: CreateDebitNoteDto, user?: AuthUser) {
     const supplier = await this.suppliersService.ensureActiveSupplier(dto.supplierId);
     await this.ensurePurchaseInvoice(dto.purchaseInvoiceId, supplier.id);
 
     const reference = dto.reference?.trim() || this.generateReference('DN');
     const currencyCode = dto.currencyCode?.trim().toUpperCase() || supplier.defaultCurrency;
-    const lines = await this.resolveLines(dto.lines);
+    const lines = await this.resolveLines(dto.lines, user);
     const totals = this.computeTotals(lines);
 
     try {
@@ -118,7 +123,7 @@ export class DebitNotesService {
     }
   }
 
-  async update(id: string, dto: UpdateDebitNoteDto) {
+  async update(id: string, dto: UpdateDebitNoteDto, user?: AuthUser) {
     const current = await this.getDebitNoteOrThrow(id);
     if (current.status !== DebitNoteStatus.DRAFT) {
       throw new BadRequestException('Posted debit notes are locked and cannot be edited.');
@@ -130,7 +135,7 @@ export class DebitNotesService {
       dto.purchaseInvoiceId === undefined ? current.purchaseInvoiceId ?? undefined : dto.purchaseInvoiceId || undefined;
     await this.ensurePurchaseInvoice(nextPurchaseInvoiceId, supplier.id);
 
-    const lines = dto.lines ? await this.resolveLines(dto.lines) : null;
+    const lines = dto.lines ? await this.resolveLines(dto.lines, user) : null;
     const totals = lines ? this.computeTotals(lines) : null;
 
     try {
@@ -195,19 +200,31 @@ export class DebitNotesService {
             id: true,
             reference: true,
             supplierId: true,
-            subtotalAmount: true,
-            discountAmount: true,
-            taxAmount: true,
             totalAmount: true,
             status: true,
-            lines: {
-              orderBy: { lineNumber: 'asc' },
+            journalEntry: {
               select: {
-                accountId: true,
-                lineSubtotalAmount: true,
-                discountAmount: true,
+                id: true,
+                lines: {
+                  where: { creditAmount: { gt: 0 } },
+                  orderBy: { creditAmount: 'desc' },
+                  select: {
+                    accountId: true,
+                    creditAmount: true,
+                  },
+                },
               },
             },
+          },
+        },
+        lines: {
+          orderBy: { lineNumber: 'asc' },
+          select: {
+            discountAccountId: true,
+            amount: true,
+            taxId: true,
+            taxAmount: true,
+            lineTotalAmount: true,
           },
         },
       },
@@ -223,8 +240,11 @@ export class DebitNotesService {
     }
 
     if (note.purchaseInvoice) {
-      if (note.purchaseInvoice.status === PurchaseInvoiceStatus.CANCELLED) {
-        throw new BadRequestException('Cancelled purchase invoices cannot be linked to posted debit notes.');
+      if (
+        note.purchaseInvoice.status === PurchaseInvoiceStatus.CANCELLED ||
+        note.purchaseInvoice.status === PurchaseInvoiceStatus.REVERSED
+      ) {
+        throw new BadRequestException('Cancelled or reversed purchase invoices cannot be linked to posted debit notes.');
       }
 
       const postedCredits = await this.prisma.debitNote.aggregate({
@@ -248,7 +268,7 @@ export class DebitNotesService {
       description,
       lines: [
         {
-          accountId: note.supplier.payableAccountId,
+          accountId: this.resolveSupplierPayableAccountId(note),
           description,
           debitAmount: Number(note.totalAmount),
           creditAmount: 0,
@@ -382,16 +402,60 @@ export class DebitNotesService {
     return this.mapDebitNote(updated);
   }
 
-  private async resolveLines(lines: DebitNoteLineDto[]) {
+  private async resolveLines(lines: DebitNoteLineDto[], user?: AuthUser) {
+    const defaultDiscountAccount = await this.purchasePolicyService.getPurchaseDiscountAccountOrThrow();
+    const discountAccountIds = Array.from(
+      new Set(lines.map((line) => line.discountAccountId?.trim()).filter(Boolean)),
+    ) as string[];
     const taxIds = Array.from(new Set(lines.map((line) => line.taxId?.trim()).filter(Boolean))) as string[];
-    const taxes = taxIds.length
-      ? await this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
-      : [];
+    const [discountAccounts, taxes] = await Promise.all([
+      discountAccountIds.length
+        ? this.prisma.account.findMany({
+            where: { id: { in: discountAccountIds }, isActive: true, isPosting: true },
+            select: {
+              id: true,
+              type: true,
+              subtype: true,
+            },
+          })
+        : Promise.resolve([]),
+      taxIds.length
+        ? this.prisma.tax.findMany({
+            where: { id: { in: taxIds }, isActive: true },
+            select: { id: true, rate: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const validDiscountAccounts = new Map(
+      discountAccounts
+        .filter((account) => this.isEligibleDiscountAccount(account))
+        .map((account) => [account.id, true]),
+    );
     const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
+    const canOverrideDiscountAccount = this.canOverrideDiscountAccount(user);
 
     return lines.map((line) => {
       const quantity = Number(line.quantity);
       const amount = Number(line.amount);
+      const requestedDiscountAccountId = line.discountAccountId?.trim() || null;
+      const discountAccountId = requestedDiscountAccountId || defaultDiscountAccount.id;
+      if (!requestedDiscountAccountId && !defaultDiscountAccount.id) {
+        throw new BadRequestException('Purchase discount account is required.');
+      }
+      if (requestedDiscountAccountId && !validDiscountAccounts.has(requestedDiscountAccountId)) {
+        throw new BadRequestException(
+          'Each debit note discount account must use an active posting expense or eligible asset account.',
+        );
+      }
+      if (
+        requestedDiscountAccountId &&
+        requestedDiscountAccountId !== defaultDiscountAccount.id &&
+        !canOverrideDiscountAccount
+      ) {
+        throw new BadRequestException(
+          'Only authorized accounting users can override the default purchase discount account.',
+        );
+      }
       const taxId = line.taxId?.trim() || null;
       if (taxId && !taxById.has(taxId)) {
         throw new BadRequestException('Each debit note line tax must reference an active tax.');
@@ -404,6 +468,7 @@ export class DebitNotesService {
       return {
         quantity,
         amount,
+        discountAccountId,
         taxId,
         taxAmount,
         reason: line.reason.trim(),
@@ -431,6 +496,7 @@ export class DebitNotesService {
       lineNumber,
       quantity: this.toQuantity(line.quantity),
       amount: this.toAmount(line.amount),
+      discountAccountId: line.discountAccountId,
       taxId: line.taxId,
       taxAmount: this.toAmount(line.taxAmount),
       reason: line.reason,
@@ -452,76 +518,98 @@ export class DebitNotesService {
     if (invoice.supplierId !== supplierId) {
       throw new BadRequestException('Debit notes and linked purchase invoices must use the same supplier.');
     }
-    if (invoice.status === PurchaseInvoiceStatus.DRAFT || invoice.status === PurchaseInvoiceStatus.CANCELLED) {
+    if (
+      invoice.status === PurchaseInvoiceStatus.DRAFT ||
+      invoice.status === PurchaseInvoiceStatus.CANCELLED ||
+      invoice.status === PurchaseInvoiceStatus.REVERSED
+    ) {
       throw new BadRequestException('Only posted purchase invoices can be linked to debit notes.');
     }
   }
 
   private async buildOffsetJournalLines(
     note: {
-      purchaseInvoice: {
-        id: string;
-        subtotalAmount: { toString(): string };
-        discountAmount: { toString(): string };
+      lines: Array<{
+        discountAccountId: string | null;
+        amount: { toString(): string };
+        taxId: string | null;
         taxAmount: { toString(): string };
-        lines: Array<{
-          accountId: string;
-          lineSubtotalAmount: { toString(): string };
-          discountAmount: { toString(): string };
-        }>;
-      } | null;
-      subtotalAmount: { toString(): string };
-      taxAmount: { toString(): string };
+      }>;
     },
     description: string,
   ) {
-    const subtotalAmount = Number(note.subtotalAmount);
-    const taxAmount = Number(note.taxAmount);
     const lines: Array<{ accountId: string; description: string; debitAmount: number; creditAmount: number }> = [];
+    const creditByAccount = new Map<string, number>();
+    const taxByAccount = new Map<string, number>();
 
-    if (note.purchaseInvoice) {
-      const baseLines = note.purchaseInvoice.lines.map((line) => ({
-        accountId: line.accountId,
-        netAmount: Number((Number(line.lineSubtotalAmount) - Number(line.discountAmount)).toFixed(2)),
-      }));
-      const totalBase = baseLines.reduce((sum, line) => sum + line.netAmount, 0);
+    const taxIds = Array.from(new Set(note.lines.map((line) => line.taxId).filter(Boolean))) as string[];
+    const taxes = taxIds.length
+      ? await this.prisma.tax.findMany({
+          where: { id: { in: taxIds }, isActive: true },
+          select: {
+            id: true,
+            taxAccountId: true,
+            taxAccount: {
+              select: {
+                id: true,
+                isActive: true,
+                isPosting: true,
+                allowManualPosting: true,
+              },
+            },
+          },
+        })
+      : [];
+    const taxMap = new Map(taxes.map((tax) => [tax.id, tax]));
 
-      if (subtotalAmount > 0) {
-        if (totalBase <= 0) {
-          throw new BadRequestException('Linked purchase invoice does not provide a valid account distribution for the debit note.');
+    for (const line of note.lines) {
+      const discountAmount = Number(line.amount);
+      if (discountAmount > 0) {
+        const accountId = line.discountAccountId;
+        if (!accountId) {
+          throw new BadRequestException('Each debit note line must resolve a purchase discount account.');
         }
-        baseLines.forEach((line, index) => {
-          const amount =
-            index === baseLines.length - 1
-              ? Number((subtotalAmount - lines.reduce((sum, item) => sum + item.creditAmount, 0)).toFixed(2))
-              : Number(((subtotalAmount * line.netAmount) / totalBase).toFixed(2));
-          if (amount > 0) {
-            lines.push({
-              accountId: line.accountId,
-              description,
-              debitAmount: 0,
-              creditAmount: amount,
-            });
-          }
-        });
+        const currentCredit = creditByAccount.get(accountId) ?? 0;
+        creditByAccount.set(accountId, Number((currentCredit + discountAmount).toFixed(2)));
       }
-    } else if (subtotalAmount > 0) {
-      lines.push({
-        accountId: await this.getStandaloneAdjustmentAccountId(),
+
+      const taxAmount = Number(line.taxAmount);
+      if (taxAmount <= 0) {
+        continue;
+      }
+
+      let taxAccountId: string | null = null;
+      if (line.taxId) {
+        const tax = taxMap.get(line.taxId);
+        if (tax?.taxAccountId && tax.taxAccount?.isActive && tax.taxAccount.isPosting && tax.taxAccount.allowManualPosting) {
+          taxAccountId = tax.taxAccountId;
+        }
+      }
+
+      if (!taxAccountId) {
+        taxAccountId = await this.getPurchaseTaxAccountId();
+      }
+
+      const currentTax = taxByAccount.get(taxAccountId) ?? 0;
+      taxByAccount.set(taxAccountId, Number((currentTax + taxAmount).toFixed(2)));
+    }
+
+    lines.push(
+      ...Array.from(creditByAccount.entries()).map(([accountId, amount]) => ({
+        accountId,
         description,
         debitAmount: 0,
-        creditAmount: subtotalAmount,
-      });
-    }
-
-    if (taxAmount > 0) {
-      lines.push({
-        accountId: await this.getPurchaseTaxAccountId(),
+        creditAmount: Number(amount.toFixed(2)),
+      })),
+    );
+    lines.push(
+      ...Array.from(taxByAccount.entries()).map(([accountId, amount]) => ({
+        accountId,
         description: `${description} tax`,
         debitAmount: 0,
-        creditAmount: taxAmount,
-      });
-    }
+        creditAmount: Number(amount.toFixed(2)),
+      })),
+    );
 
     return lines;
   }
@@ -546,35 +634,6 @@ export class DebitNotesService {
 
     if (!account) {
       throw new BadRequestException('No active purchase tax/VAT account is configured for posting tax amounts.');
-    }
-
-    return account.id;
-  }
-
-  private async getStandaloneAdjustmentAccountId() {
-    const account = await this.prisma.account.findFirst({
-      where: {
-        isActive: true,
-        isPosting: true,
-        allowManualPosting: true,
-        type: { in: ['EXPENSE', 'ASSET'] as any },
-        OR: [
-          { subtype: { contains: 'purchase', mode: 'insensitive' } },
-          { subtype: { contains: 'adjust', mode: 'insensitive' } },
-          { subtype: { contains: 'return', mode: 'insensitive' } },
-          { name: { contains: 'purchase', mode: 'insensitive' } },
-          { name: { contains: 'adjust', mode: 'insensitive' } },
-          { name: { contains: 'return', mode: 'insensitive' } },
-        ],
-      },
-      select: { id: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (!account) {
-      throw new BadRequestException(
-        'Standalone debit note posting requires an active purchase adjustment account to be configured.',
-      );
     }
 
     return account.id;
@@ -663,6 +722,16 @@ export class DebitNotesService {
       },
       lines: {
         orderBy: { lineNumber: 'asc' },
+        include: {
+          discountAccount: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              nameAr: true,
+            },
+          },
+        },
       },
     } satisfies Prisma.DebitNoteInclude;
   }
@@ -702,6 +771,15 @@ export class DebitNotesService {
         lineNumber: line.lineNumber,
         quantity: line.quantity.toString(),
         amount: line.amount.toString(),
+        discountAccountId: line.discountAccountId ?? null,
+        discountAccount: line.discountAccount
+          ? {
+              id: line.discountAccount.id,
+              code: line.discountAccount.code,
+              name: line.discountAccount.name,
+              nameAr: line.discountAccount.nameAr,
+            }
+          : null,
         taxId: line.taxId ?? null,
         taxAmount: line.taxAmount.toString(),
         reason: line.reason,
@@ -745,6 +823,31 @@ export class DebitNotesService {
 
   private toQuantity(value: number) {
     return Number(value).toFixed(4);
+  }
+
+  private resolveSupplierPayableAccountId(note: {
+    supplier: { payableAccountId: string };
+    purchaseInvoice:
+      | {
+          journalEntry: {
+            lines: Array<{ accountId: string; creditAmount: { toString(): string } | number }>;
+          } | null;
+        }
+      | null;
+  }) {
+    const invoicePayableAccountId = note.purchaseInvoice?.journalEntry?.lines[0]?.accountId;
+    return invoicePayableAccountId || note.supplier.payableAccountId;
+  }
+
+  private isEligibleDiscountAccount(account: { type: string; subtype: string | null }) {
+    if (account.type === 'EXPENSE') {
+      return true;
+    }
+    return account.type === 'ASSET' && (account.subtype === 'Inventory' || account.subtype === 'FixedAsset');
+  }
+
+  private canOverrideDiscountAccount(user?: AuthUser) {
+    return user?.role === 'ADMIN' || user?.role === 'MANAGER';
   }
 
   private generateReference(prefix: string) {

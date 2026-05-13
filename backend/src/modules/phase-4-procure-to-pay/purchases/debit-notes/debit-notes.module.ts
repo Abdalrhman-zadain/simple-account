@@ -7,10 +7,11 @@ import { PostingLogicModule } from '../../../phase-1-accounting-foundation/accou
 import { ReversalControlModule } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal-control.module';
 import { DebitNotesController } from './debit-notes.controller';
 import { DebitNotesService } from './debit-notes.service';
+import { PurchasePolicyModule } from '../policy/policy.module';
 import { SuppliersModule } from '../suppliers/suppliers.module';
 
 @Module({
-  imports: [PrismaModule, SuppliersModule, JournalEntriesModule, PostingLogicModule, ReversalControlModule, AuditModule],
+  imports: [PrismaModule, SuppliersModule, PurchasePolicyModule, JournalEntriesModule, PostingLogicModule, ReversalControlModule, AuditModule],
   controllers: [DebitNotesController],
   providers: [DebitNotesService],
   exports: [DebitNotesService],

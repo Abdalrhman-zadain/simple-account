@@ -10,7 +10,7 @@ import { UpdateAccountDto } from './dto/update-account.dto';
 type DbClient = Pick<PrismaClient, 'account' | 'accountSubtype' | '$queryRaw' | '$executeRaw'>;
 
 const ACCOUNT_CREATE_MAX_ATTEMPTS = 5;
-type AccountSelectorUsage = 'purchase-invoice-line';
+type AccountSelectorUsage = 'purchase-invoice-line' | 'purchase-debit-note-line';
 
 type AccountListQuery = {
   type?: string;
@@ -489,7 +489,7 @@ export class AccountsService {
         : undefined,
     };
 
-    if (query?.usage === 'purchase-invoice-line') {
+    if (query?.usage === 'purchase-invoice-line' || query?.usage === 'purchase-debit-note-line') {
       where.isPosting = true;
       where.AND = [
         {

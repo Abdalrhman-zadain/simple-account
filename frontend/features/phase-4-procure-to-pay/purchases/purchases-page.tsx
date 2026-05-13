@@ -43,6 +43,7 @@ import {
   getDebitNotes,
   getActiveTaxes,
   getInventoryItems,
+  getPurchasePolicy,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
   getPurchaseOrders,
@@ -71,7 +72,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { AccountOption, AccountTreeNode, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
+import type { AccountOption, AccountTreeNode, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchasePolicy, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
@@ -214,6 +215,7 @@ type DebitNoteLineEditorState = {
   key: string;
   quantity: string;
   amount: string;
+  discountAccountId: string;
   taxId: string;
   taxRate: string;
   taxAmount: string;
@@ -383,6 +385,12 @@ export function PurchasesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const activeTaxes = taxesQuery.data ?? [];
+
+  const purchasePolicyQuery = useQuery({
+    queryKey: ["purchase-policy", token],
+    queryFn: () => getPurchasePolicy(token),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const paymentTermsQuery = useQuery({
     queryKey: ["payment-terms", "active", token],
@@ -971,6 +979,15 @@ export function PurchasesPage() {
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const inventoryItems = inventoryItemsQuery.data?.data ?? [];
   const purchaseInvoiceDebitAccounts = (invoiceAccountsQuery.data ?? []).filter(isPurchaseInvoiceDebitAccount);
+  const debitNoteDiscountAccountsQuery = useQuery({
+    queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", usage: "purchase-debit-note-line", view: "selector" }),
+    queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", usage: "purchase-debit-note-line" }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+  const debitNoteDiscountAccounts = debitNoteDiscountAccountsQuery.data ?? [];
+  const purchasePolicy: PurchasePolicy | null = purchasePolicyQuery.data ?? null;
+  const defaultDebitNoteDiscountAccountId = purchasePolicy?.purchaseDiscountAccountId ?? "";
+  const canOverrideDebitNoteDiscountAccount = user?.role === "ADMIN" || user?.role === "MANAGER";
   const paymentEligibleInvoiceRows = guidedPaymentSourceInvoice
     ? [guidedPaymentSourceInvoice, ...purchaseInvoices.filter((invoice) => invoice.id !== guidedPaymentSourceInvoice.id)]
     : purchaseInvoices;
@@ -1019,7 +1036,18 @@ export function PurchasesPage() {
     postSupplierPaymentMutation.error ?? cancelSupplierPaymentMutation.error ?? reverseSupplierPaymentMutation.error,
   );
   const debitNoteSaveError = getMutationErrorMessage(createDebitNoteMutation.error ?? updateDebitNoteMutation.error);
-  const debitNoteFormError = getDebitNoteFormError(debitNoteEditor, t);
+  const debitNoteFormError = getDebitNoteFormError(
+    debitNoteEditor,
+    {
+      defaultDiscountAccountId: defaultDebitNoteDiscountAccountId,
+      availableInvoiceBalance: debitNoteEditor.purchaseInvoiceId
+        ? Number(
+            purchaseInvoices.find((invoice) => invoice.id === debitNoteEditor.purchaseInvoiceId)?.outstandingAmount ?? 0,
+          )
+        : null,
+    },
+    t,
+  );
   const debitNoteActionError = getMutationErrorMessage(
     postDebitNoteMutation.error ?? cancelDebitNoteMutation.error ?? reverseDebitNoteMutation.error,
   );
@@ -1078,6 +1106,37 @@ export function PurchasesPage() {
     if (workspace === requestedWorkspace) return;
     setWorkspace(requestedWorkspace as Workspace);
   }, [requestedWorkspace, workspace, workspaceTabs]);
+
+  useEffect(() => {
+    if (!isDebitNoteEditorOpen) return;
+
+    setDebitNoteEditor((current) => {
+      let changed = false;
+      const lines = current.lines.map((line) => {
+        const resolvedTaxRate = resolveTaxRate(activeTaxes, line.taxId);
+        const resolvedTaxAmount = calculateDebitNoteLineTaxAmount(line.amount, resolvedTaxRate);
+        const resolvedDiscountAccountId = line.discountAccountId || defaultDebitNoteDiscountAccountId;
+
+        if (
+          line.taxRate !== resolvedTaxRate ||
+          line.taxAmount !== resolvedTaxAmount ||
+          line.discountAccountId !== resolvedDiscountAccountId
+        ) {
+          changed = true;
+          return {
+            ...line,
+            taxRate: resolvedTaxRate,
+            taxAmount: resolvedTaxAmount,
+            discountAccountId: resolvedDiscountAccountId,
+          };
+        }
+
+        return line;
+      });
+
+      return changed ? { ...current, lines } : current;
+    });
+  }, [activeTaxes, defaultDebitNoteDiscountAccountId, isDebitNoteEditorOpen]);
 
   useEffect(() => {
     if (!sourcePurchaseRequestId || !sourcePurchaseRequestQuery.data) return;
@@ -3634,7 +3693,7 @@ export function PurchasesPage() {
                             <option value="">{t("purchases.debitNotes.discountNotice.selectRelatedInvoice")}</option>
                             {purchaseInvoices
                               .filter((invoice) => !debitNoteEditor.supplierId || invoice.supplier.id === debitNoteEditor.supplierId)
-                              .filter((invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED")
+                              .filter((invoice) => invoice.status !== "DRAFT" && invoice.status !== "CANCELLED" && invoice.status !== "REVERSED")
                               .map((invoice) => (
                                 <option key={invoice.id} value={invoice.id}>
                                   {invoice.reference}
@@ -3699,21 +3758,26 @@ export function PurchasesPage() {
 
                     <div className="overflow-x-auto">
                       <div className="min-w-[980px]">
-                        <div className="mb-3 grid grid-cols-[0.45fr_1.25fr_1.6fr_1.15fr_1fr_0.55fr] gap-3 px-1 text-sm font-bold text-slate-900">
+                        <div className="mb-3 grid grid-cols-[0.4fr_1.2fr_1.3fr_1fr_1fr_1fr_0.55fr] gap-3 px-1 text-sm font-bold text-slate-900">
                           <div className="text-center">#</div>
-                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.field.reason")}</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.discountNotice.discountType")}</div>
                           <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.discountNotice.discountAccount")}</div>
                           <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.discountNotice.amountBeforeTax")}</div>
+                          <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.field.tax")}</div>
                           <div className={cn(isArabic && "text-right")}>{t("purchases.debitNotes.field.lineTotal")}</div>
                           <div>{t("purchases.action.remove")}</div>
                         </div>
 
                         <div className="space-y-3">
                           {debitNoteEditor.lines.map((line, index) => {
-                            const lineTotal = Number(line.amount || 0);
+                            const lineTotal = Number((Number(line.amount || 0) + Number(line.taxAmount || 0)).toFixed(2));
+                            const lineDiscountAccount =
+                              debitNoteDiscountAccounts.find((account) => account.id === line.discountAccountId) ??
+                              debitNoteDiscountAccounts.find((account) => account.id === defaultDebitNoteDiscountAccountId) ??
+                              null;
 
                             return (
-                              <div key={line.key} className="grid grid-cols-[0.45fr_1.25fr_1.6fr_1.15fr_1fr_0.55fr] gap-3">
+                              <div key={line.key} className="grid grid-cols-[0.4fr_1.2fr_1.3fr_1fr_1fr_1fr_0.55fr] gap-3">
                                 <Input value={`${index + 1}`} readOnly className="h-12 border-slate-200 bg-white text-center font-bold" />
                                 <Select
                                   value={line.reason || t("purchases.debitNotes.discountNotice.defaultReason")}
@@ -3724,21 +3788,48 @@ export function PurchasesPage() {
                                   <option value={t("purchases.debitNotes.discountNotice.priceCorrection")}>{t("purchases.debitNotes.discountNotice.priceCorrection")}</option>
                                   <option value={t("purchases.debitNotes.discountNotice.purchaseReturn")}>{t("purchases.debitNotes.discountNotice.purchaseReturn")}</option>
                                 </Select>
-                                <Input
-                                  value={
-                                    selectedDebitNoteInvoice
-                                      ? t("purchases.debitNotes.discountNotice.linkedInvoiceDistributionAccount")
-                                      : t("purchases.debitNotes.discountNotice.standaloneAdjustmentAccount")
-                                  }
-                                  readOnly
-                                  className={cn("h-12 border-slate-200 bg-slate-50 text-slate-700", isArabic && "text-right")}
-                                />
+                                {canOverrideDebitNoteDiscountAccount ? (
+                                  <Select
+                                    value={line.discountAccountId}
+                                    onChange={(event) => updateDebitNoteLine(line.key, "discountAccountId", event.target.value)}
+                                    className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                  >
+                                    <option value="">{t("purchases.debitNotes.discountNotice.selectDiscountAccount")}</option>
+                                    {debitNoteDiscountAccounts.map((account) => (
+                                      <option key={account.id} value={account.id}>
+                                        {account.code} - {cleanDisplayName(isArabic ? account.nameAr || account.name : account.name)}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={
+                                      lineDiscountAccount
+                                        ? `${lineDiscountAccount.code} - ${cleanDisplayName(isArabic ? lineDiscountAccount.nameAr || lineDiscountAccount.name : lineDiscountAccount.name)}`
+                                        : t("purchases.debitNotes.discountNotice.accountFromSettingsPending")
+                                    }
+                                    readOnly
+                                    className={cn("h-12 border-slate-200 bg-slate-50 text-slate-700", isArabic && "text-right")}
+                                  />
+                                )}
                                 <CurrencyInput
                                   currencyCode={debitNoteCurrency}
                                   value={line.amount}
                                   onChange={(value) => updateDebitNoteLine(line.key, "amount", value)}
                                   isArabic={isArabic}
                                 />
+                                <Select
+                                  value={line.taxId}
+                                  onChange={(event) => updateDebitNoteLine(line.key, "taxId", event.target.value)}
+                                  className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                >
+                                  <option value="">{t("purchases.invoices.form.noTax")}</option>
+                                  {activeTaxes.map((tax) => (
+                                    <option key={tax.id} value={tax.id}>
+                                      {tax.taxCode} - {tax.taxName} ({Number(tax.rate).toFixed(2)}%)
+                                    </option>
+                                  ))}
+                                </Select>
                                 <CurrencyInput
                                   currencyCode={debitNoteCurrency}
                                   value={lineTotal.toFixed(3)}
@@ -3775,15 +3866,10 @@ export function PurchasesPage() {
                       <div className={cn("space-y-2 text-sm text-slate-700", isArabic ? "text-right" : "text-left")}>
                         <div>{t("purchases.debitNotes.discountNotice.postingHint")}</div>
                         <PostingPreviewRow label={t("purchases.debitNotes.discountNotice.journalDebit")} value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(3)}`} isArabic={isArabic} />
-                        <PostingPreviewRow
-                          label={
-                            selectedDebitNoteInvoice
-                              ? t("purchases.debitNotes.discountNotice.journalCreditLinked")
-                              : t("purchases.debitNotes.discountNotice.journalCreditStandalone")
-                          }
-                          value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(3)}`}
-                          isArabic={isArabic}
-                        />
+                        <PostingPreviewRow label={t("purchases.debitNotes.discountNotice.journalCreditDiscount")} value={`${debitNoteCurrency} ${debitNoteTotals.subtotalAmount.toFixed(3)}`} isArabic={isArabic} />
+                        {debitNoteTotals.taxAmount > 0 ? (
+                          <PostingPreviewRow label={t("purchases.debitNotes.discountNotice.journalCreditTax")} value={`${debitNoteCurrency} ${debitNoteTotals.taxAmount.toFixed(3)}`} isArabic={isArabic} />
+                        ) : null}
                       </div>
                     </div>
 
@@ -3791,6 +3877,12 @@ export function PurchasesPage() {
                       <MetricCard label={t("purchases.debitNotes.discountNotice.subtotalBeforeTax")} value={`${debitNoteCurrency} ${debitNoteTotals.subtotalAmount.toFixed(2)}`} />
                       <MetricCard label={t("purchases.debitNotes.discountNotice.totalDiscount")} value={`${debitNoteCurrency} ${debitNoteTotals.totalAmount.toFixed(2)}`} highlight />
                     </div>
+
+                    {!canOverrideDebitNoteDiscountAccount ? (
+                      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm font-medium text-slate-700">
+                        {t("purchases.debitNotes.discountNotice.accountFromSettingsHint")}
+                      </div>
+                    ) : null}
 
                     <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
                       {t("purchases.debitNotes.discountNotice.supplierBalanceWarning")}
@@ -3831,7 +3923,7 @@ export function PurchasesPage() {
                     className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
                   >
                     <Check className="h-4 w-4" />
-                    {t("purchases.debitNotes.discountNotice.approveAndIssue")}
+                    {t("purchases.debitNotes.discountNotice.approveAndPost")}
                   </Button>
                 </div>
               </div>
@@ -4420,6 +4512,7 @@ export function PurchasesPage() {
             key: line.id,
             quantity: line.quantity,
             amount: line.amount,
+            discountAccountId: line.discountAccountId ?? "",
             taxId: line.taxId ?? "",
             taxRate: "",
             taxAmount: line.taxAmount,
@@ -4757,7 +4850,11 @@ function getSupplierPaymentFormError(editor: SupplierPaymentEditorState, t: any)
   return null;
 }
 
-function getDebitNoteFormError(editor: DebitNoteEditorState, t: any) {
+function getDebitNoteFormError(
+  editor: DebitNoteEditorState,
+  options: { defaultDiscountAccountId?: string; availableInvoiceBalance?: number | null },
+  t: any,
+) {
   if (!editor.supplierId) {
     return t("purchases.validation.supplierRequired");
   }
@@ -4774,11 +4871,20 @@ function getDebitNoteFormError(editor: DebitNoteEditorState, t: any) {
     if (!line.reason.trim()) {
       return t("purchases.validation.descriptionRequired");
     }
+    if (!(line.discountAccountId || options.defaultDiscountAccountId)) {
+      return "يجب تحديد حساب الخصم / مردودات المشتريات.";
+    }
     if (!line.quantity || Number(line.quantity) <= 0) {
       return t("purchases.validation.quantityPositive");
     }
     if (!line.amount || Number(line.amount) <= 0) {
       return "يجب أن يكون مبلغ الخصم أكبر من صفر.";
+    }
+  }
+  if (options.availableInvoiceBalance !== null && options.availableInvoiceBalance !== undefined) {
+    const totalAmount = calculateDebitNoteEditorTotals(editor.lines).totalAmount;
+    if (totalAmount - options.availableInvoiceBalance > 0.0001) {
+      return "لا يمكن أن يتجاوز إشعار الخصم الرصيد المتبقي على فاتورة الشراء المرتبطة.";
     }
   }
   return null;
@@ -4877,6 +4983,7 @@ function createEmptyDebitNoteLine(): DebitNoteLineEditorState {
     key: randomKey(),
     quantity: "1",
     amount: "0.00",
+    discountAccountId: "",
     taxId: "",
     taxRate: "",
     taxAmount: "0.00",
@@ -4888,15 +4995,33 @@ function calculateDebitNoteEditorTotals(lines: DebitNoteLineEditorState[]) {
   return lines.reduce(
     (totals, line) => {
       const amount = Number(line.amount || 0);
+      const taxAmount = Number(line.taxAmount || 0);
 
       return {
         subtotalAmount: Number((totals.subtotalAmount + amount).toFixed(2)),
-        taxAmount: 0,
-        totalAmount: Number((totals.totalAmount + amount).toFixed(2)),
+        taxAmount: Number((totals.taxAmount + taxAmount).toFixed(2)),
+        totalAmount: Number((totals.totalAmount + amount + taxAmount).toFixed(2)),
       };
     },
     { subtotalAmount: 0, taxAmount: 0, totalAmount: 0 },
   );
+}
+
+function resolveTaxRate(taxes: Tax[], taxId: string) {
+  if (!taxId) {
+    return "";
+  }
+  const tax = taxes.find((row) => row.id === taxId);
+  return tax ? String(tax.rate) : "";
+}
+
+function calculateDebitNoteLineTaxAmount(amount: string, taxRate: string) {
+  const numericAmount = Number(amount || 0);
+  const numericRate = Number(taxRate || 0);
+  if (numericAmount <= 0 || numericRate <= 0) {
+    return "0.00";
+  }
+  return (numericAmount * (numericRate / 100)).toFixed(2);
 }
 
 function mapRequestEditorLines(lines: PurchaseRequestLineEditorState[]) {
@@ -4950,6 +5075,7 @@ function mapDebitNoteEditorLines(lines: DebitNoteLineEditorState[]) {
   return lines.map((line) => ({
     quantity: Number(line.quantity),
     amount: Number(line.amount),
+    discountAccountId: line.discountAccountId || undefined,
     taxId: line.taxId || undefined,
     taxAmount: Number(line.taxAmount),
     reason: line.reason,

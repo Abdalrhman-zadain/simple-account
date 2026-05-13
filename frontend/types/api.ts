@@ -2455,6 +2455,13 @@ export type DebitNoteLine = {
   lineNumber: number;
   quantity: string;
   amount: string;
+  discountAccountId?: string | null;
+  discountAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    nameAr?: string | null;
+  } | null;
   taxId?: string | null;
   taxAmount: string;
   reason: string;
@@ -2510,9 +2517,23 @@ export type DebitNotesQuery = {
 export type DebitNoteLinePayload = {
   quantity: number;
   amount: number;
+  discountAccountId?: string;
   taxId?: string;
   taxAmount: number;
   reason: string;
+};
+
+export type PurchasePolicy = {
+  id: string;
+  purchaseDiscountAccountId?: string | null;
+  purchaseDiscountAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    nameAr?: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateDebitNotePayload = {
@@ -3062,7 +3083,7 @@ export type AccountsQuery = {
   search?: string;
   parentAccountId?: string | null;
   view?: "selector" | "table";
-  usage?: "purchase-invoice-line";
+  usage?: "purchase-invoice-line" | "purchase-debit-note-line";
 };
 
 export type CreateAccountPayload = {

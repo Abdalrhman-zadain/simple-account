@@ -1509,8 +1509,13 @@ Object.assign(enTranslations, {
     "Supplier discount on purchase invoice {invoice}",
   "purchases.debitNotes.discountNotice.discountDetails": "Discount Details",
   "purchases.debitNotes.discountNotice.discountDetailsHint":
-    "Enter the discount details and the account that will be reduced.",
-  "purchases.debitNotes.discountNotice.discountAccount": "System Offset Account",
+    "Enter the discount type, tax, and purchase discount / returns account for each line.",
+  "purchases.debitNotes.discountNotice.discountType": "Discount Type",
+  "purchases.debitNotes.discountNotice.discountAccount": "Purchase Discount / Purchase Returns Account",
+  "purchases.debitNotes.discountNotice.selectDiscountAccount": "Select purchase discount account",
+  "purchases.debitNotes.discountNotice.accountFromSettingsPending": "Waiting for configured default account",
+  "purchases.debitNotes.discountNotice.accountFromSettingsHint":
+    "The purchase discount account is taken from purchase accounting settings by default. Only authorized accounting users can override it.",
   "purchases.debitNotes.discountNotice.amountBeforeTax": "Discount Amount Before Tax",
   "purchases.debitNotes.discountNotice.defaultReason": "Post-purchase discount",
   "purchases.debitNotes.discountNotice.priceCorrection": "Purchase price correction",
@@ -1523,17 +1528,18 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.discountNotice.linesTotal": "Lines total",
   "purchases.debitNotes.discountNotice.journalPreview": "Accounting entry preview on approval",
   "purchases.debitNotes.discountNotice.postingHint":
-    "This debit note will be posted as a discount against the linked invoice.",
+    "Posting will reduce supplier payable, credit the purchase discount / returns account, and credit input VAT when tax is reduced.",
   "purchases.debitNotes.discountNotice.journalDebit": "Debit / Suppliers (payable account)",
-  "purchases.debitNotes.discountNotice.journalCreditLinked":
-    "Credit / linked purchase-invoice line accounts",
-  "purchases.debitNotes.discountNotice.journalCreditStandalone":
-    "Credit / purchase adjustment account",
+  "purchases.debitNotes.discountNotice.journalCreditDiscount":
+    "Credit / purchase discount or purchase returns account",
+  "purchases.debitNotes.discountNotice.journalCreditTax":
+    "Credit / input VAT account",
   "purchases.debitNotes.discountNotice.subtotalBeforeTax": "Subtotal Before Tax",
   "purchases.debitNotes.discountNotice.totalDiscount": "Total Debit Note Discount",
   "purchases.debitNotes.discountNotice.supplierBalanceWarning":
     "The amount due to the supplier will be reduced according to this discount.",
   "purchases.debitNotes.discountNotice.approveAndIssue": "Approve and issue debit note",
+  "purchases.debitNotes.discountNotice.approveAndPost": "Approve and post discount note",
   "purchases.debitNotes.line.label": "Line {index}",
   "purchases.debitNotes.line.qtyAmount": "Qty {quantity} · Base {amount}",
   "purchases.debitNotes.status.applied": "Applied",
