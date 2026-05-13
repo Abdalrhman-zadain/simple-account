@@ -42,6 +42,7 @@ type ReceiptEditorModalProps = {
   onClose: () => void;
   onChange: (editor: ReceiptEditorValue) => void;
   onSubmit: () => void;
+  submitLabel?: string;
 };
 
 export function ReceiptEditorModal({
@@ -57,6 +58,7 @@ export function ReceiptEditorModal({
   onClose,
   onChange,
   onSubmit,
+  submitLabel,
 }: ReceiptEditorModalProps) {
   const { t, language } = useTranslation();
   const isArabic = language === "ar";
@@ -304,7 +306,7 @@ export function ReceiptEditorModal({
             </Button>
             <Button onClick={onSubmit} disabled={isSubmitting} className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700">
               <Save className="h-4 w-4" />
-              {t("salesReceivables.action.createReceipt")}
+              {submitLabel ?? t("salesReceivables.action.createReceipt")}
             </Button>
           </div>
         </div>

@@ -2340,15 +2340,9 @@ export function PurchasesPage() {
                               <Field label={t("purchases.requests.field.itemOrService")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
                                 <Select
                                   value={line.itemId}
-                                  onChange={(event) => {
-                                    const itemId = event.target.value;
-                                    const item = inventoryItems.find((i) => i.id === itemId);
-                                    updateRequestLine(line.key, "itemId", itemId);
-                                    updateRequestLine(line.key, "itemName", item?.name ?? "");
-                                  }}
+                                  onChange={(event) => updateRequestLineFromItem(line.key, inventoryItems.find((i) => i.id === event.target.value) ?? null)}
                                   className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                                >
-                                  <option value="">
+                                >                                  <option value="">
                                     {inventoryItemsQuery.isLoading ? t("purchases.requests.state.loadingItems") : t("purchases.requests.empty.selectItemOrService")}
                                   </option>
                                   {inventoryItems.map((item) => (
@@ -2606,15 +2600,9 @@ export function PurchasesPage() {
                                 <Field label={t("purchases.orders.field.itemOrService")} required labelClassName={isArabic ? "arabic-ui" : undefined} labelAlign={isArabic ? "end" : "start"}>
                                   <Select
                                     value={line.itemId}
-                                    onChange={(event) => {
-                                      const itemId = event.target.value;
-                                      const item = inventoryItems.find((i) => i.id === itemId);
-                                      updateOrderLine(line.key, "itemId", itemId);
-                                      updateOrderLine(line.key, "itemName", item?.name ?? "");
-                                    }}
+                                    onChange={(event) => updateOrderLineFromItem(line.key, inventoryItems.find((i) => i.id === event.target.value) ?? null)}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                                  >
-                                    <option value="">
+                                  >                                    <option value="">
                                       {inventoryItemsQuery.isLoading ? t("purchases.orders.state.loadingItems") : t("purchases.orders.empty.selectItemOrService")}
                                     </option>
                                     {inventoryItems.map((item) => (
@@ -3479,22 +3467,51 @@ export function PurchasesPage() {
                       {paymentSaveError}
                     </div>
                   ) : null}
+
+                  {paymentActionError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {paymentActionError}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
               <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
-                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <Button variant="secondary" onClick={closePaymentEditor} className="rounded-2xl px-6">
                     {t("purchases.action.cancel")}
                   </Button>
-                  <Button
-                    onClick={() => (paymentEditor.id ? updateSupplierPaymentMutation.mutate() : createSupplierPaymentMutation.mutate())}
-                    disabled={Boolean(paymentFormError) || createSupplierPaymentMutation.isPending || updateSupplierPaymentMutation.isPending}
-                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
-                  >
-                    <Save className="h-4 w-4" />
-                    {paymentEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-                  </Button>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button
+                      onClick={() => (paymentEditor.id ? updateSupplierPaymentMutation.mutate() : createSupplierPaymentMutation.mutate())}
+                      disabled={
+                        Boolean(paymentFormError) ||
+                        createSupplierPaymentMutation.isPending ||
+                        updateSupplierPaymentMutation.isPending ||
+                        postSupplierPaymentMutation.isPending
+                      }
+                      className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                    >
+                      <Save className="h-4 w-4" />
+                      {paymentEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        void saveAndPostSupplierPaymentFromEditor();
+                      }}
+                      disabled={
+                        Boolean(paymentFormError) ||
+                        createSupplierPaymentMutation.isPending ||
+                        updateSupplierPaymentMutation.isPending ||
+                        postSupplierPaymentMutation.isPending
+                      }
+                      className="rounded-2xl border-emerald-200 px-6 text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("purchases.action.postPayment")}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3918,6 +3935,23 @@ export function PurchasesPage() {
     }));
   }
 
+  function updateRequestLineFromItem(key: string, item: InventoryItem | null) {
+    setRequestEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) =>
+        line.key === key
+          ? {
+              ...line,
+              itemId: item?.id ?? "",
+              itemName: item?.name ?? "",
+              description: line.description.trim() || !item ? line.description : item.description ?? item.name,
+              quantity: line.quantity && Number(line.quantity) > 0 ? line.quantity : "1",
+            }
+          : line,
+      ),
+    }));
+  }
+
   function openNewPurchaseOrderEditor() {
     createPurchaseOrderMutation.reset();
     updatePurchaseOrderMutation.reset();
@@ -4029,6 +4063,34 @@ export function PurchasesPage() {
           next.taxAmount = Number((baseAmount * Number(next.taxRate) / 100).toFixed(2)).toFixed(2);
         }
         return next;
+      }),
+    }));
+  }
+
+  function updateOrderLineFromItem(key: string, item: InventoryItem | null) {
+    setOrderEditor((current) => ({
+      ...current,
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+
+        const quantity = line.quantity && Number(line.quantity) > 0 ? line.quantity : "1";
+        const unitPrice = item?.defaultPurchasePrice ?? "0.00";
+        const tax = item?.defaultTax;
+
+        const baseAmount = Number(quantity) * Number(unitPrice);
+        const taxAmount = tax ? Number(((baseAmount * Number(tax.rate)) / 100).toFixed(2)) : 0;
+
+        return {
+          ...line,
+          itemId: item?.id ?? "",
+          itemName: item?.name ?? "",
+          description: line.description.trim() || !item ? line.description : item.description ?? item.name,
+          quantity,
+          unitPrice,
+          taxId: tax?.id ?? "",
+          taxRate: tax ? String(tax.rate) : "",
+          taxAmount: taxAmount.toFixed(2),
+        };
       }),
     }));
   }
@@ -4149,17 +4211,30 @@ export function PurchasesPage() {
   function updateInvoiceLineFromItem(key: string, item: InventoryItem | null) {
     setInvoiceEditor((current) => ({
       ...current,
-      lines: current.lines.map((line) =>
-        line.key === key
-          ? {
-              ...line,
-              itemId: item?.id ?? "",
-              itemName: item?.name ?? "",
-              description: line.description.trim() || !item ? line.description : item.description ?? item.name,
-              accountId: item?.inventoryAccount?.id ?? item?.adjustmentAccount?.id ?? line.accountId,
-            }
-          : line,
-      ),
+      lines: current.lines.map((line) => {
+        if (line.key !== key) return line;
+
+        const quantity = line.quantity && Number(line.quantity) > 0 ? line.quantity : "1.00";
+        const unitPrice = item?.defaultPurchasePrice ?? "0.00";
+        const tax = item?.defaultTax;
+
+        const baseAmount = Number(quantity) * Number(unitPrice);
+        const discountedAmount = baseAmount - Number(line.discountAmount || 0);
+        const taxAmount = tax ? Number(((discountedAmount * Number(tax.rate)) / 100).toFixed(2)) : 0;
+
+        return {
+          ...line,
+          itemId: item?.id ?? "",
+          itemName: item?.name ?? "",
+          description: line.description.trim() || !item ? line.description : item.description ?? item.name,
+          accountId: item?.inventoryAccount?.id ?? item?.adjustmentAccount?.id ?? line.accountId,
+          quantity,
+          unitPrice,
+          taxId: tax?.id ?? "",
+          taxRate: tax ? String(tax.rate) : "",
+          taxAmount: taxAmount.toFixed(2),
+        };
+      }),
     }));
   }
 
@@ -4215,6 +4290,20 @@ export function PurchasesPage() {
       // Keep the editor open so the user can fix validation or posting issues.
     } finally {
       setIsInvoiceSaving(false);
+    }
+  }
+
+  async function saveAndPostSupplierPaymentFromEditor() {
+    try {
+      const savedPayment = paymentEditor.id
+        ? await updateSupplierPaymentMutation.mutateAsync()
+        : await createSupplierPaymentMutation.mutateAsync();
+      await invalidatePurchases(queryClient);
+      const postedPayment = await postSupplierPaymentMutation.mutateAsync(savedPayment.id);
+      setSelectedSupplierPaymentId(postedPayment.id);
+      closePaymentEditor();
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
     }
   }
 

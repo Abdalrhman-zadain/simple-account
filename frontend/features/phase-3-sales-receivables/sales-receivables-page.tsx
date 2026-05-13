@@ -3089,6 +3089,7 @@ export function SalesReceivablesPage() {
         onSubmit={() => {
           void handleCreateReceiptSubmit();
         }}
+        submitLabel={t("salesReceivables.action.post")}
       />
 
       {false ? (
