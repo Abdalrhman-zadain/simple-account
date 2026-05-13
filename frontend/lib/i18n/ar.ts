@@ -1459,6 +1459,7 @@ Object.assign(arTranslations, {
   "purchases.debitNotes.field.reason": "نوع الخصم",
   "purchases.debitNotes.field.quantity": "الكمية",
   "purchases.debitNotes.field.amount": "المبلغ",
+  "purchases.debitNotes.field.tax": "الضريبة",
   "purchases.debitNotes.field.taxAmount": "الضريبة",
   "purchases.debitNotes.field.lineTotal": "إجمالي الخصم للبند",
   "purchases.debitNotes.discountNotice.noticeData": "بيانات الإشعار",

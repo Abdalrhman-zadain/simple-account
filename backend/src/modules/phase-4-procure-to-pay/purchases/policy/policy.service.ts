@@ -55,6 +55,29 @@ export class PurchasePolicyService {
     };
   }
 
+  async getPurchaseDiscountAccount() {
+    const row = await this.prisma.purchasePolicy.findUnique({
+      where: { id: DEFAULT_POLICY_ID },
+      include: this.policyInclude(),
+    });
+
+    if (
+      !row?.purchaseDiscountAccountId ||
+      !row.purchaseDiscountAccount?.isActive ||
+      !row.purchaseDiscountAccount.isPosting ||
+      !this.isEligibleDiscountAccount(row.purchaseDiscountAccount.type, row.purchaseDiscountAccount.subtype)
+    ) {
+      return null;
+    }
+
+    return {
+      id: row.purchaseDiscountAccount.id,
+      code: row.purchaseDiscountAccount.code,
+      name: row.purchaseDiscountAccount.name,
+      nameAr: row.purchaseDiscountAccount.nameAr,
+    };
+  }
+
   private async ensurePolicy() {
     return this.prisma.purchasePolicy.upsert({
       where: { id: DEFAULT_POLICY_ID },

@@ -1495,6 +1495,7 @@ Object.assign(enTranslations, {
   "purchases.debitNotes.field.reason": "Reason",
   "purchases.debitNotes.field.quantity": "Quantity",
   "purchases.debitNotes.field.amount": "Amount",
+  "purchases.debitNotes.field.tax": "Tax",
   "purchases.debitNotes.field.taxAmount": "Tax Amount",
   "purchases.debitNotes.field.lineTotal": "Line Total",
   "purchases.debitNotes.discountNotice.noticeData": "Debit Note Data",

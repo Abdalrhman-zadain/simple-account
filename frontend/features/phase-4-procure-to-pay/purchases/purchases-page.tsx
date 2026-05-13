@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -307,6 +307,7 @@ export function PurchasesPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [, startWorkspaceTransition] = useTransition();
 
   const [workspace, setWorkspace] = useState<Workspace>("suppliers");
 
@@ -350,6 +351,37 @@ export function PurchasesPage() {
   const [isPaymentTermCreatorOpen, setIsPaymentTermCreatorOpen] = useState(false);
   const [paymentTermCreator, setPaymentTermCreator] = useState<{ name: string; nameAr: string; calculationMethod: DueDateCalculationMethod; numberOfDays: string }>({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" });
 
+  const needsPayableAccountsTree = workspace === "suppliers" || isSupplierEditorOpen;
+  const needsInvoiceAccounts = workspace === "invoices" || isInvoiceEditorOpen;
+  const needsInventoryItems =
+    workspace === "requests" ||
+    workspace === "orders" ||
+    workspace === "invoices" ||
+    isRequestEditorOpen ||
+    isOrderEditorOpen ||
+    isInvoiceEditorOpen;
+  const needsBankCashAccounts = workspace === "payments" || isPaymentEditorOpen;
+  const needsTaxes =
+    workspace === "orders" ||
+    workspace === "invoices" ||
+    workspace === "notes" ||
+    isOrderEditorOpen ||
+    isInvoiceEditorOpen ||
+    isDebitNoteEditorOpen;
+  const needsPurchasePolicy = workspace === "notes" || isDebitNoteEditorOpen;
+  const needsPaymentTerms = workspace === "suppliers" || isSupplierEditorOpen || isPaymentTermCreatorOpen;
+  const needsPurchaseRequestsList = workspace === "requests";
+  const needsPurchaseOrdersList = workspace === "orders" || isReceiptEditorOpen || isInvoiceEditorOpen;
+  const needsPurchaseInvoicesList =
+    workspace === "invoices" ||
+    workspace === "payments" ||
+    workspace === "notes" ||
+    isPaymentEditorOpen ||
+    isDebitNoteEditorOpen;
+  const needsSupplierPaymentsList = workspace === "payments";
+  const needsDebitNotesList = workspace === "notes";
+  const needsDebitNoteDiscountAccounts = workspace === "notes" || isDebitNoteEditorOpen;
+
   const suppliersQuery = useQuery({
     queryKey: queryKeys.purchaseSuppliers(token, { search: supplierSearch, isActive: supplierStatusFilter }),
     queryFn: () => getSuppliers({ search: supplierSearch, isActive: supplierStatusFilter }, token),
@@ -358,30 +390,35 @@ export function PurchasesPage() {
   const payableAccountsTreeQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isActive: "true", type: "LIABILITY" }),
     queryFn: () => getAccountsTree({ isActive: "true", type: "LIABILITY" }, token),
+    enabled: needsPayableAccountsTree,
     staleTime: 5 * 60 * 1000,
   });
 
   const invoiceAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", usage: "purchase-invoice-line", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", usage: "purchase-invoice-line" }, token),
+    enabled: needsInvoiceAccounts,
     staleTime: 5 * 60 * 1000,
   });
 
   const inventoryItemsQuery = useQuery({
     queryKey: queryKeys.inventoryItems(token, { isActive: "true" }),
     queryFn: () => getInventoryItems({ isActive: "true" }, token),
+    enabled: needsInventoryItems,
     staleTime: 5 * 60 * 1000,
   });
 
   const bankCashAccountsQuery = useQuery({
     queryKey: queryKeys.bankCashAccounts(token, { isActive: "true" }),
     queryFn: () => getBankCashAccounts({ isActive: "true" }, token),
+    enabled: needsBankCashAccounts,
     staleTime: 5 * 60 * 1000,
   });
 
   const taxesQuery = useQuery({
     queryKey: ["taxes", "active", token],
     queryFn: () => getActiveTaxes(token),
+    enabled: needsTaxes,
     staleTime: 5 * 60 * 1000,
   });
   const activeTaxes = taxesQuery.data ?? [];
@@ -389,12 +426,14 @@ export function PurchasesPage() {
   const purchasePolicyQuery = useQuery({
     queryKey: ["purchase-policy", token],
     queryFn: () => getPurchasePolicy(token),
+    enabled: needsPurchasePolicy,
     staleTime: 5 * 60 * 1000,
   });
 
   const paymentTermsQuery = useQuery({
     queryKey: ["payment-terms", "active", token],
     queryFn: () => getActivePaymentTerms(token),
+    enabled: needsPaymentTerms,
     staleTime: 5 * 60 * 1000,
   });
   const activePaymentTerms = paymentTermsQuery.data ?? [];
@@ -430,6 +469,7 @@ export function PurchasesPage() {
         },
         token,
       ),
+    enabled: needsPurchaseRequestsList,
   });
 
   const sourcePurchaseRequestId = searchParams.get("sourceRequestId");
@@ -453,6 +493,7 @@ export function PurchasesPage() {
         },
         token,
       ),
+    enabled: needsPurchaseOrdersList,
   });
 
   const purchaseInvoicesQuery = useQuery({
@@ -468,6 +509,7 @@ export function PurchasesPage() {
         },
         token,
       ),
+    enabled: needsPurchaseInvoicesList,
   });
 
   const purchaseInvoiceDetailQuery = useQuery({
@@ -489,6 +531,7 @@ export function PurchasesPage() {
         },
         token,
       ),
+    enabled: needsSupplierPaymentsList,
   });
 
   const supplierPaymentDetailQuery = useQuery({
@@ -510,6 +553,7 @@ export function PurchasesPage() {
         },
         token,
       ),
+    enabled: needsDebitNotesList,
   });
 
   const debitNoteDetailQuery = useQuery({
@@ -982,6 +1026,7 @@ export function PurchasesPage() {
   const debitNoteDiscountAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", usage: "purchase-debit-note-line", view: "selector" }),
     queryFn: () => getAccountOptions({ isPosting: "true", isActive: "true", usage: "purchase-debit-note-line" }, token),
+    enabled: needsDebitNoteDiscountAccounts,
     staleTime: 5 * 60 * 1000,
   });
   const debitNoteDiscountAccounts = debitNoteDiscountAccountsQuery.data ?? [];
@@ -1089,15 +1134,21 @@ export function PurchasesPage() {
 
   const selectWorkspace = useCallback(
     (nextWorkspace: Workspace) => {
+      if (nextWorkspace === workspace) {
+        return;
+      }
+
       setWorkspace(nextWorkspace);
 
       const nextSearchParams = new URLSearchParams(searchParams.toString());
       nextSearchParams.set("tab", nextWorkspace);
 
       const nextQuery = nextSearchParams.toString();
-      router.replace(nextQuery ? `/purchases?${nextQuery}` : "/purchases");
+      startWorkspaceTransition(() => {
+        router.replace(nextQuery ? `/purchases?${nextQuery}` : "/purchases");
+      });
     },
-    [router, searchParams],
+    [router, searchParams, startWorkspaceTransition, workspace],
   );
 
   useEffect(() => {

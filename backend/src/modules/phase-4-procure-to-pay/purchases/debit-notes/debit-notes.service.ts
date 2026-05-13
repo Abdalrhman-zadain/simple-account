@@ -403,7 +403,7 @@ export class DebitNotesService {
   }
 
   private async resolveLines(lines: DebitNoteLineDto[], user?: AuthUser) {
-    const defaultDiscountAccount = await this.purchasePolicyService.getPurchaseDiscountAccountOrThrow();
+    const defaultDiscountAccount = await this.purchasePolicyService.getPurchaseDiscountAccount();
     const discountAccountIds = Array.from(
       new Set(lines.map((line) => line.discountAccountId?.trim()).filter(Boolean)),
     ) as string[];
@@ -438,9 +438,11 @@ export class DebitNotesService {
       const quantity = Number(line.quantity);
       const amount = Number(line.amount);
       const requestedDiscountAccountId = line.discountAccountId?.trim() || null;
-      const discountAccountId = requestedDiscountAccountId || defaultDiscountAccount.id;
-      if (!requestedDiscountAccountId && !defaultDiscountAccount.id) {
-        throw new BadRequestException('Purchase discount account is required.');
+      const discountAccountId = requestedDiscountAccountId || defaultDiscountAccount?.id || null;
+      if (!discountAccountId) {
+        throw new BadRequestException(
+          'Each debit note line must select a purchase discount / purchase returns account, or purchase policy must define a default one.',
+        );
       }
       if (requestedDiscountAccountId && !validDiscountAccounts.has(requestedDiscountAccountId)) {
         throw new BadRequestException(
@@ -449,6 +451,7 @@ export class DebitNotesService {
       }
       if (
         requestedDiscountAccountId &&
+        defaultDiscountAccount &&
         requestedDiscountAccountId !== defaultDiscountAccount.id &&
         !canOverrideDiscountAccount
       ) {
