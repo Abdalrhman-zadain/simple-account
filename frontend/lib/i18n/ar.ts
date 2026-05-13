@@ -1262,6 +1262,9 @@ Object.assign(arTranslations, {
 
 Object.assign(arTranslations, {
   "purchases.action.newInvoice": "فاتورة شراء جديدة",
+  "purchases.action.postAndCreateSupplierPayment": "ترحيل وإنشاء دفعة مورد",
+  "purchases.tooltip.postAndCreateSupplierPayment":
+    "يرحّل فاتورة الشراء أولاً، ثم يفتح نموذج دفعة مورد مرتبطة مع تعبئة مبلغ الفاتورة ومرجعها تلقائياً.",
   "purchases.workspace.invoices": "فواتير الشراء",
   "purchases.dialog.newInvoice": "فاتورة شراء جديدة",
   "purchases.dialog.editInvoice": "تعديل فاتورة الشراء",

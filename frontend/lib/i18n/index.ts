@@ -1307,6 +1307,10 @@ Object.assign(enTranslations, {
 Object.assign(enTranslations, {
   "purchases.action.newInvoice": "New Purchase Invoice",
   "purchases.action.postInvoice": "Post Invoice",
+  "purchases.action.postAndCreateSupplierPayment":
+    "Post and Create Supplier Payment",
+  "purchases.tooltip.postAndCreateSupplierPayment":
+    "Post the purchase invoice first, then open a linked supplier payment draft with the invoice amount and reference prefilled.",
   "purchases.workspace.invoices": "Purchase Invoices",
   "purchases.dialog.newInvoice": "New Purchase Invoice",
   "purchases.dialog.editInvoice": "Edit Purchase Invoice",

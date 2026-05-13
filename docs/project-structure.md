@@ -233,7 +233,7 @@ Current root:
 
 - `purchases`
 
-`purchases` currently implements the `suppliers`, `purchase-requests`, `purchase-orders`, `purchase-invoices`, `supplier-payments`, and `debit-notes` submodules, including approved-request conversion into draft purchase orders, direct purchase-order maintenance, receipt-status transitions, draft purchase invoice capture with account classification, supplier payment draft/post/cancel flows with invoice allocation and Bank & Cash integration, and debit note draft/post/cancel flows with optional invoice linkage and payable reduction. Purchase-invoice/debit-note journal posting and the remaining validation/control rules still stay inside their dedicated future submodules.
+`purchases` currently implements the `suppliers`, `purchase-requests`, `purchase-orders`, `purchase-invoices`, `supplier-payments`, and `debit-notes` submodules, including approved-request conversion into draft purchase orders, direct purchase-order maintenance, receipt-status transitions, draft purchase invoice capture with account classification, purchase-invoice posting/reversal through Phase 1 journal services, guided invoice-to-supplier-payment handoff, supplier payment draft/post/cancel flows with invoice allocation and Bank & Cash integration, and debit note draft/post/cancel flows with optional invoice linkage and payable reduction.
 
 ### `backend/src/modules/phase-5-inventory-management`
 

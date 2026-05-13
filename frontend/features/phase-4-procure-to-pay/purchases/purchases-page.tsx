@@ -333,11 +333,13 @@ export function PurchasesPage() {
   const [selectedPurchaseInvoiceId, setSelectedPurchaseInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
   const [invoiceEditor, setInvoiceEditor] = useState<PurchaseInvoiceEditorState>(EMPTY_INVOICE_EDITOR);
+  const [isInvoiceSaving, setIsInvoiceSaving] = useState(false);
   const [paymentSearch, setPaymentSearch] = useState("");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED">("");
   const [selectedSupplierPaymentId, setSelectedSupplierPaymentId] = useState<string | null>(null);
   const [isPaymentEditorOpen, setIsPaymentEditorOpen] = useState(false);
   const [paymentEditor, setPaymentEditor] = useState<SupplierPaymentEditorState>(EMPTY_PAYMENT_EDITOR);
+  const [guidedPaymentSourceInvoice, setGuidedPaymentSourceInvoice] = useState<PurchaseInvoice | null>(null);
   const [debitNoteSearch, setDebitNoteSearch] = useState("");
   const [debitNoteStatusFilter, setDebitNoteStatusFilter] = useState<"" | "DRAFT" | "POSTED" | "APPLIED" | "CANCELLED" | "REVERSED">("");
   const [selectedDebitNoteId, setSelectedDebitNoteId] = useState<string | null>(null);
@@ -701,7 +703,6 @@ export function PurchasesPage() {
     onSuccess: async (created) => {
       await invalidatePurchases(queryClient);
       setSelectedPurchaseInvoiceId(created.id);
-      closeInvoiceEditor();
     },
   });
 
@@ -723,7 +724,6 @@ export function PurchasesPage() {
     onSuccess: async (updated) => {
       await invalidatePurchases(queryClient);
       setSelectedPurchaseInvoiceId(updated.id);
-      closeInvoiceEditor();
     },
   });
 
@@ -971,7 +971,10 @@ export function PurchasesPage() {
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const inventoryItems = inventoryItemsQuery.data?.data ?? [];
   const purchaseInvoiceDebitAccounts = (invoiceAccountsQuery.data ?? []).filter(isPurchaseInvoiceDebitAccount);
-  const paymentEligibleInvoices = purchaseInvoices.filter(
+  const paymentEligibleInvoiceRows = guidedPaymentSourceInvoice
+    ? [guidedPaymentSourceInvoice, ...purchaseInvoices.filter((invoice) => invoice.id !== guidedPaymentSourceInvoice.id)]
+    : purchaseInvoices;
+  const paymentEligibleInvoices = paymentEligibleInvoiceRows.filter(
     (invoice) =>
       (!paymentEditor.supplierId || invoice.supplier.id === paymentEditor.supplierId) &&
       invoice.status !== "DRAFT" &&
@@ -1022,6 +1025,11 @@ export function PurchasesPage() {
   );
 
   const activeInvoiceActionMutationPending = postPurchaseInvoiceMutation.isPending || reversePurchaseInvoiceMutation.isPending;
+  const isInvoiceEditorBusy =
+    isInvoiceSaving ||
+    createPurchaseInvoiceMutation.isPending ||
+    updatePurchaseInvoiceMutation.isPending ||
+    postPurchaseInvoiceMutation.isPending;
   const activePaymentActionMutationPending =
     postSupplierPaymentMutation.isPending ||
     cancelSupplierPaymentMutation.isPending ||
@@ -3165,22 +3173,55 @@ export function PurchasesPage() {
                       {invoiceSaveError}
                     </div>
                   ) : null}
+
+                  {invoiceActionError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      {invoiceActionError}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
               <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
-                <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <Button variant="secondary" onClick={closeInvoiceEditor} className="rounded-2xl px-6">
                     {t("purchases.action.cancel")}
                   </Button>
-                  <Button
-                    onClick={() => (invoiceEditor.id ? updatePurchaseInvoiceMutation.mutate() : createPurchaseInvoiceMutation.mutate())}
-                    disabled={Boolean(invoiceFormError) || createPurchaseInvoiceMutation.isPending || updatePurchaseInvoiceMutation.isPending}
-                    className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
-                  >
-                    <Save className="h-4 w-4" />
-                    {invoiceEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
-                  </Button>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button
+                      onClick={() => {
+                        void savePurchaseInvoiceFromEditor();
+                      }}
+                      disabled={Boolean(invoiceFormError) || isInvoiceEditorBusy}
+                      className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
+                    >
+                      <Save className="h-4 w-4" />
+                      {invoiceEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveDraft")}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        void saveAndPostPurchaseInvoiceFromEditor();
+                      }}
+                      disabled={Boolean(invoiceFormError) || isInvoiceEditorBusy}
+                      className="rounded-2xl border-emerald-200 px-6 text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      {t("purchases.action.postInvoice")}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        void saveAndCreateSupplierPaymentFromInvoiceEditor();
+                      }}
+                      disabled={Boolean(invoiceFormError) || isInvoiceEditorBusy}
+                      title={t("purchases.tooltip.postAndCreateSupplierPayment")}
+                      className="rounded-2xl border-sky-200 px-6 text-sky-700 hover:bg-sky-50"
+                    >
+                      <ReceiptText className="h-4 w-4" />
+                      {t("purchases.action.postAndCreateSupplierPayment")}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4007,6 +4048,8 @@ export function PurchasesPage() {
   function openNewPurchaseInvoiceEditor() {
     createPurchaseInvoiceMutation.reset();
     updatePurchaseInvoiceMutation.reset();
+    postPurchaseInvoiceMutation.reset();
+    setIsInvoiceSaving(false);
     const defaultSupplier = activeSuppliers[0];
     setInvoiceEditor({
       ...EMPTY_INVOICE_EDITOR(),
@@ -4019,6 +4062,8 @@ export function PurchasesPage() {
   function openEditPurchaseInvoiceEditor(invoice: PurchaseInvoice) {
     createPurchaseInvoiceMutation.reset();
     updatePurchaseInvoiceMutation.reset();
+    postPurchaseInvoiceMutation.reset();
+    setIsInvoiceSaving(false);
     setInvoiceEditor({
       id: invoice.id,
       reference: invoice.reference,
@@ -4048,6 +4093,8 @@ export function PurchasesPage() {
   function closeInvoiceEditor() {
     createPurchaseInvoiceMutation.reset();
     updatePurchaseInvoiceMutation.reset();
+    postPurchaseInvoiceMutation.reset();
+    setIsInvoiceSaving(false);
     setInvoiceEditor(EMPTY_INVOICE_EDITOR());
     setIsInvoiceEditorOpen(false);
   }
@@ -4116,9 +4163,65 @@ export function PurchasesPage() {
     }));
   }
 
+  async function persistPurchaseInvoiceFromEditor() {
+    if (invoiceEditor.id) {
+      return updatePurchaseInvoiceMutation.mutateAsync();
+    }
+
+    return createPurchaseInvoiceMutation.mutateAsync();
+  }
+
+  async function savePurchaseInvoiceFromEditor() {
+    setIsInvoiceSaving(true);
+
+    try {
+      const savedInvoice = await persistPurchaseInvoiceFromEditor();
+      await invalidatePurchases(queryClient);
+      setSelectedPurchaseInvoiceId(savedInvoice.id);
+      closeInvoiceEditor();
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  }
+
+  async function saveAndPostPurchaseInvoiceFromEditor() {
+    setIsInvoiceSaving(true);
+
+    try {
+      const savedInvoice = await persistPurchaseInvoiceFromEditor();
+      await invalidatePurchases(queryClient);
+      const postedInvoice = await postPurchaseInvoiceMutation.mutateAsync(savedInvoice.id);
+      setSelectedPurchaseInvoiceId(postedInvoice.id);
+      closeInvoiceEditor();
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  }
+
+  async function saveAndCreateSupplierPaymentFromInvoiceEditor() {
+    setIsInvoiceSaving(true);
+
+    try {
+      const savedInvoice = await persistPurchaseInvoiceFromEditor();
+      await invalidatePurchases(queryClient);
+      const postedInvoice = await postPurchaseInvoiceMutation.mutateAsync(savedInvoice.id);
+      closeInvoiceEditor();
+      openSupplierPaymentEditorForInvoice(postedInvoice);
+    } catch {
+      // Keep the editor open so the user can fix validation or posting issues.
+    } finally {
+      setIsInvoiceSaving(false);
+    }
+  }
+
   function openNewSupplierPaymentEditor() {
     createSupplierPaymentMutation.reset();
     updateSupplierPaymentMutation.reset();
+    setGuidedPaymentSourceInvoice(null);
     setPaymentEditor(EMPTY_PAYMENT_EDITOR());
     setIsPaymentEditorOpen(true);
   }
@@ -4126,6 +4229,7 @@ export function PurchasesPage() {
   function openEditSupplierPaymentEditor(payment: SupplierPayment) {
     createSupplierPaymentMutation.reset();
     updateSupplierPaymentMutation.reset();
+    setGuidedPaymentSourceInvoice(null);
     setPaymentEditor({
       id: payment.id,
       reference: payment.reference,
@@ -4145,9 +4249,34 @@ export function PurchasesPage() {
     setIsPaymentEditorOpen(true);
   }
 
+  function openSupplierPaymentEditorForInvoice(invoice: PurchaseInvoice) {
+    createSupplierPaymentMutation.reset();
+    updateSupplierPaymentMutation.reset();
+    setGuidedPaymentSourceInvoice(invoice);
+    setSelectedPurchaseInvoiceId(invoice.id);
+    setSelectedSupplierPaymentId(null);
+    setPaymentEditor({
+      reference: "",
+      paymentDate: todayValue(),
+      supplierId: invoice.supplier.id,
+      amount: invoice.outstandingAmount,
+      bankCashAccountId: "",
+      description: `Supplier payment against Purchase Invoice ${invoice.reference}`,
+      allocations: [
+        {
+          key: randomKey(),
+          purchaseInvoiceId: invoice.id,
+          amount: invoice.outstandingAmount,
+        },
+      ],
+    });
+    setIsPaymentEditorOpen(true);
+  }
+
   function closePaymentEditor() {
     createSupplierPaymentMutation.reset();
     updateSupplierPaymentMutation.reset();
+    setGuidedPaymentSourceInvoice(null);
     setPaymentEditor(EMPTY_PAYMENT_EDITOR());
     setIsPaymentEditorOpen(false);
   }
@@ -4477,9 +4606,6 @@ function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState, t: any)
     return t("purchases.validation.atLeastOneLine");
   }
   for (const line of editor.lines) {
-    if (!line.itemId) {
-      return t("purchases.validation.itemRequired");
-    }
     if (!line.description.trim()) {
       return t("purchases.validation.descriptionRequired");
     }

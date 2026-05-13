@@ -348,26 +348,12 @@ export class PurchaseInvoicesService {
     }
 
     const description = invoice.description ? `${invoice.reference} - ${invoice.description}` : invoice.reference;
+    const journalLines = await this.buildPurchaseInvoiceJournalLines(invoice, description);
 
     const journal = await this.journalEntriesService.create({
       entryDate: invoice.invoiceDate.toISOString(),
       description,
-      lines: [
-        ...invoice.lines
-          .map((line) => ({
-            accountId: line.accountId,
-            description: line.description || description,
-            debitAmount: Number(Number(line.lineTotalAmount).toFixed(2)),
-            creditAmount: 0,
-          }))
-          .filter((line) => line.debitAmount > 0),
-        {
-          accountId: invoice.supplier.payableAccountId,
-          description,
-          debitAmount: 0,
-          creditAmount: Number(invoice.totalAmount),
-        },
-      ],
+      lines: journalLines,
     });
 
     const posted = await this.postingService.post(journal.id);
@@ -405,6 +391,123 @@ export class PurchaseInvoicesService {
 
     const [mapped] = await this.enrichAndMapPurchaseInvoices([updated]);
     return mapped;
+  }
+
+  private async buildPurchaseInvoiceJournalLines(
+    invoice: {
+      reference: string;
+      supplier: { payableAccountId: string };
+      lines: Array<{
+        accountId: string;
+        taxId: string | null;
+        taxAmount: Prisma.Decimal | number;
+        discountAmount: Prisma.Decimal | number;
+        lineSubtotalAmount: Prisma.Decimal | number;
+        description: string | null;
+      }>;
+      totalAmount: Prisma.Decimal | number;
+    },
+    description: string,
+  ) {
+    const debitLines = invoice.lines
+      .map((line) => ({
+        accountId: line.accountId,
+        description: line.description || description,
+        debitAmount: Number(
+          (Number(line.lineSubtotalAmount) - Number(line.discountAmount)).toFixed(2),
+        ),
+        creditAmount: 0,
+      }))
+      .filter((line) => line.debitAmount > 0);
+
+    const taxIds = Array.from(
+      new Set(invoice.lines.map((line) => line.taxId).filter(Boolean)),
+    ) as string[];
+    const taxes = taxIds.length
+      ? await this.prisma.tax.findMany({
+          where: { id: { in: taxIds }, isActive: true },
+          select: {
+            id: true,
+            taxAccountId: true,
+            taxAccount: {
+              select: {
+                id: true,
+                isActive: true,
+                isPosting: true,
+                allowManualPosting: true,
+              },
+            },
+          },
+        })
+      : [];
+    const taxMap = new Map(taxes.map((tax) => [tax.id, tax]));
+    const taxByAccount = new Map<string, number>();
+
+    for (const line of invoice.lines) {
+      const taxAmount = Number(line.taxAmount);
+      if (taxAmount <= 0) {
+        continue;
+      }
+
+      let taxAccountId: string | null = null;
+      if (line.taxId) {
+        const tax = taxMap.get(line.taxId);
+        if (tax?.taxAccountId && tax.taxAccount?.isActive && tax.taxAccount.isPosting && tax.taxAccount.allowManualPosting) {
+          taxAccountId = tax.taxAccountId;
+        }
+      }
+
+      if (!taxAccountId) {
+        taxAccountId = await this.getPurchaseTaxAccountId();
+      }
+
+      const current = taxByAccount.get(taxAccountId) ?? 0;
+      taxByAccount.set(
+        taxAccountId,
+        Number((current + taxAmount).toFixed(2)),
+      );
+    }
+
+    return [
+      ...debitLines,
+      ...Array.from(taxByAccount.entries()).map(([accountId, amount]) => ({
+        accountId,
+        description: `${description} tax`,
+        debitAmount: Number(amount.toFixed(2)),
+        creditAmount: 0,
+      })),
+      {
+        accountId: invoice.supplier.payableAccountId,
+        description,
+        debitAmount: 0,
+        creditAmount: Number(Number(invoice.totalAmount).toFixed(2)),
+      },
+    ];
+  }
+
+  private async getPurchaseTaxAccountId() {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        isActive: true,
+        isPosting: true,
+        allowManualPosting: true,
+        type: { in: ['ASSET', 'EXPENSE'] as any },
+        OR: [
+          { subtype: { contains: 'tax', mode: 'insensitive' } },
+          { subtype: { contains: 'vat', mode: 'insensitive' } },
+          { name: { contains: 'tax', mode: 'insensitive' } },
+          { name: { contains: 'vat', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!account) {
+      throw new BadRequestException('No active purchase tax/VAT account is configured for posting tax amounts.');
+    }
+
+    return account.id;
   }
 
   async reverse(id: string, dto: ReverseJournalEntryDto) {
