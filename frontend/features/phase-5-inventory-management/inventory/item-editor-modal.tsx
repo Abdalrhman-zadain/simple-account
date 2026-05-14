@@ -285,17 +285,6 @@ export function ItemEditorModal({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label={isArabic ? "رمز المادة / الخدمة" : "Item / Service Code"}
-                  labelAlign="end"
-                >
-                  <Input
-                    value={editor.code}
-                    className="text-right border-slate-200 bg-slate-50/70"
-                    placeholder={isArabic ? "سيتم التوليد تلقائياً بعد الحفظ" : "Generated automatically after save"}
-                    disabled
-                  />
-                </Field>
                 <Field label="اسم المادة" required labelAlign="end">
                   <Input
                     value={editor.name}

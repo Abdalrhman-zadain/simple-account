@@ -98,7 +98,6 @@ type SalesTab = "customers" | "sales-reps" | "quotations" | "orders" | "invoices
 
 type CustomerEditorState = {
   id?: string;
-  code: string;
   name: string;
   contactInfo: string;
   taxTreatmentId: string;
@@ -172,7 +171,6 @@ type ReceiptEditorState = {
 };
 
 const EMPTY_CUSTOMER_EDITOR: CustomerEditorState = {
-  code: "",
   name: "",
   contactInfo: "",
   taxTreatmentId: "",
@@ -1705,7 +1703,6 @@ export function SalesReceivablesPage() {
                                     onClick={() => {
                                       setCustomerEditor({
                                         id: row.id,
-                                        code: row.code,
                                         name: row.name,
                                         contactInfo: row.contactInfo ?? "",
                                         taxTreatmentId: row.taxTreatmentId,
@@ -2846,14 +2843,8 @@ export function SalesReceivablesPage() {
           ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t("salesReceivables.field.customerCode")}>
-              <Input
-                value={customerEditor.code}
-                onChange={(event) => setCustomerEditor((current) => ({ ...current, code: event.target.value }))}
-                readOnly={user?.role !== "ADMIN"}
-                className={user?.role !== "ADMIN" ? "bg-gray-50" : ""}
-                placeholder={t("salesReceivables.field.codeHint")}
-              />
+            <Field label={t("salesReceivables.field.customerName")} required>
+              <Input value={customerEditor.name} onChange={(event) => setCustomerEditor((current) => ({ ...current, name: event.target.value }))} />
             </Field>
             <Field label={t("salesReceivables.metric.creditLimit")} required>
               <Input
@@ -2865,10 +2856,6 @@ export function SalesReceivablesPage() {
               />
             </Field>
           </div>
-
-          <Field label={t("salesReceivables.field.customerName")} required>
-            <Input value={customerEditor.name} onChange={(event) => setCustomerEditor((current) => ({ ...current, name: event.target.value }))} />
-          </Field>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label={t("salesReceivables.field.contactInformation")}>
