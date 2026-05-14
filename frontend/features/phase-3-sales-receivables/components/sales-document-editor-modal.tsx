@@ -51,6 +51,7 @@ type SalesDocumentEditorModalProps = {
   isInventoryItemsLoading: boolean;
   revenueAccounts: RevenueAccountOption[];
   isSubmitting: boolean;
+  validationError?: string | null;
   defaultLineTax?: Tax | null;
   allowTaxOverride?: boolean;
   onClose: () => void;
@@ -92,6 +93,7 @@ export function SalesDocumentEditorModal({
   isInventoryItemsLoading,
   revenueAccounts,
   isSubmitting,
+  validationError,
   defaultLineTax,
   allowTaxOverride = true,
   onClose,
@@ -187,6 +189,12 @@ export function SalesDocumentEditorModal({
 
         <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.06),_transparent_30%),linear-gradient(180deg,_#fcfcfb_0%,_#f7f8f7_100%)] px-4 py-4 sm:px-8 sm:py-6">
           <div className="space-y-5">
+            {validationError ? (
+              <div className="rounded-[1.5rem] border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 shadow-[0_10px_24px_rgba(239,68,68,0.08)]">
+                {validationError}
+              </div>
+            ) : null}
+
             <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
               <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
@@ -200,7 +208,7 @@ export function SalesDocumentEditorModal({
                 </div>
               </div>
 
-              <div className={cn("grid gap-4", secondaryDateLabel && onSecondaryDateChange ? "xl:grid-cols-[1fr_1fr_1.4fr_1fr_1fr]" : "xl:grid-cols-[1fr_1.4fr_1fr_1fr]")}>
+              <div className={cn("grid gap-4", secondaryDateLabel && onSecondaryDateChange ? "xl:grid-cols-[1.1fr_1.1fr_1.5fr_1fr]" : "xl:grid-cols-[1.1fr_1.5fr_1fr]")}>
                 <Field label={dateLabel} required labelClassName={isArabic ? "arabic-ui" : undefined}>
                   <div className="relative">
                     <Input
@@ -316,197 +324,108 @@ export function SalesDocumentEditorModal({
                     {(() => {
                       const selectedItem =
                         inventoryItems.find((row) => row.id === line.itemId) ?? null;
-                      const requiresWarehouse = Boolean(
-                        selectedItem &&
-                          selectedItem.type !== "SERVICE" &&
-                          selectedItem.trackInventory,
-                      );
 
                       return (
                         <>
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
-                          <span className="text-sm font-extrabold">{index + 1}</span>
-                        </div>
-                        <div>
-                          <div className={cn("text-sm text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
-                            {t("salesReceivables.line.label", { index: index + 1 })}
-                          </div>
-                          <div className="text-xs text-slate-500">{formatCurrency(Number(line.lineAmount || 0))}</div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeLine(line.key)}
-                        disabled={lines.length === 1}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {t("salesReceivables.action.remove")}
-                      </button>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[1400px]">
-                        <div className="mb-3 grid grid-cols-[0.4fr_2.4fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_2fr] gap-3">
-                          {[
-                            "#",
-                            t("salesReceivables.field.itemOrService"),
-                            t("salesReceivables.field.itemSnapshot"),
-                            t("salesReceivables.field.revenueAccount"),
-                            t("salesReceivables.field.quantity"),
-                            t("salesReceivables.field.unitPrice"),
-                            t("salesReceivables.field.discountAmount"),
-                            t("salesReceivables.field.tax"),
-                          ].map((label, labelIndex) => (
-                            <div
-                              key={`${line.key}-label-${labelIndex}`}
-                              className={cn(
-                                "px-1 text-sm font-bold text-slate-900",
-                                isArabic ? "arabic-ui text-right" : "text-left",
-                              )}
-                            >
-                              {label}
-                              {labelIndex > 0 &&
-                              labelIndex !== 2 &&
-                              labelIndex !== 6 &&
-                              labelIndex !== 7 ? (
-                                <span className="ms-1 text-red-500">*</span>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-[0.4fr_2.4fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_2fr] gap-3">
-                          <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
-                            {index + 1}
-                          </div>
-
-                          <Select
-                            value={line.itemId}
-                            onChange={(event) => {
-                              const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
-                              const customer = customers.find((c) => c.id === customerId) ?? null;
-
-                              let shouldUpdatePrice = true;
-                              if (line.unitPrice && line.unitPrice !== "0" && line.itemId) {
-                                const prevItem = inventoryItems.find((i) => i.id === line.itemId);
-                                if (prevItem && line.unitPrice !== prevItem.defaultSalesPrice) {
-                                  if (!confirm(t("salesReceivables.message.confirmPriceUpdate"))) {
-                                    shouldUpdatePrice = false;
-                                  }
-                                }
-                              }
-
-                              updateLine(line.key, (current) =>
-                                applyItemToSalesLine(current, item, customer, taxes, shouldUpdatePrice),
-                              );
-                            }}
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          >
-                            <option value="">
-                              {isInventoryItemsLoading
-                                ? t("salesReceivables.state.loadingItems")
-                                : t("salesReceivables.empty.selectItemOrService")}
-                            </option>
-                            {inventoryItems.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {formatItemServiceLabel(item.code, item.name)}
-                              </option>
-                            ))}
-                          </Select>
-
-                          <Input
-                            value={line.itemName}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, itemName: event.target.value }))
-                            }
-                            placeholder={t("salesReceivables.field.itemSnapshotPlaceholder")}
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-
-                          <Select
-                            value={line.revenueAccountId}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                revenueAccountId: event.target.value,
-                              }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          >
-                            <option value="">{t("salesReceivables.empty.selectRevenueAccount")}</option>
-                            {revenueAccounts.map((account) => (
-                              <option key={account.id} value={account.id}>
-                                {account.code} · {account.name}
-                              </option>
-                            ))}
-                          </Select>
-
-                          <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={line.quantity}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, quantity: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={line.unitPrice}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, unitPrice: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={line.discountAmount}
-                            onChange={(event) =>
-                              updateLine(line.key, (current) => ({ ...current, discountAmount: event.target.value }))
-                            }
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          />
-
-                          <Select
-                            value={line.taxId}
-                            onChange={(event) => {
-                              const selectedTax = taxes.find((tax) => tax.id === event.target.value);
-                              updateLine(line.key, (current) => ({
-                                ...current,
-                                taxId: selectedTax?.id ?? "",
-                                taxRate: selectedTax ? String(selectedTax.rate) : "",
-                                taxAmount: selectedTax ? current.taxAmount : "",
-                              }));
-                            }}
-                            className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
-                          >
-                            <option value="">{t("salesReceivables.field.tax")}</option>
-                            {taxes.map((tax) => (
-                              <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
-                            ))}
-                          </Select>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
-                          <div>
-                            {requiresWarehouse ? (
-                              <>
-                                <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
-                                  {t("purchases.invoices.field.warehouse")}
-                                  <span className="ms-1 text-red-500">*</span>
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
+                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                <span className="text-sm font-extrabold">{index + 1}</span>
+                              </div>
+                              <div>
+                                <div className={cn("text-sm text-slate-900", isArabic ? "arabic-ui-heading" : "font-extrabold")}>
+                                  {t("salesReceivables.line.label", { index: index + 1 })}
                                 </div>
+                                <div className="text-xs text-slate-500">{formatCurrency(Number(line.lineAmount || 0))}</div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeLine(line.key)}
+                              disabled={lines.length === 1}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t("salesReceivables.action.remove")}
+                            </button>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <div className="min-w-[1400px]">
+                              <div className="mb-3 grid grid-cols-[0.4fr_2.4fr_1.8fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_1.8fr_1.5fr] gap-3">
+                                {[
+                                  "#",
+                                  t("salesReceivables.field.itemOrService"),
+                                  t("inventory.warehouse.title"),
+                                  t("salesReceivables.field.itemSnapshot"),
+                                  t("salesReceivables.field.revenueAccount"),
+                                  t("salesReceivables.field.quantity"),
+                                  t("salesReceivables.field.unitPrice"),
+                                  t("salesReceivables.field.discountAmount"),
+                                  t("salesReceivables.field.tax"),
+                                  t("salesReceivables.field.lineAmount"),
+                                ].map((label, labelIndex) => (
+                                  <div
+                                    key={`${line.key}-label-${labelIndex}`}
+                                    className={cn(
+                                      "px-1 text-sm font-bold text-slate-900",
+                                      isArabic ? "arabic-ui text-right" : "text-left",
+                                    )}
+                                  >
+                                    {label}
+                                    {labelIndex > 0 &&
+                                    labelIndex !== 3 &&
+                                    labelIndex !== 7 &&
+                                    labelIndex !== 8 &&
+                                    labelIndex !== 9 ? (
+                                      <span className="ms-1 text-red-500">*</span>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="grid grid-cols-[0.4fr_2.4fr_1.8fr_2.1fr_2.1fr_0.7fr_0.9fr_0.9fr_1.8fr_1.5fr] gap-3">
+                                <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
+                                  {index + 1}
+                                </div>
+
+                                <Select
+                                  value={line.itemId}
+                                  onChange={(event) => {
+                                    const item = inventoryItems.find((row) => row.id === event.target.value) ?? null;
+                                    const customer = customers.find((c) => c.id === customerId) ?? null;
+
+                                    let shouldUpdatePrice = true;
+                                    if (line.unitPrice && line.unitPrice !== "0" && line.itemId) {
+                                      const prevItem = inventoryItems.find((i) => i.id === line.itemId);
+                                      if (prevItem && line.unitPrice !== prevItem.defaultSalesPrice) {
+                                        if (!confirm(t("salesReceivables.message.confirmPriceUpdate"))) {
+                                          shouldUpdatePrice = false;
+                                        }
+                                      }
+                                    }
+
+                                    updateLine(line.key, (current) =>
+                                      applyItemToSalesLine(current, item, customer, taxes, shouldUpdatePrice),
+                                    );
+                                  }}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                >
+                                  <option value="">
+                                    {isInventoryItemsLoading
+                                      ? t("salesReceivables.state.loadingItems")
+                                      : t("salesReceivables.empty.selectItemOrService")}
+                                  </option>
+                                  {inventoryItems.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {formatItemServiceLabel(item.code, item.name)}
+                                    </option>
+                                  ))}
+                                </Select>
+
                                 <Select
                                   value={line.warehouseId}
+                                  disabled={!selectedItem || selectedItem.type === "SERVICE"}
                                   onChange={(event) =>
                                     updateLine(line.key, (current) => ({
                                       ...current,
@@ -515,7 +434,11 @@ export function SalesDocumentEditorModal({
                                   }
                                   className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                 >
-                                  <option value="">{t("inventory.placeholder.selectWarehouse")}</option>
+                                  <option value="">
+                                    {selectedItem?.type === "SERVICE" 
+                                      ? t("inventory.common.notApplicable") 
+                                      : t("inventory.placeholder.selectWarehouse")}
+                                  </option>
                                   {warehouses
                                     .filter((warehouse) => warehouse.isActive)
                                     .map((warehouse) => (
@@ -524,32 +447,103 @@ export function SalesDocumentEditorModal({
                                       </option>
                                     ))}
                                 </Select>
-                              </>
-                            ) : null}
-                          </div>
-                          <div />
-                          <div>
-                            <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
-                              {t("salesReceivables.field.lineAmount")}
+
+                                <Input
+                                  value={line.itemName}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({ ...current, itemName: event.target.value }))
+                                  }
+                                  placeholder={t("salesReceivables.field.itemSnapshotPlaceholder")}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+
+                                <Select
+                                  value={line.revenueAccountId}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({
+                                      ...current,
+                                      revenueAccountId: event.target.value,
+                                    }))
+                                  }
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                >
+                                  <option value="">{t("salesReceivables.empty.selectRevenueAccount")}</option>
+                                  {revenueAccounts.map((account) => (
+                                    <option key={account.id} value={account.id}>
+                                      {account.code} · {account.name}
+                                    </option>
+                                  ))}
+                                </Select>
+
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={line.quantity}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({ ...current, quantity: event.target.value }))
+                                  }
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={line.unitPrice}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({ ...current, unitPrice: event.target.value }))
+                                  }
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={line.discountAmount}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({ ...current, discountAmount: event.target.value }))
+                                  }
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                />
+
+                                <Select
+                                  value={line.taxId}
+                                  onChange={(event) => {
+                                    const selectedTax = taxes.find((tax) => tax.id === event.target.value);
+                                    updateLine(line.key, (current) => ({
+                                      ...current,
+                                      taxId: selectedTax?.id ?? "",
+                                      taxRate: selectedTax ? String(selectedTax.rate) : "",
+                                      taxAmount: selectedTax ? current.taxAmount : "",
+                                    }));
+                                  }}
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                >
+                                  <option value="">{t("salesReceivables.field.tax")}</option>
+                                  {taxes.map((tax) => (
+                                    <option key={tax.id} value={tax.id}>{tax.taxName} {Number(tax.rate).toFixed(2)}%</option>
+                                  ))}
+                                </Select>
+
+                                <div className="relative">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={line.lineAmount}
+                                    readOnly
+                                    disabled
+                                    className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
+                                  />
+                                  <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400", isArabic ? "left-3" : "right-3")}>
+                                    {currencyCode}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={line.lineAmount}
-                                readOnly
-                                disabled
-                                className={cn("border-slate-200 bg-slate-100 text-emerald-700 disabled:opacity-100", isArabic && "arabic-ui text-right")}
-                              />
-                              <span className={cn("pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500", isArabic ? "left-4" : "right-4")}>
-                                {currencyCode || "JOD"}
-                              </span>
-                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
                         </>
                       );
                     })()}
@@ -582,7 +576,7 @@ export function SalesDocumentEditorModal({
         </div>
 
         <div className="border-t border-slate-200 bg-white px-5 py-4 sm:px-8">
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className={cn("flex flex-col gap-3 sm:flex-row", isArabic ? "sm:flex-row-reverse" : "")}>
             <Button
               onClick={onDraftSubmit}
               disabled={isSubmitting || isPostSubmitting || isPostAndCreateReceiptSubmitting}

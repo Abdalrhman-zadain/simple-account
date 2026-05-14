@@ -131,7 +131,7 @@ export function applyItemToSalesLine(
     ...line,
     itemId: item.id,
     warehouseId:
-      item.type !== "SERVICE" && item.trackInventory
+      item.type !== "SERVICE"
         ? item.preferredWarehouse?.id || item.preferredWarehouseId || ""
         : "",
     itemName: item.name,

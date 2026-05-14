@@ -2542,6 +2542,11 @@ Object.assign(arTranslations, {
   "salesReceivables.summary.subtotalBeforeTax": "الإجمالي قبل الضريبة",
   "salesReceivables.summary.totalTax": "إجمالي الضريبة",
   "salesReceivables.summary.finalTotal": "الإجمالي النهائي",
+  "inventory.common.notApplicable": "غير مطلوب",
+  "inventory.warehouse.title": "المستودع",
+  "inventory.placeholder.selectWarehouse": "اختر المستودع",
+  "salesReceivables.validation.warehouseRequiredForInventory": "المستودع مطلوب للأصناف المخزنية في السطر {index}.",
+  "salesReceivables.validation.revenueAccountRequired": "حساب الإيراد مطلوب في السطر {index}.",
 });
 
 export default arTranslations;

@@ -66,7 +66,10 @@ import type {
   AccountTreeNode,
   Customer,
   CustomerReceipt,
+  InventoryItem,
+  InventoryWarehouse,
   SalesRepresentative,
+  SalesInvoice,
   SalesInvoiceStatus,
   SalesOrder,
   SalesQuotation,
@@ -278,6 +281,7 @@ export function SalesReceivablesPage() {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isInvoiceEditorOpen, setIsInvoiceEditorOpen] = useState(false);
   const [isInvoiceSaving, setIsInvoiceSaving] = useState(false);
+  const [invoiceEditorClientError, setInvoiceEditorClientError] = useState<string | null>(null);
   const [invoiceEditor, setInvoiceEditor] = useState<InvoiceEditorState>(EMPTY_INVOICE_EDITOR);
 
   const [creditNoteSearch, setCreditNoteSearch] = useState("");
@@ -687,6 +691,7 @@ export function SalesReceivablesPage() {
       sourceQuotationId: quotation.id,
       sourceSalesOrderId: "",
     });
+    setInvoiceEditorClientError(null);
     setIsInvoiceEditorOpen(true);
     setActiveTab("invoices");
   };
@@ -709,6 +714,7 @@ export function SalesReceivablesPage() {
       sourceQuotationId: order.sourceQuotation?.id ?? "",
       sourceSalesOrderId: order.id,
     });
+    setInvoiceEditorClientError(null);
     setIsInvoiceEditorOpen(true);
     setActiveTab("invoices");
   };
@@ -889,6 +895,12 @@ export function SalesReceivablesPage() {
   };
 
   const saveInvoiceFromEditor = async () => {
+    const validationError = validateSalesInvoiceEditorState(invoiceEditor, inventoryItems, t);
+    if (validationError) {
+      setInvoiceEditorClientError(validationError);
+      return;
+    }
+    setInvoiceEditorClientError(null);
     setIsInvoiceSaving(true);
 
     try {
@@ -905,6 +917,12 @@ export function SalesReceivablesPage() {
   };
 
   const saveAndPostInvoiceFromEditor = async () => {
+    const validationError = validateSalesInvoiceEditorState(invoiceEditor, inventoryItems, t);
+    if (validationError) {
+      setInvoiceEditorClientError(validationError);
+      return;
+    }
+    setInvoiceEditorClientError(null);
     setIsInvoiceSaving(true);
 
     try {
@@ -926,6 +944,12 @@ export function SalesReceivablesPage() {
   };
 
   const saveAndCreateReceiptFromInvoiceEditor = async () => {
+    const validationError = validateSalesInvoiceEditorState(invoiceEditor, inventoryItems, t);
+    if (validationError) {
+      setInvoiceEditorClientError(validationError);
+      return;
+    }
+    setInvoiceEditorClientError(null);
     setIsInvoiceSaving(true);
 
     try {
@@ -2115,9 +2139,11 @@ export function SalesReceivablesPage() {
                 ))}
               </Select>
               <Button className="gap-2" onClick={() => {
+                setInvoiceEditorClientError(null);
                 setInvoiceEditor(EMPTY_INVOICE_EDITOR());
                 setIsInvoiceEditorOpen(true);
-              }}>
+                }}
+              >
                 <CirclePlus className="h-4 w-4 shrink-0" />
                 {t("salesReceivables.action.newInvoice")}
               </Button>
@@ -2198,6 +2224,7 @@ export function SalesReceivablesPage() {
                                         sourceQuotationId: row.sourceQuotation?.id ?? "",
                                         sourceSalesOrderId: row.sourceSalesOrder?.id ?? "",
                                       });
+                                      setInvoiceEditorClientError(null);
                                       setIsInvoiceEditorOpen(true);
                                     }}
                                   >
@@ -3012,7 +3039,10 @@ export function SalesReceivablesPage() {
 
       <SalesDocumentEditorModal
         isOpen={isInvoiceEditorOpen}
-        onClose={() => setIsInvoiceEditorOpen(false)}
+        onClose={() => {
+          setInvoiceEditorClientError(null);
+          setIsInvoiceEditorOpen(false);
+        }}
         title={
           invoiceEditor.id
             ? t("salesReceivables.dialog.editInvoiceDraft")
@@ -3040,6 +3070,7 @@ export function SalesReceivablesPage() {
         isInventoryItemsLoading={inventoryItemsQuery.isLoading}
         revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={isInvoiceSaving || createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
+        validationError={invoiceEditorClientError}
         defaultLineTax={selectedInvoiceDefaultTax}
         allowTaxOverride={canOverrideInvoiceTax}
         onReferenceChange={(value) => setInvoiceEditor((current) => ({ ...current, reference: value }))}
@@ -3707,6 +3738,38 @@ function hasMeaningfulSalesLines(lines: SalesLineEditorState[]) {
       line.lineAmount.trim(),
     ),
   );
+}
+
+function validateSalesInvoiceEditorState(
+  editor: InvoiceEditorState,
+  inventoryItems: InventoryItem[],
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
+  if (!editor.customerId) {
+    return t("salesReceivables.validation.customerRequired");
+  }
+
+  if (!editor.lines.length) {
+    return t("salesReceivables.validation.lineRequired");
+  }
+
+  for (const [index, line] of editor.lines.entries()) {
+    const lineAmount = Number(line.lineAmount || 0);
+    if (!Number.isFinite(lineAmount) || lineAmount < 0.01) {
+      return t("salesReceivables.validation.lineAmountPositive", { index: index + 1 });
+    }
+
+    if (!line.revenueAccountId) {
+      return t("salesReceivables.validation.revenueAccountRequired", { index: index + 1 });
+    }
+
+    const item = inventoryItems.find((i) => i.id === line.itemId);
+    if (item && item.type !== "SERVICE" && !line.warehouseId) {
+      return t("salesReceivables.validation.warehouseRequiredForInventory", { index: index + 1 });
+    }
+  }
+
+  return null;
 }
 
 function validateQuotationEditorState(
