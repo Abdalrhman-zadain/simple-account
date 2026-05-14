@@ -8,6 +8,7 @@ import {
   BankCashTransactionKind,
   BankCashTransactionStatus,
   CreditNoteStatus,
+  InventoryStockMovementType,
   Prisma,
   QuotationStatus,
   SalesInvoiceStatus,
@@ -21,6 +22,7 @@ import { BankCashTransactionsService } from "../phase-2-bank-cash-management/ban
 import { AccountsService } from "../phase-1-accounting-foundation/accounting-core/chart-of-accounts/accounts.service";
 import { JournalEntriesService } from "../phase-1-accounting-foundation/accounting-core/journal-entries/journal-entries.service";
 import { PostingService } from "../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service";
+import { InventoryPostingService } from "../phase-5-inventory-management/inventory/shared/inventory-posting.service";
 import {
   AllocateReceiptDto,
   CreateCreditNoteDto,
@@ -63,6 +65,7 @@ const CUSTOMER_AUTO_RECEIVABLE_SUBTYPE = "Current Assets";
 
 type ResolvedLine = {
   itemId: string | null;
+  warehouseId: string | null;
   itemName: string | null;
   description: string | null;
   revenueAccountId: string | null;
@@ -84,6 +87,7 @@ export class SalesReceivablesService {
     private readonly accountsService: AccountsService,
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
+    private readonly inventoryPostingService: InventoryPostingService,
   ) {}
 
   async listCustomers(query: { isActive?: string; search?: string; salesRepId?: string } = {}) {
@@ -1067,7 +1071,23 @@ export class SalesReceivablesService {
       where: { id },
       include: {
         customer: { include: { receivableAccount: true } },
-        lines: { orderBy: { lineNumber: "asc" } },
+        lines: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                type: true,
+                trackInventory: true,
+                inventoryAccountId: true,
+                cogsAccountId: true,
+                isActive: true,
+              },
+            },
+          },
+          orderBy: { lineNumber: "asc" },
+        },
       },
     });
     if (!existingInvoice) {
@@ -1085,7 +1105,23 @@ export class SalesReceivablesService {
         where: { id },
         include: {
           customer: { include: { receivableAccount: true } },
-          lines: { orderBy: { lineNumber: "asc" } },
+          lines: {
+            include: {
+              item: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  type: true,
+                  trackInventory: true,
+                  inventoryAccountId: true,
+                  cogsAccountId: true,
+                  isActive: true,
+                },
+              },
+            },
+            orderBy: { lineNumber: "asc" },
+          },
         },
       });
       if (!invoice) {
@@ -1130,6 +1166,18 @@ export class SalesReceivablesService {
         if (!line.revenueAccountId) {
           throw new BadRequestException(`Revenue account is required for line ${line.lineNumber}.`);
         }
+        if (this.lineTracksInventory(line.item)) {
+          if (!line.item?.isActive) {
+            throw new BadRequestException(
+              `Line ${line.lineNumber} inventory item must reference an active item.`,
+            );
+          }
+          if (!line.warehouseId) {
+            throw new BadRequestException(
+              `Warehouse is required for inventory item line ${line.lineNumber}.`,
+            );
+          }
+        }
       }
 
       const totalAmount = Number(invoice.totalAmount);
@@ -1151,7 +1199,12 @@ export class SalesReceivablesService {
       const description = invoice.description
         ? `${invoice.reference} - ${invoice.description}`
         : invoice.reference;
+      const inventoryPosting = await this.applySalesInvoiceInventoryPosting(
+        tx,
+        invoice,
+      );
       const journalLines = await this.buildSalesInvoiceJournalLines(tx, invoice, description);
+      journalLines.push(...inventoryPosting.accountingLines);
       this.ensureBalancedJournal(journalLines);
 
       const journal = await this.journalEntriesService.create(
@@ -2376,6 +2429,18 @@ export class SalesReceivablesService {
     }
   }
 
+  private lineTracksInventory(
+    item:
+      | {
+          type: string;
+          trackInventory: boolean;
+        }
+      | null
+      | undefined,
+  ) {
+    return Boolean(item && item.type !== "SERVICE" && item.trackInventory);
+  }
+
   private async resolveAndValidateLines(
     lines: SalesLineDto[],
     options: { requireRevenueAccount: boolean },
@@ -2393,11 +2458,33 @@ export class SalesReceivablesService {
     const items = itemIds.length
       ? await this.prisma.inventoryItem.findMany({
           where: { id: { in: itemIds }, isActive: true },
-          select: { id: true, code: true, name: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            trackInventory: true,
+            preferredWarehouseId: true,
+          },
+        })
+      : [];
+    const warehouseCandidateIds = Array.from(
+      new Set(
+        [
+          ...lines.map((line) => line.warehouseId?.trim()),
+          ...items.map((item) => item.preferredWarehouseId?.trim()),
+        ].filter(Boolean),
+      ),
+    ) as string[];
+    const warehouses = warehouseCandidateIds.length
+      ? await this.prisma.inventoryWarehouse.findMany({
+          where: { id: { in: warehouseCandidateIds }, isActive: true },
+          select: { id: true },
         })
       : [];
     const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
     const itemById = new Map(items.map((item) => [item.id, item]));
+    const warehouseIds = new Set(warehouses.map((warehouse) => warehouse.id));
 
     for (const [index, rawLine] of lines.entries()) {
       const itemId = rawLine.itemId?.trim() || null;
@@ -2454,10 +2541,24 @@ export class SalesReceivablesService {
       const computedTaxAmount = taxId
         ? Number((lineSubtotalAmount * ((taxById.get(taxId) ?? 0) / 100)).toFixed(2))
         : taxAmount;
+      const tracksInventory = this.lineTracksInventory(item);
+      const warehouseId = tracksInventory
+        ? rawLine.warehouseId?.trim() || item?.preferredWarehouseId || null
+        : null;
 
       if (lineSubtotalAmount < 0) {
         throw new BadRequestException(
           `Line ${index + 1} discount cannot exceed the extended line amount.`,
+        );
+      }
+      if (tracksInventory && !warehouseId) {
+        throw new BadRequestException(
+          `Line ${index + 1} requires a warehouse because the selected item tracks inventory.`,
+        );
+      }
+      if (warehouseId && !warehouseIds.has(warehouseId)) {
+        throw new BadRequestException(
+          `Line ${index + 1} warehouse must reference an active warehouse.`,
         );
       }
 
@@ -2480,6 +2581,7 @@ export class SalesReceivablesService {
 
       resolved.push({
         itemId,
+        warehouseId,
         itemName: rawLine.itemName?.trim() || item?.name || null,
         description: rawLine.description?.trim() || null,
         revenueAccountId: revenueAccountId,
@@ -2556,6 +2658,7 @@ export class SalesReceivablesService {
     return {
       lineNumber,
       itemId: line.itemId,
+      warehouseId: line.warehouseId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -2941,6 +3044,164 @@ export class SalesReceivablesService {
     ];
   }
 
+  private async applySalesInvoiceInventoryPosting(
+    tx: Prisma.TransactionClient,
+    invoice: {
+      id: string;
+      reference: string;
+      invoiceDate: Date;
+      description: string | null;
+      lines: Array<{
+        id: string;
+        lineNumber: number;
+        itemId: string | null;
+        warehouseId: string | null;
+        quantity: Prisma.Decimal;
+        description: string | null;
+        item?: {
+          id: string;
+          code: string;
+          name: string;
+          type: string;
+          trackInventory: boolean;
+          inventoryAccountId: string | null;
+          cogsAccountId: string | null;
+          isActive: boolean;
+        } | null;
+      }>;
+    },
+  ) {
+    const accountingLines: Array<{
+      accountId: string;
+      description: string;
+      debitAmount: number;
+      creditAmount: number;
+    }> = [];
+    const costingMethod = await this.inventoryPostingService.getCostingMethod();
+    const preventNegativeStock = this.inventoryPostingService.preventNegativeStock();
+
+    for (const line of invoice.lines) {
+      if (!line.itemId || !this.lineTracksInventory(line.item)) {
+        continue;
+      }
+      if (!line.warehouseId) {
+        throw new BadRequestException(
+          `Warehouse is required for inventory item line ${line.lineNumber}.`,
+        );
+      }
+      if (!line.item?.inventoryAccountId || !line.item.cogsAccountId) {
+        throw new BadRequestException(
+          `Item ${line.item?.code ?? line.itemId} requires inventory and COGS accounts before invoice posting.`,
+        );
+      }
+
+      const existingMovement = await tx.inventoryStockMovement.findFirst({
+        where: {
+          transactionType: "SalesInvoice",
+          transactionLineId: line.id,
+        },
+        select: { id: true },
+      });
+      if (existingMovement) {
+        continue;
+      }
+
+      const currentBalance = await tx.inventoryWarehouseBalance.findUnique({
+        where: {
+          itemId_warehouseId: {
+            itemId: line.itemId,
+            warehouseId: line.warehouseId,
+          },
+        },
+      });
+      const currentQuantity = currentBalance?.onHandQuantity ?? new Prisma.Decimal(0);
+      const currentValuation =
+        currentBalance?.valuationAmount ?? new Prisma.Decimal(0);
+
+      if (preventNegativeStock && currentQuantity.lt(line.quantity)) {
+        throw new BadRequestException(
+          `Item ${line.item.code} does not have enough available stock in the selected warehouse for line ${line.lineNumber}.`,
+        );
+      }
+
+      const fallbackUnitCost = this.inventoryPostingService.averageUnitCost(
+        currentQuantity,
+        currentValuation,
+      );
+      const valuation = await this.inventoryPostingService.resolveIssueCost({
+        tx,
+        itemId: line.itemId,
+        warehouseId: line.warehouseId,
+        quantity: line.quantity,
+        fallbackUnitCost,
+        reference: invoice.reference,
+        sourceType: "SalesInvoice",
+        sourceId: invoice.id,
+        sourceLineId: line.id,
+        sourceDate: invoice.invoiceDate,
+        costingMethod,
+      });
+
+      await tx.inventoryItem.update({
+        where: { id: line.itemId },
+        data: {
+          onHandQuantity: {
+            decrement: line.quantity,
+          },
+          valuationAmount: {
+            decrement: valuation.totalAmount,
+          },
+        },
+      });
+
+      const warehouseBalance =
+        await this.inventoryPostingService.applyWarehouseBalance(tx, {
+          itemId: line.itemId,
+          warehouseId: line.warehouseId,
+          quantityDelta: line.quantity.neg(),
+          valueDelta: valuation.totalAmount.neg(),
+        });
+
+      await this.inventoryPostingService.createMovement(tx, {
+        movementType: InventoryStockMovementType.SALES_ISSUE,
+        transactionType: "SalesInvoice",
+        transactionId: invoice.id,
+        transactionLineId: line.id,
+        transactionReference: invoice.reference,
+        transactionDate: invoice.invoiceDate,
+        itemId: line.itemId,
+        warehouseId: line.warehouseId,
+        quantityIn: new Prisma.Decimal(0),
+        quantityOut: line.quantity,
+        unitCost: valuation.unitCost,
+        valueIn: new Prisma.Decimal(0),
+        valueOut: valuation.totalAmount,
+        balanceId: warehouseBalance.id,
+        runningQuantity: warehouseBalance.onHandQuantity,
+        runningValuation: warehouseBalance.valuationAmount,
+        description: line.description ?? invoice.description,
+      });
+
+      const amount = Number(valuation.totalAmount.toFixed(2));
+      if (amount > 0) {
+        accountingLines.push({
+          accountId: line.item.cogsAccountId,
+          description: `COGS ${invoice.reference}`,
+          debitAmount: amount,
+          creditAmount: 0,
+        });
+        accountingLines.push({
+          accountId: line.item.inventoryAccountId,
+          description: `Inventory relief ${invoice.reference}`,
+          debitAmount: 0,
+          creditAmount: amount,
+        });
+      }
+    }
+
+    return { accountingLines };
+  }
+
   private ensureBalancedJournal(
     lines: Array<{
       debitAmount: number;
@@ -3045,6 +3306,16 @@ export class SalesReceivablesService {
               description: true,
               type: true,
               isActive: true,
+              trackInventory: true,
+              preferredWarehouseId: true,
+              preferredWarehouse: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  isActive: true,
+                },
+              },
               salesAccount: { select: this.accountSummarySelect() },
             },
           },
@@ -3351,8 +3622,10 @@ export class SalesReceivablesService {
       id: line.id,
       lineNumber: line.lineNumber,
       itemId: line.itemId ?? null,
+      warehouseId: line.warehouseId ?? null,
       itemName: line.itemName,
       item: line.item ?? null,
+      warehouse: line.warehouse ?? null,
       description: line.description,
       quantity: line.quantity.toString(),
       unitPrice: line.unitPrice.toString(),

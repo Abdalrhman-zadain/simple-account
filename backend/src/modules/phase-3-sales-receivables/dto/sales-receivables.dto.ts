@@ -187,6 +187,10 @@ export class SalesLineDto {
 
   @IsOptional()
   @IsString()
+  warehouseId?: string;
+
+  @IsOptional()
+  @IsString()
   @Length(0, 120)
   itemName?: string;
 

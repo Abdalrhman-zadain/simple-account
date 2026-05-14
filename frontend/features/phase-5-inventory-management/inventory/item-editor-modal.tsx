@@ -64,6 +64,7 @@ export type ItemEditorState = {
   defaultTaxId: string;
   trackInventory: boolean;
   inventoryAccountId: string;
+  expenseAccountId: string;
   cogsAccountId: string;
   salesAccountId: string;
   salesReturnAccountId: string;
@@ -89,6 +90,7 @@ type ItemEditorModalProps = {
   activeTaxes: Tax[];
   warehouses: InventoryWarehouse[];
   inventoryAccounts: AccountOption[];
+  expenseAccounts: AccountOption[];
   salesAccounts: AccountOption[];
   cogsAccounts: AccountOption[];
   adjustmentAccounts: AccountOption[];
@@ -136,6 +138,7 @@ export function createEmptyItemEditor(): ItemEditorState {
     defaultTaxId: "",
     trackInventory: true,
     inventoryAccountId: "",
+    expenseAccountId: "",
     cogsAccountId: "",
     salesAccountId: "",
     salesReturnAccountId: "",
@@ -177,6 +180,7 @@ export function ItemEditorModal({
   activeTaxes,
   warehouses,
   inventoryAccounts,
+  expenseAccounts,
   salesAccounts,
   cogsAccounts,
   adjustmentAccounts,
@@ -718,6 +722,18 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {inventoryAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="حساب مصروف الشراء" labelAlign="end">
+                  <Select
+                    value={editor.expenseAccountId}
+                    onChange={(e) => updateEditor((current) => ({ ...current, expenseAccountId: e.target.value }))}
+                    className="text-right border-slate-200 bg-slate-50/70"
+                  >
+                    <option value="">{t("inventory.placeholder.selectAccount")}</option>
+                    {expenseAccounts.map((a) => (
                       <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
                     ))}
                   </Select>

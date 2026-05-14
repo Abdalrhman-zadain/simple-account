@@ -232,7 +232,9 @@ export type InventoryAdjustmentStatus =
   | "REVERSED";
 export type InventoryStockMovementType =
   | "GOODS_RECEIPT"
+  | "PURCHASE_RECEIPT"
   | "GOODS_ISSUE"
+  | "SALES_ISSUE"
   | "TRANSFER_OUT"
   | "TRANSFER_IN"
   | "ADJUSTMENT_IN"
@@ -344,6 +346,15 @@ export type InventoryItem = {
   isActive: boolean;
   status: "ACTIVE" | "INACTIVE";
   inventoryAccount?: {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    currencyCode: string;
+    isActive: boolean;
+    isPosting: boolean;
+  } | null;
+  expenseAccount?: {
     id: string;
     code: string;
     name: string;
@@ -509,6 +520,7 @@ export type CreateInventoryItemPayload = {
   itemCategoryId: string;
   type: InventoryItemType;
   inventoryAccountId?: string;
+  expenseAccountId?: string;
   cogsAccountId?: string;
   salesAccountId?: string;
   salesReturnAccountId?: string;
@@ -2267,6 +2279,8 @@ export type PurchaseInvoiceLine = {
   lineNumber: number;
   itemId?: string | null;
   item?: Pick<InventoryItem, "id" | "code" | "name" | "unitOfMeasure"> | null;
+  warehouseId?: string | null;
+  warehouse?: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive"> | null;
   itemName?: string | null;
   description: string;
   quantity: string;
@@ -2342,6 +2356,7 @@ export type PurchaseInvoicesQuery = {
 export type PurchaseInvoiceLinePayload = {
   itemId?: string;
   itemName?: string;
+  warehouseId?: string;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -2552,11 +2567,22 @@ export type SalesLine = {
   id: string;
   lineNumber: number;
   itemId?: string | null;
+  warehouseId?: string | null;
   itemName?: string | null;
   item?: Pick<
     InventoryItem,
-    "id" | "code" | "name" | "description" | "type" | "isActive" | "salesAccount"
+    | "id"
+    | "code"
+    | "name"
+    | "description"
+    | "type"
+    | "isActive"
+    | "salesAccount"
+    | "trackInventory"
+    | "preferredWarehouseId"
+    | "preferredWarehouse"
   > | null;
+  warehouse?: Pick<InventoryWarehouse, "id" | "code" | "name" | "isActive"> | null;
   description?: string | null;
   quantity: string;
   unitPrice: string;
@@ -2853,6 +2879,7 @@ export type UpdateSalesRepresentativePayload = Partial<CreateSalesRepresentative
 
 export type SalesLinePayload = {
   itemId?: string;
+  warehouseId?: string;
   itemName?: string;
   quantity?: number;
   unitPrice?: number;

@@ -1356,6 +1356,7 @@ Object.assign(enTranslations, {
   "purchases.invoices.empty.notPosted": "Not posted yet",
   "purchases.invoices.empty.selectAccount": "Select a posting account",
   "purchases.invoices.empty.selectItemOrService": "Select an inventory item",
+  "purchases.invoices.empty.selectWarehouse": "Select a warehouse",
   "purchases.invoices.state.loadingItems": "Loading items...",
   "purchases.invoices.field.reference": "Purchase Invoice Reference",
   "purchases.invoices.field.referenceHint":
@@ -1370,6 +1371,7 @@ Object.assign(enTranslations, {
   "purchases.invoices.field.itemOrService": "Item / Service",
   "purchases.invoices.field.itemSnapshot": "Invoice Item Snapshot",
   "purchases.invoices.field.itemSnapshotPlaceholder": "Item name saved on this invoice",
+  "purchases.invoices.field.warehouse": "Warehouse",
   "purchases.invoices.field.lineDescription": "Line Description",
   "purchases.invoices.field.quantity": "Quantity",
   "purchases.invoices.field.unitPrice": "Unit Price",
@@ -1380,6 +1382,19 @@ Object.assign(enTranslations, {
   "purchases.invoices.line.label": "Line {index}",
   "purchases.invoices.line.qtyPrice": "Qty {quantity} × {price}",
   "purchases.invoices.confirm.post": "Post this purchase invoice now?",
+  "purchases.validation.supplierRequired": "Select a supplier.",
+  "purchases.validation.dateRequired": "A date is required.",
+  "purchases.validation.currencyRequired": "A currency is required.",
+  "purchases.validation.atLeastOneLine": "Add at least one line.",
+  "purchases.validation.quantityPositive": "Quantity must be greater than zero.",
+  "purchases.validation.unitPricePositive": "Unit price must be zero or greater.",
+  "purchases.validation.taxAmountPositive": "Tax amount must be zero or greater.",
+  "purchases.validation.descriptionRequired": "Line description is required.",
+  "purchases.validation.accountRequired": "A posting account is required for each line.",
+  "purchases.validation.warehouseRequired": "A warehouse is required for inventory item lines.",
+  "purchases.validation.itemRequired": "An item or service must be selected for each line.",
+  "purchases.validation.discountExceedsTotal": "Discount cannot exceed the line subtotal.",
+  "purchases.validation.receiptExceedsRemaining": "Received quantity cannot exceed the remaining quantity.",
 });
 
 Object.assign(enTranslations, {
@@ -2148,6 +2163,7 @@ Object.assign(enTranslations, {
   "inventory.stockLedger.detail.transactionType": "Transaction Type",
   "inventory.stockLedger.detail.transactionId": "Transaction Id",
   "inventory.stockLedger.movementType.GOODS_RECEIPT": "Goods Receipt",
+  "inventory.stockLedger.movementType.PURCHASE_RECEIPT": "Purchase Receipt",
   "inventory.stockLedger.movementType.GOODS_ISSUE": "Goods Issue",
   "inventory.stockLedger.movementType.TRANSFER_OUT": "Transfer Out",
   "inventory.stockLedger.movementType.TRANSFER_IN": "Transfer In",

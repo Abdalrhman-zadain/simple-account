@@ -185,7 +185,9 @@ enum InventoryCostingMethod {
 
 enum InventoryStockMovementType {
   GOODS_RECEIPT
+  PURCHASE_RECEIPT
   GOODS_ISSUE
+  SALES_ISSUE
   TRANSFER_OUT
   TRANSFER_IN
   ADJUSTMENT_IN
@@ -345,6 +347,7 @@ model Account {
   salesInvoiceRevenueLines                  SalesInvoiceLine[]      @relation("SalesInvoiceRevenueAccount")
   creditNoteRevenueLines                    CreditNoteLine[]        @relation("CreditNoteRevenueAccount")
   inventoryDefaultItems                     InventoryItem[]         @relation("InventoryItemInventoryAccount")
+  inventoryExpenseItems                     InventoryItem[]         @relation("InventoryItemExpenseAccount")
   inventoryCogsItems                        InventoryItem[]         @relation("InventoryItemCogsAccount")
   inventorySalesItems                       InventoryItem[]         @relation("InventoryItemSalesAccount")
   inventorySalesReturnItems                 InventoryItem[]         @relation("InventoryItemSalesReturnAccount")
@@ -729,6 +732,8 @@ model InventoryItem {
   type                   InventoryItemType             @default(FINISHED_GOOD)
   inventoryAccountId     String?
   inventoryAccount       Account?                      @relation("InventoryItemInventoryAccount", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  expenseAccountId       String?
+  expenseAccount         Account?                      @relation("InventoryItemExpenseAccount", fields: [expenseAccountId], references: [id], onDelete: Restrict)
   cogsAccountId          String?
   cogsAccount            Account?                      @relation("InventoryItemCogsAccount", fields: [cogsAccountId], references: [id], onDelete: Restrict)
   salesAccountId         String?
@@ -776,6 +781,7 @@ model InventoryItem {
   @@index([barcode])
   @@index([preferredWarehouseId])
   @@index([defaultTaxId])
+  @@index([expenseAccountId])
   @@index([salesReturnAccountId])
 }
 
@@ -881,6 +887,8 @@ model InventoryWarehouse {
   itemBalances         InventoryWarehouseBalance[]
   costLayers           InventoryCostLayer[]
   stockMovements       InventoryStockMovement[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  salesInvoiceLines    SalesInvoiceLine[]
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
 
@@ -1756,6 +1764,8 @@ model PurchaseInvoiceLine {
   lineNumber         Int
   itemId             String?
   item               InventoryItem?  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId        String?
+  warehouse          InventoryWarehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String
   quantity           Decimal         @default(1) @db.Decimal(18, 4)
@@ -1772,6 +1782,7 @@ model PurchaseInvoiceLine {
 
   @@unique([purchaseInvoiceId, lineNumber])
   @@index([itemId])
+  @@index([warehouseId])
   @@index([accountId])
   @@index([taxId])
 }
@@ -2017,6 +2028,8 @@ model SalesInvoiceLine {
   lineNumber         Int
   itemId             String?
   item               InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouseId        String?
+  warehouse          InventoryWarehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   itemName           String?
   description        String?
   quantity           Decimal        @default(1) @db.Decimal(18, 4)
@@ -2033,6 +2046,7 @@ model SalesInvoiceLine {
 
   @@unique([salesInvoiceId, lineNumber])
   @@index([itemId])
+  @@index([warehouseId])
   @@index([revenueAccountId])
   @@index([taxId])
 }

@@ -126,7 +126,7 @@ Key fields:
 - invoice `allocatedAmount`, `outstandingAmount`, and `allocationStatus`
 - quotation line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`/`lineTotalAmount`, and `revenueAccountId`
 - sales-order line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `revenueAccountId`
-- sales-invoice line `itemId` (optional link to `InventoryItem`) plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`, and `revenueAccountId`
+- sales-invoice line `itemId` (optional link to `InventoryItem`), optional `warehouseId` for inventory-tracked lines, plus snapshot/display fields `itemName`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineAmount`, and `revenueAccountId`
 - quotation, sales-order, sales-invoice, and credit-note lines may optionally reference `Tax` through `taxId`; the stored `taxAmount` remains the historical calculated amount
 - customer receipt transactions `customerId`, settlement text, and links to posted receipt transactions
 - allocation `amount`, `allocatedAt`, and links to posted receipt transactions
@@ -144,9 +144,11 @@ Accounting meaning:
 - quotation lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so dropdown labels, print views, and commercial history can show the item/service code plus name without depending on later item-master edits
 - sales-order lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so downstream invoicing can inherit the item link while preserving code/name display context
 - sales-invoice lines may optionally point to an active inventory/service item, persist the linked `itemId`, and still store editable `itemName` snapshots so posted invoice history stays linked to the item card while print/report displays can resolve the item/service code when available
+- when a sales-invoice line points to an inventory-tracked item, the draft line also resolves/stores a warehouse selection using the item preferred warehouse as the default when available; service lines keep `warehouseId` empty
 - when a sales invoice customer is selected, draft invoice lines inherit the customer's tax-treatment default tax; out-of-scope treatment clears line tax, and reverse-charge behavior currently follows the treatment's configured default tax when one exists, otherwise no tax is defaulted
 - invoices and credit notes can be drafted, then posted through Phase 1 journal/posting logic
 - invoice posting debits receivables and credits revenue plus sales tax/VAT liability when tax is present
+- for inventory-tracked sales-invoice lines, posting also validates warehouse availability, creates a warehouse-linked `InventoryStockMovement` with movement type `SALES_ISSUE`, decreases item-level and warehouse-level quantity/value balances using the configured inventory costing policy, and adds COGS/inventory-relief journal lines in the same posting transaction
 - sales-invoice posting uses the customer's linked receivable account only; sales representative links and employee payable accounts remain non-posting context for customer invoices
 - customer receipts are stored as Phase 2 posted receipt transactions and can be created from either the Sales module or the Bank & Cash module
 - the Sales invoice form may launch a guided `Post & Create Receipt` handoff that posts the invoice first, then opens a separate customer-receipt document prefilled with the invoice/customer/currency/outstanding context; the receipt remains its own Phase 2 posted transaction plus allocation record
@@ -183,7 +185,7 @@ Key fields:
 - purchase order `reference`, `status`, `orderDate`, `supplierId`, `currencyCode`, `sourcePurchaseRequestId`, and totals
 - purchase order line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `taxAmount`, `lineTotalAmount`, and `requestedDeliveryDate`
 - purchase invoice `reference`, `status`, `invoiceDate`, `supplierId`, `currencyCode`, optional `sourcePurchaseOrderId`, optional `sourcePurchaseRequestId`, `subtotalAmount`, `discountAmount`, `taxAmount`, `totalAmount`, `allocatedAmount`, `outstandingAmount`, `allocationStatus`, and optional `journalEntryId`
-- purchase invoice line optional `itemId` link to `InventoryItem`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `accountId`
+- purchase invoice line optional `itemId` link to `InventoryItem`, optional `warehouseId` link to `InventoryWarehouse`, snapshot `itemName`, `description`, `quantity`, `unitPrice`, `discountAmount`, `taxAmount`, `lineSubtotalAmount`, `lineTotalAmount`, and `accountId`
 - supplier payment `reference`, `status`, `paymentDate`, `supplierId`, `amount`, `allocatedAmount`, `unappliedAmount`, `bankCashAccountId`, and optional `bankCashTransactionId`
 - supplier payment allocation `amount`, `allocatedAt`, `purchaseInvoiceId`, and `supplierPaymentId`
 - debit note `reference`, `status`, `noteDate`, `supplierId`, optional `purchaseInvoiceId`, `currencyCode`, `subtotalAmount`, `taxAmount`, `totalAmount`, and optional `journalEntryId`
@@ -200,7 +202,8 @@ Accounting meaning:
 - request status transitions are stored separately with timestamp and optional acting user so approval history remains auditable
 - approved purchase requests can open either a draft purchase order or a draft purchase invoice while preserving source-request traceability
 - purchase orders now persist their own header and line lifecycle, including direct creation, request-linked creation, and operational statuses (`DRAFT`, `ISSUED`, `PARTIALLY_RECEIVED`, `FULLY_RECEIVED`, `CANCELLED`, `CLOSED`), but they still do not carry posting behavior or receipt/invoice matching
-- purchase invoices now persist supplier-linked draft headers and lines, including optional source purchase-order or source purchase-request linkage, line-level debit posting-account classification restricted to active posting inventory assets, fixed assets, or expenses, subtotal/discount/tax/total amounts, and allocation-aware statuses; posting creates a Phase 1 journal entry that debits the configured purchase/asset lines plus purchase tax/input VAT and credits the supplier payable account
+- purchase invoices now persist supplier-linked draft headers and lines, including optional source purchase-order or source purchase-request linkage, per-line account classification, optional item-linked warehouse selection for stock items, subtotal/discount/tax/total amounts, and allocation-aware statuses; posting still creates the Phase 1 journal entry that debits the configured purchase/asset/expense lines plus purchase tax/input VAT and credits the supplier payable account
+- when a purchase-invoice line links to an inventory-tracked item, posting also creates a warehouse-linked `InventoryStockMovement`, increments both item-level and warehouse-level quantity/value balances, and adds a new inventory cost layer using the line's net unit cost; service or non-stock lines remain accounting-only
 - supplier payments can be drafted, allocated across one or more purchase invoices, and posted through the Phase 2 Bank & Cash payment flow, which creates the underlying journal entry and bank/cash transaction link
 - posted supplier payments decrement supplier balances and recompute invoice allocated/outstanding amounts while preventing over-allocation
 - the Purchase Invoice workspace may launch a guided `Post and Create Supplier Payment` handoff that posts the invoice first, then opens a separate supplier-payment draft prefilled with the supplier, invoice reference, outstanding amount, and linked allocation; payment posting remains a separate Bank & Cash-backed journal event
@@ -250,7 +253,7 @@ Key fields:
 - inventory adjustment `reference`, `status`, `adjustmentDate`, `warehouseId`, `reason`, summary variance/amount, and `postedAt`
 - inventory adjustment line `lineNumber`, `itemId`, `systemQuantity`, `countedQuantity`, `varianceQuantity`, `unitCost`, `unitOfMeasure`, `description`, and `lineTotalAmount`
 - warehouse balance `itemId`, `warehouseId`, `onHandQuantity`, and `valuationAmount`
-- stock movement history `movementType`, transaction references, quantity in/out, value in/out, and running warehouse balances
+- stock movement history `movementType` (including purchase-invoice receipts and sales-invoice issues), transaction references, quantity in/out, value in/out, and running warehouse balances
 - cost layer `remainingQuantity`, `unitCost`, source movement metadata, and source references
 - informational item-level balances `onHandQuantity` and `valuationAmount`
 - inventory policy `id` and `costingMethod`
@@ -265,13 +268,14 @@ Accounting meaning:
 - only the QR text/value is stored; preview images are generated in the UI and are not persisted in the database
 - barcode/QR values are operational identifiers only and do not create journal entries or direct accounting effects
 - item cards can now store optional default sales/purchase prices, currency code, taxable/default-tax settings, internal notes, image/attachment references, and per-unit conversion rows for the material card workflow
-- each item can store default posting-account mappings for inventory, cost of goods sold, sales, sales returns, and adjustments
+- each item can store default posting-account mappings for inventory, purchase expense, cost of goods sold, sales, sales returns, and adjustments
 - item groups can also store default posting-account mappings for inventory, cost of goods sold, sales, and adjustments for future defaulting behavior
 - the base unit conversion row is always preserved with factor `1`; additional unit rows store how operational quantities convert back to the base unit for future document-entry workflows
 - warehouse masters support active/inactive control, transit/staging classification, and a single default transit location flag
 - goods receipts can be saved as drafts, updated while still in draft, cancelled before posting, and posted to increase both warehouse-level and item-level quantity/value balances
 - goods receipt lines preserve warehouse-linked intake history with item, quantity, unit-cost, and source-reference context
 - goods issues can be saved as drafts, updated while still in draft, cancelled before posting, and posted to decrease both warehouse-level and item-level quantity/value balances
+- posted sales invoices reuse the same warehouse-balance and costing foundations for inventory-tracked lines, while service lines remain accounting-only
 - goods issue posting validates source-warehouse availability, applies configurable costing (`WEIGHTED_AVERAGE` or `FIFO`), and writes stock movement history rows with running balances
 - inventory policy stores the organization-selected valuation method used by goods issue, transfer, and adjustment-out costing flows
 - inventory transfers can be saved as drafts, updated while still in draft, cancelled before posting, and posted as warehouse-to-warehouse operational documents with both transfer-out and transfer-in stock movement rows

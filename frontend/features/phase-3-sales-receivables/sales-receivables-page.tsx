@@ -44,6 +44,7 @@ import {
   getCustomerTransactions,
   getCustomers,
   getInventoryItems,
+  getInventoryWarehouses,
   getSalesRepresentatives,
   getSalesOrders,
   getSalesQuotations,
@@ -338,6 +339,12 @@ export function SalesReceivablesPage() {
   const inventoryItemsQuery = useQuery({
     queryKey: queryKeys.inventoryItems(token, { isActive: "true", page: 1, limit: 100 }),
     queryFn: () => getInventoryItems({ isActive: "true", page: 1, limit: 100 }, token),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const inventoryWarehousesQuery = useQuery({
+    queryKey: ["inventory-warehouses", token],
+    queryFn: () => getInventoryWarehouses({ isActive: "true" }, token),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -1286,6 +1293,7 @@ export function SalesReceivablesPage() {
   }, [employeePayableAccountsTreeQuery.data]);
   const activeCustomers = activeCustomersQuery.data ?? [];
   const inventoryItems = (inventoryItemsQuery.data?.data ?? []).filter((item) => item.isActive);
+  const inventoryWarehouses = inventoryWarehousesQuery.data ?? [];
   const quotations = quotationsQuery.data ?? [];
   const salesOrders = salesOrdersQuery.data ?? [];
   const invoices = invoicesQuery.data ?? [];
@@ -3028,6 +3036,7 @@ export function SalesReceivablesPage() {
         lines={invoiceEditor.lines}
         customers={activeCustomers}
         inventoryItems={inventoryItems}
+        warehouses={inventoryWarehouses}
         isInventoryItemsLoading={inventoryItemsQuery.isLoading}
         revenueAccounts={revenueAccountsQuery.data ?? []}
         isSubmitting={isInvoiceSaving || createInvoiceMutation.isPending || updateInvoiceMutation.isPending}
@@ -3572,6 +3581,7 @@ function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
 
     return {
       itemId: line.itemId || undefined,
+      warehouseId: line.warehouseId || undefined,
       itemName: line.itemName || undefined,
       description: line.description || undefined,
       quantity: resolvedLine.quantity ? Number(resolvedLine.quantity) : undefined,
@@ -3588,6 +3598,7 @@ function mapSalesLines(lines: SalesLineEditorState[]): SalesLinePayload[] {
 function mapLineToEditor(line: {
   id: string;
   itemId?: string | null;
+  warehouseId?: string | null;
   itemName?: string | null;
   description?: string | null;
   quantity: string;
@@ -3601,6 +3612,7 @@ function mapLineToEditor(line: {
   return withCalculatedLineAmount({
     key: line.id,
     itemId: line.itemId ?? "",
+    warehouseId: line.warehouseId ?? "",
     itemName: line.itemName ?? "",
     description: line.description ?? "",
     quantity: line.quantity,

@@ -26,6 +26,7 @@ type InventoryItemListQuery = {
 type InventoryItemWithAccounts = Prisma.InventoryItemGetPayload<{
   include: {
     inventoryAccount: { select: ItemMasterService["accountSelect"] };
+    expenseAccount: { select: ItemMasterService["accountSelect"] };
     cogsAccount: { select: ItemMasterService["accountSelect"] };
     salesAccount: { select: ItemMasterService["accountSelect"] };
     salesReturnAccount: { select: ItemMasterService["accountSelect"] };
@@ -103,6 +104,7 @@ export class ItemMasterService {
 
   readonly itemInclude = {
     inventoryAccount: { select: this.accountSelect },
+    expenseAccount: { select: this.accountSelect },
     cogsAccount: { select: this.accountSelect },
     salesAccount: { select: this.accountSelect },
     salesReturnAccount: { select: this.accountSelect },
@@ -234,6 +236,7 @@ export class ItemMasterService {
           const trackInventory = this.resolveTrackInventory(dto.type, dto.trackInventory);
           const [
             inventoryAccountId,
+            expenseAccountId,
             cogsAccountId,
             salesAccountId,
             salesReturnAccountId,
@@ -246,6 +249,7 @@ export class ItemMasterService {
             uniqueBarcode,
           ] = await Promise.all([
             this.validateInventoryAccount(dto.inventoryAccountId),
+            this.validateExpenseAccount(dto.expenseAccountId),
             this.validateCogsAccount(dto.cogsAccountId),
             this.validateSalesAccount(dto.salesAccountId),
             this.validateSalesReturnAccount(dto.salesReturnAccountId),
@@ -280,6 +284,7 @@ export class ItemMasterService {
               itemCategoryId: itemCategory.id,
               type: dto.type,
               inventoryAccountId,
+              expenseAccountId,
               cogsAccountId,
               salesAccountId,
               salesReturnAccountId,
@@ -354,6 +359,7 @@ export class ItemMasterService {
 
     const [
       inventoryAccountId,
+      expenseAccountId,
       cogsAccountId,
       salesAccountId,
       salesReturnAccountId,
@@ -367,6 +373,9 @@ export class ItemMasterService {
     ] = await Promise.all([
       dto.inventoryAccountId !== undefined
         ? this.validateInventoryAccount(dto.inventoryAccountId || undefined)
+        : Promise.resolve(undefined),
+      dto.expenseAccountId !== undefined
+        ? this.validateExpenseAccount(dto.expenseAccountId || undefined)
         : Promise.resolve(undefined),
       dto.cogsAccountId !== undefined
         ? this.validateCogsAccount(dto.cogsAccountId || undefined)
@@ -451,6 +460,7 @@ export class ItemMasterService {
             dto.itemCategoryId === undefined ? undefined : nextCategory?.id,
           type: dto.type,
           inventoryAccountId,
+          expenseAccountId,
           cogsAccountId,
           salesAccountId,
           salesReturnAccountId,
@@ -561,6 +571,13 @@ export class ItemMasterService {
     return this.validateAccount(id, {
       label: "Inventory account",
       allowedTypes: ["ASSET"],
+    });
+  }
+
+  private async validateExpenseAccount(id?: string) {
+    return this.validateAccount(id, {
+      label: "Expense account",
+      allowedTypes: ["EXPENSE"],
     });
   }
 
@@ -866,6 +883,7 @@ export class ItemMasterService {
       isActive: row.isActive,
       status: row.isActive ? "ACTIVE" : "INACTIVE",
       inventoryAccount: row.inventoryAccount,
+      expenseAccount: row.expenseAccount,
       cogsAccount: row.cogsAccount,
       salesAccount: row.salesAccount,
       salesReturnAccount: row.salesReturnAccount,

@@ -72,6 +72,10 @@ export class UpdateInventoryItemDto {
 
   @IsOptional()
   @IsString()
+  expenseAccountId?: string;
+
+  @IsOptional()
+  @IsString()
   cogsAccountId?: string;
 
   @IsOptional()

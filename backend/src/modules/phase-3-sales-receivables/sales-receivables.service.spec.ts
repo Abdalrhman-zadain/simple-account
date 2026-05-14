@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 
-import { BankCashTransactionKind, BankCashTransactionStatus, SalesInvoiceStatus } from "../../generated/prisma";
+import { BankCashTransactionKind, BankCashTransactionStatus, Prisma, SalesInvoiceStatus } from "../../generated/prisma";
 import { SalesReceivablesService } from "./sales-receivables.service";
 
 describe("SalesReceivablesService", () => {
@@ -36,6 +36,15 @@ describe("SalesReceivablesService", () => {
     account: {
       findFirst: jest.fn(),
     },
+    inventoryStockMovement: {
+      findFirst: jest.fn(),
+    },
+    inventoryWarehouseBalance: {
+      findUnique: jest.fn(),
+    },
+    inventoryItem: {
+      update: jest.fn(),
+    },
   };
   const auditService = {
     log: jest.fn(),
@@ -47,6 +56,14 @@ describe("SalesReceivablesService", () => {
   };
   const postingService = {
     post: jest.fn(),
+  };
+  const inventoryPostingService = {
+    getCostingMethod: jest.fn(),
+    preventNegativeStock: jest.fn(),
+    averageUnitCost: jest.fn(),
+    resolveIssueCost: jest.fn(),
+    applyWarehouseBalance: jest.fn(),
+    createMovement: jest.fn(),
   };
 
   let service: SalesReceivablesService;
@@ -62,6 +79,7 @@ describe("SalesReceivablesService", () => {
       accountsService as never,
       journalEntriesService as never,
       postingService as never,
+      inventoryPostingService as never,
     );
     recomputeInvoiceAmountsSpy = jest.spyOn(service as any, "recomputeInvoiceAmounts").mockResolvedValue({
       id: "inv-1",
@@ -165,6 +183,80 @@ describe("SalesReceivablesService", () => {
     const call = journalEntriesService.create.mock.calls[0][0];
     expect(call.lines).toHaveLength(2);
     expect(call.lines.some((line: { accountId: string }) => line.accountId === "vat-payable")).toBe(false);
+  });
+
+  it("posts inventory-tracked sales lines with stock relief and COGS entries", async () => {
+    const invoice = salesInvoiceRow({
+      totalAmount: decimal("100.00"),
+      taxAmount: decimal("0.00"),
+      lines: [
+        salesInvoiceLine({
+          itemId: "item-1",
+          warehouseId: "wh-1",
+          item: {
+            id: "item-1",
+            code: "ITEM-1",
+            name: "Tracked item",
+            type: "FINISHED_GOOD",
+            trackInventory: true,
+            inventoryAccountId: "inv-asset",
+            cogsAccountId: "cogs-exp",
+            isActive: true,
+          },
+          revenueAccountId: "rev-1",
+          quantity: decimal("2.0000"),
+          lineSubtotalAmount: decimal("100.00"),
+          taxAmount: decimal("0.00"),
+          taxId: null,
+        }),
+      ],
+    });
+
+    prisma.salesInvoice.findUnique.mockResolvedValue(invoice);
+    prisma.tax.findMany.mockResolvedValue([]);
+    prisma.inventoryStockMovement.findFirst.mockResolvedValue(null);
+    prisma.inventoryWarehouseBalance.findUnique.mockResolvedValue({
+      id: "bal-1",
+      onHandQuantity: decimal("10.0000"),
+      valuationAmount: decimal("250.00"),
+    });
+    inventoryPostingService.preventNegativeStock.mockReturnValue(true);
+    inventoryPostingService.getCostingMethod.mockResolvedValue("WEIGHTED_AVERAGE");
+    inventoryPostingService.averageUnitCost.mockReturnValue(decimal("25.00"));
+    inventoryPostingService.resolveIssueCost.mockResolvedValue({
+      unitCost: decimal("25.00"),
+      totalAmount: decimal("50.00"),
+    });
+    inventoryPostingService.applyWarehouseBalance.mockResolvedValue({
+      id: "bal-1",
+      onHandQuantity: decimal("8.0000"),
+      valuationAmount: decimal("200.00"),
+    });
+    journalEntriesService.create.mockResolvedValue({ id: "je-3", postedAt: null });
+    postingService.post.mockResolvedValue({ id: "je-3", postedAt: "2026-05-12T09:00:00.000Z" });
+
+    await service.postInvoice("inv-1", { sourceAction: "STANDARD_POST" }, { userId: "user-1" });
+
+    expect(inventoryPostingService.resolveIssueCost).toHaveBeenCalled();
+    expect(inventoryPostingService.createMovement).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        movementType: "SALES_ISSUE",
+        transactionType: "SalesInvoice",
+        transactionLineId: "line-1",
+        warehouseId: "wh-1",
+      }),
+    );
+
+    expect(journalEntriesService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lines: expect.arrayContaining([
+          expect.objectContaining({ accountId: "cogs-exp", debitAmount: 50, creditAmount: 0 }),
+          expect.objectContaining({ accountId: "inv-asset", debitAmount: 0, creditAmount: 50 }),
+        ]),
+      }),
+      expect.anything(),
+    );
   });
 
   it("prevents duplicate invoice posting when a journal entry already exists", async () => {
@@ -327,7 +419,7 @@ describe("SalesReceivablesService", () => {
 });
 
 function decimal(value: string) {
-  return { toString: () => value };
+  return new Prisma.Decimal(value);
 }
 
 function customerRow() {

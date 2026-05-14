@@ -68,6 +68,7 @@ Current limitation:
 
 - the main `/sales-receivables` page now exposes customers, quotations, sales orders, invoices, receipts, credit notes, receipt allocation, and aging in one workspace. Customer and sales-invoice list print/PDF/Excel output is available through the shared frontend export engine, but formal single-document outputs and customer statement output are still not implemented.
 - the Sales invoice editor now includes a guided `Post & Create Receipt` action that opens a prefilled linked receipt while preserving separate invoice and receipt postings; customer statement output and formal single-document print layouts are still not implemented.
+- posted sales invoices now issue stock for inventory-tracked lines and create COGS/inventory-relief accounting from the selected warehouse, but invoice-line unit conversion/multi-UOM stock relief is still not implemented.
 - printable quote/order/invoice outputs and customer statement output are still not implemented.
 - a customer-facing sales debit note document is not implemented yet. The current codebase includes sales credit notes and purchase-side supplier debit notes, but not a separate receivable-increasing customer debit note workflow/UI.
 
@@ -80,7 +81,7 @@ What this means for future edits:
 
 Current limitation:
 
-- supplier masters, purchase requests, purchase-order maintenance, purchase invoices, supplier payments, and debit notes are now implemented end-to-end for their current draft/post/cancel slices, including journal posting for purchase invoices and debit notes.
+- supplier masters, purchase requests, purchase-order maintenance, purchase invoices, supplier payments, and debit notes are now implemented end-to-end for their current draft/post/cancel slices, including journal posting for purchase invoices and debit notes; posted purchase invoices now also update inventory balances/movements for inventory-tracked lines while service lines remain accounting-only.
 - supplier and purchase-invoice list print/PDF/Excel output is available through the shared frontend export engine, while formal purchase document templates remain a separate future refinement.
 - purchase orders now support draft/issue/receipt/cancel/close lifecycle management and now store operational purchase-receipt records, but they still do not create inventory or accounting journal entries from receipt posting.
 - purchase invoices, supplier payments, and debit notes now provide explicit reverse-document workflows that create reversal journal entries and mark the source documents as `REVERSED`.
@@ -93,13 +94,14 @@ What this means for future edits:
 - keep new purchases code inside `backend/src/modules/phase-4-procure-to-pay/purchases` and `frontend/features/phase-4-procure-to-pay`
 - preserve Arabic/English translation coverage when adding purchase statuses, document labels, and workflow actions
 - do not document non-implemented purchase workflows as implemented until the actual routes, data model, and posting behavior exist
-- treat purchase receipt accounting/inventory impact and receipt reversal as separate future slices; they are not implemented yet
+- treat purchase receipt posting impact and receipt reversal as separate future slices; purchase receipts still do not create inventory/accounting effects even though posted purchase invoices now create inventory receipts for stock lines
 
 ## Phase 5 Inventory Status
 
 Current limitation:
 
 - item master, warehouses, goods receipts, goods issues, transfers, adjustments, stock-ledger inquiry, warehouse balances, and costing/accounting integration are implemented; posted inventory documents now support reverse status workflows, but reverse currently marks status/audit history only and does not yet create stock-rollback or accounting-reversal entries.
+- sales-invoice posting now participates in inventory by creating `SALES_ISSUE` stock movements and warehouse-level stock relief for inventory-tracked lines, but reversal/rollback for those sales-linked stock movements is not implemented yet because sales-invoice reversal is not currently part of the Phase 3 workflow.
 - inventory master data now includes item groups, item categories, units of measure, and enforced group/category/material selection in the item card UI/API.
 - item cards now support default prices and unit-conversion setup, but inventory, sales, and purchase transaction lines still operate on their current implemented unit workflow; do not assume document-line unit conversion/storage is live until those modules are updated.
 - `docs/phase-5-inventory-requirements.md` remains the planning/reference document for the full inventory roadmap and translation alignment.

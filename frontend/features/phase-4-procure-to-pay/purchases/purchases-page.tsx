@@ -43,6 +43,7 @@ import {
   getDebitNotes,
   getActiveTaxes,
   getInventoryItems,
+  getInventoryWarehouses,
   getPurchasePolicy,
   getPurchaseInvoiceById,
   getPurchaseInvoices,
@@ -72,7 +73,7 @@ import { useTranslation } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { cn, formatCurrency, formatDate, cleanDisplayName } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
-import type { AccountOption, AccountTreeNode, DebitNote, DueDateCalculationMethod, InventoryItem, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchasePolicy, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
+import type { AccountOption, AccountTreeNode, DebitNote, DueDateCalculationMethod, InventoryItem, InventoryWarehouse, PaymentTerm, PurchaseInvoice, PurchaseOrder, PurchasePolicy, PurchaseRequest, Supplier, SupplierPayment, Tax } from "@/types/api";
 import { Button, Card, PageShell, SectionHeading, SidePanel, StatusPill } from "@/components/ui";
 import { ExportActions } from "@/components/ui/export-actions";
 import { Field, Input, Select, Textarea } from "@/components/ui/forms";
@@ -171,6 +172,7 @@ type PurchaseReceiptEditorState = {
 type PurchaseInvoiceLineEditorState = {
   key: string;
   itemId: string;
+  warehouseId: string;
   itemName: string;
   description: string;
   quantity: string;
@@ -360,6 +362,7 @@ export function PurchasesPage() {
     isRequestEditorOpen ||
     isOrderEditorOpen ||
     isInvoiceEditorOpen;
+  const needsInventoryWarehouses = workspace === "invoices" || isInvoiceEditorOpen;
   const needsBankCashAccounts = workspace === "payments" || isPaymentEditorOpen;
   const needsTaxes =
     workspace === "orders" ||
@@ -405,6 +408,13 @@ export function PurchasesPage() {
     queryKey: queryKeys.inventoryItems(token, { isActive: "true" }),
     queryFn: () => getInventoryItems({ isActive: "true" }, token),
     enabled: needsInventoryItems,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const inventoryWarehousesQuery = useQuery({
+    queryKey: queryKeys.inventoryWarehouses(token, { isActive: "true" }),
+    queryFn: () => getInventoryWarehouses({ isActive: "true" }, token),
+    enabled: needsInventoryWarehouses,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -1022,6 +1032,7 @@ export function PurchasesPage() {
 
   const activeSuppliers = suppliers.filter((row) => row.isActive);
   const inventoryItems = inventoryItemsQuery.data?.data ?? [];
+  const activeInventoryWarehouses = inventoryWarehousesQuery.data ?? [];
   const purchaseInvoiceDebitAccounts = (invoiceAccountsQuery.data ?? []).filter(isPurchaseInvoiceDebitAccount);
   const debitNoteDiscountAccountsQuery = useQuery({
     queryKey: queryKeys.accounts(token, { isPosting: "true", isActive: "true", usage: "purchase-debit-note-line", view: "selector" }),
@@ -1073,7 +1084,7 @@ export function PurchasesPage() {
   const receiptSaveError = getMutationErrorMessage(receivePurchaseOrderMutation.error);
   const receiptFormError = getPurchaseReceiptFormError(receiptEditor, t);
   const invoiceSaveError = getMutationErrorMessage(createPurchaseInvoiceMutation.error ?? updatePurchaseInvoiceMutation.error);
-  const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor, t);
+  const invoiceFormError = getPurchaseInvoiceFormError(invoiceEditor, inventoryItems, t);
   const invoiceActionError = getMutationErrorMessage(postPurchaseInvoiceMutation.error ?? reversePurchaseInvoiceMutation.error);
   const paymentSaveError = getMutationErrorMessage(createSupplierPaymentMutation.error ?? updateSupplierPaymentMutation.error);
   const paymentFormError = getSupplierPaymentFormError(paymentEditor, t);
@@ -1209,6 +1220,7 @@ export function PurchasesPage() {
       lines: request.lines.map((line) => ({
         key: line.id,
         itemId: line.itemId ?? "",
+        warehouseId: "",
         itemName: line.itemName ?? "",
         description: line.description,
         quantity: line.quantity,
@@ -1736,6 +1748,9 @@ export function PurchasesPage() {
                             </div>
                             <div className="mt-2 text-sm text-gray-600">{line.description}</div>
                             <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                              {line.warehouse ? (
+                                <span>{t("purchases.invoices.field.warehouse")}: {line.warehouse.code} · {line.warehouse.name}</span>
+                              ) : null}
                               <span>{t("purchases.invoices.field.account")}: {line.account.code} · {cleanDisplayName(line.account.name)}</span>
                               <span>{t("purchases.invoices.field.discountAmount")}: {formatCurrency(line.discountAmount)}</span>
                               <span>{t("purchases.invoices.field.taxAmount")}: {formatCurrency(line.taxAmount)}</span>
@@ -3097,11 +3112,12 @@ export function PurchasesPage() {
 
                             <div className="overflow-x-auto">
                               <div className="min-w-[1320px]">
-                                <div className="mb-3 grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                                <div className="mb-3 grid grid-cols-[0.55fr_1.6fr_1.4fr_1.4fr_1.5fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
                                   {[
                                     "#",
                                     t("purchases.invoices.field.itemOrService"),
                                     t("purchases.invoices.field.itemSnapshot"),
+                                    t("purchases.invoices.field.warehouse"),
                                     t("purchases.invoices.field.account"),
                                     t("purchases.invoices.field.quantity"),
                                     t("purchases.invoices.field.unitPrice"),
@@ -3114,14 +3130,14 @@ export function PurchasesPage() {
                                       className={cn("px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}
                                     >
                                       {label}
-                                      {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 6 && labelIndex !== 7 ? (
+                                      {labelIndex > 0 && labelIndex !== 2 && labelIndex !== 7 && labelIndex !== 8 ? (
                                         <span className="ms-1 text-red-500">*</span>
                                       ) : null}
                                     </div>
                                   ))}
                                 </div>
 
-                                <div className="grid grid-cols-[0.55fr_1.8fr_1.7fr_1.6fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
+                                <div className="grid grid-cols-[0.55fr_1.6fr_1.4fr_1.4fr_1.5fr_0.85fr_0.95fr_1fr_1fr_1.35fr] gap-3">
                                   <div className="flex h-full items-center justify-center rounded-2xl bg-white text-base font-extrabold text-slate-900 shadow-sm">
                                     {index + 1}
                                   </div>
@@ -3147,6 +3163,22 @@ export function PurchasesPage() {
                                     placeholder={t("purchases.invoices.field.itemSnapshotPlaceholder")}
                                     className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
                                   />
+
+                                  <Select
+                                    value={line.warehouseId}
+                                    onChange={(event) => updateInvoiceLine(line.key, "warehouseId", event.target.value)}
+                                    disabled={!doesPurchaseInvoiceItemTrackInventory(inventoryItems.find((item) => item.id === line.itemId))}
+                                    className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                  >
+                                    <option value="">
+                                      {t("purchases.invoices.empty.selectWarehouse")}
+                                    </option>
+                                    {activeInventoryWarehouses.map((warehouse) => (
+                                      <option key={warehouse.id} value={warehouse.id}>
+                                        {warehouse.code} · {warehouse.name}
+                                      </option>
+                                    ))}
+                                  </Select>
 
                                   <Select
                                     value={line.accountId}
@@ -4281,6 +4313,7 @@ export function PurchasesPage() {
       lines: invoice.lines.map((line) => ({
         key: line.id,
         itemId: line.itemId ?? line.item?.id ?? "",
+        warehouseId: line.warehouseId ?? line.warehouse?.id ?? "",
         itemName: line.itemName ?? "",
         description: line.description,
         quantity: line.quantity,
@@ -4360,6 +4393,7 @@ export function PurchasesPage() {
         const quantity = line.quantity && Number(line.quantity) > 0 ? line.quantity : "1.00";
         const unitPrice = item?.defaultPurchasePrice ?? "0.00";
         const tax = item?.defaultTax;
+        const tracksInventory = doesPurchaseInvoiceItemTrackInventory(item);
 
         const baseAmount = Number(quantity) * Number(unitPrice);
         const discountedAmount = baseAmount - Number(line.discountAmount || 0);
@@ -4368,9 +4402,12 @@ export function PurchasesPage() {
         return {
           ...line,
           itemId: item?.id ?? "",
+          warehouseId: tracksInventory ? item?.preferredWarehouse?.id ?? item?.preferredWarehouseId ?? "" : "",
           itemName: item?.name ?? "",
           description: line.description.trim() || !item ? line.description : item.description ?? item.name,
-          accountId: item?.inventoryAccount?.id ?? item?.adjustmentAccount?.id ?? line.accountId,
+          accountId: tracksInventory
+            ? item?.inventoryAccount?.id ?? line.accountId
+            : item?.expenseAccount?.id ?? line.accountId,
           quantity,
           unitPrice,
           taxId: tax?.id ?? "",
@@ -4825,7 +4862,7 @@ function getPurchaseReceiptFormError(editor: PurchaseReceiptEditorState, t: any)
   return null;
 }
 
-function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState, t: any) {
+function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState, inventoryItems: InventoryItem[], t: any) {
   if (!editor.supplierId) {
     return t("purchases.validation.supplierRequired");
   }
@@ -4839,11 +4876,15 @@ function getPurchaseInvoiceFormError(editor: PurchaseInvoiceEditorState, t: any)
     return t("purchases.validation.atLeastOneLine");
   }
   for (const line of editor.lines) {
+    const item = inventoryItems.find((entry) => entry.id === line.itemId);
     if (!line.description.trim()) {
       return t("purchases.validation.descriptionRequired");
     }
     if (!line.accountId) {
       return t("purchases.validation.accountRequired");
+    }
+    if (doesPurchaseInvoiceItemTrackInventory(item) && !line.warehouseId) {
+      return t("purchases.validation.warehouseRequired");
     }
     if (!line.quantity || Number(line.quantity) <= 0) {
       return t("purchases.validation.quantityPositive");
@@ -4982,6 +5023,7 @@ function createEmptyInvoiceLine(): PurchaseInvoiceLineEditorState {
   return {
     key: randomKey(),
     itemId: "",
+    warehouseId: "",
     itemName: "",
     description: "",
     quantity: "1",
@@ -5103,6 +5145,7 @@ function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
   return lines.map((line) => ({
     itemId: line.itemId || undefined,
     itemName: line.itemName || undefined,
+    warehouseId: line.warehouseId || undefined,
     description: line.description,
     quantity: Number(line.quantity),
     unitPrice: Number(line.unitPrice),
@@ -5111,6 +5154,10 @@ function mapInvoiceEditorLines(lines: PurchaseInvoiceLineEditorState[]) {
     taxAmount: Number(line.taxAmount),
     accountId: line.accountId,
   }));
+}
+
+function doesPurchaseInvoiceItemTrackInventory(item?: InventoryItem | null) {
+  return Boolean(item && item.type !== "SERVICE" && item.trackInventory);
 }
 
 function mapPaymentEditorAllocations(lines: SupplierPaymentAllocationEditorState[]) {

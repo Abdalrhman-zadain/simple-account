@@ -94,6 +94,10 @@ export class CreateInventoryItemDto {
 
   @IsOptional()
   @IsString()
+  expenseAccountId?: string;
+
+  @IsOptional()
+  @IsString()
   cogsAccountId?: string;
 
   @IsOptional()

@@ -19,7 +19,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/forms";
 import { getActiveTaxes } from "@/lib/api";
 import { useTranslation } from "@/lib/i18n";
 import { cn, formatCurrency, formatItemServiceLabel } from "@/lib/utils";
-import type { Customer, InventoryItem, Tax } from "@/types/api";
+import type { Customer, InventoryItem, InventoryWarehouse, Tax } from "@/types/api";
 import { useAuth } from "@/providers/auth-provider";
 import {
   applyItemToSalesLine,
@@ -47,6 +47,7 @@ type SalesDocumentEditorModalProps = {
   lines: SalesLineEditorState[];
   customers: Customer[];
   inventoryItems: InventoryItem[];
+  warehouses: InventoryWarehouse[];
   isInventoryItemsLoading: boolean;
   revenueAccounts: RevenueAccountOption[];
   isSubmitting: boolean;
@@ -87,6 +88,7 @@ export function SalesDocumentEditorModal({
   lines,
   customers,
   inventoryItems,
+  warehouses,
   isInventoryItemsLoading,
   revenueAccounts,
   isSubmitting,
@@ -311,6 +313,17 @@ export function SalesDocumentEditorModal({
               <div className="space-y-4">
                 {lines.map((line, index) => (
                   <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
+                    {(() => {
+                      const selectedItem =
+                        inventoryItems.find((row) => row.id === line.itemId) ?? null;
+                      const requiresWarehouse = Boolean(
+                        selectedItem &&
+                          selectedItem.type !== "SERVICE" &&
+                          selectedItem.trackInventory,
+                      );
+
+                      return (
+                        <>
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
@@ -485,7 +498,35 @@ export function SalesDocumentEditorModal({
                         </div>
 
                         <div className="mt-3 grid grid-cols-[1fr_1fr_1.35fr] gap-3">
-                          <div />
+                          <div>
+                            {requiresWarehouse ? (
+                              <>
+                                <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
+                                  {t("purchases.invoices.field.warehouse")}
+                                  <span className="ms-1 text-red-500">*</span>
+                                </div>
+                                <Select
+                                  value={line.warehouseId}
+                                  onChange={(event) =>
+                                    updateLine(line.key, (current) => ({
+                                      ...current,
+                                      warehouseId: event.target.value,
+                                    }))
+                                  }
+                                  className={cn("border-slate-200 bg-white", isArabic && "arabic-ui text-right")}
+                                >
+                                  <option value="">{t("inventory.placeholder.selectWarehouse")}</option>
+                                  {warehouses
+                                    .filter((warehouse) => warehouse.isActive)
+                                    .map((warehouse) => (
+                                      <option key={warehouse.id} value={warehouse.id}>
+                                        {warehouse.code} · {warehouse.name}
+                                      </option>
+                                    ))}
+                                </Select>
+                              </>
+                            ) : null}
+                          </div>
                           <div />
                           <div>
                             <div className={cn("mb-2 px-1 text-sm font-bold text-slate-900", isArabic ? "arabic-ui text-right" : "text-left")}>
@@ -509,6 +550,9 @@ export function SalesDocumentEditorModal({
                         </div>
                       </div>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

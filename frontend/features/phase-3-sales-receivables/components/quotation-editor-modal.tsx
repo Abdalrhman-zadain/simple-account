@@ -25,6 +25,7 @@ import type { Customer, InventoryItem } from "@/types/api";
 export type SalesLineEditorState = {
   key: string;
   itemId: string;
+  warehouseId: string;
   itemName: string;
   description: string;
   quantity: string;
@@ -73,6 +74,7 @@ export function createEmptyLine(): SalesLineEditorState {
   return withCalculatedLineAmount({
     key: Math.random().toString(36).slice(2, 10),
     itemId: "",
+    warehouseId: "",
     itemName: "",
     description: "",
     quantity: "1",
@@ -98,6 +100,7 @@ export function applyItemToSalesLine(
     return {
       ...line,
       itemId: "",
+      warehouseId: "",
       itemName: "",
       description: "",
       unitPrice: shouldUpdatePrice ? "" : line.unitPrice,
@@ -127,6 +130,10 @@ export function applyItemToSalesLine(
   return withCalculatedLineAmount({
     ...line,
     itemId: item.id,
+    warehouseId:
+      item.type !== "SERVICE" && item.trackInventory
+        ? item.preferredWarehouse?.id || item.preferredWarehouseId || ""
+        : "",
     itemName: item.name,
     description: item.description || "",
     unitPrice: shouldUpdatePrice ? (item.defaultSalesPrice || "0") : line.unitPrice,

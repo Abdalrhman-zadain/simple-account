@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { AuditAction, Prisma, PurchaseInvoiceStatus, PurchaseOrderStatus } from '../../../../generated/prisma';
+import { AuditAction, InventoryStockMovementType, Prisma, PurchaseInvoiceStatus, PurchaseOrderStatus } from '../../../../generated/prisma';
 
 import { PrismaService } from '../../../../common/prisma/prisma.service';
 import { AuditService } from '../../../phase-1-accounting-foundation/accounting-core/audit/audit.service';
@@ -7,6 +7,7 @@ import { JournalEntriesService } from '../../../phase-1-accounting-foundation/ac
 import { ReverseJournalEntryDto } from '../../../phase-1-accounting-foundation/accounting-core/journal-entries/dto/reverse-journal-entry.dto';
 import { PostingService } from '../../../phase-1-accounting-foundation/accounting-core/posting-logic/posting.service';
 import { ReversalService } from '../../../phase-1-accounting-foundation/accounting-core/reversal-control/reversal.service';
+import { InventoryPostingService } from '../../../phase-5-inventory-management/inventory/shared/inventory-posting.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { CreatePurchaseInvoiceDto, PurchaseInvoiceLineDto, UpdatePurchaseInvoiceDto } from './dto/purchase-invoices.dto';
 
@@ -29,6 +30,7 @@ type ResolvedInvoiceLine = {
   taxAmount: number;
   lineSubtotalAmount: number;
   lineTotalAmount: number;
+  warehouseId: string | null;
   accountId: string;
 };
 
@@ -72,6 +74,16 @@ type PurchaseInvoiceWithRelations = Prisma.PurchaseInvoiceGetPayload<{
             code: true;
             name: true;
             unitOfMeasure: true;
+            type: true;
+            trackInventory: true;
+          };
+        };
+        warehouse: {
+          select: {
+            id: true;
+            code: true;
+            name: true;
+            isActive: true;
           };
         };
         account: {
@@ -113,6 +125,7 @@ export class PurchaseInvoicesService {
     private readonly journalEntriesService: JournalEntriesService,
     private readonly postingService: PostingService,
     private readonly reversalService: ReversalService,
+    private readonly inventoryPostingService: InventoryPostingService,
     private readonly auditService: AuditService,
   ) {}
 
@@ -326,6 +339,25 @@ export class PurchaseInvoicesService {
         lines: {
           orderBy: { lineNumber: 'asc' },
           include: {
+            item: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                type: true,
+                trackInventory: true,
+                inventoryAccountId: true,
+                expenseAccountId: true,
+              },
+            },
+            warehouse: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
             account: {
               select: {
                 id: true,
@@ -349,17 +381,24 @@ export class PurchaseInvoicesService {
 
     const description = invoice.description ? `${invoice.reference} - ${invoice.description}` : invoice.reference;
     const journalLines = await this.buildPurchaseInvoiceJournalLines(invoice, description);
-
-    const journal = await this.journalEntriesService.create({
-      entryDate: invoice.invoiceDate.toISOString(),
-      description,
-      lines: journalLines,
-    });
-
-    const posted = await this.postingService.post(journal.id);
-    const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
-
     const updated = await this.prisma.$transaction(async (tx) => {
+      const journal = await this.journalEntriesService.create(
+        {
+          entryDate: invoice.invoiceDate.toISOString(),
+          description,
+          sourceType: 'PurchaseInvoice',
+          sourceId: invoice.id,
+          sourceNumber: invoice.reference,
+          currencyCode: invoice.currencyCode,
+          lines: journalLines,
+        },
+        { tx },
+      );
+      const posted = await this.postingService.post(journal.id, tx as never);
+      const postedAt = posted.postedAt ? new Date(posted.postedAt) : new Date();
+
+      await this.applyInventoryReceiptPosting(tx, invoice);
+
       const next = await tx.purchaseInvoice.update({
         where: { id },
         data: {
@@ -386,7 +425,7 @@ export class PurchaseInvoicesService {
       entity: 'PurchaseInvoice',
       entityId: updated.id,
       action: AuditAction.POST,
-      details: { status: updated.status, reference: updated.reference, journalEntryId: posted.id },
+      details: { status: updated.status, reference: updated.reference, journalEntryId: updated.journalEntryId },
     });
 
     const [mapped] = await this.enrichAndMapPurchaseInvoices([updated]);
@@ -598,13 +637,35 @@ export class PurchaseInvoicesService {
       itemIds.length
         ? this.prisma.inventoryItem.findMany({
             where: { id: { in: itemIds }, isActive: true },
-            select: { id: true, name: true },
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              trackInventory: true,
+              inventoryAccountId: true,
+              expenseAccountId: true,
+              preferredWarehouseId: true,
+            },
           })
         : Promise.resolve([]),
       taxIds.length
         ? this.prisma.tax.findMany({ where: { id: { in: taxIds }, isActive: true }, select: { id: true, rate: true } })
         : Promise.resolve([]),
     ]);
+    const warehouseIds = Array.from(
+      new Set(
+        [
+          ...lines.map((line) => line.warehouseId?.trim()).filter(Boolean),
+          ...items.map((item) => item.preferredWarehouseId).filter(Boolean),
+        ],
+      ),
+    ) as string[];
+    const warehouses = warehouseIds.length
+      ? await this.prisma.inventoryWarehouse.findMany({
+          where: { id: { in: warehouseIds }, isActive: true },
+          select: { id: true },
+        })
+      : [];
     const validAccountIds = new Set(
       accounts
         .filter((account) => this.isPurchaseInvoiceDebitAccount(account))
@@ -612,15 +673,37 @@ export class PurchaseInvoicesService {
     );
     const validItems = new Map(items.map((item) => [item.id, item]));
     const taxById = new Map(taxes.map((tax) => [tax.id, Number(tax.rate)]));
+    const validWarehouseIds = new Set(warehouses.map((warehouse) => warehouse.id));
 
     return lines.map((line) => {
-      if (!validAccountIds.has(line.accountId)) {
-        throw new BadRequestException('Each purchase invoice line must use an active posting inventory, fixed asset, or expense account.');
-      }
       const itemId = line.itemId?.trim() || null;
       const item = itemId ? validItems.get(itemId) : null;
       if (itemId && !item) {
         throw new BadRequestException('Each linked purchase invoice item must reference an active inventory item.');
+      }
+      const tracksInventory = this.lineTracksInventory(item);
+      const warehouseId =
+        tracksInventory
+          ? (line.warehouseId?.trim() || item?.preferredWarehouseId || null)
+          : null;
+      if (warehouseId && !validWarehouseIds.has(warehouseId)) {
+        throw new BadRequestException('Each purchase invoice line warehouse must reference an active warehouse.');
+      }
+      if (tracksInventory && !warehouseId) {
+        throw new BadRequestException('Inventory item lines require a warehouse.');
+      }
+      if (!validAccountIds.has(line.accountId)) {
+        throw new BadRequestException('Each purchase invoice line must use an active posting inventory, fixed asset, or expense account.');
+      }
+      const account = accounts.find((entry) => entry.id === line.accountId);
+      if (tracksInventory) {
+        if (account?.type !== 'ASSET' || account.subtype !== 'Inventory') {
+          throw new BadRequestException('Inventory item lines must post to an active inventory asset account.');
+        }
+      } else if (itemId) {
+        if (account?.type !== 'EXPENSE') {
+          throw new BadRequestException('Service or non-stock item lines must post to an active expense account.');
+        }
       }
 
       const quantity = Number(line.quantity);
@@ -652,6 +735,7 @@ export class PurchaseInvoicesService {
         taxAmount,
         lineSubtotalAmount,
         lineTotalAmount,
+        warehouseId,
         accountId: line.accountId,
       } satisfies ResolvedInvoiceLine;
     });
@@ -683,6 +767,7 @@ export class PurchaseInvoicesService {
     return {
       lineNumber,
       itemId: line.itemId,
+      warehouseId: line.warehouseId,
       itemName: line.itemName,
       description: line.description,
       quantity: this.toQuantity(line.quantity),
@@ -730,6 +815,16 @@ export class PurchaseInvoicesService {
               code: true,
               name: true,
               unitOfMeasure: true,
+              type: true,
+              trackInventory: true,
+            },
+          },
+          warehouse: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              isActive: true,
             },
           },
           account: {
@@ -895,6 +990,8 @@ export class PurchaseInvoicesService {
         lineNumber: line.lineNumber,
         itemId: line.itemId,
         item: line.item,
+        warehouseId: line.warehouseId,
+        warehouse: line.warehouse,
         itemName: line.itemName,
         description: line.description,
         quantity: line.quantity.toString(),
@@ -951,5 +1048,120 @@ export class PurchaseInvoicesService {
       Array.isArray(error.meta?.target) &&
       error.meta.target.includes(field)
     );
+  }
+
+  private lineTracksInventory(
+    item:
+      | {
+          type: string;
+          trackInventory: boolean;
+        }
+      | null
+      | undefined,
+  ) {
+    return Boolean(item && item.type !== 'SERVICE' && item.trackInventory);
+  }
+
+  private async applyInventoryReceiptPosting(
+    tx: Prisma.TransactionClient,
+    invoice: {
+      id: string;
+      reference: string;
+      invoiceDate: Date;
+      description: string | null;
+      lines: Array<{
+        id: string;
+        itemId: string | null;
+        item?: {
+          id: string;
+          code: string;
+          name: string;
+          type: string;
+          trackInventory: boolean;
+        } | null;
+        warehouseId: string | null;
+        quantity: Prisma.Decimal;
+        discountAmount: Prisma.Decimal;
+        lineSubtotalAmount: Prisma.Decimal;
+        description: string;
+      }>;
+    },
+  ) {
+    for (const line of invoice.lines) {
+      if (!line.itemId || !this.lineTracksInventory(line.item)) {
+        continue;
+      }
+      if (!line.warehouseId) {
+        throw new BadRequestException('Inventory item lines require a warehouse.');
+      }
+
+      const existingMovement = await tx.inventoryStockMovement.findFirst({
+        where: {
+          transactionType: 'PurchaseInvoice',
+          transactionLineId: line.id,
+        },
+        select: { id: true },
+      });
+      if (existingMovement) {
+        continue;
+      }
+
+      const netLineCost = line.lineSubtotalAmount.sub(line.discountAmount);
+      const unitCost = line.quantity.gt(0)
+        ? netLineCost.div(line.quantity)
+        : new Prisma.Decimal(0);
+
+      await tx.inventoryItem.update({
+        where: { id: line.itemId },
+        data: {
+          onHandQuantity: {
+            increment: line.quantity,
+          },
+          valuationAmount: {
+            increment: netLineCost,
+          },
+        },
+      });
+
+      const warehouseBalance = await this.inventoryPostingService.applyWarehouseBalance(tx, {
+        itemId: line.itemId,
+        warehouseId: line.warehouseId,
+        quantityDelta: line.quantity,
+        valueDelta: netLineCost,
+      });
+
+      await this.inventoryPostingService.createMovement(tx, {
+        movementType: InventoryStockMovementType.PURCHASE_RECEIPT,
+        transactionType: 'PurchaseInvoice',
+        transactionId: invoice.id,
+        transactionLineId: line.id,
+        transactionReference: invoice.reference,
+        transactionDate: invoice.invoiceDate,
+        itemId: line.itemId,
+        warehouseId: line.warehouseId,
+        quantityIn: line.quantity,
+        quantityOut: new Prisma.Decimal(0),
+        unitCost,
+        valueIn: netLineCost,
+        valueOut: new Prisma.Decimal(0),
+        balanceId: warehouseBalance.id,
+        runningQuantity: warehouseBalance.onHandQuantity,
+        runningValuation: warehouseBalance.valuationAmount,
+        description: line.description || invoice.description,
+      });
+
+      await this.inventoryPostingService.addCostLayer(tx, {
+        itemId: line.itemId,
+        warehouseId: line.warehouseId,
+        quantity: line.quantity,
+        unitCost,
+        movementType: InventoryStockMovementType.PURCHASE_RECEIPT,
+        sourceType: 'PurchaseInvoice',
+        sourceId: invoice.id,
+        sourceLineId: line.id,
+        sourceReference: invoice.reference,
+        sourceDate: invoice.invoiceDate,
+      });
+    }
   }
 }

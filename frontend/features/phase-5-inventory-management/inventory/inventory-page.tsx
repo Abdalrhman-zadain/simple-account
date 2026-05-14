@@ -116,6 +116,7 @@ const TRANSFER_STATUS_OPTIONS: InventoryTransferStatus[] = ["DRAFT", "POSTED", "
 const ADJUSTMENT_STATUS_OPTIONS: InventoryAdjustmentStatus[] = ["DRAFT", "POSTED", "CANCELLED", "REVERSED"];
 const STOCK_MOVEMENT_TYPE_OPTIONS: InventoryStockMovementType[] = [
   "GOODS_RECEIPT",
+  "PURCHASE_RECEIPT",
   "GOODS_ISSUE",
   "TRANSFER_OUT",
   "TRANSFER_IN",
@@ -2716,6 +2717,7 @@ export function InventoryPage() {
           activeTaxes={activeTaxes}
           warehouses={warehouses}
           inventoryAccounts={inventoryAccountsQuery.data ?? []}
+          expenseAccounts={cogsAccountsQuery.data ?? []}
           salesAccounts={salesAccountsQuery.data ?? []}
           cogsAccounts={cogsAccountsQuery.data ?? []}
           adjustmentAccounts={adjustmentAccountsQuery.data ?? []}
@@ -4292,6 +4294,7 @@ function mapItemToEditor(item: InventoryItem): ItemEditorState {
     defaultTaxId: item.defaultTaxId ?? "",
     trackInventory: item.trackInventory,
     inventoryAccountId: item.inventoryAccount?.id ?? "",
+    expenseAccountId: item.expenseAccount?.id ?? "",
     cogsAccountId: item.cogsAccount?.id ?? "",
     salesAccountId: item.salesAccount?.id ?? "",
     salesReturnAccountId: item.salesReturnAccount?.id ?? "",
@@ -4509,6 +4512,7 @@ function mapItemEditorToPayload(editor: ItemEditorState) {
     defaultTaxId: editor.taxable ? editor.defaultTaxId || undefined : undefined,
     trackInventory: editor.trackInventory,
     inventoryAccountId: editor.inventoryAccountId || undefined,
+    expenseAccountId: editor.expenseAccountId || undefined,
     cogsAccountId: editor.cogsAccountId || undefined,
     salesAccountId: editor.salesAccountId || undefined,
     salesReturnAccountId: editor.salesReturnAccountId || undefined,
