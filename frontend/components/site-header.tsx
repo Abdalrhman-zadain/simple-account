@@ -61,6 +61,10 @@ type NavGroup = {
     href: string;
     labelKey: TranslationKey;
     icon: any;
+    children?: Array<{
+      href: string;
+      labelKey: TranslationKey;
+    }>;
   }>;
 };
 
@@ -72,7 +76,19 @@ const navGroups: NavGroup[] = [
       { href: "/bank-cash-accounts", labelKey: "nav.item.bankCashAccounts", icon: WalletMinimal },
       { href: "/bank-reconciliations", labelKey: "nav.item.bankReconciliations", icon: BadgeCheck },
       { href: "/sales-receivables", labelKey: "nav.item.salesReceivables", icon: Users },
-      { href: "/purchases", labelKey: "nav.item.purchases", icon: ShoppingCart },
+      {
+        href: "/purchases",
+        labelKey: "nav.item.purchases",
+        icon: ShoppingCart,
+        children: [
+          { href: "/purchases?tab=suppliers", labelKey: "purchases.workspace.suppliers" },
+          { href: "/purchases?tab=requests", labelKey: "purchases.workspace.requests" },
+          { href: "/purchases?tab=orders", labelKey: "purchases.workspace.orders" },
+          { href: "/purchases?tab=invoices", labelKey: "purchases.workspace.invoices" },
+          { href: "/purchases?tab=payments", labelKey: "purchases.workspace.payments" },
+          { href: "/purchases?tab=notes", labelKey: "purchases.workspace.debitNotes" },
+        ],
+      },
       { href: "/inventory", labelKey: "nav.item.inventory", icon: Package },
       // { href: "/payroll", labelKey: "nav.item.payroll", icon: BadgeDollarSign },
       // { href: "/fixed-assets", labelKey: "nav.item.fixedAssets", icon: Building2 },
@@ -380,22 +396,49 @@ export function SiteHeader({
                 const Icon = item.icon;
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
-                    className={cn(
-                      "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0",
-                      isCollapsed && "justify-center",
-                      isActive
-                        ? "border border-gray-200 bg-gray-100 text-gray-900 shadow-sm"
-                        : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      title={!isCollapsed ? undefined : (t(item.labelKey) as string)}
+                      className={cn(
+                        "group flex items-center gap-4 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0",
+                        isCollapsed && "justify-center",
+                        isActive
+                          ? "border border-gray-200 bg-gray-100 text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
+                      <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{t(item.labelKey)}</span>
+                      {isActive && !isCollapsed && <ChevronRight className="h-4 w-4 text-gray-400 ltr:rotate-0 rtl:rotate-180" />}
+                    </Link>
+
+                    {item.children && isActive && !isCollapsed && (
+                      <div className="mt-2 space-y-1 pe-3 ps-9">
+                        {item.children.map((child) => {
+                          const childTab = child.href.split("tab=")[1];
+                          const isChildActive =
+                            typeof window !== "undefined" &&
+                            new URLSearchParams(window.location.search).get("tab") === childTab;
+
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className={cn(
+                                "block rounded-xl px-3 py-2 text-xs font-bold transition-all",
+                                isChildActive
+                                  ? "bg-gray-900 text-white shadow-sm"
+                                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900",
+                              )}
+                            >
+                              {t(child.labelKey)}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     )}
-                  >
-                    <Icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")} />
-                    <span className={cn("flex-1 truncate", isCollapsed && "sr-only")}>{t(item.labelKey)}</span>
-                    {isActive && !isCollapsed && <ChevronRight className="h-4 w-4 text-gray-400 ltr:rotate-0 rtl:rotate-180" />}
-                  </Link>
+                  </div>
                 );
               })}
             </div>
