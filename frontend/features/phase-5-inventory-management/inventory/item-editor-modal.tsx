@@ -115,6 +115,16 @@ function formatCodeName(code: string, name: string, isArabic: boolean) {
   return isArabic ? `${name} · ${code}` : `${code} · ${name}`;
 }
 
+function formatAccountOptionLabel(
+  account: Pick<AccountOption, "code" | "name" | "nameAr">,
+  isArabic: boolean,
+) {
+  const localizedName = isArabic
+    ? account.nameAr?.trim() || account.name
+    : account.name?.trim() || account.nameAr?.trim() || "";
+  return formatCodeName(account.code, localizedName, isArabic);
+}
+
 export function createEmptyItemEditor(): ItemEditorState {
   return {
     code: "",
@@ -711,7 +721,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {inventoryAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -723,7 +733,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {expenseAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -735,7 +745,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {salesAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -748,7 +758,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {cogsAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -760,7 +770,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {salesAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>
@@ -773,7 +783,7 @@ export function ItemEditorModal({
                   >
                     <option value="">{t("inventory.placeholder.selectAccount")}</option>
                     {adjustmentAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>{formatCodeName(a.code, a.name, isArabic)}</option>
+                      <option key={a.id} value={a.id}>{formatAccountOptionLabel(a, isArabic)}</option>
                     ))}
                   </Select>
                 </Field>

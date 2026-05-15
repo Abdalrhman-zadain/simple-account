@@ -4139,12 +4139,14 @@ function AccountSelect({
   options: AccountOption[];
   placeholder: string;
 }) {
+  const { language } = useTranslation();
+
   return (
     <Select value={value} onChange={(event) => onChange(event.target.value)}>
       <option value="">{placeholder}</option>
       {options.map((option) => (
         <option key={option.id} value={option.id}>
-          {option.code} · {option.name}
+          {option.code} - {language === "ar" ? option.nameAr?.trim() || option.name : option.name?.trim() || option.nameAr?.trim() || ""}
         </option>
       ))}
     </Select>

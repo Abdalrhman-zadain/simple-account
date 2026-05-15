@@ -789,22 +789,6 @@ async function main() {
         defaultTaxId: exemptTax.id,
         isActive: true,
       },
-      {
-        code: 'OUT_OF_SCOPE',
-        arabicName: 'خارج نطاق الضريبة',
-        englishName: 'Out of Scope',
-        description: 'Out of scope sales treatment with no default tax.',
-        defaultTaxId: null,
-        isActive: true,
-      },
-      {
-        code: 'REVERSE_CHARGE',
-        arabicName: 'توريد عكسي',
-        englishName: 'Reverse Charge',
-        description: 'Reverse charge treatment. Default tax can be configured later if needed.',
-        defaultTaxId: null,
-        isActive: true,
-      },
     ],
   });
 
