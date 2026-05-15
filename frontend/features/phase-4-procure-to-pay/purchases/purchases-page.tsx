@@ -1074,6 +1074,38 @@ export function PurchasesPage() {
 
   const supplierSaveError = getMutationErrorMessage(createSupplierMutation.error ?? updateSupplierMutation.error);
   const supplierFormError = getSupplierFormError(supplierEditor);
+
+  function handleSupplierFormEnter(event: any) {
+    if (event.key !== "Enter") return;
+
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    const tagName = target.tagName.toLowerCase();
+
+    // داخل textarea نخلي Enter ينزل سطر جديد عادي
+    if (tagName === "textarea") return;
+
+    // ما نخلي Enter يضغط الأزرار بالغلط
+    if (tagName === "button") return;
+
+    event.preventDefault();
+
+    const formRoot = event.currentTarget as HTMLElement;
+    const fields = Array.from(
+      formRoot.querySelectorAll("input, select, textarea")
+    ).filter((field): field is HTMLElement => {
+      const element = field as HTMLElement;
+      const disabled = (element as HTMLInputElement).disabled;
+      const hidden = element.offsetParent === null;
+      return !disabled && !hidden;
+    });
+
+    const currentIndex = fields.indexOf(target);
+    const nextField = fields[currentIndex + 1] || fields[0];
+
+    nextField?.focus();
+  }
   const requestSaveError = getMutationErrorMessage(createPurchaseRequestMutation.error ?? updatePurchaseRequestMutation.error);
   const requestFormError = getPurchaseRequestFormError(requestEditor);
   const orderSaveError = getMutationErrorMessage(createPurchaseOrderMutation.error ?? updatePurchaseOrderMutation.error);
@@ -1249,59 +1281,179 @@ export function PurchasesPage() {
   return (
     <PageShell>
       <div className="space-y-8">
-        <SectionHeading
-          title={t("purchases.title")}
-          description={
-            workspace === "suppliers"
-              ? t("purchases.description")
-              : workspace === "requests"
-                ? t("purchases.requests.description")
-                : workspace === "orders"
-                  ? t("purchases.orders.description")
-                  : workspace === "invoices"
-                    ? t("purchases.invoices.description")
-                    : workspace === "payments"
-                      ? t("purchases.payments.description")
-                      : t("purchases.debitNotes.description")
-          }
-          action={
-            workspace === "suppliers" ? (
-              <Button onClick={openNewSupplierEditor}>{t("purchases.action.newSupplier")}</Button>
-            ) : workspace === "requests" ? (
-              <Button onClick={openNewPurchaseRequestEditor}>{t("purchases.action.newRequest")}</Button>
-            ) : workspace === "orders" ? (
-              <Button onClick={openNewPurchaseOrderEditor}>{t("purchases.action.newOrder")}</Button>
-            ) : workspace === "invoices" ? (
-              <Button onClick={openNewPurchaseInvoiceEditor}>{t("purchases.action.newInvoice")}</Button>
-            ) : workspace === "payments" ? (
-              <Button onClick={openNewSupplierPaymentEditor}>{t("purchases.action.newPayment")}</Button>
-            ) : (
-              <Button onClick={openNewDebitNoteEditor}>{t("purchases.action.newDebitNote")}</Button>
-            )
-          }
-        />
+        <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 shadow-sm">
+          <div className="text-right">
+            <h1 className="text-2xl font-black tracking-tight text-gray-950">
+              {t("purchases.title")}
+            </h1>
+          </div>
 
-        <div className="flex flex-wrap gap-3">
-          {workspaceTabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = tab.id === workspace;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => selectWorkspace(tab.id)}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors",
-                  active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+          <Button onClick={openNewSupplierEditor}>
+            {t("purchases.action.newSupplier")}
+          </Button>
         </div>
+
+        {isSupplierEditorOpen && (
+          <Card className="space-y-5 border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div className="text-right">
+                <h2 className="text-xl font-black text-gray-950">
+                  {supplierEditor.id ? t("purchases.dialog.editSupplier") : t("purchases.dialog.newSupplier")}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  أدخل بيانات المورد واحفظها ليظهر في جدول الموردين.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeSupplierEditor}
+                className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
+                aria-label="Close supplier form"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          <div onKeyDownCapture={handleSupplierFormEnter} className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.field.name")} required>
+                <Input value={supplierEditor.name} placeholder={t("purchases.placeholder.name")} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
+              </Field>
+              <Field label={t("purchases.field.defaultCurrency")} required>
+                <Select value={supplierEditor.defaultCurrency} onChange={(event) => setSupplierEditor((current) => ({ ...current, defaultCurrency: event.target.value.toUpperCase() }))}>
+                  <option value="JOD">{t("purchases.currency.jod")}</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.field.paymentTerms")}>
+                <div className="flex gap-2">
+                  <Select value={supplierEditor.paymentTermId} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTermId: event.target.value }))}>
+                    <option value="">{t("purchases.placeholder.paymentTerms")}</option>
+                    {activePaymentTerms.map((term) => (
+                      <option key={term.id} value={term.id}>
+                        {isArabic ? term.nameAr || term.name : term.name}
+                      </option>
+                    ))}
+                    <option value="__add_new__" disabled>
+                      ─ {t("purchases.addNewPaymentTerm")} ─
+                    </option>
+                  </Select>
+                  <button
+                    onClick={() => setIsPaymentTermCreatorOpen(true)}
+                    className="px-3 py-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 text-sm font-medium transition-colors"
+                    title={t("purchases.addNewPaymentTerm")}
+                  >
+                    <CirclePlus className="h-4 w-4" />
+                  </button>
+                </div>
+              </Field>
+              <Field label={t("purchases.field.phone")}>
+                <Input dir="ltr" value={supplierEditor.phone} placeholder="07XXXXXXXX" onChange={(event) => setSupplierEditor((current) => ({ ...current, phone: event.target.value }))} />
+              </Field>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={t("purchases.field.email")}>
+                <Input dir="ltr" type="email" value={supplierEditor.email} placeholder={t("purchases.placeholder.email")} onChange={(event) => setSupplierEditor((current) => ({ ...current, email: event.target.value }))} />
+              </Field>
+            </div>
+
+            <div className="space-y-3">
+              {!supplierEditor.id ? (
+                <Field label={t("purchases.field.payableAccount")} required>
+                  <div className="mb-2 text-sm font-semibold text-gray-900">
+                    طريقة ربط حساب الدائن <span className="text-base leading-none text-red-500">*</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      className={cn(
+                        "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                        supplierEditor.payableAccountLinkMode === "AUTO"
+                          ? "border-teal-500 bg-teal-50 text-teal-800"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                      )}
+                      onClick={() =>
+                        setSupplierEditor((current) => ({
+                          ...current,
+                          payableAccountLinkMode: "AUTO",
+                          payableAccountId: "",
+                        }))
+                      }
+                    >
+                      إنشاء حساب تلقائي
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
+                        supplierEditor.payableAccountLinkMode === "EXISTING"
+                          ? "border-teal-500 bg-teal-50 text-teal-800"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                      )}
+                      onClick={() =>
+                        setSupplierEditor((current) => ({
+                          ...current,
+                          payableAccountLinkMode: "EXISTING",
+                        }))
+                      }
+                    >
+                      اختيار حساب موجود
+                    </button>
+                  </div>
+                </Field>
+              ) : null}
+
+              {!supplierEditor.id && supplierEditor.payableAccountLinkMode === "AUTO" ? (
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-900">
+                  سيتم إنشاء حساب دائن جديد باسم المورد تحت حساب الذمم الدائنة.
+                </div>
+              ) : null}
+
+              {supplierEditor.id || supplierEditor.payableAccountLinkMode === "EXISTING" ? (
+                <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
+                  <Select
+                    value={supplierEditor.payableAccountId}
+                    onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}
+                  >
+                    <option value="">{t("purchases.empty.selectPayableAccount")}</option>
+                    {payableAccounts.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.code} · {row.nameAr || row.name} ({row.currencyCode})
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : null}
+            </div>
+
+            <Field label={t("purchases.field.address")}>
+              <Input value={supplierEditor.address} placeholder={t("purchases.placeholder.address")} onChange={(event) => setSupplierEditor((current) => ({ ...current, address: event.target.value }))} />
+            </Field>
+
+            {supplierFormError ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {supplierFormError}
+              </div>
+            ) : null}
+
+            {supplierSaveError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                {supplierSaveError}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeSupplierEditor}>
+                {t("purchases.action.cancel")}
+              </Button>
+              <Button onClick={() => (supplierEditor.id ? updateSupplierMutation.mutate() : createSupplierMutation.mutate())} disabled={Boolean(supplierFormError) || createSupplierMutation.isPending || updateSupplierMutation.isPending}>
+                {supplierEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveSupplier")}
+              </Button>
+            </div>
+          </div>
+          </Card>
+        )}
 
         {workspace === "suppliers" ? (
           <>
@@ -2112,151 +2264,6 @@ export function PurchasesPage() {
             </Card>
           </>
         )}
-
-        <SidePanel
-          isOpen={isSupplierEditorOpen}
-          onClose={closeSupplierEditor}
-          title={supplierEditor.id ? t("purchases.dialog.editSupplier") : t("purchases.dialog.newSupplier")}
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.name")} required>
-                <Input value={supplierEditor.name} placeholder={t("purchases.placeholder.name")} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
-              </Field>
-              <Field label={t("purchases.field.defaultCurrency")} required>
-                <Select value={supplierEditor.defaultCurrency} onChange={(event) => setSupplierEditor((current) => ({ ...current, defaultCurrency: event.target.value.toUpperCase() }))}>
-                  <option value="JOD">{t("purchases.currency.jod")}</option>
-                </Select>
-              </Field>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.paymentTerms")}>
-                <div className="flex gap-2">
-                  <Select value={supplierEditor.paymentTermId} onChange={(event) => setSupplierEditor((current) => ({ ...current, paymentTermId: event.target.value }))}>
-                    <option value="">{t("purchases.placeholder.paymentTerms")}</option>
-                    {activePaymentTerms.map((term) => (
-                      <option key={term.id} value={term.id}>
-                        {isArabic ? term.nameAr || term.name : term.name}
-                      </option>
-                    ))}
-                    <option value="__add_new__" disabled>
-                      ─ {t("purchases.addNewPaymentTerm")} ─
-                    </option>
-                  </Select>
-                  <button
-                    onClick={() => setIsPaymentTermCreatorOpen(true)}
-                    className="px-3 py-2 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20 text-sm font-medium transition-colors"
-                    title={t("purchases.addNewPaymentTerm")}
-                  >
-                    <CirclePlus className="h-4 w-4" />
-                  </button>
-                </div>
-              </Field>
-              <Field label={t("purchases.field.phone")}>
-                <Input dir="ltr" value={supplierEditor.phone} placeholder="07XXXXXXXX" onChange={(event) => setSupplierEditor((current) => ({ ...current, phone: event.target.value }))} />
-              </Field>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={t("purchases.field.email")}>
-                <Input dir="ltr" type="email" value={supplierEditor.email} placeholder={t("purchases.placeholder.email")} onChange={(event) => setSupplierEditor((current) => ({ ...current, email: event.target.value }))} />
-              </Field>
-            </div>
-
-            <div className="space-y-3">
-              {!supplierEditor.id ? (
-                <Field label={t("purchases.field.payableAccount")} required>
-                  <div className="mb-2 text-sm font-semibold text-gray-900">
-                    طريقة ربط حساب الدائن <span className="text-base leading-none text-red-500">*</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      className={cn(
-                        "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
-                        supplierEditor.payableAccountLinkMode === "AUTO"
-                          ? "border-teal-500 bg-teal-50 text-teal-800"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                      )}
-                      onClick={() =>
-                        setSupplierEditor((current) => ({
-                          ...current,
-                          payableAccountLinkMode: "AUTO",
-                          payableAccountId: "",
-                        }))
-                      }
-                    >
-                      إنشاء حساب تلقائي
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "rounded-xl border px-4 py-3 text-sm font-bold transition-colors",
-                        supplierEditor.payableAccountLinkMode === "EXISTING"
-                          ? "border-teal-500 bg-teal-50 text-teal-800"
-                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                      )}
-                      onClick={() =>
-                        setSupplierEditor((current) => ({
-                          ...current,
-                          payableAccountLinkMode: "EXISTING",
-                        }))
-                      }
-                    >
-                      اختيار حساب موجود
-                    </button>
-                  </div>
-                </Field>
-              ) : null}
-
-              {!supplierEditor.id && supplierEditor.payableAccountLinkMode === "AUTO" ? (
-                <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-semibold text-teal-900">
-                  سيتم إنشاء حساب دائن جديد باسم المورد تحت حساب الذمم الدائنة.
-                </div>
-              ) : null}
-
-              {supplierEditor.id || supplierEditor.payableAccountLinkMode === "EXISTING" ? (
-                <Field label={t("purchases.field.payableAccount")} required hint={t("purchases.field.payableAccountHint")}>
-                  <Select
-                    value={supplierEditor.payableAccountId}
-                    onChange={(event) => setSupplierEditor((current) => ({ ...current, payableAccountId: event.target.value }))}
-                  >
-                    <option value="">{t("purchases.empty.selectPayableAccount")}</option>
-                    {payableAccounts.map((row) => (
-                      <option key={row.id} value={row.id}>
-                        {row.code} · {row.nameAr || row.name} ({row.currencyCode})
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              ) : null}
-            </div>
-
-            <Field label={t("purchases.field.address")}>
-              <Input value={supplierEditor.address} placeholder={t("purchases.placeholder.address")} onChange={(event) => setSupplierEditor((current) => ({ ...current, address: event.target.value }))} />
-            </Field>
-
-            {supplierFormError ? (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                {supplierFormError}
-              </div>
-            ) : null}
-
-            {supplierSaveError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                {supplierSaveError}
-              </div>
-            ) : null}
-
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeSupplierEditor}>
-                {t("purchases.action.cancel")}
-              </Button>
-              <Button onClick={() => (supplierEditor.id ? updateSupplierMutation.mutate() : createSupplierMutation.mutate())} disabled={Boolean(supplierFormError) || createSupplierMutation.isPending || updateSupplierMutation.isPending}>
-                {supplierEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveSupplier")}
-              </Button>
-            </div>
-          </div>
-        </SidePanel>
 
         {/* Payment Term Creator Modal */}
         {isPaymentTermCreatorOpen && (
