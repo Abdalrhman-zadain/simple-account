@@ -1063,7 +1063,7 @@ Object.assign(enTranslations, {
   "purchases.filters.activeOnly": "Active only",
   "purchases.filters.inactiveOnly": "Inactive only",
   "purchases.table.supplier": "Supplier",
-  "purchases.table.supplierCode": "Supplier Code",
+  "purchases.table.supplierCode": "رمز المورد",
   "purchases.table.contact": "Contact Details",
   "purchases.table.currency": "Currency",
   "purchases.table.payableAccount": "Default Payable Account",

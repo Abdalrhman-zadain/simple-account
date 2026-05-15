@@ -994,6 +994,114 @@ export function PurchasesPage() {
     });
   };
 
+  const handlePurchaseRequestsExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "طلبات الشراء",
+      fileName: "purchase-requests",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: requestSearch.trim() || "كل طلبات الشراء" },
+        { label: "الحالة", value: requestStatusFilter ? translatePurchaseRequestStatus(requestStatusFilter, t) : "كل الحالات" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الطلب", value: (row) => row.reference },
+        { key: "date", label: "تاريخ الطلب", value: (row) => formatExportDate(row.requestDate) },
+        { key: "lines", label: "عدد البنود", value: (row) => String(row.lines.length) },
+        { key: "description", label: "الوصف", value: (row) => row.description || "غير محدد" },
+        { key: "status", label: "الحالة", value: (row) => translatePurchaseRequestStatus(row.status, t) },
+      ],
+      rows: purchaseRequests,
+      totals: [
+        { label: "عدد طلبات الشراء", value: String(purchaseRequests.length) },
+      ],
+    });
+  };
+
+  const handlePurchaseOrdersExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "أوامر الشراء",
+      fileName: "purchase-orders",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: orderSearch.trim() || "كل أوامر الشراء" },
+        { label: "الحالة", value: orderStatusFilter ? translatePurchaseOrderStatus(orderStatusFilter, t) : "كل الحالات" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الأمر", value: (row) => row.reference },
+        { key: "supplier", label: "المورد", value: (row) => `${row.supplier.code} - ${row.supplier.name}` },
+        { key: "date", label: "تاريخ الأمر", value: (row) => formatExportDate(row.orderDate) },
+        { key: "total", label: "الإجمالي", align: "end", value: (row) => formatExportMoney(row.totalAmount, row.currencyCode || "JOD") },
+        { key: "status", label: "الحالة", value: (row) => translatePurchaseOrderStatus(row.status, t) },
+      ],
+      rows: purchaseOrders,
+      totals: [
+        { label: "عدد أوامر الشراء", value: String(purchaseOrders.length) },
+      ],
+    });
+  };
+
+  const handleSupplierPaymentsExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "مدفوعات الموردين",
+      fileName: "supplier-payments",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: paymentSearch.trim() || "كل المدفوعات" },
+        { label: "الحالة", value: paymentStatusFilter ? translateSupplierPaymentStatus(paymentStatusFilter, t) : "كل الحالات" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الدفعة", value: (row) => row.reference },
+        { key: "supplier", label: "المورد", value: (row) => `${row.supplier.code} - ${row.supplier.name}` },
+        { key: "date", label: "تاريخ الدفع", value: (row) => formatExportDate(row.paymentDate) },
+        { key: "amount", label: "المبلغ", align: "end", value: (row) => formatExportMoney(row.amount, "JOD") },
+        { key: "status", label: "الحالة", value: (row) => translateSupplierPaymentStatus(row.status, t) },
+      ],
+      rows: supplierPayments,
+      totals: [
+        { label: "عدد المدفوعات", value: String(supplierPayments.length) },
+      ],
+    });
+  };
+
+  const handleDebitNotesExport = (mode: ExportMode) => {
+    exportOrPrint({
+      mode,
+      entityType: "table",
+      title: "إشعارات الخصم",
+      fileName: "debit-notes",
+      currency: "JOD",
+      generatedBy: user?.name || user?.email,
+      permissions: exportPermissions,
+      filters: [
+        { label: "البحث", value: debitNoteSearch.trim() || "كل إشعارات الخصم" },
+        { label: "الحالة", value: debitNoteStatusFilter || "كل الحالات" },
+      ],
+      columns: [
+        { key: "reference", label: "رقم الإشعار", value: (row) => row.reference },
+        { key: "supplier", label: "المورد", value: (row) => `${row.supplier.code} - ${row.supplier.name}` },
+        { key: "date", label: "التاريخ", value: (row) => formatExportDate(row.noteDate) },
+        { key: "amount", label: "المبلغ", align: "end", value: (row) => formatExportMoney(row.totalAmount, row.currencyCode || "JOD") },
+        { key: "status", label: "الحالة", value: (row) => row.status },
+      ],
+      rows: debitNotes,
+      totals: [
+        { label: "عدد إشعارات الخصم", value: String(debitNotes.length) },
+      ],
+    });
+  };
+
   const handlePurchaseInvoicesExport = (mode: ExportMode) => {
     exportOrPrint({
       mode,
@@ -1102,9 +1210,20 @@ export function PurchasesPage() {
     });
 
     const currentIndex = fields.indexOf(target);
-    const nextField = fields[currentIndex + 1] || fields[0];
+    const nextField = fields[currentIndex + 1];
 
-    nextField?.focus();
+    if (nextField) {
+      nextField.focus();
+      return;
+    }
+
+    if (!supplierFormError && !createSupplierMutation.isPending && !updateSupplierMutation.isPending) {
+      if (supplierEditor.id) {
+        updateSupplierMutation.mutate();
+      } else {
+        createSupplierMutation.mutate();
+      }
+    }
   }
   const requestSaveError = getMutationErrorMessage(createPurchaseRequestMutation.error ?? updatePurchaseRequestMutation.error);
   const requestFormError = getPurchaseRequestFormError(requestEditor);
@@ -1280,41 +1399,47 @@ export function PurchasesPage() {
 
   return (
     <PageShell>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 shadow-sm">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 rounded-[22px] border border-slate-200/70 bg-white/80 px-5 py-3.5 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
           <div className="text-right">
-            <h1 className="text-2xl font-black tracking-tight text-gray-950">
+            <h1 className="mt-1.5 text-2xl font-black tracking-tight text-slate-950">
               {t("purchases.title")}
             </h1>
+            <p className="mt-0.5 text-sm leading-6 text-slate-500">
+              إدارة الموردين وطلبات الشراء والفواتير والمدفوعات بطريقة واضحة وسريعة.
+            </p>
           </div>
 
-          <Button onClick={openNewSupplierEditor}>
-            {t("purchases.action.newSupplier")}
+          <Button
+            onClick={openNewSupplierEditor}
+            className="min-w-[132px] rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md"
+          >
+            + {t("purchases.action.newSupplier")}
           </Button>
         </div>
 
         {isSupplierEditorOpen && (
-          <Card className="space-y-5 border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+          <Card className="!p-0 mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-5">
               <div className="text-right">
-                <h2 className="text-xl font-black text-gray-950">
+                <h2 className="mt-1 text-xl font-black text-slate-950">
                   {supplierEditor.id ? t("purchases.dialog.editSupplier") : t("purchases.dialog.newSupplier")}
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  أدخل بيانات المورد واحفظها ليظهر في جدول الموردين.
+                <p className="mt-1 text-sm text-slate-500">
+                  أدخل البيانات الأساسية للمورد ليظهر مباشرة داخل جدول الموردين.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeSupplierEditor}
-                className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
+                className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
                 aria-label="Close supplier form"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-          <div onKeyDownCapture={handleSupplierFormEnter} className="space-y-5">
+          <div onKeyDownCapture={handleSupplierFormEnter} className="space-y-5 bg-white px-6 py-5 md:px-8">
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("purchases.field.name")} required>
                 <Input value={supplierEditor.name} placeholder={t("purchases.placeholder.name")} onChange={(event) => setSupplierEditor((current) => ({ ...current, name: event.target.value }))} />
@@ -1447,7 +1572,11 @@ export function PurchasesPage() {
               <Button variant="secondary" onClick={closeSupplierEditor}>
                 {t("purchases.action.cancel")}
               </Button>
-              <Button onClick={() => (supplierEditor.id ? updateSupplierMutation.mutate() : createSupplierMutation.mutate())} disabled={Boolean(supplierFormError) || createSupplierMutation.isPending || updateSupplierMutation.isPending}>
+              <Button
+                onClick={() => (supplierEditor.id ? updateSupplierMutation.mutate() : createSupplierMutation.mutate())}
+                disabled={Boolean(supplierFormError) || createSupplierMutation.isPending || updateSupplierMutation.isPending}
+                className="min-w-[132px] rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 hover:shadow-md disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+              >
                 {supplierEditor.id ? t("purchases.action.saveChanges") : t("purchases.action.saveSupplier")}
               </Button>
             </div>
@@ -1457,17 +1586,39 @@ export function PurchasesPage() {
 
         {workspace === "suppliers" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.summary.totalSuppliers")} value={String(suppliers.length)} hint={t("purchases.summary.totalSuppliersHint")} />
               <SummaryCard label={t("purchases.summary.activeSuppliers")} value={String(activeSuppliers.length)} hint={t("purchases.summary.activeSuppliersHint")} />
               <SummaryCard label={t("purchases.summary.totalOutstanding")} value={formatCurrency(totalOutstanding)} hint={t("purchases.summary.totalOutstandingHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">
+                    {t("purchases.workspace.suppliers")}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    ابحث وفلتر الموردين، ثم صدّر القائمة أو اطبعها بسهولة.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handleSuppliersExport}
+                  permissions={exportPermissions}
+                  disabled={suppliersQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.filters.search")}>
-                  <Input value={supplierSearch} onChange={(event) => setSupplierSearch(event.target.value)} placeholder={t("purchases.filters.searchPlaceholder")} />
+                  <Input
+                    value={supplierSearch}
+                    onChange={(event) => setSupplierSearch(event.target.value)}
+                    placeholder={t("purchases.filters.searchPlaceholder")}
+                  />
                 </Field>
+
                 <Field label={t("purchases.filters.status")}>
                   <Select value={supplierStatusFilter} onChange={(event) => setSupplierStatusFilter(event.target.value as "true" | "false" | "")}>
                     <option value="">{t("purchases.filters.allStatuses")}</option>
@@ -1475,21 +1626,15 @@ export function PurchasesPage() {
                     <option value="false">{t("purchases.filters.inactiveOnly")}</option>
                   </Select>
                 </Field>
-                <div className="flex items-end">
-                  <Button variant="secondary" onClick={() => { setSupplierSearch(""); setSupplierStatusFilter(""); }}>
-                    {t("purchases.action.clearFilters")}
-                  </Button>
-                </div>
-              </div>
-              <ExportActions
-                onAction={handleSuppliersExport}
-                permissions={exportPermissions}
-                disabled={suppliersQuery.isLoading}
-              />
 
-              <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                <Button variant="secondary" onClick={() => { setSupplierSearch(""); setSupplierStatusFilter(""); }}>
+                  {t("purchases.action.clearFilters")}
+                </Button>
+              </div>
+
+              <div className="overflow-x-auto">
                 <table className="min-w-[1180px] w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead className="w-[190px]">{t("purchases.table.supplierCode")}</TableHead>
                       <TableHead>{t("purchases.table.supplier")}</TableHead>
@@ -1501,16 +1646,16 @@ export function PurchasesPage() {
                       <TableHead className="text-center">{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {suppliers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={8} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.empty.suppliers")}
                         </td>
                       </tr>
                     ) : (
                       suppliers.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100 transition-colors hover:bg-gray-50/60", selectedSupplierId === row.id && "bg-gray-50/70")}>
+                        <tr key={row.id} className={cn("transition-colors hover:bg-emerald-50/35", selectedSupplierId === row.id && "bg-emerald-50/50")}>
                           <td dir="ltr" className="px-6 py-4 text-start align-top font-mono text-xs font-bold text-slate-700">
                             <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1">
                               {row.code}
@@ -1566,14 +1711,29 @@ export function PurchasesPage() {
           </>
         ) : workspace === "requests" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.requests.summary.total")} value={String(totalRequests)} hint={t("purchases.requests.summary.totalHint")} />
               <SummaryCard label={t("purchases.requests.summary.pendingApproval")} value={String(submittedRequests)} hint={t("purchases.requests.summary.pendingApprovalHint")} />
               <SummaryCard label={t("purchases.requests.summary.readyToConvert")} value={String(approvedRequests)} hint={t("purchases.requests.summary.readyToConvertHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">طلبات الشراء</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    ابحث وفلتر طلبات الشراء، ثم صدّر القائمة أو اطبعها بسهولة.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handlePurchaseRequestsExport}
+                  permissions={exportPermissions}
+                  disabled={purchaseRequestsQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.requests.filters.search")}>
                   <Input value={requestSearch} onChange={(event) => setRequestSearch(event.target.value)} placeholder={t("purchases.requests.filters.searchPlaceholder")} />
                 </Field>
@@ -1593,10 +1753,9 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-[920px] w-full text-sm">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead>{t("purchases.requests.table.reference")}</TableHead>
                       <TableHead>{t("purchases.requests.table.date")}</TableHead>
@@ -1605,16 +1764,16 @@ export function PurchasesPage() {
                       <TableHead>{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {purchaseRequests.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.requests.empty.list")}
                         </td>
                       </tr>
                     ) : (
                       purchaseRequests.map((row) => (
-                        <tr key={row.id} className="border-t border-gray-100">
+                        <tr key={row.id} className="transition-colors hover:bg-slate-50/70">
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
                             <div className="text-xs text-gray-500">{row.description || t("purchases.requests.empty.noDescription")}</div>
@@ -1646,14 +1805,29 @@ export function PurchasesPage() {
           </>
         ) : workspace === "orders" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.orders.summary.total")} value={String(totalOrders)} hint={t("purchases.orders.summary.totalHint")} />
               <SummaryCard label={t("purchases.orders.summary.issued")} value={String(issuedOrders)} hint={t("purchases.orders.summary.issuedHint")} />
               <SummaryCard label={t("purchases.orders.summary.openReceipt")} value={String(openReceiptOrders)} hint={t("purchases.orders.summary.openReceiptHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">أوامر الشراء</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    تابع أوامر الشراء وحالات الاستلام والتوريد من مكان واحد.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handlePurchaseOrdersExport}
+                  permissions={exportPermissions}
+                  disabled={purchaseOrdersQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.orders.filters.search")}>
                   <Input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder={t("purchases.orders.filters.searchPlaceholder")} />
                 </Field>
@@ -1674,10 +1848,9 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1040px] w-full text-sm">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead>{t("purchases.orders.table.reference")}</TableHead>
                       <TableHead>{t("purchases.orders.table.supplier")}</TableHead>
@@ -1687,16 +1860,16 @@ export function PurchasesPage() {
                       <TableHead>{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {purchaseOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.orders.empty.list")}
                         </td>
                       </tr>
                     ) : (
                       purchaseOrders.map((row) => (
-                        <tr key={row.id} className="border-t border-gray-100">
+                        <tr key={row.id} className="transition-colors hover:bg-slate-50/70">
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
                             <div className="text-xs text-gray-500">{row.sourcePurchaseRequest?.reference || t("purchases.orders.empty.manual")}</div>
@@ -1738,14 +1911,29 @@ export function PurchasesPage() {
           </>
         ) : workspace === "invoices" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.invoices.summary.total")} value={String(totalInvoices)} hint={t("purchases.invoices.summary.totalHint")} />
               <SummaryCard label={t("purchases.invoices.summary.draft")} value={String(draftInvoices)} hint={t("purchases.invoices.summary.draftHint")} />
               <SummaryCard label={t("purchases.invoices.summary.linkedOrders")} value={String(linkedOrderInvoices)} hint={t("purchases.invoices.summary.linkedOrdersHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">فواتير الشراء</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    راجع فواتير الشراء وحالات الدفع والربط مع أوامر الشراء.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handlePurchaseInvoicesExport}
+                  permissions={exportPermissions}
+                  disabled={purchaseInvoicesQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.invoices.filters.search")}>
                   <Input value={invoiceSearch} onChange={(event) => setInvoiceSearch(event.target.value)} placeholder={t("purchases.invoices.filters.searchPlaceholder")} />
                 </Field>
@@ -1766,15 +1954,9 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
-              <ExportActions
-                onAction={handlePurchaseInvoicesExport}
-                permissions={exportPermissions}
-                disabled={purchaseInvoicesQuery.isLoading}
-              />
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1040px] w-full text-sm">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead>{t("purchases.invoices.table.reference")}</TableHead>
                       <TableHead>{t("purchases.invoices.table.supplier")}</TableHead>
@@ -1784,10 +1966,10 @@ export function PurchasesPage() {
                       <TableHead>{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {purchaseInvoices.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.invoices.empty.list")}
                         </td>
                       </tr>
@@ -1865,14 +2047,14 @@ export function PurchasesPage() {
                     <Card className="space-y-4">
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.summary")}</div>
                       <div className="space-y-3 text-sm text-gray-700">
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div className="font-bold text-gray-900">{selectedPurchaseInvoice.supplier.code} · {selectedPurchaseInvoice.supplier.name}</div>
                           <div className="mt-1 text-xs text-gray-500">
                             {selectedPurchaseInvoice.currencyCode}
                             {selectedPurchaseInvoice.journalReference ? ` · ${selectedPurchaseInvoice.journalReference}` : ""}
                           </div>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div>{t("purchases.invoices.field.sourceOrder")}: {selectedPurchaseInvoice.sourcePurchaseOrder?.reference || t("purchases.invoices.empty.manual")}</div>
                           <div className="mt-2">{t("purchases.invoices.field.sourceRequest")}: {selectedPurchaseInvoice.sourcePurchaseRequest?.reference || t("purchases.invoices.empty.manual")}</div>
                           <div className="mt-2">{t("purchases.invoices.field.description")}: {selectedPurchaseInvoice.description || t("purchases.requests.empty.noDescription")}</div>
@@ -1890,7 +2072,7 @@ export function PurchasesPage() {
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.invoices.section.lines")}</div>
                       <div className="space-y-3">
                         {selectedPurchaseInvoice.lines.map((line) => (
-                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div key={line.id} className="rounded-2xl border border-slate-200 px-4 py-4">
                             <div className="flex items-center justify-between gap-3">
                               <div className="font-bold text-gray-900">{line.itemName || line.description}</div>
                               <div className="text-sm text-gray-500">{t("purchases.invoices.line.qtyPrice", { quantity: line.quantity, price: formatCurrency(line.unitPrice) })}</div>
@@ -1916,14 +2098,29 @@ export function PurchasesPage() {
           </>
         ) : workspace === "payments" ? (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.payments.summary.total")} value={String(totalPayments)} hint={t("purchases.payments.summary.totalHint")} />
               <SummaryCard label={t("purchases.payments.summary.draft")} value={String(draftPayments)} hint={t("purchases.payments.summary.draftHint")} />
               <SummaryCard label={t("purchases.payments.summary.posted")} value={String(postedPayments)} hint={t("purchases.payments.summary.postedHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">مدفوعات الموردين</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    تابع المدفوعات المسجلة والمبالغ المخصصة وغير المخصصة.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handleSupplierPaymentsExport}
+                  permissions={exportPermissions}
+                  disabled={supplierPaymentsQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.payments.filters.search")}>
                   <Input value={paymentSearch} onChange={(event) => setPaymentSearch(event.target.value)} placeholder={t("purchases.payments.filters.searchPlaceholder")} />
                 </Field>
@@ -1942,10 +2139,9 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1040px] w-full text-sm">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead>{t("purchases.payments.table.reference")}</TableHead>
                       <TableHead>{t("purchases.payments.table.supplier")}</TableHead>
@@ -1955,16 +2151,16 @@ export function PurchasesPage() {
                       <TableHead>{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {supplierPayments.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.payments.empty.list")}
                         </td>
                       </tr>
                     ) : (
                       supplierPayments.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100", selectedSupplierPaymentId === row.id && "bg-gray-50/70")}>
+                        <tr key={row.id} className={cn("transition-colors hover:bg-slate-50/70", selectedSupplierPaymentId === row.id && "bg-slate-50/80")}>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
                             <div className="text-xs text-gray-500">{cleanDisplayName(row.bankCashAccount.name)}</div>
@@ -2045,11 +2241,11 @@ export function PurchasesPage() {
                     <Card className="space-y-4">
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.payments.section.summary")}</div>
                       <div className="space-y-3 text-sm text-gray-700">
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div className="font-bold text-gray-900">{selectedSupplierPayment.supplier.code} · {selectedSupplierPayment.supplier.name}</div>
                           <div className="mt-1 text-xs text-gray-500">{cleanDisplayName(selectedSupplierPayment.bankCashAccount.name)} · {selectedSupplierPayment.bankCashAccount.type}</div>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div>{t("purchases.payments.field.description")}: {selectedSupplierPayment.description || t("purchases.requests.empty.noDescription")}</div>
                             <div className="mt-2">{t("purchases.payments.field.bankCash")}: {selectedSupplierPayment.bankCashAccount.account.code} · {cleanDisplayName(selectedSupplierPayment.bankCashAccount.account.name)}</div>
                         </div>
@@ -2070,7 +2266,7 @@ export function PurchasesPage() {
                       ) : (
                         <div className="space-y-3">
                           {selectedSupplierPayment.allocations.map((allocation) => (
-                            <div key={allocation.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                            <div key={allocation.id} className="rounded-2xl border border-slate-200 px-4 py-4">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="font-bold text-gray-900">{allocation.purchaseInvoice.reference}</div>
                                 <div className="text-sm text-gray-500">{formatCurrency(allocation.amount)}</div>
@@ -2093,14 +2289,29 @@ export function PurchasesPage() {
           </>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3">
               <SummaryCard label={t("purchases.debitNotes.summary.total")} value={String(totalDebitNotes)} hint={t("purchases.debitNotes.summary.totalHint")} />
               <SummaryCard label={t("purchases.debitNotes.summary.draft")} value={String(draftDebitNotes)} hint={t("purchases.debitNotes.summary.draftHint")} />
               <SummaryCard label={t("purchases.debitNotes.summary.applied")} value={String(appliedDebitNotes)} hint={t("purchases.debitNotes.summary.appliedHint")} />
             </div>
 
-            <Card className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
+            <Card className="!p-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-extrabold tracking-tight text-slate-950">إشعارات الخصم</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    راجع إشعارات الخصم وحالات تطبيقها على فواتير الموردين.
+                  </p>
+                </div>
+
+                <ExportActions
+                  onAction={handleDebitNotesExport}
+                  permissions={exportPermissions}
+                  disabled={debitNotesQuery.isLoading}
+                />
+              </div>
+
+              <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                 <Field label={t("purchases.debitNotes.filters.search")}>
                   <Input value={debitNoteSearch} onChange={(event) => setDebitNoteSearch(event.target.value)} placeholder={t("purchases.debitNotes.filters.searchPlaceholder")} />
                 </Field>
@@ -2120,10 +2331,9 @@ export function PurchasesPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1040px] w-full text-sm">
+                  <thead className="border-y border-slate-100 bg-slate-50 text-slate-600">
                     <tr>
                       <TableHead>{t("purchases.debitNotes.table.reference")}</TableHead>
                       <TableHead>{t("purchases.debitNotes.table.supplier")}</TableHead>
@@ -2133,16 +2343,16 @@ export function PurchasesPage() {
                       <TableHead>{t("purchases.table.actions")}</TableHead>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {debitNotes.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
                           {t("purchases.debitNotes.empty.list")}
                         </td>
                       </tr>
                     ) : (
                       debitNotes.map((row) => (
-                        <tr key={row.id} className={cn("border-t border-gray-100", selectedDebitNoteId === row.id && "bg-gray-50/70")}>
+                        <tr key={row.id} className={cn("transition-colors hover:bg-slate-50/70", selectedDebitNoteId === row.id && "bg-slate-50/80")}>
                           <td className="px-6 py-4 align-top">
                             <div className="font-bold text-gray-900">{row.reference}</div>
                             <div className="text-xs text-gray-500">{row.purchaseInvoice?.reference || t("purchases.debitNotes.empty.standalone")}</div>
@@ -2223,11 +2433,11 @@ export function PurchasesPage() {
                     <Card className="space-y-4">
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.summary")}</div>
                       <div className="space-y-3 text-sm text-gray-700">
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div className="font-bold text-gray-900">{selectedDebitNote.supplier.code} Â· {selectedDebitNote.supplier.name}</div>
                           <div className="mt-1 text-xs text-gray-500">{selectedDebitNote.currencyCode}</div>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 px-4 py-4">
+                        <div className="rounded-2xl border border-slate-200 px-4 py-4">
                           <div>{t("purchases.debitNotes.field.purchaseInvoice")}: {selectedDebitNote.purchaseInvoice?.reference || t("purchases.debitNotes.empty.standalone")}</div>
                           <div className="mt-2">{t("purchases.debitNotes.field.description")}: {selectedDebitNote.description || t("purchases.requests.empty.noDescription")}</div>
                         </div>
@@ -2243,7 +2453,7 @@ export function PurchasesPage() {
                       <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.debitNotes.section.lines")}</div>
                       <div className="space-y-3">
                         {selectedDebitNote.lines.map((line) => (
-                          <div key={line.id} className="rounded-2xl border border-gray-200 px-4 py-4">
+                          <div key={line.id} className="rounded-2xl border border-slate-200 px-4 py-4">
                             <div className="flex items-center justify-between gap-3">
                               <div className="font-bold text-gray-900">{line.reason}</div>
                               <div className="text-sm text-gray-500">{formatCurrency(line.lineTotalAmount)}</div>
@@ -2268,7 +2478,7 @@ export function PurchasesPage() {
         {/* Payment Term Creator Modal */}
         {isPaymentTermCreatorOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
                 <h3 className="text-base font-bold text-gray-900">{t("purchases.addNewPaymentTerm")}</h3>
                 <button onClick={() => { setIsPaymentTermCreatorOpen(false); setPaymentTermCreator({ name: "", nameAr: "", calculationMethod: "IMMEDIATE", numberOfDays: "" }); }} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
@@ -2352,7 +2562,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+                  <div className="flex h-[2px]2 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600">
                     <ScrollText className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -2368,7 +2578,7 @@ export function PurchasesPage() {
                 <div className="space-y-5">
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                         <ScrollText className="h-5 w-5" />
                       </div>
                       <div>
@@ -2409,7 +2619,7 @@ export function PurchasesPage() {
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+                        <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-600">
                           <Package2 className="h-5 w-5" />
                         </div>
                         <div>
@@ -2435,7 +2645,7 @@ export function PurchasesPage() {
                         <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
                           <div className="mb-4 flex items-center justify-between gap-3">
                             <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                              <div className="flex h-[2px]0 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
                                 <span className="text-sm font-extrabold">{index + 1}</span>
                               </div>
                               <div>
@@ -2570,7 +2780,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <div className="flex h-[2px]2 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <FilePlus className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -2586,7 +2796,7 @@ export function PurchasesPage() {
                 <div className="space-y-5">
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                         <FilePlus className="h-5 w-5" />
                       </div>
                       <div>
@@ -2662,7 +2872,7 @@ export function PurchasesPage() {
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                        <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                           <Package2 className="h-5 w-5" />
                         </div>
                         <div>
@@ -2694,7 +2904,7 @@ export function PurchasesPage() {
                           <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
                             <div className="mb-4 flex items-center justify-between gap-3">
                               <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                <div className="flex h-[2px]0 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
                                   <span className="text-sm font-extrabold">{index + 1}</span>
                                 </div>
                                 <div>
@@ -2871,13 +3081,13 @@ export function PurchasesPage() {
             <div className="space-y-4">
               <div className="text-sm font-black uppercase tracking-[0.18em] text-gray-500">{t("purchases.receipts.section.lines")}</div>
               {receiptEditor.lines.map((line) => (
-                <div key={line.key} className="space-y-3 rounded-2xl border border-gray-200 p-4">
+                <div key={line.key} className="space-y-3 rounded-2xl border border-slate-200 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="font-bold text-gray-900">{line.itemName || line.description}</div>
                     <div className="text-xs text-gray-500">{t("purchases.orders.line.label", { index: line.lineNumber })}</div>
                   </div>
                   <div className="text-sm text-gray-600">{line.description}</div>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-3 bg-slate-50/70 px-6 py-3.5 md:grid-cols-[1.4fr_1fr_auto] md:items-end">
                     <MiniMetric label={t("purchases.receipts.field.orderedQuantity")} value={line.orderedQuantity} />
                     <MiniMetric label={t("purchases.receipts.field.alreadyReceived")} value={line.receivedQuantity} />
                     <MiniMetric label={t("purchases.receipts.field.remainingQuantity")} value={line.remainingQuantity} />
@@ -2932,7 +3142,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <div className="flex h-[2px]2 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <FileText className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -2948,7 +3158,7 @@ export function PurchasesPage() {
                 <div className="space-y-5">
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                         <FileText className="h-5 w-5" />
                       </div>
                       <div>
@@ -3055,7 +3265,7 @@ export function PurchasesPage() {
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                        <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                           <Package2 className="h-5 w-5" />
                         </div>
                         <div>
@@ -3084,7 +3294,7 @@ export function PurchasesPage() {
                           <div key={line.key} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/45 p-4">
                             <div className="mb-4 flex items-center justify-between gap-3">
                               <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                                <div className="flex h-[2px]0 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
                                   <span className="text-sm font-extrabold">{index + 1}</span>
                                 </div>
                                 <div>
@@ -3373,7 +3583,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <div className="flex h-[2px]2 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <ReceiptText className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -3389,7 +3599,7 @@ export function PurchasesPage() {
                 <div className="space-y-5">
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className={cn("mb-5 flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                      <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                         <ReceiptText className="h-5 w-5" />
                       </div>
                       <div>
@@ -3480,7 +3690,7 @@ export function PurchasesPage() {
                   <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.05)] sm:p-6">
                     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                        <div className="flex h-[2px]1 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                           <FileText className="h-5 w-5" />
                         </div>
                         <div>
@@ -3520,7 +3730,7 @@ export function PurchasesPage() {
                             <th className={cn("w-28 px-4 py-3 font-black", isArabic ? "text-right" : "text-left")}>{t("purchases.action.remove")}</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100 bg-white">
                           {paymentEditor.allocations.map((allocation, index) => {
                             const selectedInvoice = paymentEligibleInvoices.find((invoice) => invoice.id === allocation.purchaseInvoiceId);
 
@@ -3675,7 +3885,7 @@ export function PurchasesPage() {
                   <X className="h-6 w-6" />
                 </button>
                 <div className={cn("flex items-center gap-3", isArabic ? "flex-row-reverse text-right" : "text-left")}>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <div className="flex h-[2px]2 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
                     <FileMinus className="h-6 w-6" />
                   </div>
                   <div className="space-y-1">
@@ -3701,7 +3911,7 @@ export function PurchasesPage() {
                             type="date"
                             value={debitNoteEditor.noteDate}
                             onChange={(event) => setDebitNoteEditor((current) => ({ ...current, noteDate: event.target.value }))}
-                            className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
+                            className={cn("h-[2px]2 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
                           />
                           <CalendarDays className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         </div>
@@ -3712,7 +3922,7 @@ export function PurchasesPage() {
                           value={debitNoteEditor.reference}
                           onChange={(event) => setDebitNoteEditor((current) => ({ ...current, reference: event.target.value }))}
                           placeholder={t("purchases.debitNotes.field.referenceHint")}
-                          className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                          className={cn("h-[2px]2 border-slate-200 bg-white", isArabic && "text-right")}
                         />
                       </Field>
 
@@ -3730,7 +3940,7 @@ export function PurchasesPage() {
                                 currencyCode: current.id ? current.currencyCode : supplier?.defaultCurrency || current.currencyCode,
                               }));
                             }}
-                            className={cn("h-12 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
+                            className={cn("h-[2px]2 border-slate-200 bg-white", isArabic ? "pe-12 ps-12 text-right" : "ps-12")}
                           >
                             <option value="">{t("purchases.requests.empty.selectSupplier")}</option>
                             {activeSuppliers.map((supplier) => (
@@ -3748,7 +3958,7 @@ export function PurchasesPage() {
                           value={debitNoteCurrency}
                           maxLength={8}
                           onChange={(event) => setDebitNoteEditor((current) => ({ ...current, currencyCode: event.target.value.toUpperCase() }))}
-                          className={cn("h-12 border-slate-200 bg-white font-bold uppercase", isArabic && "text-right")}
+                          className={cn("h-[2px]2 border-slate-200 bg-white font-bold uppercase", isArabic && "text-right")}
                         />
                       </Field>
                     </div>
@@ -3766,7 +3976,7 @@ export function PurchasesPage() {
                                 currencyCode: invoice?.currencyCode || current.currencyCode,
                               }));
                             }}
-                            className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                            className={cn("h-[2px]2 border-slate-200 bg-white", isArabic && "text-right")}
                           >
                             <option value="">{t("purchases.debitNotes.discountNotice.selectRelatedInvoice")}</option>
                             {purchaseInvoices
@@ -3798,7 +4008,7 @@ export function PurchasesPage() {
                             <div className="text-base font-bold text-slate-950">{t("purchases.debitNotes.discountNotice.supplierDiscount")}</div>
                             <div className="text-sm font-medium text-slate-500">{t("purchases.debitNotes.discountNotice.supplierDiscountHint")}</div>
                           </div>
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                          <div className="flex h-[2px]1 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                             <Tag className="h-5 w-5" />
                           </div>
                         </div>
@@ -3856,11 +4066,11 @@ export function PurchasesPage() {
 
                             return (
                               <div key={line.key} className="grid grid-cols-[0.4fr_1.2fr_1.3fr_1fr_1fr_1fr_0.55fr] gap-3">
-                                <Input value={`${index + 1}`} readOnly className="h-12 border-slate-200 bg-white text-center font-bold" />
+                                <Input value={`${index + 1}`} readOnly className="h-[2px]2 border-slate-200 bg-white text-center font-bold" />
                                 <Select
                                   value={line.reason || t("purchases.debitNotes.discountNotice.defaultReason")}
                                   onChange={(event) => updateDebitNoteLine(line.key, "reason", event.target.value)}
-                                  className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                  className={cn("h-[2px]2 border-slate-200 bg-white", isArabic && "text-right")}
                                 >
                                   <option value={t("purchases.debitNotes.discountNotice.defaultReason")}>{t("purchases.debitNotes.discountNotice.defaultReason")}</option>
                                   <option value={t("purchases.debitNotes.discountNotice.priceCorrection")}>{t("purchases.debitNotes.discountNotice.priceCorrection")}</option>
@@ -3870,7 +4080,7 @@ export function PurchasesPage() {
                                   <Select
                                     value={line.discountAccountId}
                                     onChange={(event) => updateDebitNoteLine(line.key, "discountAccountId", event.target.value)}
-                                    className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                    className={cn("h-[2px]2 border-slate-200 bg-white", isArabic && "text-right")}
                                   >
                                     <option value="">{t("purchases.debitNotes.discountNotice.selectDiscountAccount")}</option>
                                     {debitNoteDiscountAccounts.map((account) => (
@@ -3887,7 +4097,7 @@ export function PurchasesPage() {
                                         : t("purchases.debitNotes.discountNotice.accountFromSettingsPending")
                                     }
                                     readOnly
-                                    className={cn("h-12 border-slate-200 bg-slate-50 text-slate-700", isArabic && "text-right")}
+                                    className={cn("h-[2px]2 border-slate-200 bg-slate-50 text-slate-700", isArabic && "text-right")}
                                   />
                                 )}
                                 <CurrencyInput
@@ -3899,7 +4109,7 @@ export function PurchasesPage() {
                                 <Select
                                   value={line.taxId}
                                   onChange={(event) => updateDebitNoteLine(line.key, "taxId", event.target.value)}
-                                  className={cn("h-12 border-slate-200 bg-white", isArabic && "text-right")}
+                                  className={cn("h-[2px]2 border-slate-200 bg-white", isArabic && "text-right")}
                                 >
                                   <option value="">{t("purchases.invoices.form.noTax")}</option>
                                   {activeTaxes.map((tax) => (
@@ -3919,7 +4129,7 @@ export function PurchasesPage() {
                                   type="button"
                                   onClick={() => removeDebitNoteLine(line.key)}
                                   disabled={debitNoteEditor.lines.length === 1}
-                                  className="inline-flex h-12 items-center justify-center rounded-xl border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                                  className="inline-flex h-[2px]2 items-center justify-center rounded-xl border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-300"
                                 >
                                   <span className="sr-only">{t("purchases.action.remove")}</span>
                                   <Trash2 className="h-5 w-5" />
@@ -4640,17 +4850,31 @@ export function PurchasesPage() {
 
 function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <Card className="p-5">
-      <div className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-500">{label}</div>
-      <div className="mt-2 text-2xl font-black text-gray-900">{value}</div>
-      <div className="mt-1 text-xs text-gray-500">{hint}</div>
+    <Card className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm transition duration-200 hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-slate-500">{label}</p>
+
+          <p className="mt-1.5 text-3xl font-black tracking-tight text-slate-950 tabular-nums">
+            {value}
+          </p>
+
+          <p className="mt-0.5 text-sm leading-5 text-slate-500">
+            {hint}
+          </p>
+        </div>
+
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+          <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+        </div>
+      </div>
     </Card>
   );
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 px-4 py-4">
+    <div className="rounded-xl border border-slate-200 px-4 py-4">
       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">{label}</div>
       <div className="mt-2 text-base font-bold text-gray-900">{value}</div>
     </div>
@@ -4683,7 +4907,7 @@ function CurrencyInput({
         disabled={readOnly}
         onChange={(event) => onChange?.(event.target.value)}
         className={cn(
-          "h-12 border-slate-200 bg-white disabled:opacity-100",
+          "h-[2px]2 border-slate-200 bg-white disabled:opacity-100",
           isArabic ? "pe-4 ps-16 text-right" : "ps-16",
           className,
         )}
