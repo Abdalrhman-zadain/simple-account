@@ -27,6 +27,8 @@ npm test
 npm run start:dev
 ```
 
+`npm run start:dev` uses polling mode for file watching so local development can still run on Linux environments that have a low inotify watcher limit. This is more resilient but can use slightly more CPU than native file watching.
+
 ## Environment
 
 Create `backend/.env` by copying `backend/.env.example`, or use:
@@ -39,6 +41,14 @@ JWT_EXPIRATION="24h"
 ```
 
 Use `SKIP_DB_CONNECT=true` when running tests or bootstrapping without a live database connection.
+
+If you prefer native file watching on Linux, raise the inotify watcher limit and then you can switch the script back locally:
+
+```bash
+sudo sysctl fs.inotify.max_user_watches=524288
+echo "fs.inotify.max_user_watches=524288" | sudo tee /etc/sysctl.d/99-simple-account.conf
+sudo sysctl --system
+```
 
 ## Local PostgreSQL
 

@@ -36,6 +36,19 @@ If code and docs drift:
 - update docs immediately after confirming behavior
 - do not keep outdated architecture descriptions in `docs/`
 
+## Backend Dev Watchers On Linux
+
+Current limitation:
+
+- some Linux environments hit `ENOSPC: System limit for number of file watchers reached` when `ts-node-dev` uses native file watching during `backend` development.
+- the backend `npm run start:dev` script now runs `ts-node-dev` in polling mode to avoid depending on the host inotify watcher ceiling.
+- polling is more resilient for local development, but it can use more CPU than native watchers on large projects.
+
+What this means for future edits:
+
+- keep backend dev-start documentation aligned with the script behavior if the watcher strategy changes again.
+- if native watcher mode is restored in package scripts, document the required Linux `fs.inotify.max_user_watches` guidance in `backend/README.md` or here so startup failures are not mistaken for backend code regressions.
+
 ## Local Docker Port Reservation On Windows
 
 Current limitation:
