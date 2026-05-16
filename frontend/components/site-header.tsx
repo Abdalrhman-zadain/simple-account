@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { SiQuickbooks } from "react-icons/si";
 import {
@@ -122,6 +122,7 @@ export function SiteHeader({
   onToggleCollapsed?: () => void;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isAuthenticated, isHydrated, logout, user, token } = useAuth();
@@ -417,9 +418,7 @@ export function SiteHeader({
                       <div className="mt-2 space-y-1 pe-3 ps-9">
                         {item.children.map((child) => {
                           const childTab = child.href.split("tab=")[1];
-                          const isChildActive =
-                            typeof window !== "undefined" &&
-                            new URLSearchParams(window.location.search).get("tab") === childTab;
+                          const isChildActive = searchParams.get("tab") === childTab;
 
                           return (
                             <Link

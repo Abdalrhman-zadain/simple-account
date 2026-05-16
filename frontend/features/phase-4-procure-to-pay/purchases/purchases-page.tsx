@@ -1198,6 +1198,42 @@ export function PurchasesPage() {
     setWorkspace(requestedWorkspace as Workspace);
   }, [requestedWorkspace, workspace, workspaceTabs]);
 
+  const primaryWorkspaceAction = (() => {
+    switch (workspace) {
+      case "requests":
+        return {
+          label: t("purchases.action.newRequest"),
+          onClick: openNewPurchaseRequestEditor,
+        };
+      case "orders":
+        return {
+          label: t("purchases.action.newOrder"),
+          onClick: openNewPurchaseOrderEditor,
+        };
+      case "invoices":
+        return {
+          label: t("purchases.action.newInvoice"),
+          onClick: openNewPurchaseInvoiceEditor,
+        };
+      case "payments":
+        return {
+          label: t("purchases.action.newPayment"),
+          onClick: openNewSupplierPaymentEditor,
+        };
+      case "notes":
+        return {
+          label: t("purchases.action.newDebitNote"),
+          onClick: openNewDebitNoteEditor,
+        };
+      case "suppliers":
+      default:
+        return {
+          label: t("purchases.action.newSupplier"),
+          onClick: openNewSupplierEditor,
+        };
+    }
+  })();
+
   useEffect(() => {
     if (!isDebitNoteEditorOpen) return;
 
@@ -1288,8 +1324,8 @@ export function PurchasesPage() {
             </h1>
           </div>
 
-          <Button onClick={openNewSupplierEditor}>
-            {t("purchases.action.newSupplier")}
+          <Button onClick={primaryWorkspaceAction.onClick}>
+            {primaryWorkspaceAction.label}
           </Button>
         </div>
 
